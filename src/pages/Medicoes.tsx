@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Clock, Filter } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Clock, Filter, CalendarIcon, FileBarChart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 interface Medicao {
@@ -29,6 +34,8 @@ const Medicoes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro_inicial: 0, horimetro_final: 0 });
   const [filterEquip, setFilterEquip] = useState("Todos");
+  const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
+  const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -44,16 +51,35 @@ const Medicoes = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = filterEquip === "Todos" ? items : items.filter((i) => i.equipamento_id === filterEquip);
+  // Apply filters: equipment + date range
+  const filtered = items.filter((i) => {
+    if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
+    if (dataInicio) {
+      const d = new Date(i.data);
+      if (d < dataInicio) return false;
+    }
+    if (dataFim) {
+      const d = new Date(i.data);
+      // Set end of day for comparison
+      const fim = new Date(dataFim);
+      fim.setHours(23, 59, 59, 999);
+      if (d > fim) return false;
+    }
+    return true;
+  });
 
-  const summaryMap = new Map<string, { totalHoras: number; entries: number; label: string }>();
-  items.forEach((m) => {
+  // Summary per equipment from filtered results
+  const summaryMap = new Map<string, { totalHoras: number; entries: number; label: string; tag: string }>();
+  filtered.forEach((m) => {
     const label = `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`;
-    const current = summaryMap.get(m.equipamento_id) || { totalHoras: 0, entries: 0, label };
+    const tag = m.equipamentos?.tag_placa || "";
+    const current = summaryMap.get(m.equipamento_id) || { totalHoras: 0, entries: 0, label, tag };
     current.totalHoras += Number(m.horas_trabalhadas);
     current.entries += 1;
     summaryMap.set(m.equipamento_id, current);
   });
+
+  const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
   const handleSave = async () => {
     if (!form.equipamento_id || form.horimetro_final <= form.horimetro_inicial) return;
@@ -68,6 +94,14 @@ const Medicoes = () => {
     fetchData();
   };
 
+  const clearFilters = () => {
+    setFilterEquip("Todos");
+    setDataInicio(undefined);
+    setDataFim(undefined);
+  };
+
+  const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -81,31 +115,90 @@ const Medicoes = () => {
           </Button>
         </div>
 
+        {/* Filters: equipment + date range */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <FileBarChart className="h-4 w-4 text-accent" />
+              Filtros / Relatório
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Equipamento</Label>
+                <Select value={filterEquip} onValueChange={setFilterEquip}>
+                  <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Todos">Todos os Equipamentos</SelectItem>
+                    {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Data Inicial</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-48 justify-start text-left font-normal", !dataInicio && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dataInicio ? format(dataInicio, "dd/MM/yyyy") : "Selecionar"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dataInicio} onSelect={setDataInicio} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Data Final</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-48 justify-start text-left font-normal", !dataFim && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dataFim ? format(dataFim, "dd/MM/yyyy") : "Selecionar"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dataFim} onSelect={setDataFim} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total card */}
+          <Card className="border-accent/30 bg-accent/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-accent">{totalHorasGeral.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">{filtered.length} registros{hasFilters ? " (filtrado)" : ""}</p>
+            </CardContent>
+          </Card>
           {Array.from(summaryMap.entries()).map(([id, data]) => (
             <Card key={id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{data.label}</CardTitle>
+                {data.tag && <p className="text-xs font-mono text-muted-foreground">{data.tag}</p>}
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-accent">{data.totalHoras.toFixed(1)}h</div>
-                <p className="text-xs text-muted-foreground">{data.entries} registros no período</p>
+                <p className="text-xs text-muted-foreground">{data.entries} registros</p>
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={filterEquip} onValueChange={setFilterEquip}>
-              <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos os Equipamentos</SelectItem>
-                {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         <Card>
@@ -137,7 +230,7 @@ const Medicoes = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada para o período selecionado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
