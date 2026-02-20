@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,52 +10,64 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Equipment {
   id: string;
   tipo: string;
   modelo: string;
-  numero_serie: string;
-  tag_placa: string;
-  observacoes: string;
+  numero_serie: string | null;
+  tag_placa: string | null;
+  observacoes: string | null;
   status: string;
 }
-
-const initialData: Equipment[] = [
-  { id: "1", tipo: "Escavadeira", modelo: "CAT 320", numero_serie: "CAT320-2024-001", tag_placa: "EQ-001", observacoes: "Equipamento em ótimo estado", status: "Ativo" },
-  { id: "2", tipo: "Retroescavadeira", modelo: "JCB 3CX", numero_serie: "JCB3CX-2023-045", tag_placa: "EQ-002", observacoes: "", status: "Ativo" },
-  { id: "3", tipo: "Rolo Compactador", modelo: "BOMAG BW211", numero_serie: "BOM211-2022-012", tag_placa: "EQ-003", observacoes: "Manutenção preventiva em dia", status: "Manutenção" },
-  { id: "4", tipo: "Pá Carregadeira", modelo: "CAT 950H", numero_serie: "CAT950-2024-008", tag_placa: "EQ-004", observacoes: "", status: "Ativo" },
-  { id: "5", tipo: "Guindaste", modelo: "Liebherr LTM 1100", numero_serie: "LIE1100-2021-003", tag_placa: "EQ-005", observacoes: "Fora de operação", status: "Inativo" },
-];
 
 const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo" };
 
 const Equipamentos = () => {
-  const [items, setItems] = useState<Equipment[]>(initialData);
+  const [items, setItems] = useState<Equipment[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Equipment | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchData = async () => {
+    const { data, error } = await supabase.from("equipamentos").select("*").order("created_at", { ascending: false });
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setItems(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = items.filter(
-    (i) => i.tipo.toLowerCase().includes(search.toLowerCase()) || i.modelo.toLowerCase().includes(search.toLowerCase()) || i.tag_placa.toLowerCase().includes(search.toLowerCase())
+    (i) => i.tipo.toLowerCase().includes(search.toLowerCase()) || i.modelo.toLowerCase().includes(search.toLowerCase()) || (i.tag_placa || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: Equipment) => { setEditing(item); setForm(item); setDialogOpen(true); };
+  const openEdit = (item: Equipment) => { setEditing(item); setForm({ tipo: item.tipo, modelo: item.modelo, numero_serie: item.numero_serie || "", tag_placa: item.tag_placa || "", observacoes: item.observacoes || "", status: item.status }); setDialogOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.tipo || !form.modelo) return;
     if (editing) {
-      setItems(items.map((i) => (i.id === editing.id ? { ...i, ...form } : i)));
+      const { error } = await supabase.from("equipamentos").update(form).eq("id", editing.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      setItems([...items, { ...form, id: Date.now().toString() }]);
+      const { error } = await supabase.from("equipamentos").insert(form);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
     setDialogOpen(false);
+    fetchData();
   };
 
-  const handleDelete = (id: string) => setItems(items.filter((i) => i.id !== id));
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("equipamentos").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchData();
+  };
 
   const statusColor = (s: string) => {
     if (s === "Ativo") return "bg-success text-success-foreground";
@@ -110,7 +122,7 @@ const Equipamentos = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filtered.length === 0 && (
+                {!loading && filtered.length === 0 && (
                   <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum equipamento encontrado</TableCell></TableRow>
                 )}
               </TableBody>

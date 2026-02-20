@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,51 +9,64 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Empresa {
   id: string;
   cnpj: string;
   nome: string;
-  contato: string;
-  telefone: string;
+  contato: string | null;
+  telefone: string | null;
   status: string;
   created_at: string;
 }
 
-const initialData: Empresa[] = [
-  { id: "1", cnpj: "12.345.678/0001-90", nome: "Construtora Alpha Ltda", contato: "João Silva", telefone: "(11) 99999-0001", status: "Ativa", created_at: "10/01/2025" },
-  { id: "2", cnpj: "98.765.432/0001-10", nome: "Terraplenagem Beta S/A", contato: "Maria Santos", telefone: "(21) 98888-0002", status: "Ativa", created_at: "15/03/2025" },
-  { id: "3", cnpj: "11.222.333/0001-44", nome: "Engenharia Gamma Eireli", contato: "Carlos Oliveira", telefone: "(31) 97777-0003", status: "Inativa", created_at: "20/06/2024" },
-  { id: "4", cnpj: "55.666.777/0001-88", nome: "Pavimentação Delta Ltda", contato: "Ana Costa", telefone: "(41) 96666-0004", status: "Ativa", created_at: "05/11/2025" },
-];
-
 const emptyForm = { cnpj: "", nome: "", contato: "", telefone: "", status: "Ativa" };
 
 const Empresas = () => {
-  const [items, setItems] = useState<Empresa[]>(initialData);
+  const [items, setItems] = useState<Empresa[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Empresa | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchData = async () => {
+    const { data, error } = await supabase.from("empresas").select("*").order("created_at", { ascending: false });
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setItems(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = items.filter(
     (i) => i.nome.toLowerCase().includes(search.toLowerCase()) || i.cnpj.includes(search)
   );
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: Empresa) => { setEditing(item); setForm(item); setDialogOpen(true); };
+  const openEdit = (item: Empresa) => { setEditing(item); setForm({ cnpj: item.cnpj, nome: item.nome, contato: item.contato || "", telefone: item.telefone || "", status: item.status }); setDialogOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.cnpj || !form.nome) return;
     if (editing) {
-      setItems(items.map((i) => (i.id === editing.id ? { ...i, ...form } : i)));
+      const { error } = await supabase.from("empresas").update(form).eq("id", editing.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      setItems([...items, { ...form, id: Date.now().toString(), created_at: new Date().toLocaleDateString("pt-BR") }]);
+      const { error } = await supabase.from("empresas").insert(form);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
     setDialogOpen(false);
+    fetchData();
   };
 
-  const handleDelete = (id: string) => setItems(items.filter((i) => i.id !== id));
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("empresas").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchData();
+  };
 
   return (
     <Layout>
@@ -99,7 +112,7 @@ const Empresas = () => {
                         {item.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{item.created_at}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(item.created_at).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
@@ -108,7 +121,7 @@ const Empresas = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filtered.length === 0 && (
+                {!loading && filtered.length === 0 && (
                   <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma empresa encontrada</TableCell></TableRow>
                 )}
               </TableBody>
