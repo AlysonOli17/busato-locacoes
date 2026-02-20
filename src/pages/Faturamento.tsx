@@ -19,8 +19,11 @@ interface ContratoRef {
   valor_hora: number;
   horas_contratadas: number;
   equipamento_id: string;
-  empresas: { nome: string; cnpj: string };
-  equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
+  data_inicio: string;
+  data_fim: string;
+  observacoes: string | null;
+  empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null };
+  equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
 }
 
 interface Fatura {
@@ -68,8 +71,8 @@ const Faturamento = () => {
 
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
-      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa))").order("emissao", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie))").order("emissao", { ascending: false }),
+      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -147,20 +150,198 @@ const Faturamento = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Empresa", "CNPJ", "Equipamento", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Gastos Deduzidos (R$)", "Valor Líquido (R$)", "Status"];
+    const headers = ["Empresa", "CNPJ", "Equipamento", "Tag", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Valor/Hora", "Valor Excedente/Hora", "Gastos Deduzidos (R$)", "Valor Líquido (R$)", "Status"];
     const rows = data.map(i => [
       i.contratos?.empresas?.nome || "",
       i.contratos?.empresas?.cnpj || "",
       `${i.contratos?.equipamentos?.tipo} ${i.contratos?.equipamentos?.modelo}`,
+      i.contratos?.equipamentos?.tag_placa || "—",
       i.numero_nota || "—",
       i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${new Date(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
       String(i.horas_normais),
       String(i.horas_excedentes),
+      `R$ ${Number(i.valor_hora).toFixed(2)}`,
+      `R$ ${Number(i.valor_excedente_hora).toFixed(2)}`,
       Number(i.total_gastos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
       Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
       i.status,
     ]);
     return { title: "Relatório de Faturamento", headers, rows, filename: `faturamento_${new Date().toISOString().slice(0,10)}` };
+  };
+
+  const exportDetailedPDF = async () => {
+    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+    if (data.length === 0) return;
+
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+
+    const doc = new jsPDF({ orientation: "portrait" });
+    const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+    for (let idx = 0; idx < data.length; idx++) {
+      const item = data[idx];
+      if (idx > 0) doc.addPage();
+
+      const ct = item.contratos;
+      const emp = ct?.empresas;
+      const eq = ct?.equipamentos;
+      const gastosVal = Number(item.total_gastos || 0);
+      const valorBrutoItem = Number(item.horas_normais) * Number(item.valor_hora) + Number(item.horas_excedentes) * Number(item.valor_excedente_hora);
+
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Relatório de Faturamento", 14, 18);
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, 14, 24);
+
+      let y = 32;
+
+      // Empresa section
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Dados da Empresa", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Campo", "Valor"]],
+        body: [
+          ["Empresa", emp?.nome || "—"],
+          ["CNPJ", emp?.cnpj || "—"],
+          ["Contato", emp?.contato || "—"],
+          ["Telefone", emp?.telefone || "—"],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Equipamento section
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Dados do Equipamento", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Campo", "Valor"]],
+        body: [
+          ["Tipo", eq?.tipo || "—"],
+          ["Modelo", eq?.modelo || "—"],
+          ["Tag/Placa", eq?.tag_placa || "—"],
+          ["Nº Série", eq?.numero_serie || "—"],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Contrato section
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Dados do Contrato", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Campo", "Valor"]],
+        body: [
+          ["Valor/Hora", fmt(Number(ct?.valor_hora || 0))],
+          ["Horas Contratadas", `${ct?.horas_contratadas || 0}h`],
+          ["Período Contrato", ct?.data_inicio && ct?.data_fim ? `${new Date(ct.data_inicio).toLocaleDateString("pt-BR")} - ${new Date(ct.data_fim).toLocaleDateString("pt-BR")}` : "—"],
+          ["Observações", ct?.observacoes || "—"],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Faturamento details
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Detalhamento do Faturamento", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Campo", "Valor"]],
+        body: [
+          ["Nº Nota", item.numero_nota || "—"],
+          ["Período", item.periodo],
+          ["Período de Medição", item.periodo_medicao_inicio && item.periodo_medicao_fim ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—"],
+          ["Horas Normais", `${item.horas_normais}h`],
+          ["Horas Excedentes", `${item.horas_excedentes}h`],
+          ["Valor/Hora", fmt(Number(item.valor_hora))],
+          ["Valor Excedente/Hora", fmt(Number(item.valor_excedente_hora))],
+          ["Status", item.status],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Fetch gastos for this fatura's equipment + period
+      if (item.periodo_medicao_inicio && item.periodo_medicao_fim && ct?.equipamento_id) {
+        const { data: gastos } = await supabase
+          .from("gastos")
+          .select("descricao, tipo, valor, data")
+          .eq("equipamento_id", ct.equipamento_id)
+          .gte("data", item.periodo_medicao_inicio)
+          .lte("data", item.periodo_medicao_fim)
+          .order("data");
+
+        if (gastos && gastos.length > 0) {
+          doc.setFontSize(12);
+          doc.setTextColor(41, 128, 185);
+          doc.text("Gastos do Equipamento no Período", 14, y);
+          y += 2;
+          autoTable(doc, {
+            startY: y,
+            head: [["Data", "Descrição", "Tipo", "Valor (R$)"]],
+            body: gastos.map(g => [
+              new Date(g.data).toLocaleDateString("pt-BR"),
+              g.descricao,
+              g.tipo,
+              fmt(Number(g.valor)),
+            ]),
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [192, 57, 43], textColor: 255 },
+            theme: "grid",
+          });
+          y = (doc as any).lastAutoTable.finalY + 4;
+        }
+      }
+
+      // Summary
+      if (y > 240) { doc.addPage(); y = 20; }
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Resumo Financeiro", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Descrição", "Valor"]],
+        body: [
+          ["Valor Bruto (horas)", fmt(valorBrutoItem)],
+          ["(-) Gastos Deduzidos", gastosVal > 0 ? `- ${fmt(gastosVal)}` : "R$ 0,00"],
+          ["(=) Valor Líquido a Receber", fmt(Number(item.valor_total))],
+        ],
+        styles: { fontSize: 10, cellPadding: 4 },
+        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
+        theme: "grid",
+        bodyStyles: { fontSize: 10 },
+      });
+    }
+
+    doc.save(`faturamento_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setDialogOpen(true); };
@@ -229,8 +410,8 @@ const Faturamento = () => {
             <p className="text-sm text-muted-foreground">Total pendente: <span className="text-accent font-semibold">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF
+            <Button variant="outline" size="sm" onClick={exportDetailedPDF}>
+              <FileDown className="h-4 w-4 mr-1" /> PDF Detalhado
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
               <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
