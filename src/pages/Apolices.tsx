@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,51 +7,79 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, Shield } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 interface Apolice {
   id: string;
-  equipamento: string;
+  equipamento_id: string;
   numero_apolice: string;
   seguradora: string;
   vigencia_inicio: string;
   vigencia_fim: string;
   valor: number;
   status: string;
+  equipamentos: Equipamento;
 }
 
-const initialData: Apolice[] = [
-  { id: "1", equipamento: "Escavadeira CAT 320", numero_apolice: "APL-2026-001", seguradora: "Porto Seguro", vigencia_inicio: "2026-01-01", vigencia_fim: "2027-01-01", valor: 15000, status: "Vigente" },
-  { id: "2", equipamento: "Retroescavadeira JCB 3CX", numero_apolice: "APL-2026-002", seguradora: "Bradesco Seguros", vigencia_inicio: "2026-03-01", vigencia_fim: "2027-03-01", valor: 12000, status: "Vigente" },
-  { id: "3", equipamento: "Rolo Compactador BOMAG", numero_apolice: "APL-2025-015", seguradora: "SulAmérica", vigencia_inicio: "2025-01-01", vigencia_fim: "2026-01-01", valor: 8500, status: "Vencida" },
-];
-
-const emptyForm = { equipamento: "", numero_apolice: "", seguradora: "", vigencia_inicio: "", vigencia_fim: "", valor: 0 };
+const emptyForm = { equipamento_id: "", numero_apolice: "", seguradora: "", vigencia_inicio: "", vigencia_fim: "", valor: 0 };
 
 const Apolices = () => {
-  const [items, setItems] = useState<Apolice[]>(initialData);
+  const [items, setItems] = useState<Apolice[]>([]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Apolice | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const filtered = items.filter((i) => i.equipamento.toLowerCase().includes(search.toLowerCase()) || i.numero_apolice.includes(search));
-
-  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: Apolice) => { setEditing(item); setForm(item); setDialogOpen(true); };
-
-  const handleSave = () => {
-    if (!form.equipamento || !form.numero_apolice) return;
-    const status = new Date(form.vigencia_fim) >= new Date() ? "Vigente" : "Vencida";
-    if (editing) {
-      setItems(items.map((i) => (i.id === editing.id ? { ...i, ...form, status } : i)));
-    } else {
-      setItems([...items, { ...form, id: Date.now().toString(), status }]);
-    }
-    setDialogOpen(false);
+  const fetchData = async () => {
+    const [apolicesRes, equipRes] = await Promise.all([
+      supabase.from("apolices").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("created_at", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+    ]);
+    if (apolicesRes.data) setItems(apolicesRes.data as unknown as Apolice[]);
+    if (equipRes.data) setEquipamentos(equipRes.data);
+    setLoading(false);
   };
 
-  const handleDelete = (id: string) => setItems(items.filter((i) => i.id !== id));
+  useEffect(() => { fetchData(); }, []);
+
+  const filtered = items.filter((i) =>
+    i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.numero_apolice.includes(search)
+  );
+
+  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
+  const openEdit = (item: Apolice) => {
+    setEditing(item);
+    setForm({ equipamento_id: item.equipamento_id, numero_apolice: item.numero_apolice, seguradora: item.seguradora, vigencia_inicio: item.vigencia_inicio, vigencia_fim: item.vigencia_fim, valor: item.valor });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.equipamento_id || !form.numero_apolice) return;
+    const status = new Date(form.vigencia_fim) >= new Date() ? "Vigente" : "Vencida";
+    const payload = { ...form, valor: Number(form.valor), status };
+    if (editing) {
+      const { error } = await supabase.from("apolices").update(payload).eq("id", editing.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("apolices").insert(payload);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    }
+    setDialogOpen(false);
+    fetchData();
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("apolices").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchData();
+  };
 
   return (
     <Layout>
@@ -77,6 +105,7 @@ const Apolices = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Equipamento</TableHead>
+                  <TableHead>Tag</TableHead>
                   <TableHead>Nº Apólice</TableHead>
                   <TableHead>Seguradora</TableHead>
                   <TableHead>Vigência</TableHead>
@@ -88,13 +117,14 @@ const Apolices = () => {
               <TableBody>
                 {filtered.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium text-sm">{item.equipamento}</TableCell>
+                    <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
+                    <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="font-mono text-sm">{item.numero_apolice}</TableCell>
                     <TableCell className="text-sm">{item.seguradora}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(item.vigencia_inicio).toLocaleDateString("pt-BR")} - {new Date(item.vigencia_fim).toLocaleDateString("pt-BR")}
                     </TableCell>
-                    <TableCell className="font-semibold text-sm">R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="font-semibold text-sm">R$ {Number(item.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
                         {item.status}
@@ -108,6 +138,9 @@ const Apolices = () => {
                     </TableCell>
                   </TableRow>
                 ))}
+                {!loading && filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -118,7 +151,15 @@ const Apolices = () => {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-accent" />{editing ? "Editar Apólice" : "Nova Apólice"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div><Label>Equipamento</Label><Input value={form.equipamento} onChange={(e) => setForm({ ...form, equipamento: e.target.value })} /></div>
+            <div>
+              <Label>Equipamento</Label>
+              <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
+                <SelectContent>
+                  {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Nº Apólice</Label><Input value={form.numero_apolice} onChange={(e) => setForm({ ...form, numero_apolice: e.target.value })} /></div>
               <div><Label>Seguradora</Label><Input value={form.seguradora} onChange={(e) => setForm({ ...form, seguradora: e.target.value })} /></div>

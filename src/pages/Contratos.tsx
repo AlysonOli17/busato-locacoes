@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,59 +10,90 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, FileText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
+interface Empresa { id: string; nome: string; cnpj: string; }
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 interface Contrato {
   id: string;
-  empresa: string;
-  cnpj: string;
-  equipamento: string;
+  empresa_id: string;
+  equipamento_id: string;
   valor_hora: number;
   horas_contratadas: number;
   data_inicio: string;
   data_fim: string;
-  observacoes: string;
+  observacoes: string | null;
   status: string;
+  empresas: Empresa;
+  equipamentos: Equipamento;
 }
 
-const initialData: Contrato[] = [
-  { id: "1", empresa: "Construtora Alpha Ltda", cnpj: "12.345.678/0001-90", equipamento: "Escavadeira CAT 320", valor_hora: 250, horas_contratadas: 200, data_inicio: "2026-02-01", data_fim: "2026-07-31", observacoes: "Contrato com renovação automática", status: "Ativo" },
-  { id: "2", empresa: "Terraplenagem Beta S/A", cnpj: "98.765.432/0001-10", equipamento: "Retroescavadeira JCB 3CX", valor_hora: 180, horas_contratadas: 160, data_inicio: "2026-01-15", data_fim: "2026-06-15", observacoes: "", status: "Ativo" },
-  { id: "3", empresa: "Engenharia Gamma Eireli", cnpj: "11.222.333/0001-44", equipamento: "Rolo Compactador BOMAG", valor_hora: 200, horas_contratadas: 120, data_inicio: "2025-06-01", data_fim: "2025-12-31", observacoes: "Contrato encerrado", status: "Encerrado" },
-];
-
-const emptyForm = { empresa: "", cnpj: "", equipamento: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo" };
+const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo" };
 
 const Contratos = () => {
-  const [items, setItems] = useState<Contrato[]>(initialData);
+  const [items, setItems] = useState<Contrato[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchData = async () => {
+    const [contratosRes, empresasRes, equipRes] = await Promise.all([
+      supabase.from("contratos").select("*, empresas(id, nome, cnpj), equipamentos(id, tipo, modelo, tag_placa)").order("created_at", { ascending: false }),
+      supabase.from("empresas").select("id, nome, cnpj").eq("status", "Ativa").order("nome"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+    ]);
+    if (contratosRes.data) setItems(contratosRes.data as unknown as Contrato[]);
+    if (empresasRes.data) setEmpresas(empresasRes.data);
+    if (equipRes.data) setEquipamentos(equipRes.data);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = items.filter(
-    (i) => i.empresa.toLowerCase().includes(search.toLowerCase()) || i.cnpj.includes(search) || i.equipamento.toLowerCase().includes(search.toLowerCase())
+    (i) => i.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.empresas?.cnpj?.includes(search) || i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase())
   );
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: Contrato) => { setEditing(item); setForm(item); setDialogOpen(true); };
-
-  const handleSave = () => {
-    if (!form.empresa || !form.equipamento) return;
-    if (editing) {
-      setItems(items.map((i) => (i.id === editing.id ? { ...i, ...form } : i)));
-    } else {
-      setItems([...items, { ...form, id: Date.now().toString() }]);
-    }
-    setDialogOpen(false);
+  const openEdit = (item: Contrato) => {
+    setEditing(item);
+    setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status });
+    setDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => setItems(items.filter((i) => i.id !== id));
+  const handleSave = async () => {
+    if (!form.empresa_id || !form.equipamento_id) return;
+    const payload = { ...form, valor_hora: Number(form.valor_hora), horas_contratadas: Number(form.horas_contratadas) };
+    if (editing) {
+      const { error } = await supabase.from("contratos").update(payload).eq("id", editing.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("contratos").insert(payload);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    }
+    setDialogOpen(false);
+    fetchData();
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("contratos").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchData();
+  };
 
   const statusColor = (s: string) => {
     if (s === "Ativo") return "bg-success text-success-foreground";
     if (s === "Encerrado") return "bg-muted text-muted-foreground";
     return "bg-warning text-warning-foreground";
   };
+
+  const selectedEquip = equipamentos.find(e => e.id === form.equipamento_id);
 
   return (
     <Layout>
@@ -89,6 +120,7 @@ const Contratos = () => {
                 <TableRow>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Equipamento</TableHead>
+                  <TableHead>Tag</TableHead>
                   <TableHead>Valor/Hora</TableHead>
                   <TableHead>Horas Contratadas</TableHead>
                   <TableHead>Período</TableHead>
@@ -101,12 +133,13 @@ const Contratos = () => {
                   <TableRow key={item.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-sm">{item.empresa}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{item.cnpj}</p>
+                        <p className="font-medium text-sm">{item.empresas?.nome}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{item.empresas?.cnpj}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{item.equipamento}</TableCell>
-                    <TableCell className="font-semibold text-sm text-accent">R$ {item.valor_hora.toFixed(2)}</TableCell>
+                    <TableCell className="text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
+                    <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
+                    <TableCell className="font-semibold text-sm text-accent">R$ {Number(item.valor_hora).toFixed(2)}</TableCell>
                     <TableCell className="text-sm">{item.horas_contratadas}h</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(item.data_inicio).toLocaleDateString("pt-BR")} - {new Date(item.data_fim).toLocaleDateString("pt-BR")}
@@ -120,8 +153,8 @@ const Contratos = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum contrato encontrado</TableCell></TableRow>
+                {!loading && filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum contrato encontrado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -135,14 +168,32 @@ const Contratos = () => {
             <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-accent" />{editing ? "Editar Contrato" : "Novo Contrato"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Empresa</Label><Input value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} /></div>
-              <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0001-00" /></div>
+            <div>
+              <Label>Empresa</Label>
+              <Select value={form.empresa_id} onValueChange={(v) => setForm({ ...form, empresa_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+                <SelectContent>
+                  {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome} — {e.cnpj}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <div><Label>Equipamento</Label><Input value={form.equipamento} onChange={(e) => setForm({ ...form, equipamento: e.target.value })} /></div>
+            <div>
+              <Label>Equipamento</Label>
+              <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
+                <SelectContent>
+                  {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedEquip && (
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                <p><strong>Tag:</strong> {selectedEquip.tag_placa || "—"} | <strong>Modelo:</strong> {selectedEquip.modelo}</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Valor por Hora (R$)</Label><Input type="number" value={form.valor_hora} onChange={(e) => setForm({ ...form, valor_hora: Number(e.target.value) })} /></div>
-              <div><Label>Horas Contratadas</Label><Input type="number" value={form.horas_contratadas} onChange={(e) => setForm({ ...form, horas_contratadas: Number(e.target.value) })} /></div>
+              <div><Label>Valor por Hora (R$)</Label><Input type="number" value={form.valor_hora || ""} onChange={(e) => setForm({ ...form, valor_hora: Number(e.target.value) })} /></div>
+              <div><Label>Horas Contratadas</Label><Input type="number" value={form.horas_contratadas || ""} onChange={(e) => setForm({ ...form, horas_contratadas: Number(e.target.value) })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Data Início</Label><Input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} /></div>

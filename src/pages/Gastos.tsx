@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,50 +9,76 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, DollarSign } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 interface Gasto {
   id: string;
-  equipamento: string;
+  equipamento_id: string;
   descricao: string;
   tipo: string;
   valor: number;
   data: string;
+  equipamentos: Equipamento;
 }
 
-const initialData: Gasto[] = [
-  { id: "1", equipamento: "Escavadeira CAT 320", descricao: "Troca de filtro de óleo", tipo: "Manutenção", valor: 1200, data: "2026-02-18" },
-  { id: "2", equipamento: "Retroescavadeira JCB 3CX", descricao: "Abastecimento diesel - 500L", tipo: "Combustível", valor: 3250, data: "2026-02-17" },
-  { id: "3", equipamento: "Pá Carregadeira 950H", descricao: "Troca de pneus dianteiros", tipo: "Peças", valor: 8500, data: "2026-02-15" },
-  { id: "4", equipamento: "Escavadeira CAT 320", descricao: "Revisão geral 5000h", tipo: "Manutenção", valor: 4500, data: "2026-02-10" },
-];
-
 const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Outros"];
-const emptyForm = { equipamento: "", descricao: "", tipo: "Manutenção", valor: 0, data: new Date().toISOString().split("T")[0] };
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", valor: 0, data: new Date().toISOString().split("T")[0] };
 
 const Gastos = () => {
-  const [items, setItems] = useState<Gasto[]>(initialData);
+  const [items, setItems] = useState<Gasto[]>([]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Gasto | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const filtered = items.filter((i) => i.equipamento.toLowerCase().includes(search.toLowerCase()) || i.descricao.toLowerCase().includes(search.toLowerCase()));
-  const totalGastos = items.reduce((acc, i) => acc + i.valor, 0);
-
-  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: Gasto) => { setEditing(item); setForm(item); setDialogOpen(true); };
-
-  const handleSave = () => {
-    if (!form.equipamento || !form.descricao) return;
-    if (editing) {
-      setItems(items.map((i) => (i.id === editing.id ? { ...i, ...form } : i)));
-    } else {
-      setItems([...items, { ...form, id: Date.now().toString() }]);
-    }
-    setDialogOpen(false);
+  const fetchData = async () => {
+    const [gastosRes, equipRes] = await Promise.all([
+      supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+    ]);
+    if (gastosRes.data) setItems(gastosRes.data as unknown as Gasto[]);
+    if (equipRes.data) setEquipamentos(equipRes.data);
+    setLoading(false);
   };
 
-  const handleDelete = (id: string) => setItems(items.filter((i) => i.id !== id));
+  useEffect(() => { fetchData(); }, []);
+
+  const filtered = items.filter((i) =>
+    i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.descricao.toLowerCase().includes(search.toLowerCase())
+  );
+  const totalGastos = items.reduce((acc, i) => acc + Number(i.valor), 0);
+
+  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
+  const openEdit = (item: Gasto) => {
+    setEditing(item);
+    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, valor: item.valor, data: item.data });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.equipamento_id || !form.descricao) return;
+    const payload = { ...form, valor: Number(form.valor) };
+    if (editing) {
+      const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("gastos").insert(payload);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    }
+    setDialogOpen(false);
+    fetchData();
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("gastos").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchData();
+  };
 
   const tipoColor = (t: string) => {
     if (t === "Manutenção") return "bg-primary/10 text-primary border-0";
@@ -95,10 +121,10 @@ const Gastos = () => {
               <TableBody>
                 {filtered.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium text-sm">{item.equipamento}</TableCell>
+                    <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="text-sm">{item.descricao}</TableCell>
                     <TableCell><Badge className={tipoColor(item.tipo)}>{item.tipo}</Badge></TableCell>
-                    <TableCell className="font-semibold text-sm">R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="font-semibold text-sm">R$ {Number(item.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(item.data).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -118,7 +144,15 @@ const Gastos = () => {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-accent" />{editing ? "Editar Gasto" : "Novo Gasto"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div><Label>Equipamento</Label><Input value={form.equipamento} onChange={(e) => setForm({ ...form, equipamento: e.target.value })} /></div>
+            <div>
+              <Label>Equipamento</Label>
+              <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
+                <SelectContent>
+                  {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
             <div className="grid grid-cols-3 gap-4">
               <div>
