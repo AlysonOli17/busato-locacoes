@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Clock, CalendarIcon, FileBarChart } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown } from "lucide-react";
+import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -93,9 +94,24 @@ const Medicoes = () => {
             <h1 className="text-2xl font-bold text-foreground">Medições - Horímetro</h1>
             <p className="text-sm text-muted-foreground">Lançamento diário de horímetro por equipamento</p>
           </div>
-          <Button onClick={() => { setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 }); setDialogOpen(true); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> Nova Medição
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => {
+              const headers = ["Equipamento", "Tag/Placa", "Data", "Horímetro (h)"];
+              const rows = filtered.map(m => [
+                `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
+                m.equipamentos?.tag_placa || "—",
+                new Date(m.data).toLocaleDateString("pt-BR"),
+                Number(m.horas_trabalhadas).toFixed(1),
+              ]);
+              const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
+              exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0,10)}` });
+            }}>
+              <FileDown className="h-4 w-4 mr-1" /> PDF Horímetro
+            </Button>
+            <Button onClick={() => { setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 }); setDialogOpen(true); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Nova Medição
+            </Button>
+          </div>
         </div>
 
         <Card>
