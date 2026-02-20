@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Receipt, Pencil } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,6 +16,7 @@ interface ContratoRef {
   id: string;
   valor_hora: number;
   horas_contratadas: number;
+  equipamento_id: string;
   empresas: { nome: string; cnpj: string };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
 }
@@ -47,12 +48,14 @@ const Faturamento = () => {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
+  const [horasMedidas, setHorasMedidas] = useState<number | null>(null);
+  const [loadingMedicoes, setLoadingMedicoes] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
-      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa))").order("emissao", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa))").order("emissao", { ascending: false }),
+      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -61,12 +64,44 @@ const Faturamento = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Fetch measurements when contract + date range changes
+  const fetchMedicoes = useCallback(async (contratoId: string, inicio: string, fim: string) => {
+    const ct = contratos.find(c => c.id === contratoId);
+    if (!ct || !inicio || !fim) { setHorasMedidas(null); return; }
+    setLoadingMedicoes(true);
+    const { data, error } = await supabase
+      .from("medicoes")
+      .select("horas_trabalhadas")
+      .eq("equipamento_id", ct.equipamento_id)
+      .gte("data", inicio)
+      .lte("data", fim);
+    if (error) { setHorasMedidas(null); setLoadingMedicoes(false); return; }
+    const total = (data || []).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+    setHorasMedidas(total);
+
+    // Auto-calculate: hours within contract = min(total, contracted), excess = rest
+    const horasContratadas = Number(ct.horas_contratadas);
+    const horasNormais = Math.min(total, horasContratadas);
+    const horasExcedentes = Math.max(0, total - horasContratadas);
+    setForm(prev => ({ ...prev, horas_normais: Number(horasNormais.toFixed(1)), horas_excedentes: Number(horasExcedentes.toFixed(1)) }));
+    setLoadingMedicoes(false);
+  }, [contratos]);
+
+  // Trigger measurement fetch when relevant fields change
+  useEffect(() => {
+    if (form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim) {
+      fetchMedicoes(form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim);
+    } else {
+      setHorasMedidas(null);
+    }
+  }, [form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim, fetchMedicoes]);
+
   const filtered = items.filter((i) =>
     i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.periodo.includes(search) || (i.numero_nota || "").includes(search)
   );
   const totalPendente = items.filter((i) => i.status === "Pendente").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setDialogOpen(true); };
   const openEdit = (item: Fatura) => {
     setEditing(item);
     setForm({
@@ -87,7 +122,7 @@ const Faturamento = () => {
   const handleContratoSelect = (contratoId: string) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
-      setForm({ ...form, contrato_id: contratoId, valor_hora: Number(ct.valor_hora), valor_excedente_hora: Number(ct.valor_hora) * 1.25 });
+      setForm(prev => ({ ...prev, contrato_id: contratoId, valor_hora: Number(ct.valor_hora), valor_excedente_hora: Number(ct.valor_hora) * 1.25 }));
     }
   };
 
@@ -148,7 +183,7 @@ const Faturamento = () => {
                   <TableHead>Nº Nota</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Período Medição</TableHead>
-                  <TableHead>Horas</TableHead>
+                  <TableHead>Horas Medidas</TableHead>
                   <TableHead>Excedente</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
@@ -156,39 +191,55 @@ const Faturamento = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{item.contratos?.equipamentos?.tipo} {item.contratos?.equipamentos?.modelo}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.numero_nota || "—"}</TableCell>
-                    <TableCell className="text-sm">{item.periodo}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {item.periodo_medicao_inicio && item.periodo_medicao_fim
-                        ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">{item.horas_normais}h</TableCell>
-                    <TableCell className="text-sm">{Number(item.horas_excedentes) > 0 ? <span className="text-warning font-semibold">{item.horas_excedentes}h</span> : "—"}</TableCell>
-                    <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell>
-                      <Badge className={
-                        item.status === "Pago" ? "bg-success text-success-foreground" :
-                        item.status === "Cancelado" ? "bg-destructive text-destructive-foreground" :
-                        "bg-warning text-warning-foreground"
-                      }>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtered.map((item) => {
+                  const horasContratadas = Number(item.contratos?.horas_contratadas || 0);
+                  const totalHoras = Number(item.horas_normais) + Number(item.horas_excedentes);
+                  const dentroContrato = totalHoras <= horasContratadas;
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{item.contratos?.equipamentos?.tipo} {item.contratos?.equipamentos?.modelo}</TableCell>
+                      <TableCell className="font-mono text-sm">{item.numero_nota || "—"}</TableCell>
+                      <TableCell className="text-sm">{item.periodo}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {item.periodo_medicao_inicio && item.periodo_medicao_fim
+                          ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <div className="flex items-center gap-1">
+                          {item.horas_normais}h
+                          {dentroContrato
+                            ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                            : <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                          }
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{Number(item.horas_excedentes) > 0 ? <span className="text-warning font-semibold">{item.horas_excedentes}h</span> : "—"}</TableCell>
+                      <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>
+                        <Badge className={
+                          item.status === "Pago" ? "bg-success text-success-foreground" :
+                          item.status === "Cancelado" ? "bg-destructive text-destructive-foreground" :
+                          "bg-warning text-warning-foreground"
+                        }>
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {!loading && filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -227,6 +278,51 @@ const Faturamento = () => {
               <div><Label>Período Medição - Início</Label><Input type="date" value={form.periodo_medicao_inicio} onChange={(e) => setForm({ ...form, periodo_medicao_inicio: e.target.value })} /></div>
               <div><Label>Período Medição - Fim</Label><Input type="date" value={form.periodo_medicao_fim} onChange={(e) => setForm({ ...form, periodo_medicao_fim: e.target.value })} /></div>
             </div>
+
+            {/* Measurement summary */}
+            {horasMedidas !== null && selectedContrato && (
+              <div className={`p-4 rounded-lg border space-y-2 ${horasMedidas > Number(selectedContrato.horas_contratadas) ? "border-warning bg-warning/5" : "border-success bg-success/5"}`}>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Clock className="h-4 w-4 text-accent" />
+                  Resumo da Medição (automático)
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Horas Medidas</p>
+                    <p className="text-lg font-bold text-accent">{horasMedidas.toFixed(1)}h</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Horas Contratadas</p>
+                    <p className="text-lg font-bold">{selectedContrato.horas_contratadas}h</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Excedente</p>
+                    <p className={`text-lg font-bold ${form.horas_excedentes > 0 ? "text-warning" : "text-success"}`}>
+                      {form.horas_excedentes > 0 ? `+${form.horas_excedentes.toFixed(1)}h` : "0h"}
+                    </p>
+                  </div>
+                </div>
+                {horasMedidas > Number(selectedContrato.horas_contratadas) ? (
+                  <div className="flex items-center gap-1 text-xs text-warning">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Equipamento excedeu as horas contratadas em {(horasMedidas - Number(selectedContrato.horas_contratadas)).toFixed(1)}h
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-xs text-success">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Dentro do limite contratado ({(Number(selectedContrato.horas_contratadas) - horasMedidas).toFixed(1)}h restantes)
+                  </div>
+                )}
+                {loadingMedicoes && <p className="text-xs text-muted-foreground">Calculando...</p>}
+              </div>
+            )}
+
+            {horasMedidas === null && form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim && (
+              <div className="p-3 rounded-lg bg-muted/30 text-center text-sm text-muted-foreground">
+                Nenhuma medição encontrada para este equipamento no período selecionado.
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Horas Normais</Label><Input type="number" value={form.horas_normais || ""} onChange={(e) => setForm({ ...form, horas_normais: Number(e.target.value) })} /></div>
               <div><Label>Valor/Hora (R$)</Label><Input type="number" value={form.valor_hora || ""} onChange={(e) => setForm({ ...form, valor_hora: Number(e.target.value) })} /></div>
