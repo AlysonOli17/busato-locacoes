@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Clock, Filter, CalendarIcon, FileBarChart } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -32,7 +31,7 @@ const Medicoes = () => {
   const [items, setItems] = useState<Medicao[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro_inicial: 0, horimetro_final: 0 });
+  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 });
   const [filterEquip, setFilterEquip] = useState("Todos");
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
@@ -51,24 +50,13 @@ const Medicoes = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Apply filters: equipment + date range
   const filtered = items.filter((i) => {
     if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
-    if (dataInicio) {
-      const d = new Date(i.data);
-      if (d < dataInicio) return false;
-    }
-    if (dataFim) {
-      const d = new Date(i.data);
-      // Set end of day for comparison
-      const fim = new Date(dataFim);
-      fim.setHours(23, 59, 59, 999);
-      if (d > fim) return false;
-    }
+    if (dataInicio) { if (new Date(i.data) < dataInicio) return false; }
+    if (dataFim) { const fim = new Date(dataFim); fim.setHours(23, 59, 59, 999); if (new Date(i.data) > fim) return false; }
     return true;
   });
 
-  // Summary per equipment from filtered results
   const summaryMap = new Map<string, { totalHoras: number; entries: number; label: string; tag: string }>();
   filtered.forEach((m) => {
     const label = `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`;
@@ -82,24 +70,20 @@ const Medicoes = () => {
   const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
   const handleSave = async () => {
-    if (!form.equipamento_id || form.horimetro_final <= form.horimetro_inicial) return;
+    if (!form.equipamento_id || form.horimetro <= 0) return;
     const { error } = await supabase.from("medicoes").insert({
       equipamento_id: form.equipamento_id,
       data: form.data,
-      horimetro_inicial: form.horimetro_inicial,
-      horimetro_final: form.horimetro_final,
+      horimetro_inicial: 0,
+      horimetro_final: form.horimetro,
+      horas_trabalhadas: form.horimetro,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     setDialogOpen(false);
     fetchData();
   };
 
-  const clearFilters = () => {
-    setFilterEquip("Todos");
-    setDataInicio(undefined);
-    setDataFim(undefined);
-  };
-
+  const clearFilters = () => { setFilterEquip("Todos"); setDataInicio(undefined); setDataFim(undefined); };
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
   return (
@@ -108,19 +92,17 @@ const Medicoes = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Medições - Horímetro</h1>
-            <p className="text-sm text-muted-foreground">Registro diário de horas trabalhadas por equipamento</p>
+            <p className="text-sm text-muted-foreground">Lançamento diário de horímetro por equipamento</p>
           </div>
-          <Button onClick={() => { setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro_inicial: 0, horimetro_final: 0 }); setDialogOpen(true); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
+          <Button onClick={() => { setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 }); setDialogOpen(true); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" /> Nova Medição
           </Button>
         </div>
 
-        {/* Filters: equipment + date range */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <FileBarChart className="h-4 w-4 text-accent" />
-              Filtros / Relatório
+              <FileBarChart className="h-4 w-4 text-accent" /> Filtros / Relatório
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -135,7 +117,6 @@ const Medicoes = () => {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Inicial</Label>
                 <Popover>
@@ -150,7 +131,6 @@ const Medicoes = () => {
                   </PopoverContent>
                 </Popover>
               </div>
-
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Final</Label>
                 <Popover>
@@ -165,23 +145,16 @@ const Medicoes = () => {
                   </PopoverContent>
                 </Popover>
               </div>
-
               {hasFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
-                  Limpar filtros
-                </Button>
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Limpar filtros</Button>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total card */}
           <Card className="border-accent/30 bg-accent/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle></CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-accent">{totalHorasGeral.toFixed(1)}h</div>
               <p className="text-xs text-muted-foreground">{filtered.length} registros{hasFilters ? " (filtrado)" : ""}</p>
@@ -207,11 +180,9 @@ const Medicoes = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Equipamento</TableHead>
-                  <TableHead>Tag</TableHead>
+                  <TableHead>Tag/Placa</TableHead>
                   <TableHead>Data</TableHead>
-                  <TableHead>Horímetro Inicial</TableHead>
-                  <TableHead>Horímetro Final</TableHead>
-                  <TableHead>Horas Trabalhadas</TableHead>
+                  <TableHead>Horímetro (horas)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -220,8 +191,6 @@ const Medicoes = () => {
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="text-sm">{new Date(item.data).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="font-mono text-sm">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
-                    <TableCell className="font-mono text-sm">{Number(item.horimetro_final).toFixed(1)}</TableCell>
                     <TableCell>
                       <Badge className="bg-accent/10 text-accent font-semibold border-0">
                         <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
@@ -230,7 +199,7 @@ const Medicoes = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada para o período selecionado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -241,7 +210,7 @@ const Medicoes = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-accent" />Nova Medição de Horímetro</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-accent" />Nova Medição</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
@@ -254,14 +223,14 @@ const Medicoes = () => {
               </Select>
             </div>
             <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Horímetro Inicial</Label><Input type="number" step="0.1" value={form.horimetro_inicial || ""} onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} /></div>
-              <div><Label>Horímetro Final</Label><Input type="number" step="0.1" value={form.horimetro_final || ""} onChange={(e) => setForm({ ...form, horimetro_final: Number(e.target.value) })} /></div>
+            <div>
+              <Label>Horímetro (horas trabalhadas)</Label>
+              <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 8.5" />
             </div>
-            {form.horimetro_final > form.horimetro_inicial && (
+            {form.horimetro > 0 && (
               <div className="p-3 rounded-lg bg-accent/10 text-center">
-                <p className="text-sm text-muted-foreground">Horas trabalhadas</p>
-                <p className="text-2xl font-bold text-accent">{(form.horimetro_final - form.horimetro_inicial).toFixed(1)}h</p>
+                <p className="text-sm text-muted-foreground">Horas a registrar</p>
+                <p className="text-2xl font-bold text-accent">{form.horimetro.toFixed(1)}h</p>
               </div>
             )}
           </div>
