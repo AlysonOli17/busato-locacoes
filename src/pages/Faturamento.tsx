@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Receipt, Pencil, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, AlertTriangle, CheckCircle2, Clock, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,7 +35,16 @@ interface Fatura {
   numero_nota: string | null;
   periodo_medicao_inicio: string | null;
   periodo_medicao_fim: string | null;
+  total_gastos: number;
   contratos: ContratoRef;
+}
+
+interface GastoItem {
+  id: string;
+  descricao: string;
+  tipo: string;
+  valor: number;
+  data: string;
 }
 
 const emptyForm = { contrato_id: "", periodo: "", horas_normais: 0, horas_excedentes: 0, valor_hora: 0, valor_excedente_hora: 0, status: "Pendente", numero_nota: "", periodo_medicao_inicio: "", periodo_medicao_fim: "" };
@@ -50,6 +59,8 @@ const Faturamento = () => {
   const [loading, setLoading] = useState(true);
   const [horasMedidas, setHorasMedidas] = useState<number | null>(null);
   const [loadingMedicoes, setLoadingMedicoes] = useState(false);
+  const [gastosEquip, setGastosEquip] = useState<GastoItem[]>([]);
+  const [totalGastos, setTotalGastos] = useState(0);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -64,44 +75,66 @@ const Faturamento = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Fetch measurements when contract + date range changes
-  const fetchMedicoes = useCallback(async (contratoId: string, inicio: string, fim: string) => {
+  // Fetch measurements + gastos when contract + date range changes
+  const fetchMedicoesEGastos = useCallback(async (contratoId: string, inicio: string, fim: string) => {
     const ct = contratos.find(c => c.id === contratoId);
-    if (!ct || !inicio || !fim) { setHorasMedidas(null); return; }
+    if (!ct || !inicio || !fim) { setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); return; }
     setLoadingMedicoes(true);
-    const { data, error } = await supabase
-      .from("medicoes")
-      .select("horas_trabalhadas")
-      .eq("equipamento_id", ct.equipamento_id)
-      .gte("data", inicio)
-      .lte("data", fim);
-    if (error) { setHorasMedidas(null); setLoadingMedicoes(false); return; }
-    const total = (data || []).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
-    setHorasMedidas(total);
 
-    // Auto-calculate: hours within contract = min(total, contracted), excess = rest
-    const horasContratadas = Number(ct.horas_contratadas);
-    const horasNormais = Math.min(total, horasContratadas);
-    const horasExcedentes = Math.max(0, total - horasContratadas);
-    setForm(prev => ({ ...prev, horas_normais: Number(horasNormais.toFixed(1)), horas_excedentes: Number(horasExcedentes.toFixed(1)) }));
+    const [medRes, gastosRes] = await Promise.all([
+      supabase
+        .from("medicoes")
+        .select("horas_trabalhadas")
+        .eq("equipamento_id", ct.equipamento_id)
+        .gte("data", inicio)
+        .lte("data", fim),
+      supabase
+        .from("gastos")
+        .select("id, descricao, tipo, valor, data")
+        .eq("equipamento_id", ct.equipamento_id)
+        .gte("data", inicio)
+        .lte("data", fim)
+        .order("data", { ascending: false }),
+    ]);
+
+    // Medições
+    if (medRes.error) { setHorasMedidas(null); } else {
+      const total = (medRes.data || []).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      setHorasMedidas(total);
+      const horasContratadas = Number(ct.horas_contratadas);
+      const horasNormais = Math.min(total, horasContratadas);
+      const horasExcedentes = Math.max(0, total - horasContratadas);
+      setForm(prev => ({ ...prev, horas_normais: Number(horasNormais.toFixed(1)), horas_excedentes: Number(horasExcedentes.toFixed(1)) }));
+    }
+
+    // Gastos
+    if (gastosRes.data) {
+      setGastosEquip(gastosRes.data as GastoItem[]);
+      setTotalGastos(gastosRes.data.reduce((acc, g) => acc + Number(g.valor), 0));
+    } else {
+      setGastosEquip([]);
+      setTotalGastos(0);
+    }
+
     setLoadingMedicoes(false);
   }, [contratos]);
 
-  // Trigger measurement fetch when relevant fields change
   useEffect(() => {
     if (form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim) {
-      fetchMedicoes(form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim);
+      fetchMedicoesEGastos(form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim);
     } else {
       setHorasMedidas(null);
+      setGastosEquip([]);
+      setTotalGastos(0);
     }
-  }, [form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim, fetchMedicoes]);
+  }, [form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim, fetchMedicoesEGastos]);
 
   const filtered = items.filter((i) =>
     i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.periodo.includes(search) || (i.numero_nota || "").includes(search)
   );
   const totalPendente = items.filter((i) => i.status === "Pendente").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setDialogOpen(true); };
   const openEdit = (item: Fatura) => {
     setEditing(item);
     setForm({
@@ -126,9 +159,11 @@ const Faturamento = () => {
     }
   };
 
+  const valorBruto = form.horas_normais * form.valor_hora + form.horas_excedentes * form.valor_excedente_hora;
+  const valorLiquido = Math.max(0, valorBruto - totalGastos);
+
   const handleSave = async () => {
     if (!form.contrato_id) return;
-    const total = form.horas_normais * form.valor_hora + form.horas_excedentes * form.valor_excedente_hora;
     const payload = {
       contrato_id: form.contrato_id,
       periodo: form.periodo,
@@ -136,11 +171,12 @@ const Faturamento = () => {
       horas_excedentes: form.horas_excedentes,
       valor_hora: form.valor_hora,
       valor_excedente_hora: form.valor_excedente_hora,
-      valor_total: total,
+      valor_total: valorLiquido,
       status: form.status,
       numero_nota: form.numero_nota || null,
       periodo_medicao_inicio: form.periodo_medicao_inicio || null,
       periodo_medicao_fim: form.periodo_medicao_fim || null,
+      total_gastos: totalGastos,
     };
     if (editing) {
       const { error } = await supabase.from("faturamento").update(payload).eq("id", editing.id);
@@ -181,11 +217,10 @@ const Faturamento = () => {
                   <TableHead>Empresa</TableHead>
                   <TableHead>Equipamento</TableHead>
                   <TableHead>Nº Nota</TableHead>
-                  <TableHead>Período</TableHead>
                   <TableHead>Período Medição</TableHead>
-                  <TableHead>Horas Medidas</TableHead>
-                  <TableHead>Excedente</TableHead>
-                  <TableHead>Valor Total</TableHead>
+                  <TableHead>Horas</TableHead>
+                  <TableHead>Gastos Deduzidos</TableHead>
+                  <TableHead>Valor Líquido</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-16">Ações</TableHead>
                 </TableRow>
@@ -195,6 +230,7 @@ const Faturamento = () => {
                   const horasContratadas = Number(item.contratos?.horas_contratadas || 0);
                   const totalHoras = Number(item.horas_normais) + Number(item.horas_excedentes);
                   const dentroContrato = totalHoras <= horasContratadas;
+                  const itemGastos = Number(item.total_gastos || 0);
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
@@ -205,7 +241,6 @@ const Faturamento = () => {
                       </TableCell>
                       <TableCell className="text-sm">{item.contratos?.equipamentos?.tipo} {item.contratos?.equipamentos?.modelo}</TableCell>
                       <TableCell className="font-mono text-sm">{item.numero_nota || "—"}</TableCell>
-                      <TableCell className="text-sm">{item.periodo}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
                           ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
@@ -213,14 +248,18 @@ const Faturamento = () => {
                       </TableCell>
                       <TableCell className="text-sm">
                         <div className="flex items-center gap-1">
-                          {item.horas_normais}h
+                          {item.horas_normais}h{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{item.horas_excedentes}h</span>}
                           {dentroContrato
                             ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                             : <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                           }
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{Number(item.horas_excedentes) > 0 ? <span className="text-warning font-semibold">{item.horas_excedentes}h</span> : "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {itemGastos > 0
+                          ? <span className="text-destructive font-semibold">- R$ {itemGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          : "—"}
+                      </TableCell>
                       <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>
                         <Badge className={
@@ -238,7 +277,7 @@ const Faturamento = () => {
                   );
                 })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -323,6 +362,28 @@ const Faturamento = () => {
               </div>
             )}
 
+            {/* Gastos / Deduções */}
+            {gastosEquip.length > 0 && (
+              <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                  <TrendingDown className="h-4 w-4" />
+                  Gastos do Equipamento no Período (dedução)
+                </div>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {gastosEquip.map(g => (
+                    <div key={g.id} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{new Date(g.data).toLocaleDateString("pt-BR")} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge></span>
+                      <span className="font-semibold text-destructive">- R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-destructive/20 font-bold text-sm">
+                  <span>Total Gastos a Deduzir</span>
+                  <span className="text-destructive">- R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Horas Normais</Label><Input type="number" value={form.horas_normais || ""} onChange={(e) => setForm({ ...form, horas_normais: Number(e.target.value) })} /></div>
               <div><Label>Valor/Hora (R$)</Label><Input type="number" value={form.valor_hora || ""} onChange={(e) => setForm({ ...form, valor_hora: Number(e.target.value) })} /></div>
@@ -343,9 +404,21 @@ const Faturamento = () => {
               </Select>
             </div>
             {(form.horas_normais > 0 || form.horas_excedentes > 0) && (
-              <div className="p-3 rounded-lg bg-accent/10 text-center">
-                <p className="text-sm text-muted-foreground">Valor Total</p>
-                <p className="text-2xl font-bold text-accent">R$ {(form.horas_normais * form.valor_hora + form.horas_excedentes * form.valor_excedente_hora).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <div className="p-4 rounded-lg bg-accent/10 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Valor Bruto (horas)</span>
+                  <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                </div>
+                {totalGastos > 0 && (
+                  <div className="flex items-center justify-between text-sm text-destructive">
+                    <span>Gastos Deduzidos</span>
+                    <span className="font-semibold">- R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-accent/20">
+                  <span className="text-sm font-medium">Valor Líquido a Receber</span>
+                  <span className="text-2xl font-bold text-accent">R$ {valorLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                </div>
               </div>
             )}
           </div>

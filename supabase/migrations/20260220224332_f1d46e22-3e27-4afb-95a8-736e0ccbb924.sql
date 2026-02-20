@@ -1,0 +1,1 @@
+ALTER TABLE public.faturamento ADD COLUMN IF NOT EXISTS total_gastos numeric NOT NULL DEFAULT 0;

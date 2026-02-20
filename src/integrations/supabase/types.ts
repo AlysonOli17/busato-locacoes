@@ -200,6 +200,7 @@ export type Database = {
           periodo_medicao_fim: string | null
           periodo_medicao_inicio: string | null
           status: string
+          total_gastos: number
           valor_excedente_hora: number
           valor_hora: number
           valor_total: number
@@ -216,6 +217,7 @@ export type Database = {
           periodo_medicao_fim?: string | null
           periodo_medicao_inicio?: string | null
           status?: string
+          total_gastos?: number
           valor_excedente_hora?: number
           valor_hora?: number
           valor_total?: number
@@ -232,6 +234,7 @@ export type Database = {
           periodo_medicao_fim?: string | null
           periodo_medicao_inicio?: string | null
           status?: string
+          total_gastos?: number
           valor_excedente_hora?: number
           valor_hora?: number
           valor_total?: number
