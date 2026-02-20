@@ -111,6 +111,7 @@ const Gastos = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Equipamento</TableHead>
+                  <TableHead>Tag/Placa</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Valor</TableHead>
@@ -122,6 +123,7 @@ const Gastos = () => {
                 {filtered.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
+                    <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="text-sm">{item.descricao}</TableCell>
                     <TableCell><Badge className={tipoColor(item.tipo)}>{item.tipo}</Badge></TableCell>
                     <TableCell className="font-semibold text-sm">R$ {Number(item.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
