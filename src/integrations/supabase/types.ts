@@ -123,19 +123,25 @@ export type Database = {
           contrato_id: string
           created_at: string
           equipamento_id: string
+          horas_contratadas: number
           id: string
+          valor_hora: number
         }
         Insert: {
           contrato_id: string
           created_at?: string
           equipamento_id: string
+          horas_contratadas?: number
           id?: string
+          valor_hora?: number
         }
         Update: {
           contrato_id?: string
           created_at?: string
           equipamento_id?: string
+          horas_contratadas?: number
           id?: string
+          valor_hora?: number
         }
         Relationships: [
           {
