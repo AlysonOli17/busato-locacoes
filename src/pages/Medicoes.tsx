@@ -182,7 +182,7 @@ const Medicoes = () => {
                   <TableHead>Equipamento</TableHead>
                   <TableHead>Tag/Placa</TableHead>
                   <TableHead>Data</TableHead>
-                  <TableHead>Horímetro (horas)</TableHead>
+                  <TableHead>Horímetro</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -224,7 +224,7 @@ const Medicoes = () => {
             </div>
             <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
             <div>
-              <Label>Horímetro (horas trabalhadas)</Label>
+              <Label>Horímetro</Label>
               <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 8.5" />
             </div>
             {form.horimetro > 0 && (
