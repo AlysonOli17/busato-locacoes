@@ -76,7 +76,6 @@ const Medicoes = () => {
       data: form.data,
       horimetro_inicial: 0,
       horimetro_final: form.horimetro,
-      horas_trabalhadas: form.horimetro,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     setDialogOpen(false);
