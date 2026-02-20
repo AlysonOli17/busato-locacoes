@@ -118,6 +118,42 @@ export type Database = {
           },
         ]
       }
+      contratos_equipamentos: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          equipamento_id: string
+          id: string
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          equipamento_id: string
+          id?: string
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          equipamento_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_equipamentos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_equipamentos_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           atividade_principal: string | null
