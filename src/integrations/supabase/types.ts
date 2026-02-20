@@ -195,7 +195,10 @@ export type Database = {
           horas_excedentes: number
           horas_normais: number
           id: string
+          numero_nota: string | null
           periodo: string
+          periodo_medicao_fim: string | null
+          periodo_medicao_inicio: string | null
           status: string
           valor_excedente_hora: number
           valor_hora: number
@@ -208,7 +211,10 @@ export type Database = {
           horas_excedentes?: number
           horas_normais?: number
           id?: string
+          numero_nota?: string | null
           periodo: string
+          periodo_medicao_fim?: string | null
+          periodo_medicao_inicio?: string | null
           status?: string
           valor_excedente_hora?: number
           valor_hora?: number
@@ -221,7 +227,10 @@ export type Database = {
           horas_excedentes?: number
           horas_normais?: number
           id?: string
+          numero_nota?: string | null
           periodo?: string
+          periodo_medicao_fim?: string | null
+          periodo_medicao_inicio?: string | null
           status?: string
           valor_excedente_hora?: number
           valor_hora?: number
