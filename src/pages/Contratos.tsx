@@ -15,8 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
-interface Empresa { id: string; nome: string; cnpj: string; }
-interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
+interface Empresa { id: string; nome: string; cnpj: string; razao_social: string; nome_fantasia: string; inscricao_estadual: string; inscricao_municipal: string; endereco_logradouro: string; endereco_numero: string; endereco_complemento: string; endereco_bairro: string; endereco_cidade: string; endereco_uf: string; endereco_cep: string; contato: string | null; telefone: string | null; email: string; atividade_principal: string; }
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
 interface Contrato {
   id: string;
   empresa_id: string;
@@ -47,9 +47,9 @@ const Contratos = () => {
 
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes] = await Promise.all([
-      supabase.from("contratos").select("*, empresas(id, nome, cnpj), equipamentos(id, tipo, modelo, tag_placa)").order("created_at", { ascending: false }),
-      supabase.from("empresas").select("id, nome, cnpj").eq("status", "Ativa").order("nome"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie)").order("created_at", { ascending: false }),
+      supabase.from("empresas").select("id, nome, cnpj").eq("status", "Ativa").order("nome") as any,
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
     if (contratosRes.data) setItems(contratosRes.data as unknown as Contrato[]);
     if (empresasRes.data) setEmpresas(empresasRes.data);
@@ -86,6 +86,111 @@ const Contratos = () => {
       i.status,
     ]);
     return { title: "Relatório de Contratos", headers, rows, filename: `contratos_${new Date().toISOString().slice(0,10)}` };
+  };
+
+  const exportDetailedPDF = async () => {
+    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+    if (data.length === 0) return;
+
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+
+    const doc = new jsPDF({ orientation: "portrait" });
+    const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+    for (let idx = 0; idx < data.length; idx++) {
+      const item = data[idx];
+      if (idx > 0) doc.addPage();
+      const emp = item.empresas;
+      const eq = item.equipamentos;
+
+      doc.setFontSize(18);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Contrato Detalhado", 14, 18);
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, 14, 24);
+
+      let y = 32;
+
+      // Empresa
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Dados da Empresa", 14, y);
+      y += 2;
+      const enderecoCompleto = [emp?.endereco_logradouro, emp?.endereco_numero, emp?.endereco_complemento].filter(Boolean).join(", ");
+      const cidadeUf = [emp?.endereco_bairro, emp?.endereco_cidade, emp?.endereco_uf].filter(Boolean).join(" - ");
+      autoTable(doc, {
+        startY: y,
+        head: [["Campo", "Valor"]],
+        body: [
+          ["Razão Social", emp?.razao_social || emp?.nome || "—"],
+          ["Nome Fantasia", emp?.nome_fantasia || "—"],
+          ["CNPJ", emp?.cnpj || "—"],
+          ["Inscrição Estadual", emp?.inscricao_estadual || "—"],
+          ["Inscrição Municipal", emp?.inscricao_municipal || "—"],
+          ["Atividade Principal", emp?.atividade_principal || "—"],
+          ["Endereço", enderecoCompleto || "—"],
+          ["Bairro / Cidade / UF", cidadeUf || "—"],
+          ["CEP", emp?.endereco_cep || "—"],
+          ["Contato", emp?.contato || "—"],
+          ["Telefone", emp?.telefone || "—"],
+          ["E-mail", emp?.email || "—"],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Equipamento
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Dados do Equipamento", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Campo", "Valor"]],
+        body: [
+          ["Tipo", eq?.tipo || "—"],
+          ["Modelo", eq?.modelo || "—"],
+          ["Tag/Placa", eq?.tag_placa || "—"],
+          ["Nº Série", eq?.numero_serie || "—"],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Contrato
+      if (y > 220) { doc.addPage(); y = 20; }
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Dados do Contrato", 14, y);
+      y += 2;
+      const valorTotal = Number(item.valor_hora) * Number(item.horas_contratadas);
+      autoTable(doc, {
+        startY: y,
+        head: [["Campo", "Valor"]],
+        body: [
+          ["Valor/Hora", fmt(Number(item.valor_hora))],
+          ["Horas Contratadas", `${item.horas_contratadas}h`],
+          ["Valor Total Estimado", fmt(valorTotal)],
+          ["Período", `${new Date(item.data_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.data_fim).toLocaleDateString("pt-BR")}`],
+          ["Status", item.status],
+          ["Observações", item.observacoes || "—"],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+        theme: "grid",
+      });
+    }
+
+    doc.save(`contratos_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
@@ -132,8 +237,11 @@ const Contratos = () => {
             <p className="text-sm text-muted-foreground">{items.length} contratos cadastrados{selected.size > 0 && ` · ${selected.size} selecionado(s)`}</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportDetailedPDF}>
+              <FileDown className="h-4 w-4 mr-1" /> PDF Detalhado
+            </Button>
             <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF
+              <FileDown className="h-4 w-4 mr-1" /> PDF Simples
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
               <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
