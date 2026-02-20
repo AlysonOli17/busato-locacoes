@@ -120,31 +120,70 @@ export type Database = {
       }
       empresas: {
         Row: {
+          atividade_principal: string | null
           cnpj: string
           contato: string | null
           created_at: string
+          email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
           id: string
+          inscricao_estadual: string | null
+          inscricao_municipal: string | null
           nome: string
+          nome_fantasia: string | null
+          razao_social: string | null
           status: string
           telefone: string | null
           updated_at: string
         }
         Insert: {
+          atividade_principal?: string | null
           cnpj: string
           contato?: string | null
           created_at?: string
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
           id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           nome: string
+          nome_fantasia?: string | null
+          razao_social?: string | null
           status?: string
           telefone?: string | null
           updated_at?: string
         }
         Update: {
+          atividade_principal?: string | null
           cnpj?: string
           contato?: string | null
           created_at?: string
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
           id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           nome?: string
+          nome_fantasia?: string | null
+          razao_social?: string | null
           status?: string
           telefone?: string | null
           updated_at?: string
