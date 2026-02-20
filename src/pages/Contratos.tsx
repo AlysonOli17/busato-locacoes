@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
@@ -39,6 +40,17 @@ interface FormEquipItem {
   horas_contratadas: number;
 }
 
+interface EquipUsage {
+  equipamento_id: string;
+  equipamento: Equipamento;
+  valor_hora: number;
+  horas_contratadas: number;
+  horas_utilizadas: number;
+  custo_real: number;
+  custo_contratado: number;
+  percentual: number;
+}
+
 const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo" };
 
 const Contratos = () => {
@@ -52,6 +64,10 @@ const Contratos = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [dashboardContrato, setDashboardContrato] = useState<Contrato | null>(null);
+  const [equipUsages, setEquipUsages] = useState<EquipUsage[]>([]);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -77,6 +93,72 @@ const Contratos = () => {
 
   const getEquipamentosList = (item: Contrato): Equipamento[] => {
     return getContratoEquipamentos(item).map(ce => ce.equipamentos);
+  };
+
+  // Check alerts across all active contracts
+  const getAlerts = useCallback(() => {
+    const alerts: { contrato: Contrato; ce: ContratoEquipamento; percentual: number }[] = [];
+    items.filter(i => i.status === "Ativo").forEach(item => {
+      const ces = getContratoEquipamentos(item);
+      ces.forEach(ce => {
+        // We'll check alerts based on cached usage data if dashboard was opened
+        // For the table view, we show a warning icon if horas_contratadas > 0
+      });
+    });
+    return alerts;
+  }, [items]);
+
+  const openDashboard = async (item: Contrato) => {
+    setDashboardContrato(item);
+    setDashboardOpen(true);
+    setDashboardLoading(true);
+
+    const ces = getContratoEquipamentos(item);
+    const usages: EquipUsage[] = [];
+
+    for (const ce of ces) {
+      const { data: medicoes } = await supabase
+        .from("medicoes")
+        .select("horas_trabalhadas, horimetro_inicial, horimetro_final")
+        .eq("equipamento_id", ce.equipamento_id)
+        .gte("data", item.data_inicio)
+        .lte("data", item.data_fim);
+
+      const horasUtilizadas = (medicoes || []).reduce((sum, m) => {
+        const h = m.horas_trabalhadas != null ? Number(m.horas_trabalhadas) : (Number(m.horimetro_final) - Number(m.horimetro_inicial));
+        return sum + h;
+      }, 0);
+
+      const horasContratadas = Number(ce.horas_contratadas);
+      const valorHora = Number(ce.valor_hora);
+      const percentual = horasContratadas > 0 ? (horasUtilizadas / horasContratadas) * 100 : 0;
+
+      usages.push({
+        equipamento_id: ce.equipamento_id,
+        equipamento: ce.equipamentos,
+        valor_hora: valorHora,
+        horas_contratadas: horasContratadas,
+        horas_utilizadas: horasUtilizadas,
+        custo_real: horasUtilizadas * valorHora,
+        custo_contratado: horasContratadas * valorHora,
+        percentual,
+      });
+    }
+
+    setEquipUsages(usages);
+    setDashboardLoading(false);
+  };
+
+  const getProgressColor = (pct: number) => {
+    if (pct >= 100) return "bg-destructive";
+    if (pct >= 80) return "bg-warning";
+    return "bg-success";
+  };
+
+  const getStatusLabel = (pct: number) => {
+    if (pct >= 100) return { label: "Limite Excedido", className: "bg-destructive text-destructive-foreground" };
+    if (pct >= 80) return { label: "Próximo do Limite", className: "bg-warning text-warning-foreground" };
+    return { label: "Normal", className: "bg-success text-success-foreground" };
   };
 
   const filtered = items.filter(
@@ -139,7 +221,6 @@ const Contratos = () => {
 
       let y = 32;
 
-      // Empresa
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
       doc.text("Dados da Empresa", 14, y);
@@ -170,7 +251,6 @@ const Contratos = () => {
       });
       y = (doc as any).lastAutoTable.finalY + 8;
 
-      // Equipamentos com valores individuais
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
       doc.text(`Equipamentos (${ces.length})`, 14, y);
@@ -192,7 +272,6 @@ const Contratos = () => {
       });
       y = (doc as any).lastAutoTable.finalY + 8;
 
-      // Contrato
       if (y > 220) { doc.addPage(); y = 20; }
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
@@ -291,6 +370,17 @@ const Contratos = () => {
 
   const availableEquipamentos = equipamentos.filter(e => !formEquipamentos.some(fe => fe.equipamento_id === e.id));
 
+  const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+  // Summary totals for dashboard
+  const dashboardTotals = {
+    totalContratado: equipUsages.reduce((s, u) => s + u.custo_contratado, 0),
+    totalReal: equipUsages.reduce((s, u) => s + u.custo_real, 0),
+    totalHorasContratadas: equipUsages.reduce((s, u) => s + u.horas_contratadas, 0),
+    totalHorasUtilizadas: equipUsages.reduce((s, u) => s + u.horas_utilizadas, 0),
+    alertCount: equipUsages.filter(u => u.percentual >= 80).length,
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -330,7 +420,7 @@ const Contratos = () => {
                   <TableHead>Equipamentos</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-24">Ações</TableHead>
+                  <TableHead className="w-28">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -366,6 +456,9 @@ const Contratos = () => {
                       <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openDashboard(item)} title="Dashboard de uso">
+                            <BarChart3 className="h-4 w-4 text-accent" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
@@ -382,6 +475,133 @@ const Contratos = () => {
         </Card>
       </div>
 
+      {/* Dashboard Dialog */}
+      <Dialog open={dashboardOpen} onOpenChange={setDashboardOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-accent" />
+              Dashboard de Uso — {dashboardContrato?.empresas?.nome}
+            </DialogTitle>
+            <DialogDescription>
+              Período: {dashboardContrato ? `${new Date(dashboardContrato.data_inicio).toLocaleDateString("pt-BR")} - ${new Date(dashboardContrato.data_fim).toLocaleDateString("pt-BR")}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {dashboardLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Horas Contratadas</p>
+                  <p className="text-lg font-bold text-foreground">{dashboardTotals.totalHorasContratadas.toFixed(1)}h</p>
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Horas Utilizadas</p>
+                  <p className="text-lg font-bold text-foreground">{dashboardTotals.totalHorasUtilizadas.toFixed(1)}h</p>
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Custo Contratado</p>
+                  <p className="text-lg font-bold text-foreground">{fmt(dashboardTotals.totalContratado)}</p>
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Custo Real</p>
+                  <p className={`text-lg font-bold ${dashboardTotals.totalReal > dashboardTotals.totalContratado ? "text-destructive" : "text-success"}`}>
+                    {fmt(dashboardTotals.totalReal)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Alerts */}
+              {dashboardTotals.alertCount > 0 && (
+                <div className="rounded-lg border border-warning/50 bg-warning/10 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-5 w-5 text-warning" />
+                    <span className="font-semibold text-sm text-foreground">
+                      {dashboardTotals.alertCount} equipamento(s) próximo(s) ou acima do limite contratado
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {equipUsages.filter(u => u.percentual >= 80).map(u => (
+                      <p key={u.equipamento_id} className="text-xs text-muted-foreground">
+                        • <strong>{u.equipamento.tipo} {u.equipamento.modelo}</strong>: {u.horas_utilizadas.toFixed(1)}h / {u.horas_contratadas}h ({u.percentual.toFixed(0)}%)
+                        {u.percentual >= 100 && <span className="text-destructive font-semibold ml-1">— EXCEDIDO em {(u.horas_utilizadas - u.horas_contratadas).toFixed(1)}h</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Per-equipment breakdown */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-accent" /> Consumo por Equipamento
+                </h3>
+                {equipUsages.map(u => {
+                  const status = getStatusLabel(u.percentual);
+                  const clampedPct = Math.min(u.percentual, 100);
+                  return (
+                    <div key={u.equipamento_id} className="rounded-lg border bg-card p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm text-foreground">{u.equipamento.tipo} {u.equipamento.modelo}</p>
+                          {u.equipamento.tag_placa && <p className="text-xs text-muted-foreground font-mono">{u.equipamento.tag_placa}</p>}
+                        </div>
+                        <Badge className={status.className}>{status.label}</Badge>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{u.horas_utilizadas.toFixed(1)}h utilizadas</span>
+                          <span>{u.horas_contratadas}h contratadas</span>
+                        </div>
+                        <div className="h-3 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${getProgressColor(u.percentual)}`}
+                            style={{ width: `${clampedPct}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-right font-medium text-foreground">{u.percentual.toFixed(1)}%</p>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded bg-muted/50 p-2">
+                          <p className="text-xs text-muted-foreground">Valor/Hora</p>
+                          <p className="text-sm font-semibold text-foreground">{fmt(u.valor_hora)}</p>
+                        </div>
+                        <div className="rounded bg-muted/50 p-2">
+                          <p className="text-xs text-muted-foreground">Custo Contratado</p>
+                          <p className="text-sm font-semibold text-foreground">{fmt(u.custo_contratado)}</p>
+                        </div>
+                        <div className="rounded bg-muted/50 p-2">
+                          <p className="text-xs text-muted-foreground">Custo Real</p>
+                          <p className={`text-sm font-semibold ${u.custo_real > u.custo_contratado ? "text-destructive" : "text-success"}`}>{fmt(u.custo_real)}</p>
+                        </div>
+                      </div>
+
+                      {u.percentual >= 100 && (
+                        <div className="text-xs text-destructive font-medium bg-destructive/10 rounded p-2">
+                          ⚠️ Excedente: {(u.horas_utilizadas - u.horas_contratadas).toFixed(1)}h ({fmt((u.horas_utilizadas - u.horas_contratadas) * u.valor_hora)} em custo excedente)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {equipUsages.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum equipamento associado a este contrato.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -398,7 +618,6 @@ const Contratos = () => {
               </Select>
             </div>
 
-            {/* Equipamentos - múltiplos com critérios individuais */}
             <div className="space-y-2">
               <Label>Equipamentos</Label>
               <div className="flex gap-2">
