@@ -48,9 +48,14 @@ const Gastos = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = items.filter((i) =>
-    i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.descricao.toLowerCase().includes(search.toLowerCase())
-  );
+  const [filterTag, setFilterTag] = useState("Todos");
+
+  const uniqueTags = Array.from(new Set(items.map(i => i.equipamentos?.tag_placa).filter(Boolean))) as string[];
+
+  const filtered = items.filter((i) => {
+    if (filterTag !== "Todos" && i.equipamentos?.tag_placa !== filterTag) return false;
+    return i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.descricao.toLowerCase().includes(search.toLowerCase());
+  });
   const totalGastos = items.reduce((acc, i) => acc + Number(i.valor), 0);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
@@ -100,9 +105,18 @@ const Gastos = () => {
           </Button>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar gastos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar gastos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+          <Select value={filterTag} onValueChange={setFilterTag}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="Filtrar por Tag" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todas as Tags</SelectItem>
+              {uniqueTags.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
         <Card>
