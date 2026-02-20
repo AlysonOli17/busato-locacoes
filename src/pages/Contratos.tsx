@@ -17,7 +17,7 @@ import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Empresa { id: string; nome: string; cnpj: string; razao_social: string; nome_fantasia: string; inscricao_estadual: string; inscricao_municipal: string; endereco_logradouro: string; endereco_numero: string; endereco_complemento: string; endereco_bairro: string; endereco_cidade: string; endereco_uf: string; endereco_cep: string; contato: string | null; telefone: string | null; email: string; atividade_principal: string; }
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
-interface ContratoEquipamento { id: string; equipamento_id: string; equipamentos: Equipamento; }
+interface ContratoEquipamento { id: string; equipamento_id: string; valor_hora: number; horas_contratadas: number; equipamentos: Equipamento; }
 interface Contrato {
   id: string;
   empresa_id: string;
@@ -33,6 +33,12 @@ interface Contrato {
   contratos_equipamentos?: ContratoEquipamento[];
 }
 
+interface FormEquipItem {
+  equipamento_id: string;
+  valor_hora: number;
+  horas_contratadas: number;
+}
+
 const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo" };
 
 const Contratos = () => {
@@ -42,7 +48,7 @@ const Contratos = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [formEquipamentos, setFormEquipamentos] = useState<string[]>([]);
+  const [formEquipamentos, setFormEquipamentos] = useState<FormEquipItem[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -50,7 +56,7 @@ const Contratos = () => {
 
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes] = await Promise.all([
-      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(id, equipamento_id, valor_hora, horas_contratadas, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj").eq("status", "Ativa").order("nome") as any,
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
@@ -62,15 +68,19 @@ const Contratos = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const getContratoEquipamentos = (item: Contrato): Equipamento[] => {
-    const fromJunction = (item.contratos_equipamentos || []).map(ce => ce.equipamentos).filter(Boolean);
+  const getContratoEquipamentos = (item: Contrato): ContratoEquipamento[] => {
+    const fromJunction = (item.contratos_equipamentos || []).filter(ce => ce.equipamentos);
     if (fromJunction.length > 0) return fromJunction;
-    if (item.equipamentos) return [item.equipamentos];
+    if (item.equipamentos) return [{ id: "", equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, equipamentos: item.equipamentos }];
     return [];
   };
 
+  const getEquipamentosList = (item: Contrato): Equipamento[] => {
+    return getContratoEquipamentos(item).map(ce => ce.equipamentos);
+  };
+
   const filtered = items.filter(
-    (i) => i.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.empresas?.cnpj?.includes(search) || getContratoEquipamentos(i).some(eq => eq.modelo?.toLowerCase().includes(search.toLowerCase()) || eq.tag_placa?.toLowerCase().includes(search.toLowerCase()))
+    (i) => i.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.empresas?.cnpj?.includes(search) || getEquipamentosList(i).some(eq => eq.modelo?.toLowerCase().includes(search.toLowerCase()) || eq.tag_placa?.toLowerCase().includes(search.toLowerCase()))
   );
 
   const toggleSelect = (id: string) => {
@@ -83,20 +93,23 @@ const Contratos = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Empresa", "CNPJ", "Equipamentos", "Tags", "Valor/Hora (R$)", "Horas Contratadas", "Início", "Fim", "Status"];
-    const rows = data.map(i => {
-      const eqs = getContratoEquipamentos(i);
-      return [
-        i.empresas?.nome || "",
-        i.empresas?.cnpj || "",
-        eqs.map(e => `${e.tipo} ${e.modelo}`).join(", ") || "—",
-        eqs.map(e => e.tag_placa || "").filter(Boolean).join(", ") || "—",
-        Number(i.valor_hora).toFixed(2),
-        String(i.horas_contratadas),
-        new Date(i.data_inicio).toLocaleDateString("pt-BR"),
-        new Date(i.data_fim).toLocaleDateString("pt-BR"),
-        i.status,
-      ];
+    const headers = ["Empresa", "CNPJ", "Equipamento", "Tag", "Valor/Hora (R$)", "Horas Contratadas", "Início", "Fim", "Status"];
+    const rows: string[][] = [];
+    data.forEach(i => {
+      const ces = getContratoEquipamentos(i);
+      ces.forEach(ce => {
+        rows.push([
+          i.empresas?.nome || "",
+          i.empresas?.cnpj || "",
+          `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}`,
+          ce.equipamentos.tag_placa || "—",
+          Number(ce.valor_hora).toFixed(2),
+          String(ce.horas_contratadas),
+          new Date(i.data_inicio).toLocaleDateString("pt-BR"),
+          new Date(i.data_fim).toLocaleDateString("pt-BR"),
+          i.status,
+        ]);
+      });
     });
     return { title: "Relatório de Contratos", headers, rows, filename: `contratos_${new Date().toISOString().slice(0,10)}` };
   };
@@ -115,7 +128,7 @@ const Contratos = () => {
       const item = data[idx];
       if (idx > 0) doc.addPage();
       const emp = item.empresas;
-      const eqs = getContratoEquipamentos(item);
+      const ces = getContratoEquipamentos(item);
 
       doc.setFontSize(18);
       doc.setTextColor(41, 128, 185);
@@ -157,15 +170,22 @@ const Contratos = () => {
       });
       y = (doc as any).lastAutoTable.finalY + 8;
 
-      // Equipamentos
+      // Equipamentos com valores individuais
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
-      doc.text(`Equipamentos (${eqs.length})`, 14, y);
+      doc.text(`Equipamentos (${ces.length})`, 14, y);
       y += 2;
       autoTable(doc, {
         startY: y,
-        head: [["Tipo", "Modelo", "Tag/Placa", "Nº Série"]],
-        body: eqs.map(eq => [eq.tipo || "—", eq.modelo || "—", eq.tag_placa || "—", eq.numero_serie || "—"]),
+        head: [["Tipo", "Modelo", "Tag/Placa", "Nº Série", "Valor/Hora", "Horas Contrat."]],
+        body: ces.map(ce => [
+          ce.equipamentos.tipo || "—",
+          ce.equipamentos.modelo || "—",
+          ce.equipamentos.tag_placa || "—",
+          ce.equipamentos.numero_serie || "—",
+          fmt(Number(ce.valor_hora)),
+          `${ce.horas_contratadas}h`,
+        ]),
         styles: { fontSize: 9, cellPadding: 3 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
         theme: "grid",
@@ -178,14 +198,14 @@ const Contratos = () => {
       doc.setTextColor(41, 128, 185);
       doc.text("Dados do Contrato", 14, y);
       y += 2;
-      const valorTotal = Number(item.valor_hora) * Number(item.horas_contratadas);
+      const totalHoras = ces.reduce((s, ce) => s + Number(ce.horas_contratadas), 0);
+      const valorEstimado = ces.reduce((s, ce) => s + Number(ce.valor_hora) * Number(ce.horas_contratadas), 0);
       autoTable(doc, {
         startY: y,
         head: [["Campo", "Valor"]],
         body: [
-          ["Valor/Hora", fmt(Number(item.valor_hora))],
-          ["Horas Contratadas", `${item.horas_contratadas}h`],
-          ["Valor Total Estimado", fmt(valorTotal)],
+          ["Total Horas Contratadas", `${totalHoras}h`],
+          ["Valor Total Estimado", fmt(valorEstimado)],
           ["Período", `${new Date(item.data_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.data_fim).toLocaleDateString("pt-BR")}`],
           ["Status", item.status],
           ["Observações", item.observacoes || "—"],
@@ -203,20 +223,24 @@ const Contratos = () => {
   const openNew = () => { setEditing(null); setForm(emptyForm); setFormEquipamentos([]); setDialogOpen(true); };
   const openEdit = (item: Contrato) => {
     setEditing(item);
-    const eqs = getContratoEquipamentos(item);
-    setFormEquipamentos(eqs.map(e => e.id));
+    const ces = getContratoEquipamentos(item);
+    setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas) })));
     setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status });
     setDialogOpen(true);
   };
 
   const addEquipamento = (equipId: string) => {
-    if (equipId && !formEquipamentos.includes(equipId)) {
-      setFormEquipamentos(prev => [...prev, equipId]);
+    if (equipId && !formEquipamentos.some(fe => fe.equipamento_id === equipId)) {
+      setFormEquipamentos(prev => [...prev, { equipamento_id: equipId, valor_hora: 0, horas_contratadas: 0 }]);
     }
   };
 
   const removeEquipamento = (equipId: string) => {
-    setFormEquipamentos(prev => prev.filter(id => id !== equipId));
+    setFormEquipamentos(prev => prev.filter(fe => fe.equipamento_id !== equipId));
+  };
+
+  const updateEquipItem = (equipId: string, field: "valor_hora" | "horas_contratadas", value: number) => {
+    setFormEquipamentos(prev => prev.map(fe => fe.equipamento_id === equipId ? { ...fe, [field]: value } : fe));
   };
 
   const handleSave = async () => {
@@ -224,8 +248,8 @@ const Contratos = () => {
       toast({ title: "Campos obrigatórios", description: "Selecione a empresa e pelo menos um equipamento.", variant: "destructive" });
       return;
     }
-    const mainEquipId = formEquipamentos[0];
-    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(form.valor_hora), horas_contratadas: Number(form.horas_contratadas) };
+    const mainEquipId = formEquipamentos[0].equipamento_id;
+    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(formEquipamentos[0].valor_hora), horas_contratadas: Number(formEquipamentos[0].horas_contratadas) };
 
     let contratoId: string;
 
@@ -233,8 +257,6 @@ const Contratos = () => {
       const { error } = await supabase.from("contratos").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       contratoId = editing.id;
-
-      // Clear existing junction entries and re-insert
       await supabase.from("contratos_equipamentos").delete().eq("contrato_id", contratoId);
     } else {
       const { data, error } = await supabase.from("contratos").insert(payload).select("id").single();
@@ -242,8 +264,12 @@ const Contratos = () => {
       contratoId = data.id;
     }
 
-    // Insert all equipment associations
-    const junctionRows = formEquipamentos.map(eId => ({ contrato_id: contratoId, equipamento_id: eId }));
+    const junctionRows = formEquipamentos.map(fe => ({
+      contrato_id: contratoId,
+      equipamento_id: fe.equipamento_id,
+      valor_hora: Number(fe.valor_hora),
+      horas_contratadas: Number(fe.horas_contratadas),
+    }));
     const { error: jError } = await supabase.from("contratos_equipamentos").insert(junctionRows);
     if (jError) { toast({ title: "Aviso", description: "Contrato salvo, mas houve erro ao associar equipamentos: " + jError.message, variant: "destructive" }); }
 
@@ -263,7 +289,7 @@ const Contratos = () => {
     return "bg-warning text-warning-foreground";
   };
 
-  const availableEquipamentos = equipamentos.filter(e => !formEquipamentos.includes(e.id));
+  const availableEquipamentos = equipamentos.filter(e => !formEquipamentos.some(fe => fe.equipamento_id === e.id));
 
   return (
     <Layout>
@@ -302,8 +328,6 @@ const Contratos = () => {
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Equipamentos</TableHead>
-                  <TableHead>Valor/Hora</TableHead>
-                  <TableHead>Horas Contratadas</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
@@ -311,7 +335,7 @@ const Contratos = () => {
               </TableHeader>
               <TableBody>
                 {filtered.map((item) => {
-                  const eqs = getContratoEquipamentos(item);
+                  const ces = getContratoEquipamentos(item);
                   return (
                     <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
                       <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
@@ -322,17 +346,20 @@ const Contratos = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {eqs.map(eq => (
-                            <Badge key={eq.id} variant="outline" className="text-xs">
-                              {eq.tipo} {eq.modelo} {eq.tag_placa ? `(${eq.tag_placa})` : ""}
-                            </Badge>
+                        <div className="space-y-1">
+                          {ces.map(ce => (
+                            <div key={ce.equipamento_id} className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
+                              </span>
+                            </div>
                           ))}
-                          {eqs.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
+                          {ces.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
                         </div>
                       </TableCell>
-                      <TableCell className="font-semibold text-sm text-accent">R$ {Number(item.valor_hora).toFixed(2)}</TableCell>
-                      <TableCell className="text-sm">{item.horas_contratadas}h</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(item.data_inicio).toLocaleDateString("pt-BR")} - {new Date(item.data_fim).toLocaleDateString("pt-BR")}
                       </TableCell>
@@ -347,7 +374,7 @@ const Contratos = () => {
                   );
                 })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum contrato encontrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum contrato encontrado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -356,7 +383,7 @@ const Contratos = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-accent" />{editing ? "Editar Contrato" : "Novo Contrato"}</DialogTitle>
           </DialogHeader>
@@ -371,7 +398,7 @@ const Contratos = () => {
               </Select>
             </div>
 
-            {/* Equipamentos - múltiplos */}
+            {/* Equipamentos - múltiplos com critérios individuais */}
             <div className="space-y-2">
               <Label>Equipamentos</Label>
               <div className="flex gap-2">
@@ -385,20 +412,31 @@ const Contratos = () => {
                 </Select>
               </div>
               {formEquipamentos.length > 0 && (
-                <div className="space-y-1 p-3 rounded-lg bg-muted/50">
-                  {formEquipamentos.map(eId => {
-                    const eq = equipamentos.find(e => e.id === eId);
+                <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+                  {formEquipamentos.map(fe => {
+                    const eq = equipamentos.find(e => e.id === fe.equipamento_id);
                     if (!eq) return null;
                     return (
-                      <div key={eId} className="flex items-center justify-between text-sm py-1">
-                        <span>
-                          <strong>{eq.tipo} {eq.modelo}</strong>
-                          {eq.tag_placa && <span className="text-muted-foreground ml-2 font-mono">({eq.tag_placa})</span>}
-                          {eq.numero_serie && <span className="text-muted-foreground ml-2 text-xs">Série: {eq.numero_serie}</span>}
-                        </span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeEquipamento(eId)}>
-                          <X className="h-3 w-3 text-destructive" />
-                        </Button>
+                      <div key={fe.equipamento_id} className="space-y-2 border-b border-border pb-3 last:border-0 last:pb-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            {eq.tipo} {eq.modelo}
+                            {eq.tag_placa && <span className="text-muted-foreground ml-2 font-mono">({eq.tag_placa})</span>}
+                          </span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeEquipamento(fe.equipamento_id)}>
+                            <X className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
+                            <Input type="number" value={fe.valor_hora || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "valor_hora", Number(e.target.value))} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
+                            <Input type="number" value={fe.horas_contratadas || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "horas_contratadas", Number(e.target.value))} className="h-8 text-sm" />
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -410,10 +448,6 @@ const Contratos = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Valor por Hora (R$)</Label><Input type="number" value={form.valor_hora || ""} onChange={(e) => setForm({ ...form, valor_hora: Number(e.target.value) })} /></div>
-              <div><Label>Horas Contratadas</Label><Input type="number" value={form.horas_contratadas || ""} onChange={(e) => setForm({ ...form, horas_contratadas: Number(e.target.value) })} /></div>
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Data Início</Label><Input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} /></div>
               <div><Label>Data Fim</Label><Input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} /></div>
