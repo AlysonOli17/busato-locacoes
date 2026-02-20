@@ -5,12 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Receipt, Pencil, AlertTriangle, CheckCircle2, Clock, TrendingDown } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface ContratoRef {
   id: string;
@@ -61,6 +63,7 @@ const Faturamento = () => {
   const [loadingMedicoes, setLoadingMedicoes] = useState(false);
   const [gastosEquip, setGastosEquip] = useState<GastoItem[]>([]);
   const [totalGastos, setTotalGastos] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -134,6 +137,32 @@ const Faturamento = () => {
   );
   const totalPendente = items.filter((i) => i.status === "Pendente").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
+  const toggleSelect = (id: string) => {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+  const toggleAll = () => {
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map(i => i.id)));
+  };
+
+  const getExportData = () => {
+    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+    const headers = ["Empresa", "CNPJ", "Equipamento", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Gastos Deduzidos (R$)", "Valor Líquido (R$)", "Status"];
+    const rows = data.map(i => [
+      i.contratos?.empresas?.nome || "",
+      i.contratos?.empresas?.cnpj || "",
+      `${i.contratos?.equipamentos?.tipo} ${i.contratos?.equipamentos?.modelo}`,
+      i.numero_nota || "—",
+      i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${new Date(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
+      String(i.horas_normais),
+      String(i.horas_excedentes),
+      Number(i.total_gastos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+      Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+      i.status,
+    ]);
+    return { title: "Relatório de Faturamento", headers, rows, filename: `faturamento_${new Date().toISOString().slice(0,10)}` };
+  };
+
   const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setDialogOpen(true); };
   const openEdit = (item: Fatura) => {
     setEditing(item);
@@ -197,11 +226,19 @@ const Faturamento = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
-            <p className="text-sm text-muted-foreground">Total pendente: <span className="text-accent font-semibold">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></p>
+            <p className="text-sm text-muted-foreground">Total pendente: <span className="text-accent font-semibold">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
           </div>
-          <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> Nova Fatura
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
+              <FileDown className="h-4 w-4 mr-1" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
+              <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+            </Button>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Nova Fatura
+            </Button>
+          </div>
         </div>
 
         <div className="relative max-w-sm">
@@ -214,6 +251,7 @@ const Faturamento = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Equipamento</TableHead>
                   <TableHead>Nº Nota</TableHead>
@@ -232,7 +270,8 @@ const Faturamento = () => {
                   const dentroContrato = totalHoras <= horasContratadas;
                   const itemGastos = Number(item.total_gastos || 0);
                   return (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
+                      <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
@@ -277,7 +316,7 @@ const Faturamento = () => {
                   );
                 })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

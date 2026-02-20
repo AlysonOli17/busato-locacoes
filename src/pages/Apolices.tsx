@@ -5,12 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Shield } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 interface Apolice {
@@ -35,6 +37,7 @@ const Apolices = () => {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -52,6 +55,30 @@ const Apolices = () => {
   const filtered = items.filter((i) =>
     i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.numero_apolice.includes(search)
   );
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+  const toggleAll = () => {
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map(i => i.id)));
+  };
+
+  const getExportData = () => {
+    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+    const headers = ["Equipamento", "Tag", "Nº Apólice", "Seguradora", "Vigência Início", "Vigência Fim", "Valor (R$)", "Status"];
+    const rows = data.map(i => [
+      `${i.equipamentos?.tipo} ${i.equipamentos?.modelo}`,
+      i.equipamentos?.tag_placa || "—",
+      i.numero_apolice,
+      i.seguradora,
+      new Date(i.vigencia_inicio).toLocaleDateString("pt-BR"),
+      new Date(i.vigencia_fim).toLocaleDateString("pt-BR"),
+      Number(i.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+      i.status,
+    ]);
+    return { title: "Relatório de Apólices de Seguro", headers, rows, filename: `apolices_${new Date().toISOString().slice(0,10)}` };
+  };
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Apolice) => {
@@ -87,11 +114,19 @@ const Apolices = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Apólices de Seguro</h1>
-            <p className="text-sm text-muted-foreground">{items.length} apólices cadastradas</p>
+            <p className="text-sm text-muted-foreground">{items.length} apólices cadastradas{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
           </div>
-          <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> Nova Apólice
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
+              <FileDown className="h-4 w-4 mr-1" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
+              <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+            </Button>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Nova Apólice
+            </Button>
+          </div>
         </div>
 
         <div className="relative max-w-sm">
@@ -104,6 +139,7 @@ const Apolices = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead>Equipamento</TableHead>
                   <TableHead>Tag</TableHead>
                   <TableHead>Nº Apólice</TableHead>
@@ -116,7 +152,8 @@ const Apolices = () => {
               </TableHeader>
               <TableBody>
                 {filtered.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
+                    <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="font-mono text-sm">{item.numero_apolice}</TableCell>
@@ -139,7 +176,7 @@ const Apolices = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
