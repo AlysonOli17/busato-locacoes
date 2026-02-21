@@ -71,6 +71,9 @@ export type Database = {
           horas_contratadas: number
           id: string
           observacoes: string | null
+          periodo_medicao_fim: string | null
+          periodo_medicao_inicio: string | null
+          prazo_faturamento: number
           status: string
           updated_at: string
           valor_hora: number
@@ -84,6 +87,9 @@ export type Database = {
           horas_contratadas?: number
           id?: string
           observacoes?: string | null
+          periodo_medicao_fim?: string | null
+          periodo_medicao_inicio?: string | null
+          prazo_faturamento?: number
           status?: string
           updated_at?: string
           valor_hora?: number
@@ -97,6 +103,9 @@ export type Database = {
           horas_contratadas?: number
           id?: string
           observacoes?: string | null
+          periodo_medicao_fim?: string | null
+          periodo_medicao_inicio?: string | null
+          prazo_faturamento?: number
           status?: string
           updated_at?: string
           valor_hora?: number

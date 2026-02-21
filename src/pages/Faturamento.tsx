@@ -23,6 +23,9 @@ interface ContratoRef {
   data_inicio: string;
   data_fim: string;
   observacoes: string | null;
+  periodo_medicao_inicio: string | null;
+  periodo_medicao_fim: string | null;
+  prazo_faturamento: number;
   empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
 }
@@ -73,7 +76,7 @@ const Faturamento = () => {
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie))").order("emissao", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, periodo_medicao_inicio, periodo_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -366,7 +369,14 @@ const Faturamento = () => {
   const handleContratoSelect = (contratoId: string) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
-      setForm(prev => ({ ...prev, contrato_id: contratoId, valor_hora: Number(ct.valor_hora), valor_excedente_hora: Number(ct.valor_hora) * 1.25 }));
+      setForm(prev => ({
+        ...prev,
+        contrato_id: contratoId,
+        valor_hora: Number(ct.valor_hora),
+        valor_excedente_hora: Number(ct.valor_hora) * 1.25,
+        periodo_medicao_inicio: ct.periodo_medicao_inicio || "",
+        periodo_medicao_fim: ct.periodo_medicao_fim || "",
+      }));
     }
   };
 
@@ -552,15 +562,13 @@ const Faturamento = () => {
                 <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome} ({selectedContrato.empresas?.cnpj})</p>
                 <p><strong>Equipamento:</strong> {selectedContrato.equipamentos?.tipo} {selectedContrato.equipamentos?.modelo} {selectedContrato.equipamentos?.tag_placa ? `(${selectedContrato.equipamentos.tag_placa})` : ""}</p>
                 <p><strong>Valor/Hora:</strong> R$ {Number(selectedContrato.valor_hora).toFixed(2)} | <strong>Horas Contratadas:</strong> {selectedContrato.horas_contratadas}h</p>
+                <p><strong>Período Medição:</strong> {selectedContrato.periodo_medicao_inicio && selectedContrato.periodo_medicao_fim ? `${new Date(selectedContrato.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(selectedContrato.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "Não definido"}</p>
+                <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Nº Nota / Fatura</Label><Input value={form.numero_nota} onChange={(e) => setForm({ ...form, numero_nota: e.target.value })} placeholder="Ex: NF-001" /></div>
               <div><Label>Período</Label><Input value={form.periodo} onChange={(e) => setForm({ ...form, periodo: e.target.value })} placeholder="Mês/Ano" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Período Medição - Início</Label><Input type="date" value={form.periodo_medicao_inicio} onChange={(e) => setForm({ ...form, periodo_medicao_inicio: e.target.value })} /></div>
-              <div><Label>Período Medição - Fim</Label><Input type="date" value={form.periodo_medicao_fim} onChange={(e) => setForm({ ...form, periodo_medicao_fim: e.target.value })} /></div>
             </div>
 
             {/* Measurement summary */}
