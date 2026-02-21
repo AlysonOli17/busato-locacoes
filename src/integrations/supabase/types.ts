@@ -66,13 +66,13 @@ export type Database = {
           created_at: string
           data_fim: string
           data_inicio: string
+          dia_medicao_fim: number
+          dia_medicao_inicio: number
           empresa_id: string
           equipamento_id: string
           horas_contratadas: number
           id: string
           observacoes: string | null
-          periodo_medicao_fim: string | null
-          periodo_medicao_inicio: string | null
           prazo_faturamento: number
           status: string
           updated_at: string
@@ -82,13 +82,13 @@ export type Database = {
           created_at?: string
           data_fim: string
           data_inicio: string
+          dia_medicao_fim?: number
+          dia_medicao_inicio?: number
           empresa_id: string
           equipamento_id: string
           horas_contratadas?: number
           id?: string
           observacoes?: string | null
-          periodo_medicao_fim?: string | null
-          periodo_medicao_inicio?: string | null
           prazo_faturamento?: number
           status?: string
           updated_at?: string
@@ -98,13 +98,13 @@ export type Database = {
           created_at?: string
           data_fim?: string
           data_inicio?: string
+          dia_medicao_fim?: number
+          dia_medicao_inicio?: number
           empresa_id?: string
           equipamento_id?: string
           horas_contratadas?: number
           id?: string
           observacoes?: string | null
-          periodo_medicao_fim?: string | null
-          periodo_medicao_inicio?: string | null
           prazo_faturamento?: number
           status?: string
           updated_at?: string

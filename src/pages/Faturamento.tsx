@@ -23,8 +23,8 @@ interface ContratoRef {
   data_inicio: string;
   data_fim: string;
   observacoes: string | null;
-  periodo_medicao_inicio: string | null;
-  periodo_medicao_fim: string | null;
+  dia_medicao_inicio: number;
+  dia_medicao_fim: number;
   prazo_faturamento: number;
   empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
