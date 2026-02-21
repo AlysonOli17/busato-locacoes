@@ -240,46 +240,51 @@ const Acompanhamento = () => {
           </Card>
         </div>
 
-        {/* Alertas - Períodos que precisam ser faturados */}
-        {alertasPendentes.length > 0 && (
-          <Card className="border-warning">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2 text-warning">
-                <CalendarClock className="h-5 w-5" />
-                Alertas — Períodos a Faturar ({alertasPendentes.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Equipamento</TableHead>
-                    <TableHead>Período Medição</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {alertasPendentes.map((a, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium text-sm">{a.contrato.empresas?.nome}</TableCell>
-                      <TableCell className="text-sm">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(a.period.inicio).toLocaleDateString("pt-BR")} — {new Date(a.period.fim).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className="bg-warning text-warning-foreground">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Pendente de Emissão
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
+        {/* Cards por empresa — ciclos pendentes de faturamento */}
+        {(() => {
+          const empresasComAlerta = empresas.filter(emp => {
+            if (filtroEmpresa !== "all" && emp.id !== filtroEmpresa) return false;
+            return alertasPendentes.some(a => a.contrato.empresa_id === emp.id);
+          });
+          if (empresasComAlerta.length === 0 && alertasPendentes.length === 0) return null;
+          return (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <CalendarClock className="h-5 w-5 text-warning" />
+                Empresas com Faturamento Pendente ({empresasComAlerta.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {empresasComAlerta.map(emp => {
+                  const alertasEmp = alertasPendentes.filter(a => a.contrato.empresa_id === emp.id);
+                  return (
+                    <Card key={emp.id} className="border-warning/50 bg-warning/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-warning" />
+                          {emp.nome}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {alertasEmp.map((a, i) => (
+                          <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
+                            <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Período: {new Date(a.period.inicio).toLocaleDateString("pt-BR")} — {new Date(a.period.fim).toLocaleDateString("pt-BR")}
+                            </p>
+                            <Badge className="bg-warning text-warning-foreground text-xs">
+                              Pendente de Emissão
+                            </Badge>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Histórico completo de faturamento */}
         <Card>
