@@ -42,7 +42,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <Wrench className="h-5 w-5 text-sidebar-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-bold text-base text-sidebar-accent-foreground">LocaGest</h1>
+              <h1 className="font-bold text-base text-sidebar-accent-foreground">Busato Locações</h1>
               <p className="text-[11px] text-sidebar-foreground/50 tracking-wide uppercase">Gestão de Locações</p>
             </div>
           </div>
@@ -74,7 +74,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         </nav>
 
         <div className="px-5 py-4 border-t border-sidebar-border">
-          <p className="text-[10px] text-sidebar-foreground/30 text-center">LocaGest v1.0</p>
+          <p className="text-[10px] text-sidebar-foreground/30 text-center">Busato Locações Ltda v1.0</p>
         </div>
       </aside>
 
@@ -86,7 +86,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="lg:hidden font-semibold text-sm text-foreground">LocaGest</div>
+          <div className="lg:hidden font-semibold text-sm text-foreground">Busato Locações</div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin">
