@@ -30,40 +30,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const loadUserData = async (userId: string) => {
-    const [profileRes, roleRes, permRes] = await Promise.all([
-      supabase.from("profiles").select("nome, email, status").eq("user_id", userId).single(),
-      supabase.rpc("get_user_role", { _user_id: userId }),
-      supabase.rpc("get_user_permissions", { _user_id: userId }),
-    ]);
-    if (profileRes.data) setProfile(profileRes.data);
-    if (roleRes.data) setRole(roleRes.data as string);
-    if (permRes.data) setPermissions(permRes.data as string[]);
+    try {
+      const [profileRes, roleRes, permRes] = await Promise.all([
+        supabase.from("profiles").select("nome, email, status").eq("user_id", userId).single(),
+        supabase.rpc("get_user_role", { _user_id: userId }),
+        supabase.rpc("get_user_permissions", { _user_id: userId }),
+      ]);
+      if (profileRes.data) setProfile(profileRes.data);
+      if (roleRes.data) setRole(roleRes.data as string);
+      if (permRes.data) setPermissions(permRes.data as string[]);
+    } catch (err) {
+      console.error("Error loading user data:", err);
+    }
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await loadUserData(session.user.id);
+        // Use setTimeout to avoid Supabase auth deadlock
+        setTimeout(async () => {
+          if (!mounted) return;
+          await loadUserData(session.user.id);
+          if (mounted) setLoading(false);
+        }, 0);
       } else {
         setProfile(null);
         setRole(null);
         setPermissions([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadUserData(session.user.id);
+        loadUserData(session.user.id).finally(() => {
+          if (mounted) setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
