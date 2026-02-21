@@ -37,6 +37,7 @@ const Medicoes = () => {
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [ultimoHorimetro, setUltimoHorimetro] = useState<number | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -50,6 +51,21 @@ const Medicoes = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Buscar último horímetro do equipamento selecionado
+  const fetchUltimoHorimetro = async (equipId: string) => {
+    const { data } = await supabase
+      .from("medicoes")
+      .select("horimetro_final, data")
+      .eq("equipamento_id", equipId)
+      .order("data", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      setUltimoHorimetro(Number(data[0].horimetro_final));
+    } else {
+      setUltimoHorimetro(0);
+    }
+  };
 
   const filtered = items.filter((i) => {
     if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
@@ -70,16 +86,26 @@ const Medicoes = () => {
 
   const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
+  const horasCalculadas = ultimoHorimetro !== null && form.horimetro > 0
+    ? Math.max(0, form.horimetro - ultimoHorimetro)
+    : 0;
+
   const handleSave = async () => {
     if (!form.equipamento_id || form.horimetro <= 0) return;
+
+    const horimetroAnterior = ultimoHorimetro || 0;
+    const horasTrabalhadas = Math.max(0, form.horimetro - horimetroAnterior);
+
     const { error } = await supabase.from("medicoes").insert({
       equipamento_id: form.equipamento_id,
       data: form.data,
-      horimetro_inicial: 0,
+      horimetro_inicial: horimetroAnterior,
       horimetro_final: form.horimetro,
+      horas_trabalhadas: horasTrabalhadas,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     setDialogOpen(false);
+    setUltimoHorimetro(null);
     fetchData();
   };
 
@@ -96,11 +122,13 @@ const Medicoes = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => {
-              const headers = ["Equipamento", "Tag/Placa", "Data", "Horímetro (h)"];
+              const headers = ["Equipamento", "Tag/Placa", "Data", "Horímetro Ant.", "Horímetro Atual", "Horas Trab."];
               const rows = filtered.map(m => [
                 `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
                 m.equipamentos?.tag_placa || "—",
                 new Date(m.data).toLocaleDateString("pt-BR"),
+                Number(m.horimetro_inicial).toFixed(1),
+                Number(m.horimetro_final).toFixed(1),
                 Number(m.horas_trabalhadas).toFixed(1),
               ]);
               const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
@@ -108,7 +136,7 @@ const Medicoes = () => {
             }}>
               <FileDown className="h-4 w-4 mr-1" /> PDF Horímetro
             </Button>
-            <Button onClick={() => { setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 }); setDialogOpen(true); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button onClick={() => { setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 }); setUltimoHorimetro(null); setDialogOpen(true); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" /> Nova Medição
             </Button>
           </div>
@@ -197,7 +225,9 @@ const Medicoes = () => {
                   <TableHead>Equipamento</TableHead>
                   <TableHead>Tag/Placa</TableHead>
                   <TableHead>Data</TableHead>
-                  <TableHead>Horímetro</TableHead>
+                  <TableHead>Horímetro Ant.</TableHead>
+                  <TableHead>Horímetro Atual</TableHead>
+                  <TableHead>Horas Trab.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -206,6 +236,8 @@ const Medicoes = () => {
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="text-sm">{new Date(item.data).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
+                    <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
                     <TableCell>
                       <Badge className="bg-accent/10 text-accent font-semibold border-0">
                         <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
@@ -214,7 +246,7 @@ const Medicoes = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -230,7 +262,7 @@ const Medicoes = () => {
           <div className="grid gap-4 py-4">
             <div>
               <Label>Equipamento</Label>
-              <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
+              <Select value={form.equipamento_id} onValueChange={(v) => { setForm({ ...form, equipamento_id: v }); fetchUltimoHorimetro(v); }}>
                 <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
                 <SelectContent>
                   {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
@@ -238,14 +270,21 @@ const Medicoes = () => {
               </Select>
             </div>
             <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
+            {ultimoHorimetro !== null && (
+              <div className="p-3 rounded-lg bg-muted/50 border">
+                <p className="text-xs text-muted-foreground">Último horímetro registrado</p>
+                <p className="text-lg font-bold text-foreground">{ultimoHorimetro.toFixed(1)}</p>
+              </div>
+            )}
             <div>
-              <Label>Horímetro</Label>
-              <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 8.5" />
+              <Label>Horímetro Atual</Label>
+              <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
             </div>
-            {form.horimetro > 0 && (
+            {horasCalculadas > 0 && (
               <div className="p-3 rounded-lg bg-accent/10 text-center">
-                <p className="text-sm text-muted-foreground">Horas a registrar</p>
-                <p className="text-2xl font-bold text-accent">{form.horimetro.toFixed(1)}h</p>
+                <p className="text-sm text-muted-foreground">Horas trabalhadas (diferença)</p>
+                <p className="text-2xl font-bold text-accent">{horasCalculadas.toFixed(1)}h</p>
+                <p className="text-xs text-muted-foreground">{ultimoHorimetro?.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
               </div>
             )}
           </div>
