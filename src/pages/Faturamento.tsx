@@ -76,7 +76,7 @@ const Faturamento = () => {
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie))").order("emissao", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -414,14 +414,18 @@ const Faturamento = () => {
   };
 
   const handleContratoSelect = (contratoId: string) => {
-    const ct = contratos.find(c => c.id === contratoId);
+    const ct = contratos.find(c => c.id === contratoId) as any;
     if (ct) {
       const dates = calcMedicaoDates(ct);
+      // Try to get valor_hora_excedente from contratos_equipamentos
+      const ceList = ct.contratos_equipamentos || [];
+      const mainCe = ceList.length > 0 ? ceList[0] : null;
+      const valorExcedente = mainCe?.valor_hora_excedente ? Number(mainCe.valor_hora_excedente) : Number(ct.valor_hora) * 1.25;
       setForm(prev => ({
         ...prev,
         contrato_id: contratoId,
         valor_hora: Number(ct.valor_hora),
-        valor_excedente_hora: Number(ct.valor_hora) * 1.25,
+        valor_excedente_hora: valorExcedente,
         periodo_medicao_inicio: dates.inicio,
         periodo_medicao_fim: dates.fim,
       }));
