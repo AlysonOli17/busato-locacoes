@@ -76,7 +76,7 @@ const Faturamento = () => {
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie))").order("emissao", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, periodo_medicao_inicio, periodo_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -366,16 +366,43 @@ const Faturamento = () => {
     setDialogOpen(true);
   };
 
+  const calcMedicaoDates = (ct: ContratoRef) => {
+    const now = new Date();
+    const diaInicio = ct.dia_medicao_inicio || 1;
+    const diaFim = ct.dia_medicao_fim || 30;
+    let mesInicio = now.getMonth();
+    let anoInicio = now.getFullYear();
+    let mesFim = mesInicio;
+    let anoFim = anoInicio;
+    if (diaFim < diaInicio) {
+      // crosses month boundary, e.g. 21 to 20: inicio is previous month
+      mesFim = mesInicio;
+      anoFim = anoInicio;
+      mesInicio = mesInicio - 1;
+      if (mesInicio < 0) { mesInicio = 11; anoInicio--; }
+    }
+    const lastDayInicio = new Date(anoInicio, mesInicio + 1, 0).getDate();
+    const lastDayFim = new Date(anoFim, mesFim + 1, 0).getDate();
+    const dInicio = new Date(anoInicio, mesInicio, Math.min(diaInicio, lastDayInicio));
+    const dFim = new Date(anoFim, mesFim, Math.min(diaFim, lastDayFim));
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return {
+      inicio: `${dInicio.getFullYear()}-${pad(dInicio.getMonth() + 1)}-${pad(dInicio.getDate())}`,
+      fim: `${dFim.getFullYear()}-${pad(dFim.getMonth() + 1)}-${pad(dFim.getDate())}`,
+    };
+  };
+
   const handleContratoSelect = (contratoId: string) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
+      const dates = calcMedicaoDates(ct);
       setForm(prev => ({
         ...prev,
         contrato_id: contratoId,
         valor_hora: Number(ct.valor_hora),
         valor_excedente_hora: Number(ct.valor_hora) * 1.25,
-        periodo_medicao_inicio: ct.periodo_medicao_inicio || "",
-        periodo_medicao_fim: ct.periodo_medicao_fim || "",
+        periodo_medicao_inicio: dates.inicio,
+        periodo_medicao_fim: dates.fim,
       }));
     }
   };
