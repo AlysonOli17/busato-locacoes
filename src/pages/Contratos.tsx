@@ -51,7 +51,7 @@ interface EquipUsage {
   percentual: number;
 }
 
-const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", periodo_medicao_inicio: "", periodo_medicao_fim: "", prazo_faturamento: 30 };
+const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30 };
 
 const Contratos = () => {
   const [items, setItems] = useState<Contrato[]>([]);
@@ -304,7 +304,7 @@ const Contratos = () => {
     setEditing(item);
     const ces = getContratoEquipamentos(item);
     setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas) })));
-    setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, periodo_medicao_inicio: (item as any).periodo_medicao_inicio || "", periodo_medicao_fim: (item as any).periodo_medicao_fim || "", prazo_faturamento: (item as any).prazo_faturamento || 30 });
+    setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, dia_medicao_inicio: (item as any).dia_medicao_inicio || 1, dia_medicao_fim: (item as any).dia_medicao_fim || 30, prazo_faturamento: (item as any).prazo_faturamento || 30 });
     setDialogOpen(true);
   };
 
@@ -328,7 +328,7 @@ const Contratos = () => {
       return;
     }
     const mainEquipId = formEquipamentos[0].equipamento_id;
-    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(formEquipamentos[0].valor_hora), horas_contratadas: Number(formEquipamentos[0].horas_contratadas), periodo_medicao_inicio: form.periodo_medicao_inicio || null, periodo_medicao_fim: form.periodo_medicao_fim || null, prazo_faturamento: Number(form.prazo_faturamento) };
+    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(formEquipamentos[0].valor_hora), horas_contratadas: Number(formEquipamentos[0].horas_contratadas), dia_medicao_inicio: Number(form.dia_medicao_inicio), dia_medicao_fim: Number(form.dia_medicao_fim), prazo_faturamento: Number(form.prazo_faturamento) };
 
     let contratoId: string;
 
@@ -672,8 +672,28 @@ const Contratos = () => {
               <div><Label>Data Fim</Label><Input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Período Medição - Início</Label><Input type="date" value={form.periodo_medicao_inicio} onChange={(e) => setForm({ ...form, periodo_medicao_inicio: e.target.value })} /></div>
-              <div><Label>Período Medição - Fim</Label><Input type="date" value={form.periodo_medicao_fim} onChange={(e) => setForm({ ...form, periodo_medicao_fim: e.target.value })} /></div>
+              <div>
+                <Label>Dia Início Medição</Label>
+                <Select value={String(form.dia_medicao_inicio)} onValueChange={(v) => setForm({ ...form, dia_medicao_inicio: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Dia Fim Medição</Label>
+                <Select value={String(form.dia_medicao_fim)} onValueChange={(v) => setForm({ ...form, dia_medicao_fim: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <Label>Prazo para Faturamento (dias)</Label>
