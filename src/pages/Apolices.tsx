@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,10 +25,19 @@ interface Apolice {
   vigencia_fim: string;
   valor: number;
   status: string;
+  tem_adesao: boolean;
+  valor_adesao: number;
+  tem_parcelamento: boolean;
+  numero_parcelas: number;
   equipamentos: Equipamento;
 }
 
-const emptyForm = { equipamento_id: "", numero_apolice: "", seguradora: "", vigencia_inicio: "", vigencia_fim: "", valor: 0 };
+const emptyForm = {
+  equipamento_id: "", numero_apolice: "", seguradora: "",
+  vigencia_inicio: "", vigencia_fim: "", valor: 0,
+  tem_adesao: false, valor_adesao: 0,
+  tem_parcelamento: false, numero_parcelas: 1,
+};
 
 const Apolices = () => {
   const [items, setItems] = useState<Apolice[]>([]);
@@ -38,6 +48,7 @@ const Apolices = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detailItem, setDetailItem] = useState<Apolice | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -66,31 +77,55 @@ const Apolices = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Equipamento", "Tag", "Nº Apólice", "Seguradora", "Vigência Início", "Vigência Fim", "Valor (R$)", "Status"];
-    const rows = data.map(i => [
-      `${i.equipamentos?.tipo} ${i.equipamentos?.modelo}`,
-      i.equipamentos?.tag_placa || "—",
-      i.numero_apolice,
-      i.seguradora,
-      new Date(i.vigencia_inicio).toLocaleDateString("pt-BR"),
-      new Date(i.vigencia_fim).toLocaleDateString("pt-BR"),
-      Number(i.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
-      i.status,
-    ]);
-    return { title: "Relatório de Apólices de Seguro", headers, rows, filename: `apolices_${new Date().toISOString().slice(0,10)}` };
+    const headers = ["Equipamento", "Tag", "Nº Apólice", "Seguradora", "Vigência", "Valor (R$)", "Adesão", "Valor Adesão", "Parcelas", "Valor Parcela", "Status"];
+    const rows = data.map(i => {
+      const valorParcela = i.tem_parcelamento && i.numero_parcelas > 0 ? i.valor / i.numero_parcelas : i.valor;
+      return [
+        `${i.equipamentos?.tipo} ${i.equipamentos?.modelo}`,
+        i.equipamentos?.tag_placa || "—",
+        i.numero_apolice,
+        i.seguradora,
+        `${new Date(i.vigencia_inicio).toLocaleDateString("pt-BR")} - ${new Date(i.vigencia_fim).toLocaleDateString("pt-BR")}`,
+        Number(i.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+        i.tem_adesao ? "Sim" : "Não",
+        i.tem_adesao ? Number(i.valor_adesao).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "—",
+        i.tem_parcelamento ? `${i.numero_parcelas}x` : "À vista",
+        valorParcela.toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+        i.status,
+      ];
+    });
+    return { title: "Relatório de Apólices de Seguro", headers, rows, filename: `apolices_${new Date().toISOString().slice(0, 10)}` };
   };
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Apolice) => {
     setEditing(item);
-    setForm({ equipamento_id: item.equipamento_id, numero_apolice: item.numero_apolice, seguradora: item.seguradora, vigencia_inicio: item.vigencia_inicio, vigencia_fim: item.vigencia_fim, valor: item.valor });
+    setForm({
+      equipamento_id: item.equipamento_id, numero_apolice: item.numero_apolice,
+      seguradora: item.seguradora, vigencia_inicio: item.vigencia_inicio,
+      vigencia_fim: item.vigencia_fim, valor: item.valor,
+      tem_adesao: item.tem_adesao, valor_adesao: item.valor_adesao,
+      tem_parcelamento: item.tem_parcelamento, numero_parcelas: item.numero_parcelas,
+    });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.equipamento_id || !form.numero_apolice) return;
     const status = new Date(form.vigencia_fim) >= new Date() ? "Vigente" : "Vencida";
-    const payload = { ...form, valor: Number(form.valor), status };
+    const payload = {
+      equipamento_id: form.equipamento_id,
+      numero_apolice: form.numero_apolice,
+      seguradora: form.seguradora,
+      vigencia_inicio: form.vigencia_inicio,
+      vigencia_fim: form.vigencia_fim,
+      valor: Number(form.valor),
+      status,
+      tem_adesao: form.tem_adesao,
+      valor_adesao: form.tem_adesao ? Number(form.valor_adesao) : 0,
+      tem_parcelamento: form.tem_parcelamento,
+      numero_parcelas: form.tem_parcelamento ? Number(form.numero_parcelas) : 1,
+    };
     if (editing) {
       const { error } = await supabase.from("apolices").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
@@ -107,6 +142,8 @@ const Apolices = () => {
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     fetchData();
   };
+
+  const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   return (
     <Layout>
@@ -141,42 +178,51 @@ const Apolices = () => {
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead>Equipamento</TableHead>
-                  <TableHead>Tag</TableHead>
                   <TableHead>Nº Apólice</TableHead>
                   <TableHead>Seguradora</TableHead>
                   <TableHead>Vigência</TableHead>
                   <TableHead>Valor</TableHead>
+                  <TableHead>Adesão</TableHead>
+                  <TableHead>Parcelas</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => (
-                  <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
-                    <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
-                    <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.numero_apolice}</TableCell>
-                    <TableCell className="text-sm">{item.seguradora}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(item.vigencia_inicio).toLocaleDateString("pt-BR")} - {new Date(item.vigencia_fim).toLocaleDateString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="font-semibold text-sm">R$ {Number(item.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell>
-                      <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtered.map((item) => {
+                  const valorParcela = item.tem_parcelamento && item.numero_parcelas > 0 ? item.valor / item.numero_parcelas : item.valor;
+                  return (
+                    <TableRow key={item.id} className={`cursor-pointer ${selected.has(item.id) ? "bg-accent/5" : ""}`} onClick={() => setDetailItem(item)}>
+                      <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
+                      <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
+                      <TableCell className="font-mono text-sm">{item.numero_apolice}</TableCell>
+                      <TableCell className="text-sm">{item.seguradora}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(item.vigencia_inicio).toLocaleDateString("pt-BR")} - {new Date(item.vigencia_fim).toLocaleDateString("pt-BR")}
+                      </TableCell>
+                      <TableCell className="font-semibold text-sm">R$ {fmt(item.valor)}</TableCell>
+                      <TableCell className="text-sm">
+                        {item.tem_adesao ? <Badge variant="outline" className="text-xs">R$ {fmt(item.valor_adesao)}</Badge> : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {item.tem_parcelamento ? `${item.numero_parcelas}x R$ ${fmt(valorParcela)}` : "À vista"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -184,6 +230,7 @@ const Apolices = () => {
         </Card>
       </div>
 
+      {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-accent" />{editing ? "Editar Apólice" : "Nova Apólice"}</DialogTitle></DialogHeader>
@@ -205,7 +252,39 @@ const Apolices = () => {
               <div><Label>Início Vigência</Label><Input type="date" value={form.vigencia_inicio} onChange={(e) => setForm({ ...form, vigencia_inicio: e.target.value })} /></div>
               <div><Label>Fim Vigência</Label><Input type="date" value={form.vigencia_fim} onChange={(e) => setForm({ ...form, vigencia_fim: e.target.value })} /></div>
             </div>
-            <div><Label>Valor (R$)</Label><Input type="number" value={form.valor || ""} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} /></div>
+            <div><Label>Valor do Seguro (R$)</Label><Input type="number" value={form.valor || ""} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} /></div>
+
+            {/* Adesão */}
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div>
+                <Label className="text-sm font-medium">Houve adesão?</Label>
+                <p className="text-xs text-muted-foreground">Marque se houve taxa de adesão</p>
+              </div>
+              <Switch checked={form.tem_adesao} onCheckedChange={(v) => setForm({ ...form, tem_adesao: v, valor_adesao: v ? form.valor_adesao : 0 })} />
+            </div>
+            {form.tem_adesao && (
+              <div><Label>Valor da Adesão (R$)</Label><Input type="number" value={form.valor_adesao || ""} onChange={(e) => setForm({ ...form, valor_adesao: Number(e.target.value) })} /></div>
+            )}
+
+            {/* Parcelamento */}
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div>
+                <Label className="text-sm font-medium">Parcelamento?</Label>
+                <p className="text-xs text-muted-foreground">Dividir o valor do seguro em parcelas</p>
+              </div>
+              <Switch checked={form.tem_parcelamento} onCheckedChange={(v) => setForm({ ...form, tem_parcelamento: v, numero_parcelas: v ? form.numero_parcelas : 1 })} />
+            </div>
+            {form.tem_parcelamento && (
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Nº de Parcelas</Label><Input type="number" min={1} value={form.numero_parcelas} onChange={(e) => setForm({ ...form, numero_parcelas: Math.max(1, Number(e.target.value)) })} /></div>
+                <div>
+                  <Label>Valor por Parcela</Label>
+                  <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted text-sm font-semibold">
+                    R$ {form.valor && form.numero_parcelas > 0 ? fmt(form.valor / form.numero_parcelas) : "0,00"}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
@@ -213,8 +292,42 @@ const Apolices = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-accent" />Detalhes da Apólice</DialogTitle></DialogHeader>
+          {detailItem && (() => {
+            const valorParcela = detailItem.tem_parcelamento && detailItem.numero_parcelas > 0 ? detailItem.valor / detailItem.numero_parcelas : detailItem.valor;
+            return (
+              <div className="space-y-3 py-2">
+                <Row label="Equipamento" value={`${detailItem.equipamentos?.tipo} ${detailItem.equipamentos?.modelo}`} />
+                <Row label="Tag/Placa" value={detailItem.equipamentos?.tag_placa || "—"} />
+                <Row label="Nº Apólice" value={detailItem.numero_apolice} />
+                <Row label="Seguradora" value={detailItem.seguradora} />
+                <Row label="Vigência" value={`${new Date(detailItem.vigencia_inicio).toLocaleDateString("pt-BR")} a ${new Date(detailItem.vigencia_fim).toLocaleDateString("pt-BR")}`} />
+                <Row label="Valor do Seguro" value={`R$ ${fmt(detailItem.valor)}`} bold />
+                <Row label="Adesão" value={detailItem.tem_adesao ? `Sim — R$ ${fmt(detailItem.valor_adesao)}` : "Não"} />
+                <Row label="Parcelamento" value={detailItem.tem_parcelamento ? `${detailItem.numero_parcelas}x de R$ ${fmt(valorParcela)}` : "À vista"} />
+                <Row label="Status" value={detailItem.status} badge={detailItem.status === "Vigente" ? "success" : "destructive"} />
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
+
+const Row = ({ label, value, bold, badge }: { label: string; value: string; bold?: boolean; badge?: "success" | "destructive" }) => (
+  <div className="flex justify-between items-center py-1.5 border-b border-border last:border-0">
+    <span className="text-sm text-muted-foreground">{label}</span>
+    {badge ? (
+      <Badge className={badge === "success" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>{value}</Badge>
+    ) : (
+      <span className={`text-sm ${bold ? "font-bold" : "font-medium"} text-foreground`}>{value}</span>
+    )}
+  </div>
+);
 
 export default Apolices;
