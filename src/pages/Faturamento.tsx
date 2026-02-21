@@ -589,7 +589,7 @@ const Faturamento = () => {
                 <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome} ({selectedContrato.empresas?.cnpj})</p>
                 <p><strong>Equipamento:</strong> {selectedContrato.equipamentos?.tipo} {selectedContrato.equipamentos?.modelo} {selectedContrato.equipamentos?.tag_placa ? `(${selectedContrato.equipamentos.tag_placa})` : ""}</p>
                 <p><strong>Valor/Hora:</strong> R$ {Number(selectedContrato.valor_hora).toFixed(2)} | <strong>Horas Contratadas:</strong> {selectedContrato.horas_contratadas}h</p>
-                <p><strong>Período Medição:</strong> {selectedContrato.periodo_medicao_inicio && selectedContrato.periodo_medicao_fim ? `${new Date(selectedContrato.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(selectedContrato.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "Não definido"}</p>
+                <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30} (todo mês)</p>
                 <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
               </div>
             )}
