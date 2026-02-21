@@ -20,10 +20,14 @@ export type Database = {
           equipamento_id: string
           id: string
           numero_apolice: string
+          numero_parcelas: number
           seguradora: string
           status: string
+          tem_adesao: boolean
+          tem_parcelamento: boolean
           updated_at: string
           valor: number
+          valor_adesao: number
           vigencia_fim: string
           vigencia_inicio: string
         }
@@ -32,10 +36,14 @@ export type Database = {
           equipamento_id: string
           id?: string
           numero_apolice: string
+          numero_parcelas?: number
           seguradora: string
           status?: string
+          tem_adesao?: boolean
+          tem_parcelamento?: boolean
           updated_at?: string
           valor?: number
+          valor_adesao?: number
           vigencia_fim: string
           vigencia_inicio: string
         }
@@ -44,10 +52,14 @@ export type Database = {
           equipamento_id?: string
           id?: string
           numero_apolice?: string
+          numero_parcelas?: number
           seguradora?: string
           status?: string
+          tem_adesao?: boolean
+          tem_parcelamento?: boolean
           updated_at?: string
           valor?: number
+          valor_adesao?: number
           vigencia_fim?: string
           vigencia_inicio?: string
         }
