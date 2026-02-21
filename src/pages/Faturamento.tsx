@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -74,6 +75,7 @@ const Faturamento = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [horaMinima, setHoraMinima] = useState(0);
   const [dataEntrega, setDataEntrega] = useState<string | null>(null);
+  const [primeiroMes, setPrimeiroMes] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -110,11 +112,10 @@ const Faturamento = () => {
         .order("data", { ascending: false }),
     ]);
 
-    // Medições - apply hora_minima logic
+    // Medições
     if (medRes.error) { setHorasMedidas(null); } else {
       const total = (medRes.data || []).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
       setHorasMedidas(total);
-      const horasContratadas = Number(ct.horas_contratadas);
       
       // Get hora_minima from contratos_equipamentos
       const ceList = (ct as any).contratos_equipamentos || [];
@@ -122,12 +123,6 @@ const Faturamento = () => {
       const hMinima = Number(mainCe?.hora_minima || 0);
       setHoraMinima(hMinima);
       setDataEntrega(mainCe?.data_entrega || null);
-
-      // If total hours < hora_minima, charge for hora_minima
-      const horasEfetivas = hMinima > 0 && total < hMinima ? hMinima : total;
-      const horasNormais = Math.min(horasEfetivas, horasContratadas);
-      const horasExcedentes = Math.max(0, horasEfetivas - horasContratadas);
-      setForm(prev => ({ ...prev, horas_normais: Number(horasNormais.toFixed(1)), horas_excedentes: Number(horasExcedentes.toFixed(1)) }));
     }
 
     // Gastos - all shown but none selected by default
@@ -165,6 +160,22 @@ const Faturamento = () => {
     const total = gastosEquip.filter(g => selectedGastos.has(g.id)).reduce((acc, g) => acc + Number(g.valor), 0);
     setTotalGastos(total);
   }, [selectedGastos, gastosEquip]);
+
+  // Recalculate horas based on horaMinima and primeiroMes
+  useEffect(() => {
+    if (horasMedidas === null) return;
+    const ct = contratos.find(c => c.id === form.contrato_id);
+    if (!ct) return;
+    const horasContratadas = Number(ct.horas_contratadas);
+    
+    // First month: no hora_minima, just charge actual hours (proportional)
+    // Normal months: apply hora_minima if hours < minimum
+    const applyMinima = horaMinima > 0 && !primeiroMes;
+    const horasEfetivas = applyMinima && horasMedidas < horaMinima ? horaMinima : horasMedidas;
+    const horasNormais = Math.min(horasEfetivas, horasContratadas);
+    const horasExcedentes = Math.max(0, horasEfetivas - horasContratadas);
+    setForm(prev => ({ ...prev, horas_normais: Number(horasNormais.toFixed(1)), horas_excedentes: Number(horasExcedentes.toFixed(1)) }));
+  }, [horasMedidas, horaMinima, primeiroMes, contratos, form.contrato_id]);
 
   useEffect(() => {
     if (form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim) {
@@ -407,7 +418,7 @@ const Faturamento = () => {
     doc.save(`faturamento_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); setHoraMinima(0); setDataEntrega(null); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); setHoraMinima(0); setDataEntrega(null); setPrimeiroMes(false); setDialogOpen(true); };
   const openEdit = async (item: Fatura) => {
     setEditing(item);
     setForm({
@@ -741,9 +752,27 @@ const Faturamento = () => {
                     </p>
                   </div>
                 </div>
-                {horaMinima > 0 && horasMedidas < horaMinima && (
+                {horaMinima > 0 && (
+                  <div className="flex items-center justify-between p-2 rounded bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={primeiroMes} onCheckedChange={setPrimeiroMes} />
+                      <Label className="text-xs font-medium cursor-pointer" onClick={() => setPrimeiroMes(!primeiroMes)}>
+                        Primeiro mês (proporcional à entrega)
+                      </Label>
+                    </div>
+                    {dataEntrega && primeiroMes && (
+                      <span className="text-xs text-muted-foreground">Entrega: {new Date(dataEntrega).toLocaleDateString("pt-BR")}</span>
+                    )}
+                  </div>
+                )}
+                {horaMinima > 0 && !primeiroMes && horasMedidas < horaMinima && (
                   <div className="flex items-center gap-1 text-xs text-accent font-medium bg-accent/10 rounded p-2">
                     ⚡ Hora mínima aplicada: {horasMedidas.toFixed(1)}h medidas → cobrando {horaMinima}h (mínimo contratual)
+                  </div>
+                )}
+                {horaMinima > 0 && primeiroMes && (
+                  <div className="flex items-center gap-1 text-xs text-accent font-medium bg-accent/10 rounded p-2">
+                    📅 Primeiro mês — cobrança proporcional às horas reais ({horasMedidas.toFixed(1)}h), sem hora mínima
                   </div>
                 )}
                 {horasMedidas > Number(selectedContrato.horas_contratadas) ? (
@@ -755,11 +784,6 @@ const Faturamento = () => {
                   <div className="flex items-center gap-1 text-xs text-success">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Dentro do limite contratado ({(Number(selectedContrato.horas_contratadas) - horasMedidas).toFixed(1)}h restantes)
-                  </div>
-                )}
-                {dataEntrega && form.periodo_medicao_inicio === dataEntrega && (
-                  <div className="flex items-center gap-1 text-xs text-accent font-medium bg-accent/10 rounded p-2">
-                    📅 Primeiro mês — faturamento fracionado a partir da entrega ({new Date(dataEntrega).toLocaleDateString("pt-BR")})
                   </div>
                 )}
                 {loadingMedicoes && <p className="text-xs text-muted-foreground">Calculando...</p>}
