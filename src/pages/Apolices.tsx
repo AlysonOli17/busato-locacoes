@@ -196,19 +196,8 @@ const Apolices = () => {
           <Input placeholder="Buscar apólices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
 
-        {/* Summary Panel */}
-        {vencendoEm30.length > 0 && (
-          <Alert variant="destructive" className="border-destructive/50">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Atenção — Vencimento Próximo</AlertTitle>
-            <AlertDescription>
-              {vencendoEm30.length} apólice(s) vencem nos próximos 30 dias:{" "}
-              {vencendoEm30.map(a => `${a.equipamentos?.tipo} ${a.equipamentos?.modelo} (${new Date(a.vigencia_fim).toLocaleDateString("pt-BR")})`).join(", ")}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -217,7 +206,30 @@ const Apolices = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-foreground">{vigentes.length}</p>
-              <p className="text-xs text-muted-foreground">{vencendoEm30.length} vencendo em 30 dias</p>
+              <p className="text-xs text-muted-foreground">de {items.length} cadastradas</p>
+            </CardContent>
+          </Card>
+          <Card className={vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <AlertTriangle className={`h-4 w-4 ${vencendoEm30.length > 0 ? "text-destructive" : ""}`} /> Vencimento / Renovação
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-bold ${vencendoEm30.length > 0 ? "text-destructive" : "text-foreground"}`}>{vencendoEm30.length}</p>
+              <p className="text-xs text-muted-foreground">vencem nos próximos 30 dias</p>
+              {vencendoEm30.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {vencendoEm30.map(a => (
+                    <div key={a.id} className="text-xs flex justify-between items-center">
+                      <span className="font-medium text-foreground truncate mr-2">{a.equipamentos?.tipo} {a.equipamentos?.modelo}</span>
+                      <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px] shrink-0">
+                        {new Date(a.vigencia_fim).toLocaleDateString("pt-BR")}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>
