@@ -11,7 +11,8 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
@@ -54,6 +55,31 @@ interface EquipUsage {
   percentual: number;
 }
 
+interface AjusteTemporario {
+  id: string;
+  contrato_id: string;
+  equipamento_id: string;
+  valor_hora: number;
+  valor_hora_excedente: number;
+  hora_minima: number;
+  horas_contratadas: number;
+  data_inicio: string;
+  data_fim: string;
+  motivo: string;
+  created_at: string;
+}
+
+interface AjusteForm {
+  equipamento_id: string;
+  valor_hora: number;
+  valor_hora_excedente: number;
+  hora_minima: number;
+  horas_contratadas: number;
+  data_inicio: string;
+  data_fim: string;
+  motivo: string;
+}
+
 const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30 };
 
 const Contratos = () => {
@@ -71,6 +97,13 @@ const Contratos = () => {
   const [dashboardContrato, setDashboardContrato] = useState<Contrato | null>(null);
   const [equipUsages, setEquipUsages] = useState<EquipUsage[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(false);
+  // Ajustes temporários
+  const [ajustesOpen, setAjustesOpen] = useState(false);
+  const [ajustesContrato, setAjustesContrato] = useState<Contrato | null>(null);
+  const [ajustes, setAjustes] = useState<AjusteTemporario[]>([]);
+  const [ajusteFormOpen, setAjusteFormOpen] = useState(false);
+  const [editingAjuste, setEditingAjuste] = useState<AjusteTemporario | null>(null);
+  const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_id: "", valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -381,6 +414,88 @@ const Contratos = () => {
 
   const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
+  // --- Ajustes Temporários ---
+  const openAjustes = async (item: Contrato) => {
+    setAjustesContrato(item);
+    setAjustesOpen(true);
+    const { data } = await supabase
+      .from("contratos_equipamentos_ajustes")
+      .select("*")
+      .eq("contrato_id", item.id)
+      .order("data_inicio", { ascending: false });
+    setAjustes((data || []) as AjusteTemporario[]);
+  };
+
+  const openNewAjuste = (equipId?: string) => {
+    setEditingAjuste(null);
+    const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+    const firstEquip = equipId || (ces.length > 0 ? ces[0].equipamento_id : "");
+    const ce = ces.find(c => c.equipamento_id === firstEquip);
+    setAjusteForm({
+      equipamento_id: firstEquip,
+      valor_hora: ce ? Number(ce.valor_hora) : 0,
+      valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : 0,
+      hora_minima: ce ? Number(ce.hora_minima) : 0,
+      horas_contratadas: ce ? Number(ce.horas_contratadas) : 0,
+      data_inicio: "",
+      data_fim: "",
+      motivo: "",
+    });
+    setAjusteFormOpen(true);
+  };
+
+  const openEditAjuste = (aj: AjusteTemporario) => {
+    setEditingAjuste(aj);
+    setAjusteForm({
+      equipamento_id: aj.equipamento_id,
+      valor_hora: aj.valor_hora,
+      valor_hora_excedente: aj.valor_hora_excedente,
+      hora_minima: aj.hora_minima,
+      horas_contratadas: aj.horas_contratadas,
+      data_inicio: aj.data_inicio,
+      data_fim: aj.data_fim,
+      motivo: aj.motivo,
+    });
+    setAjusteFormOpen(true);
+  };
+
+  const handleSaveAjuste = async () => {
+    if (!ajustesContrato || !ajusteForm.equipamento_id || !ajusteForm.data_inicio || !ajusteForm.data_fim) {
+      toast({ title: "Campos obrigatórios", description: "Preencha equipamento, datas de início e fim.", variant: "destructive" });
+      return;
+    }
+    const payload = {
+      contrato_id: ajustesContrato.id,
+      equipamento_id: ajusteForm.equipamento_id,
+      valor_hora: Number(ajusteForm.valor_hora),
+      valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
+      hora_minima: Number(ajusteForm.hora_minima),
+      horas_contratadas: Number(ajusteForm.horas_contratadas),
+      data_inicio: ajusteForm.data_inicio,
+      data_fim: ajusteForm.data_fim,
+      motivo: ajusteForm.motivo,
+    };
+    if (editingAjuste) {
+      const { error } = await supabase.from("contratos_equipamentos_ajustes").update(payload).eq("id", editingAjuste.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(payload);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    }
+    setAjusteFormOpen(false);
+    openAjustes(ajustesContrato);
+  };
+
+  const handleDeleteAjuste = async (id: string) => {
+    const { error } = await supabase.from("contratos_equipamentos_ajustes").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    if (ajustesContrato) openAjustes(ajustesContrato);
+  };
+
+  const isAjusteAtivo = (aj: AjusteTemporario) => {
+    const hoje = new Date();
+    return hoje >= new Date(aj.data_inicio) && hoje <= new Date(aj.data_fim);
+  };
   // Summary totals for dashboard
   const dashboardTotals = {
     totalContratado: equipUsages.reduce((s, u) => s + u.custo_contratado, 0),
@@ -469,6 +584,9 @@ const Contratos = () => {
                       <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openAjustes(item)} title="Ajustes temporários">
+                            <Settings2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => openDashboard(item)} title="Dashboard de uso">
                             <BarChart3 className="h-4 w-4 text-accent" />
                           </Button>
@@ -754,6 +872,132 @@ const Contratos = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ajustes Temporários Dialog */}
+      <Dialog open={ajustesOpen} onOpenChange={setAjustesOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-accent" />
+              Ajustes Temporários — {ajustesContrato?.empresas?.nome}
+            </DialogTitle>
+            <DialogDescription>
+              Defina períodos com valores diferentes dos contratados. O faturamento usará automaticamente os valores do ajuste quando o período de medição coincidir.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Button onClick={() => openNewAjuste()} size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Novo Ajuste
+            </Button>
+
+            {ajustes.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhum ajuste temporário cadastrado para este contrato.</p>
+            )}
+
+            <div className="space-y-3">
+              {ajustes.map(aj => {
+                const eq = equipamentos.find(e => e.id === aj.equipamento_id);
+                const ativo = isAjusteAtivo(aj);
+                const passado = new Date() > new Date(aj.data_fim);
+                return (
+                  <div key={aj.id} className={`rounded-lg border p-4 space-y-2 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CalendarRange className="h-4 w-4 text-accent" />
+                        <span className="font-medium text-sm">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}</span>
+                        {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
+                        {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
+                        {!ativo && !passado && <Badge variant="outline" className="text-xs text-muted-foreground">Agendado</Badge>}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAjuste(aj)}><Pencil className="h-3 w-3" /></Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir Ajuste</AlertDialogTitle>
+                              <AlertDialogDescription>Tem certeza? O faturamento voltará a usar os valores originais do contrato.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteAjuste(aj.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{new Date(aj.data_inicio).toLocaleDateString("pt-BR")} - {new Date(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                      <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
+                      <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
+                      <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
+                    </div>
+                    {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ajuste Form Dialog */}
+      <Dialog open={ajusteFormOpen} onOpenChange={setAjusteFormOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarRange className="h-5 w-5 text-accent" />
+              {editingAjuste ? "Editar Ajuste" : "Novo Ajuste Temporário"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label>Equipamento</Label>
+              <Select value={ajusteForm.equipamento_id} onValueChange={(v) => {
+                const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+                const ce = ces.find(c => c.equipamento_id === v);
+                setAjusteForm(prev => ({
+                  ...prev,
+                  equipamento_id: v,
+                  valor_hora: ce ? Number(ce.valor_hora) : prev.valor_hora,
+                  valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : prev.valor_hora_excedente,
+                  hora_minima: ce ? Number(ce.hora_minima) : prev.hora_minima,
+                  horas_contratadas: ce ? Number(ce.horas_contratadas) : prev.horas_contratadas,
+                }));
+              }}>
+                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
+                <SelectContent>
+                  {(ajustesContrato ? getContratoEquipamentos(ajustesContrato) : []).map(ce => (
+                    <SelectItem key={ce.equipamento_id} value={ce.equipamento_id}>
+                      {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Data Início</Label><Input type="date" value={ajusteForm.data_inicio} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_inicio: e.target.value }))} /></div>
+              <div><Label>Data Fim</Label><Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Valor/Hora (R$)</Label><Input type="number" value={ajusteForm.valor_hora || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora: Number(e.target.value) }))} /></div>
+              <div><Label>Valor Hora Excedente (R$)</Label><Input type="number" value={ajusteForm.valor_hora_excedente || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: Number(e.target.value) }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
+              <div><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
+            </div>
+            <div><Label>Motivo</Label><Input value={ajusteForm.motivo} onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: Reajuste temporário por demanda extra" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAjusteFormOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveAjuste} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
