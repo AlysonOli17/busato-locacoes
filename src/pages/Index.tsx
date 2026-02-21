@@ -1,30 +1,58 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Wrench, Building2, FileText, Receipt, TrendingUp, Clock } from "lucide-react";
-
-const stats = [
-  { label: "Equipamentos", value: "24", icon: Wrench, sub: "+2 este mês" },
-  { label: "Contratos Ativos", value: "18", icon: FileText, sub: "3 vencem em breve" },
-  { label: "Empresas", value: "12", icon: Building2, sub: "+1 esta semana" },
-  { label: "Faturamento Pendente", value: "R$ 45.200", icon: Receipt, sub: "5 faturas" },
-];
-
-const recentContracts = [
-  { id: "1", empresa: "Construtora Alpha", equipamento: "Escavadeira CAT 320", inicio: "01/02/2026", status: "Ativo" },
-  { id: "2", empresa: "Terraplenagem Beta", equipamento: "Retroescavadeira JCB 3CX", inicio: "15/01/2026", status: "Ativo" },
-  { id: "3", empresa: "Engenharia Gamma", equipamento: "Rolo Compactador BOMAG", inicio: "10/01/2026", status: "Vencido" },
-  { id: "4", empresa: "Pavimentação Delta", equipamento: "Pá Carregadeira 950H", inicio: "20/12/2025", status: "Ativo" },
-];
-
-const recentMedicoes = [
-  { equipamento: "Escavadeira CAT 320", data: "20/02/2026", horasHoje: "8.5h", totalMes: "142h" },
-  { equipamento: "Retroescavadeira JCB 3CX", data: "20/02/2026", horasHoje: "6.2h", totalMes: "98h" },
-  { equipamento: "Pá Carregadeira 950H", data: "20/02/2026", horasHoje: "9.1h", totalMes: "156h" },
-];
+import { Wrench, Building2, FileText, Receipt, TrendingUp, Clock, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const [stats, setStats] = useState({ equipamentos: 0, contratosAtivos: 0, empresas: 0, pendente: 0, atrasadas: 0 });
+  const [recentContratos, setRecentContratos] = useState<any[]>([]);
+  const [recentMedicoes, setRecentMedicoes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDash = async () => {
+      const [eqRes, empRes, ctRes, fatRes, medRes] = await Promise.all([
+        supabase.from("equipamentos").select("id", { count: "exact", head: true }),
+        supabase.from("empresas").select("id", { count: "exact", head: true }),
+        supabase.from("contratos").select("*, empresas(nome), equipamentos(tipo, modelo, tag_placa)").order("created_at", { ascending: false }).limit(5),
+        supabase.from("faturamento").select("id, status, valor_total, emissao, contrato_id, contratos(prazo_faturamento)").in("status", ["Pendente"]),
+        supabase.from("medicoes").select("*, equipamentos(tipo, modelo, tag_placa)").order("data", { ascending: false }).limit(5),
+      ]);
+
+      const contratosAtivos = (ctRes.data || []).filter((c: any) => c.status === "Ativo").length;
+
+      // Calculate overdue
+      let pendente = 0;
+      let atrasadas = 0;
+      (fatRes.data || []).forEach((f: any) => {
+        const prazo = f.contratos?.prazo_faturamento || 30;
+        const venc = new Date(f.emissao);
+        venc.setDate(venc.getDate() + prazo);
+        if (new Date() > venc) {
+          atrasadas++;
+        } else {
+          pendente += Number(f.valor_total);
+        }
+      });
+
+      setStats({
+        equipamentos: eqRes.count || 0,
+        contratosAtivos,
+        empresas: empRes.count || 0,
+        pendente,
+        atrasadas,
+      });
+
+      setRecentContratos((ctRes.data || []).slice(0, 4));
+      setRecentMedicoes(medRes.data || []);
+      setLoading(false);
+    };
+    fetchDash();
+  }, []);
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -34,23 +62,56 @@ const Index = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((s) => (
-            <Card key={s.label} className="hover:shadow-md transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-                <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                  <s.icon className="h-4 w-4 text-accent" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{s.value}</div>
-                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3 text-success" />
-                  {s.sub}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Equipamentos</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <Wrench className="h-4 w-4 text-accent" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.equipamentos}</div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Contratos Ativos</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-accent" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.contratosAtivos}</div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Empresas</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <Building2 className="h-4 w-4 text-accent" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.empresas}</div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Faturamento Pendente</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <Receipt className="h-4 w-4 text-accent" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">R$ {stats.pendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              {stats.atrasadas > 0 && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {stats.atrasadas} fatura(s) em atraso
                 </p>
-              </CardContent>
-            </Card>
-          ))}
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -71,10 +132,10 @@ const Index = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentContracts.map((c) => (
+                  {recentContratos.map((c: any) => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium text-sm">{c.empresa}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{c.equipamento}</TableCell>
+                      <TableCell className="font-medium text-sm">{c.empresas?.nome}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{c.equipamentos?.tipo} {c.equipamentos?.modelo}</TableCell>
                       <TableCell>
                         <Badge className={c.status === "Ativo" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
                           {c.status}
@@ -82,6 +143,9 @@ const Index = () => {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {!loading && recentContratos.length === 0 && (
+                    <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Nenhum contrato</TableCell></TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -91,7 +155,7 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Clock className="h-4 w-4 text-accent" />
-                Medições de Hoje
+                Últimas Medições
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -99,18 +163,21 @@ const Index = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Equipamento</TableHead>
-                    <TableHead>Horas Hoje</TableHead>
-                    <TableHead>Total Mês</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Horas</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentMedicoes.map((m) => (
-                    <TableRow key={m.equipamento}>
-                      <TableCell className="font-medium text-sm">{m.equipamento}</TableCell>
-                      <TableCell className="text-sm">{m.horasHoje}</TableCell>
-                      <TableCell className="text-sm font-semibold text-accent">{m.totalMes}</TableCell>
+                  {recentMedicoes.map((m: any) => (
+                    <TableRow key={m.id}>
+                      <TableCell className="font-medium text-sm">{m.equipamentos?.tipo} {m.equipamentos?.modelo}</TableCell>
+                      <TableCell className="text-sm">{new Date(m.data).toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell className="text-sm font-semibold text-accent">{m.horas_trabalhadas}h</TableCell>
                     </TableRow>
                   ))}
+                  {!loading && recentMedicoes.length === 0 && (
+                    <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Nenhuma medição</TableCell></TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
