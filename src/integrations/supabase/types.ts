@@ -143,7 +143,9 @@ export type Database = {
         Row: {
           contrato_id: string
           created_at: string
+          data_entrega: string | null
           equipamento_id: string
+          hora_minima: number
           horas_contratadas: number
           id: string
           valor_hora: number
@@ -152,7 +154,9 @@ export type Database = {
         Insert: {
           contrato_id: string
           created_at?: string
+          data_entrega?: string | null
           equipamento_id: string
+          hora_minima?: number
           horas_contratadas?: number
           id?: string
           valor_hora?: number
@@ -161,7 +165,9 @@ export type Database = {
         Update: {
           contrato_id?: string
           created_at?: string
+          data_entrega?: string | null
           equipamento_id?: string
+          hora_minima?: number
           horas_contratadas?: number
           id?: string
           valor_hora?: number
@@ -350,6 +356,42 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faturamento_gastos: {
+        Row: {
+          created_at: string
+          faturamento_id: string
+          gasto_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          faturamento_id: string
+          gasto_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          faturamento_id?: string
+          gasto_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturamento_gastos_faturamento_id_fkey"
+            columns: ["faturamento_id"]
+            isOneToOne: false
+            referencedRelation: "faturamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faturamento_gastos_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
             referencedColumns: ["id"]
           },
         ]

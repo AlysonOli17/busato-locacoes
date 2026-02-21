@@ -70,13 +70,16 @@ const Faturamento = () => {
   const [loadingMedicoes, setLoadingMedicoes] = useState(false);
   const [gastosEquip, setGastosEquip] = useState<GastoItem[]>([]);
   const [totalGastos, setTotalGastos] = useState(0);
+  const [selectedGastos, setSelectedGastos] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [horaMinima, setHoraMinima] = useState(0);
+  const [dataEntrega, setDataEntrega] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie))").order("emissao", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -88,7 +91,7 @@ const Faturamento = () => {
   // Fetch measurements + gastos when contract + date range changes
   const fetchMedicoesEGastos = useCallback(async (contratoId: string, inicio: string, fim: string) => {
     const ct = contratos.find(c => c.id === contratoId);
-    if (!ct || !inicio || !fim) { setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); return; }
+    if (!ct || !inicio || !fim) { setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); return; }
     setLoadingMedicoes(true);
 
     const [medRes, gastosRes] = await Promise.all([
@@ -107,27 +110,61 @@ const Faturamento = () => {
         .order("data", { ascending: false }),
     ]);
 
-    // Medições
+    // Medições - apply hora_minima logic
     if (medRes.error) { setHorasMedidas(null); } else {
       const total = (medRes.data || []).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
       setHorasMedidas(total);
       const horasContratadas = Number(ct.horas_contratadas);
-      const horasNormais = Math.min(total, horasContratadas);
-      const horasExcedentes = Math.max(0, total - horasContratadas);
+      
+      // Get hora_minima from contratos_equipamentos
+      const ceList = (ct as any).contratos_equipamentos || [];
+      const mainCe = ceList.length > 0 ? ceList[0] : null;
+      const hMinima = Number(mainCe?.hora_minima || 0);
+      setHoraMinima(hMinima);
+      setDataEntrega(mainCe?.data_entrega || null);
+
+      // If total hours < hora_minima, charge for hora_minima
+      const horasEfetivas = hMinima > 0 && total < hMinima ? hMinima : total;
+      const horasNormais = Math.min(horasEfetivas, horasContratadas);
+      const horasExcedentes = Math.max(0, horasEfetivas - horasContratadas);
       setForm(prev => ({ ...prev, horas_normais: Number(horasNormais.toFixed(1)), horas_excedentes: Number(horasExcedentes.toFixed(1)) }));
     }
 
-    // Gastos
+    // Gastos - all shown but none selected by default
     if (gastosRes.data) {
       setGastosEquip(gastosRes.data as GastoItem[]);
-      setTotalGastos(gastosRes.data.reduce((acc, g) => acc + Number(g.valor), 0));
+      setSelectedGastos(new Set()); // empty = none selected
+      setTotalGastos(0);
     } else {
       setGastosEquip([]);
+      setSelectedGastos(new Set());
       setTotalGastos(0);
     }
 
     setLoadingMedicoes(false);
   }, [contratos]);
+
+  // Toggle gasto selection
+  const toggleGasto = (gastoId: string) => {
+    setSelectedGastos(prev => {
+      const n = new Set(prev);
+      n.has(gastoId) ? n.delete(gastoId) : n.add(gastoId);
+      return n;
+    });
+  };
+  const toggleAllGastos = () => {
+    if (selectedGastos.size === gastosEquip.length) {
+      setSelectedGastos(new Set());
+    } else {
+      setSelectedGastos(new Set(gastosEquip.map(g => g.id)));
+    }
+  };
+
+  // Recalculate totalGastos when selection changes
+  useEffect(() => {
+    const total = gastosEquip.filter(g => selectedGastos.has(g.id)).reduce((acc, g) => acc + Number(g.valor), 0);
+    setTotalGastos(total);
+  }, [selectedGastos, gastosEquip]);
 
   useEffect(() => {
     if (form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim) {
@@ -136,6 +173,7 @@ const Faturamento = () => {
       setHorasMedidas(null);
       setGastosEquip([]);
       setTotalGastos(0);
+      setSelectedGastos(new Set());
     }
   }, [form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim, fetchMedicoesEGastos]);
 
@@ -369,8 +407,8 @@ const Faturamento = () => {
     doc.save(`faturamento_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setDialogOpen(true); };
-  const openEdit = (item: Fatura) => {
+  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); setHoraMinima(0); setDataEntrega(null); setDialogOpen(true); };
+  const openEdit = async (item: Fatura) => {
     setEditing(item);
     setForm({
       contrato_id: item.contrato_id,
@@ -384,6 +422,14 @@ const Faturamento = () => {
       periodo_medicao_inicio: item.periodo_medicao_inicio || "",
       periodo_medicao_fim: item.periodo_medicao_fim || "",
     });
+    // Load previously selected gastos
+    const { data: savedGastos } = await supabase
+      .from("faturamento_gastos")
+      .select("gasto_id")
+      .eq("faturamento_id", item.id);
+    if (savedGastos) {
+      setSelectedGastos(new Set(savedGastos.map(sg => sg.gasto_id)));
+    }
     setDialogOpen(true);
   };
 
@@ -417,16 +463,32 @@ const Faturamento = () => {
     const ct = contratos.find(c => c.id === contratoId) as any;
     if (ct) {
       const dates = calcMedicaoDates(ct);
-      // Try to get valor_hora_excedente from contratos_equipamentos
       const ceList = ct.contratos_equipamentos || [];
       const mainCe = ceList.length > 0 ? ceList[0] : null;
       const valorExcedente = mainCe?.valor_hora_excedente ? Number(mainCe.valor_hora_excedente) : Number(ct.valor_hora) * 1.25;
+      const hMinima = Number(mainCe?.hora_minima || 0);
+      const dEntrega = mainCe?.data_entrega || null;
+      setHoraMinima(hMinima);
+      setDataEntrega(dEntrega);
+
+      // Check if first month (data_entrega within measurement period) for proration
+      let periodoInicio = dates.inicio;
+      if (dEntrega) {
+        const entregaDate = new Date(dEntrega);
+        const inicioDate = new Date(dates.inicio);
+        const fimDate = new Date(dates.fim);
+        // If delivery date is within the current measurement period, start from delivery date
+        if (entregaDate >= inicioDate && entregaDate <= fimDate) {
+          periodoInicio = dEntrega;
+        }
+      }
+
       setForm(prev => ({
         ...prev,
         contrato_id: contratoId,
         valor_hora: Number(ct.valor_hora),
         valor_excedente_hora: valorExcedente,
-        periodo_medicao_inicio: dates.inicio,
+        periodo_medicao_inicio: periodoInicio,
         periodo_medicao_fim: dates.fim,
       }));
     }
@@ -451,13 +513,30 @@ const Faturamento = () => {
       periodo_medicao_fim: form.periodo_medicao_fim || null,
       total_gastos: totalGastos,
     };
+    
+    let faturaId: string;
+    
     if (editing) {
       const { error } = await supabase.from("faturamento").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      faturaId = editing.id;
+      // Clear old gastos associations
+      await supabase.from("faturamento_gastos").delete().eq("faturamento_id", faturaId);
     } else {
-      const { error } = await supabase.from("faturamento").insert(payload);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      const { data, error } = await supabase.from("faturamento").insert(payload).select("id").single();
+      if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar fatura", variant: "destructive" }); return; }
+      faturaId = data.id;
     }
+
+    // Save selected gastos
+    if (selectedGastos.size > 0) {
+      const gastoRows = Array.from(selectedGastos).map(gastoId => ({
+        faturamento_id: faturaId,
+        gasto_id: gastoId,
+      }));
+      await supabase.from("faturamento_gastos").insert(gastoRows);
+    }
+
     setDialogOpen(false);
     fetchData();
   };
@@ -628,6 +707,8 @@ const Faturamento = () => {
                 <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome} ({selectedContrato.empresas?.cnpj})</p>
                 <p><strong>Equipamento:</strong> {selectedContrato.equipamentos?.tipo} {selectedContrato.equipamentos?.modelo} {selectedContrato.equipamentos?.tag_placa ? `(${selectedContrato.equipamentos.tag_placa})` : ""}</p>
                 <p><strong>Valor/Hora:</strong> R$ {Number(selectedContrato.valor_hora).toFixed(2)} | <strong>Horas Contratadas:</strong> {selectedContrato.horas_contratadas}h</p>
+                {horaMinima > 0 && <p><strong>Hora Mínima:</strong> {horaMinima}h <span className="text-muted-foreground">(se trabalhar menos, será cobrado {horaMinima}h)</span></p>}
+                {dataEntrega && <p><strong>Data Entrega:</strong> {new Date(dataEntrega).toLocaleDateString("pt-BR")}</p>}
                 <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30} (todo mês)</p>
                 <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
               </div>
@@ -660,6 +741,11 @@ const Faturamento = () => {
                     </p>
                   </div>
                 </div>
+                {horaMinima > 0 && horasMedidas < horaMinima && (
+                  <div className="flex items-center gap-1 text-xs text-accent font-medium bg-accent/10 rounded p-2">
+                    ⚡ Hora mínima aplicada: {horasMedidas.toFixed(1)}h medidas → cobrando {horaMinima}h (mínimo contratual)
+                  </div>
+                )}
                 {horasMedidas > Number(selectedContrato.horas_contratadas) ? (
                   <div className="flex items-center gap-1 text-xs text-warning">
                     <AlertTriangle className="h-3.5 w-3.5" />
@@ -669,6 +755,11 @@ const Faturamento = () => {
                   <div className="flex items-center gap-1 text-xs text-success">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Dentro do limite contratado ({(Number(selectedContrato.horas_contratadas) - horasMedidas).toFixed(1)}h restantes)
+                  </div>
+                )}
+                {dataEntrega && form.periodo_medicao_inicio === dataEntrega && (
+                  <div className="flex items-center gap-1 text-xs text-accent font-medium bg-accent/10 rounded p-2">
+                    📅 Primeiro mês — faturamento fracionado a partir da entrega ({new Date(dataEntrega).toLocaleDateString("pt-BR")})
                   </div>
                 )}
                 {loadingMedicoes && <p className="text-xs text-muted-foreground">Calculando...</p>}
@@ -684,22 +775,38 @@ const Faturamento = () => {
             {/* Gastos / Deduções */}
             {gastosEquip.length > 0 && (
               <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-destructive">
-                  <TrendingDown className="h-4 w-4" />
-                  Gastos do Equipamento no Período (dedução)
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                    <TrendingDown className="h-4 w-4" />
+                    Gastos do Equipamento no Período
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={toggleAllGastos}>
+                    {selectedGastos.size === gastosEquip.length ? "Desmarcar todos" : "Selecionar todos"}
+                  </Button>
                 </div>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
+                <div className="space-y-1 max-h-40 overflow-y-auto">
                   {gastosEquip.map(g => (
-                    <div key={g.id} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{new Date(g.data).toLocaleDateString("pt-BR")} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge></span>
-                      <span className="font-semibold text-destructive">- R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <div key={g.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={selectedGastos.has(g.id)}
+                        onCheckedChange={() => toggleGasto(g.id)}
+                        className="shrink-0"
+                      />
+                      <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
+                        {new Date(g.data).toLocaleDateString("pt-BR")} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
+                      </span>
+                      <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-destructive" : "text-muted-foreground"}`}>
+                        - R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
                     </div>
                   ))}
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-destructive/20 font-bold text-sm">
-                  <span>Total Gastos a Deduzir</span>
-                  <span className="text-destructive">- R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                </div>
+                {selectedGastos.size > 0 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-destructive/20 font-bold text-sm">
+                    <span>Total Gastos Selecionados ({selectedGastos.size}/{gastosEquip.length})</span>
+                    <span className="text-destructive">- R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
               </div>
             )}
 

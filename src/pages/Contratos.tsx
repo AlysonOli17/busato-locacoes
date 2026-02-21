@@ -18,7 +18,7 @@ import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Empresa { id: string; nome: string; cnpj: string; razao_social: string; nome_fantasia: string; inscricao_estadual: string; inscricao_municipal: string; endereco_logradouro: string; endereco_numero: string; endereco_complemento: string; endereco_bairro: string; endereco_cidade: string; endereco_uf: string; endereco_cep: string; contato: string | null; telefone: string | null; email: string; atividade_principal: string; }
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
-interface ContratoEquipamento { id: string; equipamento_id: string; valor_hora: number; horas_contratadas: number; valor_hora_excedente: number; equipamentos: Equipamento; }
+interface ContratoEquipamento { id: string; equipamento_id: string; valor_hora: number; horas_contratadas: number; valor_hora_excedente: number; hora_minima: number; data_entrega: string | null; equipamentos: Equipamento; }
 interface Contrato {
   id: string;
   empresa_id: string;
@@ -39,6 +39,8 @@ interface FormEquipItem {
   valor_hora: number;
   horas_contratadas: number;
   valor_hora_excedente: number;
+  hora_minima: number;
+  data_entrega: string;
 }
 
 interface EquipUsage {
@@ -73,7 +75,7 @@ const Contratos = () => {
 
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes] = await Promise.all([
-      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(id, equipamento_id, valor_hora, horas_contratadas, valor_hora_excedente, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(id, equipamento_id, valor_hora, horas_contratadas, valor_hora_excedente, hora_minima, data_entrega, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj").eq("status", "Ativa").order("nome") as any,
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
@@ -88,7 +90,7 @@ const Contratos = () => {
   const getContratoEquipamentos = (item: Contrato): ContratoEquipamento[] => {
     const fromJunction = (item.contratos_equipamentos || []).filter(ce => ce.equipamentos);
     if (fromJunction.length > 0) return fromJunction;
-    if (item.equipamentos) return [{ id: "", equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, valor_hora_excedente: 0, equipamentos: item.equipamentos }];
+    if (item.equipamentos) return [{ id: "", equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, valor_hora_excedente: 0, hora_minima: 0, data_entrega: null, equipamentos: item.equipamentos }];
     return [];
   };
 
@@ -304,14 +306,14 @@ const Contratos = () => {
   const openEdit = (item: Contrato) => {
     setEditing(item);
     const ces = getContratoEquipamentos(item);
-    setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas), valor_hora_excedente: Number(ce.valor_hora_excedente || 0) })));
+    setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas), valor_hora_excedente: Number(ce.valor_hora_excedente || 0), hora_minima: Number(ce.hora_minima || 0), data_entrega: ce.data_entrega || "" })));
     setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, dia_medicao_inicio: (item as any).dia_medicao_inicio || 1, dia_medicao_fim: (item as any).dia_medicao_fim || 30, prazo_faturamento: (item as any).prazo_faturamento || 30 });
     setDialogOpen(true);
   };
 
   const addEquipamento = (equipId: string) => {
     if (equipId && !formEquipamentos.some(fe => fe.equipamento_id === equipId)) {
-      setFormEquipamentos(prev => [...prev, { equipamento_id: equipId, valor_hora: 0, horas_contratadas: 0, valor_hora_excedente: 0 }]);
+      setFormEquipamentos(prev => [...prev, { equipamento_id: equipId, valor_hora: 0, horas_contratadas: 0, valor_hora_excedente: 0, hora_minima: 0, data_entrega: "" }]);
     }
   };
 
@@ -319,7 +321,10 @@ const Contratos = () => {
     setFormEquipamentos(prev => prev.filter(fe => fe.equipamento_id !== equipId));
   };
 
-  const updateEquipItem = (equipId: string, field: "valor_hora" | "horas_contratadas" | "valor_hora_excedente", value: number) => {
+  const updateEquipItem = (equipId: string, field: "valor_hora" | "horas_contratadas" | "valor_hora_excedente" | "hora_minima", value: number) => {
+    setFormEquipamentos(prev => prev.map(fe => fe.equipamento_id === equipId ? { ...fe, [field]: value } : fe));
+  };
+  const updateEquipItemStr = (equipId: string, field: "data_entrega", value: string) => {
     setFormEquipamentos(prev => prev.map(fe => fe.equipamento_id === equipId ? { ...fe, [field]: value } : fe));
   };
 
@@ -350,6 +355,8 @@ const Contratos = () => {
       valor_hora: Number(fe.valor_hora),
       horas_contratadas: Number(fe.horas_contratadas),
       valor_hora_excedente: Number(fe.valor_hora_excedente),
+      hora_minima: Number(fe.hora_minima),
+      data_entrega: fe.data_entrega || null,
     }));
     const { error: jError } = await supabase.from("contratos_equipamentos").insert(junctionRows);
     if (jError) { toast({ title: "Aviso", description: "Contrato salvo, mas houve erro ao associar equipamentos: " + jError.message, variant: "destructive" }); }
@@ -440,13 +447,17 @@ const Contratos = () => {
                       <TableCell>
                         <div className="space-y-1">
                           {ces.map(ce => (
-                            <div key={ce.equipamento_id} className="flex items-center gap-2">
+                            <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
                               <Badge variant="outline" className="text-xs">
                                 {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
                                 R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
+                                {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
                               </span>
+                              {ce.data_entrega && (
+                                <span className="text-xs text-muted-foreground">· Entrega: {new Date(ce.data_entrega).toLocaleDateString("pt-BR")}</span>
+                              )}
                             </div>
                           ))}
                           {ces.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
@@ -648,7 +659,7 @@ const Contratos = () => {
                             <X className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
                             <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
                             <Input type="number" value={fe.valor_hora || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "valor_hora", Number(e.target.value))} className="h-8 text-sm" />
@@ -661,6 +672,21 @@ const Contratos = () => {
                             <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
                             <Input type="number" value={fe.horas_contratadas || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "horas_contratadas", Number(e.target.value))} className="h-8 text-sm" />
                           </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Hora Mínima</Label>
+                            <Input type="number" value={fe.hora_minima || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "hora_minima", Number(e.target.value))} className="h-8 text-sm" placeholder="0 = sem mínimo" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Data de Entrega</Label>
+                            <Input type="date" value={fe.data_entrega || ""} onChange={(e) => updateEquipItemStr(fe.equipamento_id, "data_entrega", e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          {fe.hora_minima > 0 && (
+                            <div className="flex items-end">
+                              <p className="text-xs text-muted-foreground">Se trabalhar menos de <strong>{fe.hora_minima}h</strong>, será cobrado o valor de {fe.hora_minima}h</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
