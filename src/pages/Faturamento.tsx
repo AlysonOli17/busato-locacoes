@@ -139,10 +139,31 @@ const Faturamento = () => {
     }
   }, [form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim, fetchMedicoesEGastos]);
 
+  const getDisplayStatus = (item: Fatura) => {
+    if (item.status === "Pago" || item.status === "Cancelado") return item.status;
+    // Check if overdue based on emission date + prazo_faturamento from contract
+    const ct = contratos.find(c => c.id === item.contrato_id);
+    const prazo = ct?.prazo_faturamento || 30;
+    const emissaoDate = new Date(item.emissao);
+    const vencimento = new Date(emissaoDate);
+    vencimento.setDate(vencimento.getDate() + prazo);
+    if (new Date() > vencimento) return "Em Atraso";
+    return item.status;
+  };
+
+  const getVencimento = (item: Fatura) => {
+    const ct = contratos.find(c => c.id === item.contrato_id);
+    const prazo = ct?.prazo_faturamento || 30;
+    const emissaoDate = new Date(item.emissao);
+    const vencimento = new Date(emissaoDate);
+    vencimento.setDate(vencimento.getDate() + prazo);
+    return vencimento;
+  };
+
   const filtered = items.filter((i) =>
     i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.periodo.includes(search) || (i.numero_nota || "").includes(search)
   );
-  const totalPendente = items.filter((i) => i.status === "Pendente").reduce((acc, i) => acc + Number(i.valor_total), 0);
+  const totalPendente = items.filter((i) => getDisplayStatus(i) === "Pendente" || getDisplayStatus(i) === "Em Atraso").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -481,8 +502,9 @@ const Faturamento = () => {
                   <TableHead>Empresa</TableHead>
                   <TableHead>Equipamento</TableHead>
                   <TableHead>Nº Nota</TableHead>
-                  <TableHead>Período Medição</TableHead>
-                  <TableHead>Horas</TableHead>
+                   <TableHead>Período Medição</TableHead>
+                   <TableHead>Vencimento</TableHead>
+                   <TableHead>Horas</TableHead>
                   <TableHead>Gastos Deduzidos</TableHead>
                   <TableHead>Valor Líquido</TableHead>
                   <TableHead>Status</TableHead>
@@ -511,6 +533,9 @@ const Faturamento = () => {
                           ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
                           : "—"}
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {getVencimento(item).toLocaleDateString("pt-BR")}
+                      </TableCell>
                       <TableCell className="text-sm">
                         <div className="flex items-center gap-1">
                           {item.horas_normais}h{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{item.horas_excedentes}h</span>}
@@ -527,13 +552,19 @@ const Faturamento = () => {
                       </TableCell>
                       <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>
-                        <Badge className={
-                          item.status === "Pago" ? "bg-success text-success-foreground" :
-                          item.status === "Cancelado" ? "bg-destructive text-destructive-foreground" :
-                          "bg-warning text-warning-foreground"
-                        }>
-                          {item.status}
-                        </Badge>
+                        {(() => {
+                          const displayStatus = getDisplayStatus(item);
+                          return (
+                            <Badge className={
+                              displayStatus === "Pago" ? "bg-success text-success-foreground" :
+                              displayStatus === "Cancelado" ? "bg-destructive text-destructive-foreground" :
+                              displayStatus === "Em Atraso" ? "bg-destructive text-destructive-foreground" :
+                              "bg-warning text-warning-foreground"
+                            }>
+                              {displayStatus}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -558,8 +589,8 @@ const Faturamento = () => {
                     </TableRow>
                   );
                 })}
-                {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
+                 {!loading && filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

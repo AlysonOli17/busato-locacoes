@@ -12,6 +12,7 @@ import Faturamento from "./pages/Faturamento";
 import Apolices from "./pages/Apolices";
 import Gastos from "./pages/Gastos";
 import Usuarios from "./pages/Usuarios";
+import Acompanhamento from "./pages/Acompanhamento";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/apolices" element={<Apolices />} />
           <Route path="/gastos" element={<Gastos />} />
           <Route path="/usuarios" element={<Usuarios />} />
+          <Route path="/acompanhamento" element={<Acompanhamento />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
