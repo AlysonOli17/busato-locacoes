@@ -17,14 +17,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller is admin
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user: caller } } = await supabaseUser.auth.getUser();
-    if (!caller) throw new Error("Not authenticated");
+    // Verify caller identity using the token
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: caller }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !caller) throw new Error("Not authenticated");
 
     const { data: callerRole } = await supabaseAdmin
       .from("user_roles")
