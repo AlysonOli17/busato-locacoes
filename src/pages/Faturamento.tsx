@@ -501,8 +501,9 @@ const Faturamento = () => {
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Equipamento</TableHead>
-                  <TableHead>Nº Nota</TableHead>
+                   <TableHead>Nº Nota</TableHead>
                    <TableHead>Período Medição</TableHead>
+                   <TableHead>Prazo</TableHead>
                    <TableHead>Vencimento</TableHead>
                    <TableHead>Horas</TableHead>
                   <TableHead>Gastos Deduzidos</TableHead>
@@ -532,6 +533,9 @@ const Faturamento = () => {
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
                           ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
                           : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {(() => { const ct = contratos.find(c => c.id === item.contrato_id); return `${ct?.prazo_faturamento || 30} dias`; })()}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {getVencimento(item).toLocaleDateString("pt-BR")}
@@ -590,7 +594,7 @@ const Faturamento = () => {
                   );
                 })}
                  {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

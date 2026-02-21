@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Wrench, Building2, FileText, Clock,
+  Wrench, Building2, FileText, Clock,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
   { to: "/empresas", icon: Building2, label: "Empresas" },
   { to: "/contratos", icon: FileText, label: "Contratos" },
