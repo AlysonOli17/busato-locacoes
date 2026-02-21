@@ -2,11 +2,13 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   Wrench, Building2, FileText, Clock,
-  Receipt, Shield, DollarSign, Users, Menu, X, BarChart3
+  Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
-const navItems = [
+const allNavItems = [
   { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
   { to: "/empresas", icon: Building2, label: "Empresas" },
   { to: "/contratos", icon: FileText, label: "Contratos" },
@@ -15,11 +17,18 @@ const navItems = [
   { to: "/apolices", icon: Shield, label: "Apólices" },
   { to: "/gastos", icon: DollarSign, label: "Gastos" },
   { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },
-  { to: "/usuarios", icon: Users, label: "Usuários" },
+  { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
 ];
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { role, permissions, signOut, profile } = useAuth();
+
+  const navItems = allNavItems.filter(item => {
+    if (role === "admin") return true;
+    if (item.adminOnly) return false;
+    return permissions.includes(item.to);
+  });
 
   return (
     <div className="flex h-screen bg-background">
@@ -73,8 +82,22 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           ))}
         </nav>
 
-        <div className="px-5 py-4 border-t border-sidebar-border">
-          <p className="text-[10px] text-sidebar-foreground/30 text-center">Busato Locações Ltda v1.0</p>
+        <div className="px-3 py-3 border-t border-sidebar-border">
+          <div className="flex items-center gap-2 px-3 py-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{profile?.nome}</p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">{role === "admin" ? "Administrador" : role === "operador" ? "Operador" : "Visualizador"}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
+          </Button>
         </div>
       </aside>
 
