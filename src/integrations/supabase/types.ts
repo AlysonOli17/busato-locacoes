@@ -135,6 +135,7 @@ export type Database = {
           horas_contratadas: number
           id: string
           valor_hora: number
+          valor_hora_excedente: number
         }
         Insert: {
           contrato_id: string
@@ -143,6 +144,7 @@ export type Database = {
           horas_contratadas?: number
           id?: string
           valor_hora?: number
+          valor_hora_excedente?: number
         }
         Update: {
           contrato_id?: string
@@ -151,6 +153,7 @@ export type Database = {
           horas_contratadas?: number
           id?: string
           valor_hora?: number
+          valor_hora_excedente?: number
         }
         Relationships: [
           {
