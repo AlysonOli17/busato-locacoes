@@ -1,0 +1,1 @@
+ALTER TABLE public.contratos_equipamentos ADD COLUMN valor_hora_excedente numeric NOT NULL DEFAULT 0;

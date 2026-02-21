@@ -18,7 +18,7 @@ import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Empresa { id: string; nome: string; cnpj: string; razao_social: string; nome_fantasia: string; inscricao_estadual: string; inscricao_municipal: string; endereco_logradouro: string; endereco_numero: string; endereco_complemento: string; endereco_bairro: string; endereco_cidade: string; endereco_uf: string; endereco_cep: string; contato: string | null; telefone: string | null; email: string; atividade_principal: string; }
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
-interface ContratoEquipamento { id: string; equipamento_id: string; valor_hora: number; horas_contratadas: number; equipamentos: Equipamento; }
+interface ContratoEquipamento { id: string; equipamento_id: string; valor_hora: number; horas_contratadas: number; valor_hora_excedente: number; equipamentos: Equipamento; }
 interface Contrato {
   id: string;
   empresa_id: string;
@@ -38,6 +38,7 @@ interface FormEquipItem {
   equipamento_id: string;
   valor_hora: number;
   horas_contratadas: number;
+  valor_hora_excedente: number;
 }
 
 interface EquipUsage {
@@ -72,7 +73,7 @@ const Contratos = () => {
 
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes] = await Promise.all([
-      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(id, equipamento_id, valor_hora, horas_contratadas, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(id, equipamento_id, valor_hora, horas_contratadas, valor_hora_excedente, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj").eq("status", "Ativa").order("nome") as any,
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
@@ -87,7 +88,7 @@ const Contratos = () => {
   const getContratoEquipamentos = (item: Contrato): ContratoEquipamento[] => {
     const fromJunction = (item.contratos_equipamentos || []).filter(ce => ce.equipamentos);
     if (fromJunction.length > 0) return fromJunction;
-    if (item.equipamentos) return [{ id: "", equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, equipamentos: item.equipamentos }];
+    if (item.equipamentos) return [{ id: "", equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, valor_hora_excedente: 0, equipamentos: item.equipamentos }];
     return [];
   };
 
@@ -303,14 +304,14 @@ const Contratos = () => {
   const openEdit = (item: Contrato) => {
     setEditing(item);
     const ces = getContratoEquipamentos(item);
-    setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas) })));
+    setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas), valor_hora_excedente: Number(ce.valor_hora_excedente || 0) })));
     setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, dia_medicao_inicio: (item as any).dia_medicao_inicio || 1, dia_medicao_fim: (item as any).dia_medicao_fim || 30, prazo_faturamento: (item as any).prazo_faturamento || 30 });
     setDialogOpen(true);
   };
 
   const addEquipamento = (equipId: string) => {
     if (equipId && !formEquipamentos.some(fe => fe.equipamento_id === equipId)) {
-      setFormEquipamentos(prev => [...prev, { equipamento_id: equipId, valor_hora: 0, horas_contratadas: 0 }]);
+      setFormEquipamentos(prev => [...prev, { equipamento_id: equipId, valor_hora: 0, horas_contratadas: 0, valor_hora_excedente: 0 }]);
     }
   };
 
@@ -318,7 +319,7 @@ const Contratos = () => {
     setFormEquipamentos(prev => prev.filter(fe => fe.equipamento_id !== equipId));
   };
 
-  const updateEquipItem = (equipId: string, field: "valor_hora" | "horas_contratadas", value: number) => {
+  const updateEquipItem = (equipId: string, field: "valor_hora" | "horas_contratadas" | "valor_hora_excedente", value: number) => {
     setFormEquipamentos(prev => prev.map(fe => fe.equipamento_id === equipId ? { ...fe, [field]: value } : fe));
   };
 
@@ -348,6 +349,7 @@ const Contratos = () => {
       equipamento_id: fe.equipamento_id,
       valor_hora: Number(fe.valor_hora),
       horas_contratadas: Number(fe.horas_contratadas),
+      valor_hora_excedente: Number(fe.valor_hora_excedente),
     }));
     const { error: jError } = await supabase.from("contratos_equipamentos").insert(junctionRows);
     if (jError) { toast({ title: "Aviso", description: "Contrato salvo, mas houve erro ao associar equipamentos: " + jError.message, variant: "destructive" }); }
@@ -646,10 +648,14 @@ const Contratos = () => {
                             <X className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                           <div>
                             <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
                             <Input type="number" value={fe.valor_hora || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "valor_hora", Number(e.target.value))} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Valor Hora Excedente (R$)</Label>
+                            <Input type="number" value={fe.valor_hora_excedente || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "valor_hora_excedente", Number(e.target.value))} className="h-8 text-sm" />
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
