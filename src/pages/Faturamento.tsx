@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -76,6 +76,7 @@ const Faturamento = () => {
   const [horaMinima, setHoraMinima] = useState(0);
   const [dataEntrega, setDataEntrega] = useState<string | null>(null);
   const [primeiroMes, setPrimeiroMes] = useState(false);
+  const [ajusteAtivo, setAjusteAtivo] = useState<{ valor_hora: number; valor_hora_excedente: number; hora_minima: number; horas_contratadas: number; data_inicio: string; data_fim: string; motivo: string } | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -93,10 +94,10 @@ const Faturamento = () => {
   // Fetch measurements + gastos when contract + date range changes
   const fetchMedicoesEGastos = useCallback(async (contratoId: string, inicio: string, fim: string) => {
     const ct = contratos.find(c => c.id === contratoId);
-    if (!ct || !inicio || !fim) { setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); return; }
+    if (!ct || !inicio || !fim) { setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); setAjusteAtivo(null); return; }
     setLoadingMedicoes(true);
 
-    const [medRes, gastosRes] = await Promise.all([
+    const [medRes, gastosRes, ajustesRes] = await Promise.all([
       supabase
         .from("medicoes")
         .select("horas_trabalhadas")
@@ -110,17 +111,29 @@ const Faturamento = () => {
         .gte("data", inicio)
         .lte("data", fim)
         .order("data", { ascending: false }),
+      supabase
+        .from("contratos_equipamentos_ajustes")
+        .select("*")
+        .eq("contrato_id", contratoId)
+        .eq("equipamento_id", ct.equipamento_id)
+        .lte("data_inicio", fim)
+        .gte("data_fim", inicio)
+        .limit(1),
     ]);
+
+    // Check for active adjustment in this period
+    const ajuste = ajustesRes.data && ajustesRes.data.length > 0 ? ajustesRes.data[0] : null;
+    setAjusteAtivo(ajuste as any);
 
     // Medições
     if (medRes.error) { setHorasMedidas(null); } else {
       const total = (medRes.data || []).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
       setHorasMedidas(total);
       
-      // Get hora_minima from contratos_equipamentos
+      // Use adjustment values if active, otherwise use contract values
       const ceList = (ct as any).contratos_equipamentos || [];
       const mainCe = ceList.length > 0 ? ceList[0] : null;
-      const hMinima = Number(mainCe?.hora_minima || 0);
+      const hMinima = ajuste ? Number(ajuste.hora_minima) : Number(mainCe?.hora_minima || 0);
       setHoraMinima(hMinima);
       setDataEntrega(mainCe?.data_entrega || null);
     }
@@ -161,12 +174,16 @@ const Faturamento = () => {
     setTotalGastos(total);
   }, [selectedGastos, gastosEquip]);
 
-  // Recalculate horas based on horaMinima and primeiroMes
+  // Recalculate horas based on horaMinima, primeiroMes, and ajusteAtivo
   useEffect(() => {
     if (horasMedidas === null) return;
     const ct = contratos.find(c => c.id === form.contrato_id);
     if (!ct) return;
-    const horasContratadas = Number(ct.horas_contratadas);
+    
+    // Use adjustment values if active, otherwise contract values
+    const horasContratadas = ajusteAtivo ? Number(ajusteAtivo.horas_contratadas) : Number(ct.horas_contratadas);
+    const valorHora = ajusteAtivo ? Number(ajusteAtivo.valor_hora) : Number(ct.valor_hora);
+    const valorExcedente = ajusteAtivo ? Number(ajusteAtivo.valor_hora_excedente) : form.valor_excedente_hora;
     
     // First month: no hora_minima, just charge actual hours (proportional)
     // Normal months: apply hora_minima if hours < minimum
@@ -174,8 +191,14 @@ const Faturamento = () => {
     const horasEfetivas = applyMinima && horasMedidas < horaMinima ? horaMinima : horasMedidas;
     const horasNormais = Math.min(horasEfetivas, horasContratadas);
     const horasExcedentes = Math.max(0, horasEfetivas - horasContratadas);
-    setForm(prev => ({ ...prev, horas_normais: Number(horasNormais.toFixed(1)), horas_excedentes: Number(horasExcedentes.toFixed(1)) }));
-  }, [horasMedidas, horaMinima, primeiroMes, contratos, form.contrato_id]);
+    setForm(prev => ({
+      ...prev,
+      horas_normais: Number(horasNormais.toFixed(1)),
+      horas_excedentes: Number(horasExcedentes.toFixed(1)),
+      valor_hora: valorHora,
+      valor_excedente_hora: valorExcedente,
+    }));
+  }, [horasMedidas, horaMinima, primeiroMes, contratos, form.contrato_id, ajusteAtivo]);
 
   useEffect(() => {
     if (form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim) {
@@ -722,6 +745,18 @@ const Faturamento = () => {
                 {dataEntrega && <p><strong>Data Entrega:</strong> {new Date(dataEntrega).toLocaleDateString("pt-BR")}</p>}
                 <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30} (todo mês)</p>
                 <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
+              </div>
+            )}
+            {ajusteAtivo && (
+              <div className="p-3 rounded-lg border border-accent bg-accent/10 text-sm space-y-1">
+                <div className="flex items-center gap-2 font-medium text-accent">
+                  <Settings2 className="h-4 w-4" />
+                  Ajuste Temporário Ativo
+                </div>
+                <p><strong>Período:</strong> {new Date(ajusteAtivo.data_inicio).toLocaleDateString("pt-BR")} - {new Date(ajusteAtivo.data_fim).toLocaleDateString("pt-BR")}</p>
+                <p><strong>Valor/Hora:</strong> R$ {Number(ajusteAtivo.valor_hora).toFixed(2)} | <strong>Horas Contratadas:</strong> {ajusteAtivo.horas_contratadas}h | <strong>Hora Mín:</strong> {ajusteAtivo.hora_minima}h</p>
+                {ajusteAtivo.motivo && <p className="text-muted-foreground italic">{ajusteAtivo.motivo}</p>}
+                <p className="text-xs text-accent">Os valores do ajuste estão sendo usados no cálculo deste faturamento.</p>
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">

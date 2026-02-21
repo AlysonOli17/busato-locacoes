@@ -190,6 +190,63 @@ export type Database = {
           },
         ]
       }
+      contratos_equipamentos_ajustes: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          equipamento_id: string
+          hora_minima: number
+          horas_contratadas: number
+          id: string
+          motivo: string
+          valor_hora: number
+          valor_hora_excedente: number
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          equipamento_id: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          motivo?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          equipamento_id?: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          motivo?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_equipamentos_ajustes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_equipamentos_ajustes_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           atividade_principal: string | null
