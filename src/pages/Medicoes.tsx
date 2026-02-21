@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2 } from "lucide-react";
 import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -32,12 +33,14 @@ const Medicoes = () => {
   const [items, setItems] = useState<Medicao[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 });
   const [filterEquip, setFilterEquip] = useState("Todos");
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const [ultimoHorimetro, setUltimoHorimetro] = useState<number | null>(null);
+  const [horimetroAnterior, setHorimetroAnterior] = useState<number>(0);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -52,18 +55,21 @@ const Medicoes = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Buscar último horímetro do equipamento selecionado
-  const fetchUltimoHorimetro = async (equipId: string) => {
-    const { data } = await supabase
+  // Busca o horímetro registrado ANTES da data selecionada para o equipamento
+  const fetchHorimetroPorData = async (equipId: string, data: string, excludeId?: string) => {
+    let query = supabase
       .from("medicoes")
       .select("horimetro_final, data")
       .eq("equipamento_id", equipId)
+      .lt("data", data)
       .order("data", { ascending: false })
       .limit(1);
-    if (data && data.length > 0) {
-      setUltimoHorimetro(Number(data[0].horimetro_final));
+    
+    const { data: result } = await query;
+    if (result && result.length > 0) {
+      setHorimetroAnterior(Number(result[0].horimetro_final));
     } else {
-      setUltimoHorimetro(0);
+      setHorimetroAnterior(0);
     }
   };
 
@@ -86,27 +92,71 @@ const Medicoes = () => {
 
   const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
-  const horasCalculadas = ultimoHorimetro !== null && form.horimetro > 0
-    ? Math.max(0, form.horimetro - ultimoHorimetro)
+  const horasCalculadas = form.horimetro > 0
+    ? Math.max(0, form.horimetro - horimetroAnterior)
     : 0;
+
+  const openNew = () => {
+    setEditingId(null);
+    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 });
+    setHorimetroAnterior(0);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (m: Medicao) => {
+    setEditingId(m.id);
+    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final) });
+    setHorimetroAnterior(Number(m.horimetro_inicial));
+    setDialogOpen(true);
+    // Refresh anterior for this date
+    fetchHorimetroPorData(m.equipamento_id, m.data, m.id);
+  };
 
   const handleSave = async () => {
     if (!form.equipamento_id || form.horimetro <= 0) return;
 
-    const horimetroAnterior = ultimoHorimetro || 0;
     const horasTrabalhadas = Math.max(0, form.horimetro - horimetroAnterior);
 
-    const { error } = await supabase.from("medicoes").insert({
-      equipamento_id: form.equipamento_id,
-      data: form.data,
-      horimetro_inicial: horimetroAnterior,
-      horimetro_final: form.horimetro,
-      horas_trabalhadas: horasTrabalhadas,
-    });
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    if (editingId) {
+      const { error } = await supabase.from("medicoes").update({
+        equipamento_id: form.equipamento_id,
+        data: form.data,
+        horimetro_inicial: horimetroAnterior,
+        horimetro_final: form.horimetro,
+        horas_trabalhadas: horasTrabalhadas,
+      }).eq("id", editingId);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("medicoes").insert({
+        equipamento_id: form.equipamento_id,
+        data: form.data,
+        horimetro_inicial: horimetroAnterior,
+        horimetro_final: form.horimetro,
+        horas_trabalhadas: horasTrabalhadas,
+      });
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    }
     setDialogOpen(false);
-    setUltimoHorimetro(null);
+    setEditingId(null);
     fetchData();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const { error } = await supabase.from("medicoes").delete().eq("id", deleteId);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setDeleteId(null);
+    fetchData();
+  };
+
+  const onEquipChange = (v: string) => {
+    setForm(prev => ({ ...prev, equipamento_id: v }));
+    if (form.data) fetchHorimetroPorData(v, form.data, editingId || undefined);
+  };
+
+  const onDataChange = (v: string) => {
+    setForm(prev => ({ ...prev, data: v }));
+    if (form.equipamento_id) fetchHorimetroPorData(form.equipamento_id, v, editingId || undefined);
   };
 
   const clearFilters = () => { setFilterEquip("Todos"); setDataInicio(undefined); setDataFim(undefined); };
@@ -136,7 +186,7 @@ const Medicoes = () => {
             }}>
               <FileDown className="h-4 w-4 mr-1" /> PDF Horímetro
             </Button>
-            <Button onClick={() => { setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 }); setUltimoHorimetro(null); setDialogOpen(true); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" /> Nova Medição
             </Button>
           </div>
@@ -228,6 +278,7 @@ const Medicoes = () => {
                   <TableHead>Horímetro Ant.</TableHead>
                   <TableHead>Horímetro Atual</TableHead>
                   <TableHead>Horas Trab.</TableHead>
+                  <TableHead className="w-20">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -243,10 +294,20 @@ const Medicoes = () => {
                         <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -257,23 +318,29 @@ const Medicoes = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-accent" />Nova Medição</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-accent" />
+              {editingId ? "Editar Medição" : "Nova Medição"}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
               <Label>Equipamento</Label>
-              <Select value={form.equipamento_id} onValueChange={(v) => { setForm({ ...form, equipamento_id: v }); fetchUltimoHorimetro(v); }}>
+              <Select value={form.equipamento_id} onValueChange={onEquipChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
                 <SelectContent>
                   {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
-            {ultimoHorimetro !== null && (
+            <div>
+              <Label>Data</Label>
+              <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
+            </div>
+            {form.equipamento_id && (
               <div className="p-3 rounded-lg bg-muted/50 border">
-                <p className="text-xs text-muted-foreground">Último horímetro registrado</p>
-                <p className="text-lg font-bold text-foreground">{ultimoHorimetro.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {new Date(form.data).toLocaleDateString("pt-BR")})</p>
+                <p className="text-lg font-bold text-foreground">{horimetroAnterior.toFixed(1)}</p>
               </div>
             )}
             <div>
@@ -284,16 +351,31 @@ const Medicoes = () => {
               <div className="p-3 rounded-lg bg-accent/10 text-center">
                 <p className="text-sm text-muted-foreground">Horas trabalhadas (diferença)</p>
                 <p className="text-2xl font-bold text-accent">{horasCalculadas.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">{ultimoHorimetro?.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">{horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">Registrar</Button>
+            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              {editingId ? "Salvar" : "Registrar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Medição</AlertDialogTitle>
+            <AlertDialogDescription>Tem certeza que deseja excluir este registro de horímetro? Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
