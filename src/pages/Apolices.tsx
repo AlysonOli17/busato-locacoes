@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
@@ -66,6 +67,30 @@ const Apolices = () => {
   const filtered = items.filter((i) =>
     i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.numero_apolice.includes(search)
   );
+
+  // Summary calculations
+  const hoje = new Date();
+  const em30dias = new Date();
+  em30dias.setDate(em30dias.getDate() + 30);
+
+  const vigentes = items.filter(i => i.status === "Vigente");
+  const vencendoEm30 = vigentes.filter(i => {
+    const fim = new Date(i.vigencia_fim);
+    return fim >= hoje && fim <= em30dias;
+  });
+
+  const totalMensal = vigentes.reduce((acc, i) => {
+    if (i.tem_parcelamento && i.numero_parcelas > 0) {
+      return acc + i.valor / i.numero_parcelas;
+    }
+    // Se à vista, distribui pelo período de vigência em meses
+    const inicio = new Date(i.vigencia_inicio);
+    const fim = new Date(i.vigencia_fim);
+    const meses = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    return acc + i.valor / meses;
+  }, 0);
+
+  const totalAnual = vigentes.reduce((acc, i) => acc + Number(i.valor), 0);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -169,6 +194,54 @@ const Apolices = () => {
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar apólices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+
+        {/* Summary Panel */}
+        {vencendoEm30.length > 0 && (
+          <Alert variant="destructive" className="border-destructive/50">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Atenção — Vencimento Próximo</AlertTitle>
+            <AlertDescription>
+              {vencendoEm30.length} apólice(s) vencem nos próximos 30 dias:{" "}
+              {vencendoEm30.map(a => `${a.equipamentos?.tipo} ${a.equipamentos?.modelo} (${new Date(a.vigencia_fim).toLocaleDateString("pt-BR")})`).join(", ")}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Shield className="h-4 w-4" /> Apólices Vigentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{vigentes.length}</p>
+              <p className="text-xs text-muted-foreground">{vencendoEm30.length} vencendo em 30 dias</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <CalendarClock className="h-4 w-4" /> Custo Mensal
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">R$ {fmt(totalMensal)}</p>
+              <p className="text-xs text-muted-foreground">Estimativa mensal das vigentes</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4" /> Total Anual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">R$ {fmt(totalAnual)}</p>
+              <p className="text-xs text-muted-foreground">Soma das apólices vigentes</p>
+            </CardContent>
+          </Card>
         </div>
 
         <Card>
