@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Wrench, LogIn, Loader2 } from "lucide-react";
+import { LogIn, Loader2 } from "lucide-react";
+import logoBusato from "@/assets/logo-busato.png";
 
 const Login = () => {
   const { signIn } = useAuth();
@@ -33,10 +34,7 @@ const Login = () => {
       <Card className="w-full max-w-sm shadow-xl border-border">
         <CardContent className="pt-8 pb-6 px-6">
           <div className="flex flex-col items-center mb-8">
-            <div className="h-14 w-14 rounded-xl bg-primary flex items-center justify-center mb-4">
-              <Wrench className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <h1 className="text-xl font-bold text-foreground">Busato Locações</h1>
+            <img src={logoBusato} alt="Busato" className="h-14 mb-4" />
             <p className="text-sm text-muted-foreground mt-1">Acesse sua conta</p>
           </div>
 
