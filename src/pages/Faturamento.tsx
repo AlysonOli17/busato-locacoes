@@ -10,11 +10,21 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2 } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+
+interface ContratoEquip {
+  equipamento_id: string;
+  valor_hora: number;
+  valor_hora_excedente: number;
+  horas_contratadas: number;
+  hora_minima: number;
+  data_entrega: string | null;
+  equipamentos?: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
+}
 
 interface ContratoRef {
   id: string;
@@ -29,11 +39,24 @@ interface ContratoRef {
   prazo_faturamento: number;
   empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
+  contratos_equipamentos: ContratoEquip[];
+}
+
+interface FaturaEquip {
+  equipamento_id: string;
+  horas_normais: number;
+  horas_excedentes: number;
+  valor_hora: number;
+  valor_hora_excedente: number;
+  hora_minima: number;
+  primeiro_mes: boolean;
+  horas_medidas: number;
 }
 
 interface Fatura {
   id: string;
   contrato_id: string;
+  numero_sequencial: number;
   periodo: string;
   horas_normais: number;
   horas_excedentes: number;
@@ -55,9 +78,26 @@ interface GastoItem {
   tipo: string;
   valor: number;
   data: string;
+  equipamento_id: string;
 }
 
-const emptyForm = { contrato_id: "", periodo: "", horas_normais: 0, horas_excedentes: 0, valor_hora: 0, valor_excedente_hora: 0, status: "Pendente", numero_nota: "", periodo_medicao_inicio: "", periodo_medicao_fim: "" };
+// Per-equipment form state
+interface EquipFormItem {
+  equipamento_id: string;
+  tipo: string;
+  modelo: string;
+  tag_placa: string | null;
+  horas_medidas: number;
+  horas_normais: number;
+  horas_excedentes: number;
+  valor_hora: number;
+  valor_hora_excedente: number;
+  hora_minima: number;
+  horas_contratadas: number;
+  primeiro_mes: boolean;
+  data_entrega: string | null;
+  ajuste: any | null;
+}
 
 const Faturamento = () => {
   const [items, setItems] = useState<Fatura[]>([]);
@@ -65,23 +105,24 @@ const Faturamento = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Fatura | null>(null);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState(emptyForm);
+  const [formContratoId, setFormContratoId] = useState("");
+  const [formPeriodo, setFormPeriodo] = useState("");
+  const [formNumeroNota, setFormNumeroNota] = useState("");
+  const [formStatus, setFormStatus] = useState("Pendente");
+  const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
+  const [formMedicaoFim, setFormMedicaoFim] = useState("");
   const [loading, setLoading] = useState(true);
-  const [horasMedidas, setHorasMedidas] = useState<number | null>(null);
   const [loadingMedicoes, setLoadingMedicoes] = useState(false);
+  const [equipForms, setEquipForms] = useState<EquipFormItem[]>([]);
   const [gastosEquip, setGastosEquip] = useState<GastoItem[]>([]);
   const [totalGastos, setTotalGastos] = useState(0);
   const [selectedGastos, setSelectedGastos] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [horaMinima, setHoraMinima] = useState(0);
-  const [dataEntrega, setDataEntrega] = useState<string | null>(null);
-  const [primeiroMes, setPrimeiroMes] = useState(false);
-  const [ajusteAtivo, setAjusteAtivo] = useState<{ valor_hora: number; valor_hora_excedente: number; hora_minima: number; horas_contratadas: number; data_inicio: string; data_fim: string; motivo: string } | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
-      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie))").order("emissao", { ascending: false }),
+      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega))").order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
@@ -91,57 +132,79 @@ const Faturamento = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Fetch measurements + gastos when contract + date range changes
+  // Fetch measurements + gastos for ALL equipment in a contract
   const fetchMedicoesEGastos = useCallback(async (contratoId: string, inicio: string, fim: string) => {
     const ct = contratos.find(c => c.id === contratoId);
-    if (!ct || !inicio || !fim) { setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); setAjusteAtivo(null); return; }
+    if (!ct || !inicio || !fim) {
+      setEquipForms([]);
+      setGastosEquip([]);
+      setTotalGastos(0);
+      setSelectedGastos(new Set());
+      return;
+    }
     setLoadingMedicoes(true);
 
-    const [medRes, gastosRes, ajustesRes] = await Promise.all([
-      supabase
-        .from("medicoes")
-        .select("horas_trabalhadas")
-        .eq("equipamento_id", ct.equipamento_id)
-        .gte("data", inicio)
-        .lte("data", fim),
-      supabase
-        .from("gastos")
-        .select("id, descricao, tipo, valor, data")
-        .eq("equipamento_id", ct.equipamento_id)
-        .gte("data", inicio)
-        .lte("data", fim)
-        .order("data", { ascending: false }),
-      supabase
-        .from("contratos_equipamentos_ajustes")
-        .select("*")
-        .eq("contrato_id", contratoId)
-        .eq("equipamento_id", ct.equipamento_id)
-        .lte("data_inicio", fim)
-        .gte("data_fim", inicio)
-        .limit(1),
+    const ceList = ct.contratos_equipamentos || [];
+    // If no contratos_equipamentos, fallback to the main contract equipment
+    const equipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
+
+    // Fetch equipment details, medicoes, gastos, and ajustes for all equipment
+    const [equipRes, medRes, gastosRes, ajustesRes] = await Promise.all([
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", equipIds),
+      supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim),
+      supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
+      supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", equipIds).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
 
-    // Check for active adjustment in this period
-    const ajuste = ajustesRes.data && ajustesRes.data.length > 0 ? ajustesRes.data[0] : null;
-    setAjusteAtivo(ajuste as any);
+    const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
+    const medicoesData = medRes.data || [];
+    const ajustesData = ajustesRes.data || [];
 
-    // Medições
-    if (medRes.error) { setHorasMedidas(null); } else {
-      const total = (medRes.data || []).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
-      setHorasMedidas(total);
-      
-      // Use adjustment values if active, otherwise use contract values
-      const ceList = (ct as any).contratos_equipamentos || [];
-      const mainCe = ceList.length > 0 ? ceList[0] : null;
-      const hMinima = ajuste ? Number(ajuste.hora_minima) : Number(mainCe?.hora_minima || 0);
-      setHoraMinima(hMinima);
-      setDataEntrega(mainCe?.data_entrega || null);
-    }
+    // Build per-equipment form items
+    const newEquipForms: EquipFormItem[] = equipIds.map(eqId => {
+      const ce = ceList.find(c => c.equipamento_id === eqId);
+      const eq = equipMap.get(eqId);
+      const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
+      const horasMedidas = medicoesData.filter(m => m.equipamento_id === eqId).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
-    // Gastos - all shown but none selected by default
+      const valorHora = ajuste ? Number(ajuste.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
+      const valorExcedente = ajuste ? Number(ajuste.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : valorHora * 1.25;
+      const horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
+      const horaMinima = ajuste ? Number(ajuste.hora_minima) : ce ? Number(ce.hora_minima) : 0;
+      const dataEntrega = ce?.data_entrega || null;
+
+      return {
+        equipamento_id: eqId,
+        tipo: eq?.tipo || "",
+        modelo: eq?.modelo || "",
+        tag_placa: eq?.tag_placa || null,
+        horas_medidas: horasMedidas,
+        horas_normais: 0,
+        horas_excedentes: 0,
+        valor_hora: valorHora,
+        valor_hora_excedente: valorExcedente,
+        hora_minima: horaMinima,
+        horas_contratadas: horasContratadas,
+        primeiro_mes: false,
+        data_entrega: dataEntrega,
+        ajuste,
+      };
+    });
+
+    // Calculate hours for each equipment
+    newEquipForms.forEach(ef => {
+      const applyMinima = ef.hora_minima > 0 && !ef.primeiro_mes;
+      const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
+      ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+      ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+    });
+
+    setEquipForms(newEquipForms);
+
+    // Gastos
     if (gastosRes.data) {
       setGastosEquip(gastosRes.data as GastoItem[]);
-      setSelectedGastos(new Set()); // empty = none selected
+      setSelectedGastos(new Set());
       setTotalGastos(0);
     } else {
       setGastosEquip([]);
@@ -161,11 +224,8 @@ const Faturamento = () => {
     });
   };
   const toggleAllGastos = () => {
-    if (selectedGastos.size === gastosEquip.length) {
-      setSelectedGastos(new Set());
-    } else {
-      setSelectedGastos(new Set(gastosEquip.map(g => g.id)));
-    }
+    if (selectedGastos.size === gastosEquip.length) setSelectedGastos(new Set());
+    else setSelectedGastos(new Set(gastosEquip.map(g => g.id)));
   };
 
   // Recalculate totalGastos when selection changes
@@ -174,46 +234,34 @@ const Faturamento = () => {
     setTotalGastos(total);
   }, [selectedGastos, gastosEquip]);
 
-  // Recalculate horas based on horaMinima, primeiroMes, and ajusteAtivo
-  useEffect(() => {
-    if (horasMedidas === null) return;
-    const ct = contratos.find(c => c.id === form.contrato_id);
-    if (!ct) return;
-    
-    // Use adjustment values if active, otherwise contract values
-    const horasContratadas = ajusteAtivo ? Number(ajusteAtivo.horas_contratadas) : Number(ct.horas_contratadas);
-    const valorHora = ajusteAtivo ? Number(ajusteAtivo.valor_hora) : Number(ct.valor_hora);
-    const valorExcedente = ajusteAtivo ? Number(ajusteAtivo.valor_hora_excedente) : form.valor_excedente_hora;
-    
-    // First month: no hora_minima, just charge actual hours (proportional)
-    // Normal months: apply hora_minima if hours < minimum
-    const applyMinima = horaMinima > 0 && !primeiroMes;
-    const horasEfetivas = applyMinima && horasMedidas < horaMinima ? horaMinima : horasMedidas;
-    const horasNormais = Math.min(horasEfetivas, horasContratadas);
-    const horasExcedentes = Math.max(0, horasEfetivas - horasContratadas);
-    setForm(prev => ({
-      ...prev,
-      horas_normais: Number(horasNormais.toFixed(1)),
-      horas_excedentes: Number(horasExcedentes.toFixed(1)),
-      valor_hora: valorHora,
-      valor_excedente_hora: valorExcedente,
-    }));
-  }, [horasMedidas, horaMinima, primeiroMes, contratos, form.contrato_id, ajusteAtivo]);
+  // Recalculate hours when primeiroMes toggles
+  const togglePrimeiroMes = (idx: number) => {
+    setEquipForms(prev => {
+      const updated = [...prev];
+      const ef = { ...updated[idx] };
+      ef.primeiro_mes = !ef.primeiro_mes;
+      const applyMinima = ef.hora_minima > 0 && !ef.primeiro_mes;
+      const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
+      ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+      ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+      updated[idx] = ef;
+      return updated;
+    });
+  };
 
   useEffect(() => {
-    if (form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim) {
-      fetchMedicoesEGastos(form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim);
+    if (formContratoId && formMedicaoInicio && formMedicaoFim) {
+      fetchMedicoesEGastos(formContratoId, formMedicaoInicio, formMedicaoFim);
     } else {
-      setHorasMedidas(null);
+      setEquipForms([]);
       setGastosEquip([]);
       setTotalGastos(0);
       setSelectedGastos(new Set());
     }
-  }, [form.contrato_id, form.periodo_medicao_inicio, form.periodo_medicao_fim, fetchMedicoesEGastos]);
+  }, [formContratoId, formMedicaoInicio, formMedicaoFim, fetchMedicoesEGastos]);
 
   const getDisplayStatus = (item: Fatura) => {
     if (item.status === "Pago" || item.status === "Cancelado") return item.status;
-    // Check if overdue based on emission date + prazo_faturamento from contract
     const ct = contratos.find(c => c.id === item.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
     const emissaoDate = new Date(item.emissao);
@@ -233,7 +281,10 @@ const Faturamento = () => {
   };
 
   const filtered = items.filter((i) =>
-    i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.periodo.includes(search) || (i.numero_nota || "").includes(search)
+    i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
+    i.periodo.includes(search) ||
+    (i.numero_nota || "").includes(search) ||
+    String(i.numero_sequencial).includes(search)
   );
   const totalPendente = items.filter((i) => getDisplayStatus(i) === "Pendente" || getDisplayStatus(i) === "Em Atraso").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
@@ -247,23 +298,20 @@ const Faturamento = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Empresa", "CNPJ", "Equipamento", "Tag", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Valor/Hora", "Valor Excedente/Hora", "Gastos Deduzidos (R$)", "Valor Líquido (R$)", "Status"];
+    const headers = ["Nº", "Empresa", "CNPJ", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Gastos Deduzidos (R$)", "Valor Líquido (R$)", "Status"];
     const rows = data.map(i => [
+      String(i.numero_sequencial),
       i.contratos?.empresas?.nome || "",
       i.contratos?.empresas?.cnpj || "",
-      `${i.contratos?.equipamentos?.tipo} ${i.contratos?.equipamentos?.modelo}`,
-      i.contratos?.equipamentos?.tag_placa || "—",
       i.numero_nota || "—",
       i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${new Date(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
       String(i.horas_normais),
       String(i.horas_excedentes),
-      `R$ ${Number(i.valor_hora).toFixed(2)}`,
-      `R$ ${Number(i.valor_excedente_hora).toFixed(2)}`,
       Number(i.total_gastos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
       Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
       i.status,
     ]);
-    return { title: "Relatório de Faturamento", headers, rows, filename: `faturamento_${new Date().toISOString().slice(0,10)}` };
+    return { title: "Relatório de Faturamento", headers, rows, filename: `faturamento_${new Date().toISOString().slice(0, 10)}` };
   };
 
   const exportDetailedPDF = async () => {
@@ -282,21 +330,19 @@ const Faturamento = () => {
 
       const ct = item.contratos;
       const emp = ct?.empresas;
-      const eq = ct?.equipamentos;
       const gastosVal = Number(item.total_gastos || 0);
-      const valorBrutoItem = Number(item.horas_normais) * Number(item.valor_hora) + Number(item.horas_excedentes) * Number(item.valor_excedente_hora);
 
       // Title
       doc.setFontSize(18);
       doc.setTextColor(41, 128, 185);
-      doc.text("Relatório de Faturamento", 14, 18);
+      doc.text(`Faturamento Nº ${item.numero_sequencial}`, 14, 18);
       doc.setFontSize(9);
       doc.setTextColor(120, 120, 120);
       doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, 14, 24);
 
       let y = 32;
 
-      // Empresa section
+      // Empresa
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
       doc.text("Dados da Empresa", 14, y);
@@ -317,107 +363,54 @@ const Faturamento = () => {
       });
       y = (doc as any).lastAutoTable.finalY + 8;
 
-      // Equipamento section
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Dados do Equipamento", 14, y);
-      y += 2;
-      autoTable(doc, {
-        startY: y,
-        head: [["Campo", "Valor"]],
-        body: [
-          ["Tipo", eq?.tipo || "—"],
-          ["Modelo", eq?.modelo || "—"],
-          ["Tag/Placa", eq?.tag_placa || "—"],
-          ["Nº Série", eq?.numero_serie || "—"],
-        ],
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      // Equipamentos do contrato
+      const ceList = ct?.contratos_equipamentos || [];
+      if (ceList.length > 0) {
+        // Load equipment details for PDF
+        const { data: eqData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", ceList.map(ce => ce.equipamento_id));
+        const eqMap = new Map((eqData || []).map(e => [e.id, e]));
 
-      // Contrato section
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Dados do Contrato", 14, y);
-      y += 2;
-      autoTable(doc, {
-        startY: y,
-        head: [["Campo", "Valor"]],
-        body: [
-          ["Valor/Hora", fmt(Number(ct?.valor_hora || 0))],
-          ["Horas Contratadas", `${ct?.horas_contratadas || 0}h`],
-          ["Período Contrato", ct?.data_inicio && ct?.data_fim ? `${new Date(ct.data_inicio).toLocaleDateString("pt-BR")} - ${new Date(ct.data_fim).toLocaleDateString("pt-BR")}` : "—"],
-          ["Observações", ct?.observacoes || "—"],
-        ],
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
+        // Fetch saved per-equipment details
+        const { data: fatEquips } = await supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", item.id);
+        const fatEquipMap = new Map((fatEquips || []).map((fe: any) => [fe.equipamento_id, fe]));
 
-      // Faturamento details
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Detalhamento do Faturamento", 14, y);
-      y += 2;
-      autoTable(doc, {
-        startY: y,
-        head: [["Campo", "Valor"]],
-        body: [
-          ["Nº Nota", item.numero_nota || "—"],
-          ["Período", item.periodo],
-          ["Período de Medição", item.periodo_medicao_inicio && item.periodo_medicao_fim ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—"],
-          ["Horas Normais", `${item.horas_normais}h`],
-          ["Horas Excedentes", `${item.horas_excedentes}h`],
-          ["Valor/Hora", fmt(Number(item.valor_hora))],
-          ["Valor Excedente/Hora", fmt(Number(item.valor_excedente_hora))],
-          ["Status", item.status],
-        ],
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text("Equipamentos e Horas", 14, y);
+        y += 2;
 
-      // Fetch gastos for this fatura's equipment + period
-      if (item.periodo_medicao_inicio && item.periodo_medicao_fim && ct?.equipamento_id) {
-        const { data: gastos } = await supabase
-          .from("gastos")
-          .select("descricao, tipo, valor, data")
-          .eq("equipamento_id", ct.equipamento_id)
-          .gte("data", item.periodo_medicao_inicio)
-          .lte("data", item.periodo_medicao_fim)
-          .order("data");
+        const eqRows = ceList.map(ce => {
+          const eq = eqMap.get(ce.equipamento_id);
+          const fe = fatEquipMap.get(ce.equipamento_id);
+          const hn = fe ? Number(fe.horas_normais) : 0;
+          const he = fe ? Number(fe.horas_excedentes) : 0;
+          const vh = fe ? Number(fe.valor_hora) : Number(ce.valor_hora);
+          const vhe = fe ? Number(fe.valor_hora_excedente) : Number(ce.valor_hora_excedente);
+          return [
+            `${eq?.tipo || ""} ${eq?.modelo || ""}`,
+            eq?.tag_placa || "—",
+            `${hn}h`,
+            `${he}h`,
+            fmt(vh),
+            fmt(vhe),
+            fmt(hn * vh + he * vhe),
+          ];
+        });
 
-        if (gastos && gastos.length > 0) {
-          doc.setFontSize(12);
-          doc.setTextColor(41, 128, 185);
-          doc.text("Gastos do Equipamento no Período", 14, y);
-          y += 2;
-          autoTable(doc, {
-            startY: y,
-            head: [["Data", "Descrição", "Tipo", "Valor (R$)"]],
-            body: gastos.map(g => [
-              new Date(g.data).toLocaleDateString("pt-BR"),
-              g.descricao,
-              g.tipo,
-              fmt(Number(g.valor)),
-            ]),
-            styles: { fontSize: 9, cellPadding: 3 },
-            headStyles: { fillColor: [192, 57, 43], textColor: 255 },
-            theme: "grid",
-          });
-          y = (doc as any).lastAutoTable.finalY + 4;
-        }
+        autoTable(doc, {
+          startY: y,
+          head: [["Equipamento", "Tag", "H. Normais", "H. Excedentes", "Valor/h", "Valor Exc/h", "Subtotal"]],
+          body: eqRows,
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+          theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
       }
 
       // Summary
       if (y > 240) { doc.addPage(); y = 20; }
+      const valorBrutoItem = Number(item.horas_normais) * Number(item.valor_hora) + Number(item.horas_excedentes) * Number(item.valor_excedente_hora);
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
       doc.text("Resumo Financeiro", 14, y);
@@ -434,37 +427,10 @@ const Faturamento = () => {
         headStyles: { fillColor: [39, 174, 96], textColor: 255 },
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
         theme: "grid",
-        bodyStyles: { fontSize: 10 },
       });
     }
 
     doc.save(`faturamento_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
-  };
-
-  const openNew = () => { setEditing(null); setForm(emptyForm); setHorasMedidas(null); setGastosEquip([]); setTotalGastos(0); setSelectedGastos(new Set()); setHoraMinima(0); setDataEntrega(null); setPrimeiroMes(false); setDialogOpen(true); };
-  const openEdit = async (item: Fatura) => {
-    setEditing(item);
-    setForm({
-      contrato_id: item.contrato_id,
-      periodo: item.periodo,
-      horas_normais: item.horas_normais,
-      horas_excedentes: item.horas_excedentes,
-      valor_hora: item.valor_hora,
-      valor_excedente_hora: item.valor_excedente_hora,
-      status: item.status,
-      numero_nota: item.numero_nota || "",
-      periodo_medicao_inicio: item.periodo_medicao_inicio || "",
-      periodo_medicao_fim: item.periodo_medicao_fim || "",
-    });
-    // Load previously selected gastos
-    const { data: savedGastos } = await supabase
-      .from("faturamento_gastos")
-      .select("gasto_id")
-      .eq("faturamento_id", item.id);
-    if (savedGastos) {
-      setSelectedGastos(new Set(savedGastos.map(sg => sg.gasto_id)));
-    }
-    setDialogOpen(true);
   };
 
   const calcMedicaoDates = (ct: ContratoRef) => {
@@ -476,7 +442,6 @@ const Faturamento = () => {
     let mesFim = mesInicio;
     let anoFim = anoInicio;
     if (diaFim < diaInicio) {
-      // crosses month boundary, e.g. 21 to 20: inicio is previous month
       mesFim = mesInicio;
       anoFim = anoInicio;
       mesInicio = mesInicio - 1;
@@ -493,73 +458,111 @@ const Faturamento = () => {
     };
   };
 
+  const openNew = () => {
+    setEditing(null);
+    setFormContratoId("");
+    setFormPeriodo("");
+    setFormNumeroNota("");
+    setFormStatus("Pendente");
+    setFormMedicaoInicio("");
+    setFormMedicaoFim("");
+    setEquipForms([]);
+    setGastosEquip([]);
+    setTotalGastos(0);
+    setSelectedGastos(new Set());
+    setDialogOpen(true);
+  };
+
+  const openEdit = async (item: Fatura) => {
+    setEditing(item);
+    setFormContratoId(item.contrato_id);
+    setFormPeriodo(item.periodo);
+    setFormNumeroNota(item.numero_nota || "");
+    setFormStatus(item.status);
+    setFormMedicaoInicio(item.periodo_medicao_inicio || "");
+    setFormMedicaoFim(item.periodo_medicao_fim || "");
+
+    // Load previously selected gastos
+    const { data: savedGastos } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
+    if (savedGastos) setSelectedGastos(new Set(savedGastos.map(sg => sg.gasto_id)));
+
+    // Load saved equipment details
+    const { data: savedEquips } = await supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", item.id);
+    if (savedEquips && savedEquips.length > 0) {
+      // We'll let fetchMedicoesEGastos rebuild and then overlay saved values
+      // This is handled after the fetch completes via the editing state
+    }
+
+    setDialogOpen(true);
+  };
+
   const handleContratoSelect = (contratoId: string) => {
-    const ct = contratos.find(c => c.id === contratoId) as any;
+    const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
       const dates = calcMedicaoDates(ct);
-      const ceList = ct.contratos_equipamentos || [];
-      const mainCe = ceList.length > 0 ? ceList[0] : null;
-      const valorExcedente = mainCe?.valor_hora_excedente ? Number(mainCe.valor_hora_excedente) : Number(ct.valor_hora) * 1.25;
-      const hMinima = Number(mainCe?.hora_minima || 0);
-      const dEntrega = mainCe?.data_entrega || null;
-      setHoraMinima(hMinima);
-      setDataEntrega(dEntrega);
-
-      // Check if first month (data_entrega within measurement period) for proration
-      let periodoInicio = dates.inicio;
-      if (dEntrega) {
-        const entregaDate = new Date(dEntrega);
-        const inicioDate = new Date(dates.inicio);
-        const fimDate = new Date(dates.fim);
-        // If delivery date is within the current measurement period, start from delivery date
-        if (entregaDate >= inicioDate && entregaDate <= fimDate) {
-          periodoInicio = dEntrega;
-        }
-      }
-
-      setForm(prev => ({
-        ...prev,
-        contrato_id: contratoId,
-        valor_hora: Number(ct.valor_hora),
-        valor_excedente_hora: valorExcedente,
-        periodo_medicao_inicio: periodoInicio,
-        periodo_medicao_fim: dates.fim,
-      }));
+      setFormContratoId(contratoId);
+      setFormMedicaoInicio(dates.inicio);
+      setFormMedicaoFim(dates.fim);
     }
   };
 
-  const valorBruto = form.horas_normais * form.valor_hora + form.horas_excedentes * form.valor_excedente_hora;
+  // Totals across all equipment
+  const totalHorasNormais = equipForms.reduce((acc, ef) => acc + ef.horas_normais, 0);
+  const totalHorasExcedentes = equipForms.reduce((acc, ef) => acc + ef.horas_excedentes, 0);
+  const valorBruto = equipForms.reduce((acc, ef) => acc + ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente, 0);
   const valorLiquido = Math.max(0, valorBruto - totalGastos);
 
+  // Average valor_hora for storage (weighted)
+  const avgValorHora = totalHorasNormais > 0 ? equipForms.reduce((acc, ef) => acc + ef.horas_normais * ef.valor_hora, 0) / totalHorasNormais : 0;
+  const avgValorExcedente = totalHorasExcedentes > 0 ? equipForms.reduce((acc, ef) => acc + ef.horas_excedentes * ef.valor_hora_excedente, 0) / totalHorasExcedentes : 0;
+
   const handleSave = async () => {
-    if (!form.contrato_id) return;
+    if (!formContratoId) return;
     const payload = {
-      contrato_id: form.contrato_id,
-      periodo: form.periodo,
-      horas_normais: form.horas_normais,
-      horas_excedentes: form.horas_excedentes,
-      valor_hora: form.valor_hora,
-      valor_excedente_hora: form.valor_excedente_hora,
+      contrato_id: formContratoId,
+      periodo: formPeriodo,
+      horas_normais: totalHorasNormais,
+      horas_excedentes: totalHorasExcedentes,
+      valor_hora: avgValorHora,
+      valor_excedente_hora: avgValorExcedente,
       valor_total: valorLiquido,
-      status: form.status,
-      numero_nota: form.numero_nota || null,
-      periodo_medicao_inicio: form.periodo_medicao_inicio || null,
-      periodo_medicao_fim: form.periodo_medicao_fim || null,
+      status: formStatus,
+      numero_nota: formNumeroNota || null,
+      periodo_medicao_inicio: formMedicaoInicio || null,
+      periodo_medicao_fim: formMedicaoFim || null,
       total_gastos: totalGastos,
     };
-    
+
     let faturaId: string;
-    
+
     if (editing) {
       const { error } = await supabase.from("faturamento").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       faturaId = editing.id;
-      // Clear old gastos associations
-      await supabase.from("faturamento_gastos").delete().eq("faturamento_id", faturaId);
+      await Promise.all([
+        supabase.from("faturamento_gastos").delete().eq("faturamento_id", faturaId),
+        supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", faturaId),
+      ]);
     } else {
       const { data, error } = await supabase.from("faturamento").insert(payload).select("id").single();
       if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar fatura", variant: "destructive" }); return; }
       faturaId = data.id;
+    }
+
+    // Save per-equipment details
+    if (equipForms.length > 0) {
+      const equipRows = equipForms.map(ef => ({
+        faturamento_id: faturaId,
+        equipamento_id: ef.equipamento_id,
+        horas_normais: ef.horas_normais,
+        horas_excedentes: ef.horas_excedentes,
+        valor_hora: ef.valor_hora,
+        valor_hora_excedente: ef.valor_hora_excedente,
+        hora_minima: ef.hora_minima,
+        primeiro_mes: ef.primeiro_mes,
+        horas_medidas: ef.horas_medidas,
+      }));
+      await supabase.from("faturamento_equipamentos").insert(equipRows);
     }
 
     // Save selected gastos
@@ -582,7 +585,7 @@ const Faturamento = () => {
     fetchData();
   };
 
-  const selectedContrato = contratos.find(c => c.id === form.contrato_id);
+  const selectedContrato = contratos.find(c => c.id === formContratoId);
 
   return (
     <Layout>
@@ -593,21 +596,15 @@ const Faturamento = () => {
             <p className="text-sm text-muted-foreground">Total pendente: <span className="text-accent font-semibold">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportDetailedPDF}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF Detalhado
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
-              <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
-            </Button>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Nova Fatura
-            </Button>
+            <Button variant="outline" size="sm" onClick={exportDetailedPDF}><FileDown className="h-4 w-4 mr-1" /> PDF Detalhado</Button>
+            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Fatura</Button>
           </div>
         </div>
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por empresa, período ou nº nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Buscar por empresa, nº, período ou nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
 
         <Card>
@@ -616,13 +613,13 @@ const Faturamento = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
+                  <TableHead className="w-16">Nº</TableHead>
                   <TableHead>Empresa</TableHead>
-                  <TableHead>Equipamento</TableHead>
-                   <TableHead>Nº Nota</TableHead>
-                   <TableHead>Período Medição</TableHead>
-                   <TableHead>Prazo</TableHead>
-                   <TableHead>Vencimento</TableHead>
-                   <TableHead>Horas</TableHead>
+                  <TableHead>Nº Nota</TableHead>
+                  <TableHead>Período Medição</TableHead>
+                  <TableHead>Prazo</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead>Horas</TableHead>
                   <TableHead>Gastos Deduzidos</TableHead>
                   <TableHead>Valor Líquido</TableHead>
                   <TableHead>Status</TableHead>
@@ -631,20 +628,22 @@ const Faturamento = () => {
               </TableHeader>
               <TableBody>
                 {filtered.map((item) => {
-                  const horasContratadas = Number(item.contratos?.horas_contratadas || 0);
-                  const totalHoras = Number(item.horas_normais) + Number(item.horas_excedentes);
-                  const dentroContrato = totalHoras <= horasContratadas;
                   const itemGastos = Number(item.total_gastos || 0);
                   return (
                     <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
                       <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-mono font-bold text-accent">{item.numero_sequencial}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
                           <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{item.contratos?.equipamentos?.tipo} {item.contratos?.equipamentos?.modelo}</TableCell>
                       <TableCell className="font-mono text-sm">{item.numero_nota || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
@@ -660,10 +659,6 @@ const Faturamento = () => {
                       <TableCell className="text-sm">
                         <div className="flex items-center gap-1">
                           {item.horas_normais}h{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{item.horas_excedentes}h</span>}
-                          {dentroContrato
-                            ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                            : <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-                          }
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
@@ -696,7 +691,7 @@ const Faturamento = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Faturamento</AlertDialogTitle>
+                                <AlertDialogTitle>Excluir Faturamento Nº {item.numero_sequencial}</AlertDialogTitle>
                                 <AlertDialogDescription>Tem certeza que deseja excluir esta fatura? Esta ação não pode ser desfeita.</AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -710,7 +705,7 @@ const Faturamento = () => {
                     </TableRow>
                   );
                 })}
-                 {!loading && filtered.length === 0 && (
+                {!loading && filtered.length === 0 && (
                   <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
                 )}
               </TableBody>
@@ -720,114 +715,111 @@ const Faturamento = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Receipt className="h-5 w-5 text-accent" />{editing ? "Editar Fatura" : "Nova Fatura"}</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-accent" />
+              {editing ? `Editar Fatura Nº ${editing.numero_sequencial}` : "Nova Fatura"}
+              {editing && <Badge variant="outline" className="ml-2 font-mono">#{editing.numero_sequencial}</Badge>}
+            </DialogTitle>
+          </DialogHeader>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
             <div>
               <Label>Contrato</Label>
-              <Select value={form.contrato_id} onValueChange={handleContratoSelect}>
+              <Select value={formContratoId} onValueChange={handleContratoSelect} disabled={!!editing}>
                 <SelectTrigger><SelectValue placeholder="Selecione o contrato" /></SelectTrigger>
                 <SelectContent>
-                  {contratos.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.empresas?.nome} — {c.equipamentos?.tipo} {c.equipamentos?.modelo}
-                    </SelectItem>
-                  ))}
+                  {contratos.map((c) => {
+                    const ceCount = c.contratos_equipamentos?.length || 0;
+                    return (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.empresas?.nome} — {ceCount > 0 ? `${ceCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
+
             {selectedContrato && (
               <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
                 <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome} ({selectedContrato.empresas?.cnpj})</p>
-                <p><strong>Equipamento:</strong> {selectedContrato.equipamentos?.tipo} {selectedContrato.equipamentos?.modelo} {selectedContrato.equipamentos?.tag_placa ? `(${selectedContrato.equipamentos.tag_placa})` : ""}</p>
-                <p><strong>Valor/Hora:</strong> R$ {Number(selectedContrato.valor_hora).toFixed(2)} | <strong>Horas Contratadas:</strong> {selectedContrato.horas_contratadas}h</p>
-                {horaMinima > 0 && <p><strong>Hora Mínima:</strong> {horaMinima}h <span className="text-muted-foreground">(se trabalhar menos, será cobrado {horaMinima}h)</span></p>}
-                {dataEntrega && <p><strong>Data Entrega:</strong> {new Date(dataEntrega).toLocaleDateString("pt-BR")}</p>}
-                <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30} (todo mês)</p>
+                <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30}</p>
                 <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
+                <p><strong>Equipamentos no contrato:</strong> {selectedContrato.contratos_equipamentos?.length || 1}</p>
               </div>
             )}
-            {ajusteAtivo && (
-              <div className="p-3 rounded-lg border border-accent bg-accent/10 text-sm space-y-1">
-                <div className="flex items-center gap-2 font-medium text-accent">
-                  <Settings2 className="h-4 w-4" />
-                  Ajuste Temporário Ativo
-                </div>
-                <p><strong>Período:</strong> {new Date(ajusteAtivo.data_inicio).toLocaleDateString("pt-BR")} - {new Date(ajusteAtivo.data_fim).toLocaleDateString("pt-BR")}</p>
-                <p><strong>Valor/Hora:</strong> R$ {Number(ajusteAtivo.valor_hora).toFixed(2)} | <strong>Horas Contratadas:</strong> {ajusteAtivo.horas_contratadas}h | <strong>Hora Mín:</strong> {ajusteAtivo.hora_minima}h</p>
-                {ajusteAtivo.motivo && <p className="text-muted-foreground italic">{ajusteAtivo.motivo}</p>}
-                <p className="text-xs text-accent">Os valores do ajuste estão sendo usados no cálculo deste faturamento.</p>
-              </div>
-            )}
+
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Nº Nota / Fatura</Label><Input value={form.numero_nota} onChange={(e) => setForm({ ...form, numero_nota: e.target.value })} placeholder="Ex: NF-001" /></div>
-              <div><Label>Período</Label><Input value={form.periodo} onChange={(e) => setForm({ ...form, periodo: e.target.value })} placeholder="Mês/Ano" /></div>
+              <div><Label>Nº Nota / Fatura</Label><Input value={formNumeroNota} onChange={(e) => setFormNumeroNota(e.target.value)} placeholder="Ex: NF-001" /></div>
+              <div><Label>Período</Label><Input value={formPeriodo} onChange={(e) => setFormPeriodo(e.target.value)} placeholder="Mês/Ano" /></div>
             </div>
 
-            {/* Measurement summary */}
-            {horasMedidas !== null && selectedContrato && (
-              <div className={`p-4 rounded-lg border space-y-2 ${horasMedidas > Number(selectedContrato.horas_contratadas) ? "border-warning bg-warning/5" : "border-success bg-success/5"}`}>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Medição Início</Label><Input type="date" value={formMedicaoInicio} onChange={(e) => setFormMedicaoInicio(e.target.value)} /></div>
+              <div><Label>Medição Fim</Label><Input type="date" value={formMedicaoFim} onChange={(e) => setFormMedicaoFim(e.target.value)} /></div>
+            </div>
+
+            {/* Per-equipment details */}
+            {equipForms.length > 0 && (
+              <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Clock className="h-4 w-4 text-accent" />
-                  Resumo da Medição (automático)
+                  Horas por Equipamento
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Horas Medidas</p>
-                    <p className="text-lg font-bold text-accent">{horasMedidas.toFixed(1)}h</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Horas Contratadas</p>
-                    <p className="text-lg font-bold">{selectedContrato.horas_contratadas}h</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Excedente</p>
-                    <p className={`text-lg font-bold ${form.horas_excedentes > 0 ? "text-warning" : "text-success"}`}>
-                      {form.horas_excedentes > 0 ? `+${form.horas_excedentes.toFixed(1)}h` : "0h"}
-                    </p>
-                  </div>
-                </div>
-                {horaMinima > 0 && (
-                  <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                    <div className="flex items-center gap-2">
-                      <Switch checked={primeiroMes} onCheckedChange={setPrimeiroMes} />
-                      <Label className="text-xs font-medium cursor-pointer" onClick={() => setPrimeiroMes(!primeiroMes)}>
-                        Primeiro mês (proporcional à entrega)
-                      </Label>
+                {equipForms.map((ef, idx) => (
+                  <div key={ef.equipamento_id} className={`p-3 rounded-lg border space-y-2 ${ef.horas_excedentes > 0 ? "border-warning bg-warning/5" : "border-success bg-success/5"}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
+                      {ef.ajuste && (
+                        <Badge variant="outline" className="text-xs border-accent text-accent">
+                          <Settings2 className="h-3 w-3 mr-1" /> Ajuste Ativo
+                        </Badge>
+                      )}
                     </div>
-                    {dataEntrega && primeiroMes && (
-                      <span className="text-xs text-muted-foreground">Entrega: {new Date(dataEntrega).toLocaleDateString("pt-BR")}</span>
+                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Medidas</p>
+                        <p className="text-base font-bold text-accent">{ef.horas_medidas.toFixed(1)}h</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Contratadas</p>
+                        <p className="text-base font-bold">{ef.horas_contratadas}h</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Normais</p>
+                        <p className="text-base font-bold text-success">{ef.horas_normais}h</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Excedentes</p>
+                        <p className={`text-base font-bold ${ef.horas_excedentes > 0 ? "text-warning" : "text-success"}`}>{ef.horas_excedentes > 0 ? `+${ef.horas_excedentes}` : "0"}h</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>V/h: R$ {ef.valor_hora.toFixed(2)} | V/h exc: R$ {ef.valor_hora_excedente.toFixed(2)}{ef.hora_minima > 0 ? ` | Mín: ${ef.hora_minima}h` : ""}</span>
+                      <span className="font-semibold text-foreground">R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {ef.hora_minima > 0 && (
+                      <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                        <Switch checked={ef.primeiro_mes} onCheckedChange={() => togglePrimeiroMes(idx)} />
+                        <Label className="text-xs cursor-pointer" onClick={() => togglePrimeiroMes(idx)}>Primeiro mês (proporcional)</Label>
+                        {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Entrega: {new Date(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
+                      </div>
+                    )}
+                    {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
+                      <div className="text-xs text-accent font-medium bg-accent/10 rounded p-1.5">
+                        ⚡ Hora mínima: {ef.horas_medidas.toFixed(1)}h → cobrando {ef.hora_minima}h
+                      </div>
                     )}
                   </div>
-                )}
-                {horaMinima > 0 && !primeiroMes && horasMedidas < horaMinima && (
-                  <div className="flex items-center gap-1 text-xs text-accent font-medium bg-accent/10 rounded p-2">
-                    ⚡ Hora mínima aplicada: {horasMedidas.toFixed(1)}h medidas → cobrando {horaMinima}h (mínimo contratual)
-                  </div>
-                )}
-                {horaMinima > 0 && primeiroMes && (
-                  <div className="flex items-center gap-1 text-xs text-accent font-medium bg-accent/10 rounded p-2">
-                    📅 Primeiro mês — cobrança proporcional às horas reais ({horasMedidas.toFixed(1)}h), sem hora mínima
-                  </div>
-                )}
-                {horasMedidas > Number(selectedContrato.horas_contratadas) ? (
-                  <div className="flex items-center gap-1 text-xs text-warning">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Equipamento excedeu as horas contratadas em {(horasMedidas - Number(selectedContrato.horas_contratadas)).toFixed(1)}h
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 text-xs text-success">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Dentro do limite contratado ({(Number(selectedContrato.horas_contratadas) - horasMedidas).toFixed(1)}h restantes)
-                  </div>
-                )}
+                ))}
                 {loadingMedicoes && <p className="text-xs text-muted-foreground">Calculando...</p>}
               </div>
             )}
 
-            {horasMedidas === null && form.contrato_id && form.periodo_medicao_inicio && form.periodo_medicao_fim && (
+            {equipForms.length === 0 && formContratoId && formMedicaoInicio && formMedicaoFim && !loadingMedicoes && (
               <div className="p-3 rounded-lg bg-muted/30 text-center text-sm text-muted-foreground">
-                Nenhuma medição encontrada para este equipamento no período selecionado.
+                Nenhuma medição encontrada para os equipamentos no período selecionado.
               </div>
             )}
 
@@ -837,28 +829,27 @@ const Faturamento = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-medium text-destructive">
                     <TrendingDown className="h-4 w-4" />
-                    Gastos do Equipamento no Período
+                    Gastos dos Equipamentos no Período
                   </div>
                   <Button variant="ghost" size="sm" className="text-xs h-7" onClick={toggleAllGastos}>
                     {selectedGastos.size === gastosEquip.length ? "Desmarcar todos" : "Selecionar todos"}
                   </Button>
                 </div>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {gastosEquip.map(g => (
-                    <div key={g.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={selectedGastos.has(g.id)}
-                        onCheckedChange={() => toggleGasto(g.id)}
-                        className="shrink-0"
-                      />
-                      <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
-                        {new Date(g.data).toLocaleDateString("pt-BR")} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
-                      </span>
-                      <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-destructive" : "text-muted-foreground"}`}>
-                        - R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  ))}
+                  {gastosEquip.map(g => {
+                    const eq = equipForms.find(ef => ef.equipamento_id === g.equipamento_id);
+                    return (
+                      <div key={g.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={selectedGastos.has(g.id)} onCheckedChange={() => toggleGasto(g.id)} className="shrink-0" />
+                        <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
+                          {new Date(g.data).toLocaleDateString("pt-BR")} — {eq ? `${eq.tipo} ${eq.modelo}` : ""} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
+                        </span>
+                        <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-destructive" : "text-muted-foreground"}`}>
+                          - R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
                 {selectedGastos.size > 0 && (
                   <div className="flex items-center justify-between pt-2 border-t border-destructive/20 font-bold text-sm">
@@ -869,17 +860,9 @@ const Faturamento = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Horas Normais</Label><Input type="number" value={form.horas_normais || ""} onChange={(e) => setForm({ ...form, horas_normais: Number(e.target.value) })} /></div>
-              <div><Label>Valor/Hora (R$)</Label><Input type="number" value={form.valor_hora || ""} onChange={(e) => setForm({ ...form, valor_hora: Number(e.target.value) })} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Horas Excedentes</Label><Input type="number" value={form.horas_excedentes || ""} onChange={(e) => setForm({ ...form, horas_excedentes: Number(e.target.value) })} /></div>
-              <div><Label>Valor Excedente/Hora (R$)</Label><Input type="number" value={form.valor_excedente_hora || ""} onChange={(e) => setForm({ ...form, valor_excedente_hora: Number(e.target.value) })} /></div>
-            </div>
             <div>
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+              <Select value={formStatus} onValueChange={setFormStatus}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Pendente">Pendente</SelectItem>
@@ -888,10 +871,18 @@ const Faturamento = () => {
                 </SelectContent>
               </Select>
             </div>
-            {(form.horas_normais > 0 || form.horas_excedentes > 0) && (
+
+            {/* Totals */}
+            {equipForms.length > 0 && (
               <div className="p-4 rounded-lg bg-accent/10 space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Valor Bruto (horas)</span>
+                {equipForms.map(ef => (
+                  <div key={ef.equipamento_id} className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{ef.tipo} {ef.modelo}</span>
+                    <span>R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between text-sm pt-1 border-t border-accent/20">
+                  <span className="text-muted-foreground">Valor Bruto ({totalHorasNormais.toFixed(1)}h + {totalHorasExcedentes.toFixed(1)}h exc.)</span>
                   <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
                 {totalGastos > 0 && (
