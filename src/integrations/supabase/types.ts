@@ -364,6 +364,7 @@ export type Database = {
           horas_normais: number
           id: string
           numero_nota: string | null
+          numero_sequencial: number
           periodo: string
           periodo_medicao_fim: string | null
           periodo_medicao_inicio: string | null
@@ -381,6 +382,7 @@ export type Database = {
           horas_normais?: number
           id?: string
           numero_nota?: string | null
+          numero_sequencial?: number
           periodo: string
           periodo_medicao_fim?: string | null
           periodo_medicao_inicio?: string | null
@@ -398,6 +400,7 @@ export type Database = {
           horas_normais?: number
           id?: string
           numero_nota?: string | null
+          numero_sequencial?: number
           periodo?: string
           periodo_medicao_fim?: string | null
           periodo_medicao_inicio?: string | null
@@ -413,6 +416,63 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faturamento_equipamentos: {
+        Row: {
+          created_at: string
+          equipamento_id: string
+          faturamento_id: string
+          hora_minima: number
+          horas_excedentes: number
+          horas_medidas: number
+          horas_normais: number
+          id: string
+          primeiro_mes: boolean
+          valor_hora: number
+          valor_hora_excedente: number
+        }
+        Insert: {
+          created_at?: string
+          equipamento_id: string
+          faturamento_id: string
+          hora_minima?: number
+          horas_excedentes?: number
+          horas_medidas?: number
+          horas_normais?: number
+          id?: string
+          primeiro_mes?: boolean
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Update: {
+          created_at?: string
+          equipamento_id?: string
+          faturamento_id?: string
+          hora_minima?: number
+          horas_excedentes?: number
+          horas_medidas?: number
+          horas_normais?: number
+          id?: string
+          primeiro_mes?: boolean
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturamento_equipamentos_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faturamento_equipamentos_faturamento_id_fkey"
+            columns: ["faturamento_id"]
+            isOneToOne: false
+            referencedRelation: "faturamento"
             referencedColumns: ["id"]
           },
         ]
