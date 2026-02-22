@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface ExportConfig {
   title: string;
@@ -28,15 +28,34 @@ export function exportToPDF({ title, headers, rows, filename }: ExportConfig) {
   doc.save(`${filename}.pdf`);
 }
 
-export function exportToExcel({ title, headers, rows, filename }: ExportConfig) {
-  const wsData = [headers, ...rows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  // Auto column widths
-  ws["!cols"] = headers.map((h, i) => {
-    const maxLen = Math.max(h.length, ...rows.map(r => (r[i] || "").length));
-    return { wch: Math.min(maxLen + 2, 40) };
+export async function exportToExcel({ title, headers, rows, filename }: ExportConfig) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(title.substring(0, 31));
+
+  // Add header row with styling
+  const headerRow = sheet.addRow(headers);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2980B9" } };
   });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, title.substring(0, 31));
-  XLSX.writeFile(wb, `${filename}.xlsx`);
+
+  // Add data rows
+  rows.forEach((row) => sheet.addRow(row));
+
+  // Auto column widths
+  headers.forEach((h, i) => {
+    const maxLen = Math.max(h.length, ...rows.map((r) => (r[i] || "").length));
+    const col = sheet.getColumn(i + 1);
+    col.width = Math.min(maxLen + 2, 40);
+  });
+
+  // Generate and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
