@@ -1,15 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const SeedAdminSchema = z.object({
+  email: z.string().email().max(255),
+  password: z.string().min(8).max(128),
+  nome: z.string().min(1).max(255).trim().optional(),
+});
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    // Require authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -23,7 +29,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller is an admin
     const token = authHeader.replace("Bearer ", "");
     const { data: { user: caller }, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !caller) {
@@ -45,36 +50,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Read credentials from request body instead of hardcoding
     const body = await req.json();
-    const { email, password, nome } = body;
+    const validated = SeedAdminSchema.parse(body);
 
-    if (!email || !password) {
-      return new Response(JSON.stringify({ error: "Email and password are required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Check if user already exists
     const { data: existingProfiles } = await supabaseAdmin
       .from("profiles")
       .select("id")
-      .eq("email", email)
+      .eq("email", validated.email)
       .limit(1);
 
     if (existingProfiles && existingProfiles.length > 0) {
-      return new Response(JSON.stringify({ message: "User already exists", email }), {
+      return new Response(JSON.stringify({ message: "User already exists", email: validated.email }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create admin user
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
+      email: validated.email,
+      password: validated.password,
       email_confirm: true,
-      user_metadata: { nome: nome || "Administrador" },
+      user_metadata: { nome: validated.nome || "Administrador" },
     });
 
     if (authError) throw authError;
@@ -83,7 +78,7 @@ Deno.serve(async (req) => {
 
     await supabaseAdmin
       .from("profiles")
-      .update({ nome: nome || "Administrador", status: "Ativo" })
+      .update({ nome: validated.nome || "Administrador", status: "Ativo" })
       .eq("user_id", userId);
 
     await supabaseAdmin
@@ -91,12 +86,13 @@ Deno.serve(async (req) => {
       .insert({ user_id: userId, role: "admin" });
 
     return new Response(
-      JSON.stringify({ message: "Admin created", email }),
+      JSON.stringify({ message: "Admin created", email: validated.email }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    const message = error instanceof z.ZodError ? "Invalid input" : error.message;
+    return new Response(JSON.stringify({ error: message }), {
+      status: error instanceof z.ZodError ? 400 : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
