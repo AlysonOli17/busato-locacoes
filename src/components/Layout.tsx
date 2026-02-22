@@ -7,6 +7,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import logoBusato from "@/assets/logo-busato.png";
 
 const allNavItems = [
   { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
@@ -47,13 +48,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       >
         <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-              <Wrench className="h-5 w-5 text-sidebar-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-bold text-base text-sidebar-accent-foreground">Busato Locações</h1>
-              <p className="text-[11px] text-sidebar-foreground/50 tracking-wide uppercase">Gestão de Locações</p>
-            </div>
+            <img src={logoBusato} alt="Busato" className="h-9" />
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-sidebar-foreground">
             <X className="h-5 w-5" />
