@@ -34,8 +34,9 @@ const Login = () => {
       <Card className="w-full max-w-sm shadow-xl border-border">
         <CardContent className="pt-8 pb-6 px-6">
           <div className="flex flex-col items-center mb-8">
-            <img src={logoBusato} alt="Busato" className="h-14 mb-4" />
-            <p className="text-sm text-muted-foreground mt-1">Acesse sua conta</p>
+            <img src={logoBusato} alt="Busato" className="h-14 mb-1" />
+            <span className="text-sm font-bold tracking-[0.25em] uppercase text-muted-foreground" style={{ fontFamily: "'Oswald', sans-serif" }}>Locações</span>
+            <p className="text-sm text-muted-foreground mt-3">Acesse sua conta</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
