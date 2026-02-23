@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import ExcelJS from "exceljs";
 
 interface Equipment {
   id: string;
@@ -21,9 +22,11 @@ interface Equipment {
   tag_placa: string | null;
   observacoes: string | null;
   status: string;
+  ano: number | null;
+  valor_bem: number | null;
 }
 
-const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo" };
+const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo", ano: "", valor_bem: "" };
 
 const Equipamentos = () => {
   const [items, setItems] = useState<Equipment[]>([]);
@@ -32,6 +35,8 @@ const Equipamentos = () => {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -48,15 +53,38 @@ const Equipamentos = () => {
   );
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: Equipment) => { setEditing(item); setForm({ tipo: item.tipo, modelo: item.modelo, numero_serie: item.numero_serie || "", tag_placa: item.tag_placa || "", observacoes: item.observacoes || "", status: item.status }); setDialogOpen(true); };
+  const openEdit = (item: Equipment) => {
+    setEditing(item);
+    setForm({
+      tipo: item.tipo,
+      modelo: item.modelo,
+      numero_serie: item.numero_serie || "",
+      tag_placa: item.tag_placa || "",
+      observacoes: item.observacoes || "",
+      status: item.status,
+      ano: item.ano?.toString() || "",
+      valor_bem: item.valor_bem?.toString() || "",
+    });
+    setDialogOpen(true);
+  };
 
   const handleSave = async () => {
     if (!form.tipo || !form.modelo) return;
+    const payload = {
+      tipo: form.tipo,
+      modelo: form.modelo,
+      numero_serie: form.numero_serie || null,
+      tag_placa: form.tag_placa || null,
+      observacoes: form.observacoes || null,
+      status: form.status,
+      ano: form.ano ? parseInt(form.ano) : null,
+      valor_bem: form.valor_bem ? parseFloat(form.valor_bem) : null,
+    };
     if (editing) {
-      const { error } = await supabase.from("equipamentos").update(form).eq("id", editing.id);
+      const { error } = await supabase.from("equipamentos").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      const { error } = await supabase.from("equipamentos").insert(form);
+      const { error } = await supabase.from("equipamentos").insert(payload);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
     setDialogOpen(false);
@@ -69,10 +97,91 @@ const Equipamentos = () => {
     fetchData();
   };
 
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const buffer = await file.arrayBuffer();
+      await workbook.xlsx.load(buffer);
+      const sheet = workbook.worksheets[0];
+      if (!sheet) throw new Error("Planilha vazia");
+
+      const rows: any[] = [];
+      const headerRow = sheet.getRow(1);
+      const headers: string[] = [];
+      headerRow.eachCell((cell, colNumber) => {
+        headers[colNumber] = (cell.value?.toString() || "").trim().toLowerCase();
+      });
+
+      // Map header names to DB fields
+      const colMap: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        const normalized = h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        if (normalized.includes("tipo") || normalized.includes("veiculo") || normalized.includes("equipamento")) colMap["tipo"] = String(idx);
+        else if (normalized.includes("tag") || normalized.includes("placa")) colMap["tag_placa"] = String(idx);
+        else if (normalized.includes("modelo")) colMap["modelo"] = String(idx);
+        else if (normalized.includes("serie")) colMap["numero_serie"] = String(idx);
+        else if (normalized.includes("ano")) colMap["ano"] = String(idx);
+        else if (normalized.includes("valor")) colMap["valor_bem"] = String(idx);
+      });
+
+      if (!colMap["tipo"] && !colMap["modelo"]) {
+        throw new Error("Não foi possível identificar as colunas obrigatórias (Tipo e Modelo) na planilha.");
+      }
+
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+        const getCellVal = (field: string) => {
+          const colIdx = colMap[field];
+          if (!colIdx) return null;
+          const cell = row.getCell(parseInt(colIdx));
+          return cell.value?.toString()?.trim() || null;
+        };
+
+        const tipo = getCellVal("tipo");
+        const modelo = getCellVal("modelo");
+        if (!tipo && !modelo) return; // skip empty rows
+
+        const anoStr = getCellVal("ano");
+        const valorStr = getCellVal("valor_bem");
+
+        rows.push({
+          tipo: tipo || "",
+          modelo: modelo || "",
+          numero_serie: getCellVal("numero_serie"),
+          tag_placa: getCellVal("tag_placa"),
+          ano: anoStr ? parseInt(anoStr.replace(/\D/g, "")) || null : null,
+          valor_bem: valorStr ? parseFloat(valorStr.replace(/[^\d.,]/g, "").replace(",", ".")) || null : null,
+          status: "Ativo",
+        });
+      });
+
+      if (rows.length === 0) throw new Error("Nenhum registro encontrado na planilha.");
+
+      const { error } = await supabase.from("equipamentos").insert(rows);
+      if (error) throw error;
+
+      toast({ title: "Importação concluída", description: `${rows.length} equipamento(s) importado(s) com sucesso.` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro na importação", description: err.message || "Erro ao processar o arquivo.", variant: "destructive" });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const statusColor = (s: string) => {
     if (s === "Ativo") return "bg-success text-success-foreground";
     if (s === "Manutenção") return "bg-warning text-warning-foreground";
     return "bg-muted text-muted-foreground";
+  };
+
+  const formatCurrency = (v: number | null) => {
+    if (v == null) return "—";
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
   return (
@@ -83,9 +192,25 @@ const Equipamentos = () => {
             <h1 className="text-2xl font-bold text-foreground">Equipamentos</h1>
             <p className="text-sm text-muted-foreground">{items.length} equipamentos cadastrados</p>
           </div>
-          <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> Novo Equipamento
-          </Button>
+          <div className="flex gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleImportExcel}
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+            >
+              <Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar Excel"}
+            </Button>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Novo Equipamento
+            </Button>
+          </div>
         </div>
 
         <div className="relative max-w-sm">
@@ -99,9 +224,11 @@ const Equipamentos = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Tag / Placa</TableHead>
                   <TableHead>Modelo</TableHead>
                   <TableHead>Nº Série</TableHead>
-                  <TableHead>Tag / Placa</TableHead>
+                  <TableHead>Ano</TableHead>
+                  <TableHead>Valor do Bem</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
@@ -110,9 +237,11 @@ const Equipamentos = () => {
                 {filtered.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.tipo}</TableCell>
+                    <TableCell className="font-mono text-sm">{item.tag_placa}</TableCell>
                     <TableCell>{item.modelo}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{item.numero_serie}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.tag_placa}</TableCell>
+                    <TableCell>{item.ano || "—"}</TableCell>
+                    <TableCell>{formatCurrency(item.valor_bem)}</TableCell>
                     <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -123,7 +252,7 @@ const Equipamentos = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum equipamento encontrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum equipamento encontrado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -139,22 +268,26 @@ const Equipamentos = () => {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Tipo</Label><Input value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} placeholder="Ex: Escavadeira" /></div>
-              <div><Label>Modelo</Label><Input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} placeholder="Ex: CAT 320" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Nº Série</Label><Input value={form.numero_serie} onChange={(e) => setForm({ ...form, numero_serie: e.target.value })} /></div>
               <div><Label>Tag / Placa</Label><Input value={form.tag_placa} onChange={(e) => setForm({ ...form, tag_placa: e.target.value })} /></div>
             </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Manutenção">Manutenção</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Modelo</Label><Input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} placeholder="Ex: CAT 320" /></div>
+              <div><Label>Nº Série</Label><Input value={form.numero_serie} onChange={(e) => setForm({ ...form, numero_serie: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><Label>Ano</Label><Input type="number" value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} placeholder="Ex: 2023" /></div>
+              <div><Label>Valor do Bem</Label><Input type="number" step="0.01" value={form.valor_bem} onChange={(e) => setForm({ ...form, valor_bem: e.target.value })} placeholder="Ex: 150000" /></div>
+              <div>
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Manutenção">Manutenção</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} /></div>
           </div>
