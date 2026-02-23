@@ -61,6 +61,7 @@ const Apolices = () => {
   const [detailItem, setDetailItem] = useState<Apolice | null>(null);
   const [equipSearch, setEquipSearch] = useState("");
   const [importing, setImporting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"todos" | "Vigente" | "Vencida">("todos");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -84,7 +85,9 @@ const Apolices = () => {
 
   const filtered = items.filter((i) => {
     const s = search.toLowerCase();
-    return getEquipLabels(i).toLowerCase().includes(s) || i.seguradora.toLowerCase().includes(s);
+    const matchSearch = getEquipLabels(i).toLowerCase().includes(s) || i.seguradora.toLowerCase().includes(s);
+    const matchStatus = statusFilter === "todos" || i.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
   // Summary calculations
@@ -383,31 +386,46 @@ const Apolices = () => {
           </div>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar apólices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar apólices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+          <div className="flex gap-1">
+            {(["todos", "Vigente", "Vencida"] as const).map(s => (
+              <Button
+                key={s}
+                variant={statusFilter === s ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(s)}
+                className={statusFilter === s ? "bg-accent text-accent-foreground" : ""}
+              >
+                {s === "todos" ? "Todos" : s}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
+          <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Shield className="h-4 w-4" /> Apólices Vigentes
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
               <p className="text-2xl font-bold text-foreground">{vigentes.length}</p>
               <p className="text-xs text-muted-foreground">de {items.length} cadastradas</p>
             </CardContent>
           </Card>
-          <Card className={vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}>
+          <Card className={`h-[160px] flex flex-col ${vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}`}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <AlertTriangle className={`h-4 w-4 ${vencendoEm30.length > 0 ? "text-destructive" : ""}`} /> Vencimento / Renovação
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
               <p className={`text-2xl font-bold ${vencendoEm30.length > 0 ? "text-destructive" : "text-foreground"}`}>{vencendoEm30.length}</p>
               <p className="text-xs text-muted-foreground">vencem nos próximos 30 dias</p>
               {vencendoEm30.length > 0 && (
@@ -424,29 +442,31 @@ const Apolices = () => {
               )}
             </CardContent>
           </Card>
-          <Card>
+          <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <CalendarClock className="h-4 w-4" /> Custo Mensal
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
               <p className="text-2xl font-bold text-foreground">R$ {fmt(totalMensal)}</p>
               <p className="text-xs text-muted-foreground">Estimativa mensal das vigentes</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" /> Total Anual
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
               <p className="text-2xl font-bold text-foreground">R$ {fmt(totalAnual)}</p>
               <p className="text-xs text-muted-foreground">Soma das apólices vigentes</p>
             </CardContent>
           </Card>
         </div>
+
+
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">
