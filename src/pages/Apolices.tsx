@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import ExcelJS from "exceljs";
 
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 
@@ -59,6 +60,8 @@ const Apolices = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailItem, setDetailItem] = useState<Apolice | null>(null);
   const [equipSearch, setEquipSearch] = useState("");
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -235,6 +238,123 @@ const Apolices = () => {
 
   const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const buffer = await file.arrayBuffer();
+      await workbook.xlsx.load(buffer);
+      const sheet = workbook.worksheets[0];
+      if (!sheet) throw new Error("Planilha vazia");
+
+      const headerRow = sheet.getRow(1);
+      const headers: string[] = [];
+      headerRow.eachCell((cell, colNumber) => {
+        headers[colNumber] = (cell.value?.toString() || "").trim().toLowerCase();
+      });
+
+      const colMap: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        const n = h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        if (n.includes("seguradora")) colMap["seguradora"] = String(idx);
+        else if (n.includes("inicio") || n.includes("vigencia") && n.includes("ini")) colMap["vigencia_inicio"] = String(idx);
+        else if (n.includes("fim") || n.includes("vencimento")) colMap["vigencia_fim"] = String(idx);
+        else if (n.includes("valor") && !n.includes("adesao")) colMap["valor"] = String(idx);
+        else if (n.includes("equipamento") || n.includes("placa") || n.includes("tag")) colMap["equipamento"] = String(idx);
+        else if (n.includes("adesao") && n.includes("valor")) colMap["valor_adesao"] = String(idx);
+        else if (n.includes("parcela")) colMap["parcelas"] = String(idx);
+      });
+
+      if (!colMap["seguradora"]) throw new Error("Coluna 'Seguradora' não encontrada na planilha.");
+
+      let importCount = 0;
+
+      const dataRows: any[] = [];
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const getCellVal = (field: string) => {
+          const colIdx = colMap[field];
+          if (!colIdx) return null;
+          const cell = row.getCell(parseInt(colIdx));
+          return cell.value?.toString()?.trim() || null;
+        };
+
+        const seguradora = getCellVal("seguradora");
+        if (!seguradora) return;
+
+        const vigenciaInicio = getCellVal("vigencia_inicio") || new Date().toISOString().slice(0, 10);
+        const vigenciaFim = getCellVal("vigencia_fim") || new Date().toISOString().slice(0, 10);
+        const valorStr = getCellVal("valor");
+        const valor = valorStr ? parseFloat(valorStr.replace(/[^\d.,]/g, "").replace(",", ".")) || 0 : 0;
+        const valorAdesaoStr = getCellVal("valor_adesao");
+        const valorAdesao = valorAdesaoStr ? parseFloat(valorAdesaoStr.replace(/[^\d.,]/g, "").replace(",", ".")) || 0 : 0;
+        const parcelasStr = getCellVal("parcelas");
+        const parcelas = parcelasStr ? parseInt(parcelasStr.replace(/\D/g, "")) || 1 : 1;
+        const equipRef = getCellVal("equipamento");
+
+        // Parse dates - try dd/mm/yyyy format
+        const parseDate = (s: string) => {
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+            const [d, m, y] = s.split("/");
+            return `${y}-${m}-${d}`;
+          }
+          return s;
+        };
+
+        const inicio = parseDate(vigenciaInicio);
+        const fim = parseDate(vigenciaFim);
+        const status = new Date(fim) >= new Date() ? "Vigente" : "Vencida";
+
+        dataRows.push({
+          seguradora,
+          vigencia_inicio: inicio,
+          vigencia_fim: fim,
+          valor,
+          status,
+          tem_adesao: valorAdesao > 0,
+          valor_adesao: valorAdesao,
+          tem_parcelamento: parcelas > 1,
+          numero_parcelas: parcelas,
+          equipRef,
+        });
+      });
+
+      if (dataRows.length === 0) throw new Error("Nenhum registro encontrado na planilha.");
+
+      for (const row of dataRows) {
+        const { equipRef, ...payload } = row;
+        const { data: apolice, error } = await supabase.from("apolices").insert(payload).select("id").single();
+        if (error || !apolice) continue;
+
+        // Try to match equipment by tag/placa or tipo+modelo
+        if (equipRef) {
+          const refs = equipRef.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+          for (const ref of refs) {
+            const match = equipamentos.find(eq => {
+              const tag = (eq.tag_placa || "").toLowerCase();
+              const label = `${eq.tipo} ${eq.modelo}`.toLowerCase();
+              return tag === ref.toLowerCase() || label === ref.toLowerCase();
+            });
+            if (match) {
+              await supabase.from("apolices_equipamentos").insert({ apolice_id: apolice.id, equipamento_id: match.id });
+            }
+          }
+        }
+        importCount++;
+      }
+
+      toast({ title: "Importação concluída", description: `${importCount} apólice(s) importada(s) com sucesso.` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro na importação", description: err.message || "Erro ao processar o arquivo.", variant: "destructive" });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -249,6 +369,10 @@ const Apolices = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
               <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+            </Button>
+            <input type="file" ref={fileInputRef} accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : "Importar Excel"}
             </Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" /> Nova Apólice
