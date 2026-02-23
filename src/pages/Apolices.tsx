@@ -58,6 +58,7 @@ const Apolices = () => {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailItem, setDetailItem] = useState<Apolice | null>(null);
+  const [equipSearch, setEquipSearch] = useState("");
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -134,7 +135,7 @@ const Apolices = () => {
     return { title: "Relatório de Apólices de Seguro", headers, rows, filename: `apolices_${new Date().toISOString().slice(0, 10)}` };
   };
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setForm(emptyForm); setEquipSearch(""); setDialogOpen(true); };
   const openEdit = (item: Apolice) => {
     setEditing(item);
     setForm({
@@ -368,8 +369,22 @@ const Apolices = () => {
             <div>
               <Label>Equipamentos</Label>
               <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais equipamentos</p>
+              <div className="relative mb-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Filtrar equipamentos..."
+                  value={equipSearch}
+                  onChange={(e) => setEquipSearch(e.target.value)}
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
               <div className="max-h-40 overflow-y-auto rounded-md border border-input p-2 space-y-1">
-                {equipamentos.map((e) => (
+                {equipamentos
+                  .filter((e) => {
+                    const q = equipSearch.toLowerCase();
+                    return !q || `${e.tipo} ${e.modelo} ${e.tag_placa || ""}`.toLowerCase().includes(q);
+                  })
+                  .map((e) => (
                   <label key={e.id} className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-muted/50 text-sm">
                     <Checkbox
                       checked={form.equipamento_ids.includes(e.id)}
