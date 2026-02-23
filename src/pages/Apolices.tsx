@@ -157,6 +157,24 @@ const Apolices = () => {
       toast({ title: "Erro", description: "Selecione ao menos um equipamento", variant: "destructive" });
       return;
     }
+
+    // Check for duplicate equipment in other vigent policies
+    const editingId = editing?.id;
+    const duplicados = form.equipamento_ids.filter(eid => {
+      return items.some(a =>
+        a.id !== editingId &&
+        a.status === "Vigente" &&
+        a.apolices_equipamentos?.some(ae => ae.equipamento_id === eid)
+      );
+    });
+    if (duplicados.length > 0) {
+      const nomes = duplicados.map(eid => {
+        const eq = equipamentos.find(e => e.id === eid);
+        return eq ? `${eq.tipo} ${eq.modelo}` : eid;
+      }).join(", ");
+      toast({ title: "Equipamento já segurado", description: `Os seguintes equipamentos já possuem apólice vigente: ${nomes}`, variant: "destructive" });
+      return;
+    }
     const status = new Date(form.vigencia_fim) >= new Date() ? "Vigente" : "Vencida";
     const payload = {
       seguradora: form.seguradora,
@@ -198,6 +216,13 @@ const Apolices = () => {
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     fetchData();
   };
+
+  // Equipment IDs already in a vigent policy (excluding current editing)
+  const equipamentosComApoliceVigente = new Set(
+    items
+      .filter(a => a.status === "Vigente" && a.id !== editing?.id)
+      .flatMap(a => a.apolices_equipamentos?.map(ae => ae.equipamento_id) || [])
+  );
 
   const toggleEquipamento = (id: string) => {
     setForm(prev => ({
@@ -385,12 +410,14 @@ const Apolices = () => {
                     return !q || `${e.tipo} ${e.modelo} ${e.tag_placa || ""}`.toLowerCase().includes(q);
                   })
                   .map((e) => (
-                  <label key={e.id} className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-muted/50 text-sm">
+                  <label key={e.id} className={`flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-muted/50 text-sm ${equipamentosComApoliceVigente.has(e.id) ? "opacity-50" : ""}`}>
                     <Checkbox
                       checked={form.equipamento_ids.includes(e.id)}
                       onCheckedChange={() => toggleEquipamento(e.id)}
+                      disabled={equipamentosComApoliceVigente.has(e.id)}
                     />
                     <span>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</span>
+                    {equipamentosComApoliceVigente.has(e.id) && <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30 ml-auto">Já segurado</Badge>}
                   </label>
                 ))}
               </div>
