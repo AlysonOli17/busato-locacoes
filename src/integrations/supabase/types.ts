@@ -321,6 +321,7 @@ export type Database = {
       }
       equipamentos: {
         Row: {
+          ano: number | null
           created_at: string
           id: string
           modelo: string
@@ -330,8 +331,10 @@ export type Database = {
           tag_placa: string | null
           tipo: string
           updated_at: string
+          valor_bem: number | null
         }
         Insert: {
+          ano?: number | null
           created_at?: string
           id?: string
           modelo: string
@@ -341,8 +344,10 @@ export type Database = {
           tag_placa?: string | null
           tipo: string
           updated_at?: string
+          valor_bem?: number | null
         }
         Update: {
+          ano?: number | null
           created_at?: string
           id?: string
           modelo?: string
@@ -352,6 +357,7 @@ export type Database = {
           tag_placa?: string | null
           tipo?: string
           updated_at?: string
+          valor_bem?: number | null
         }
         Relationships: []
       }
