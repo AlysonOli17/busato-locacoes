@@ -451,7 +451,8 @@ const Apolices = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead>Equipamentos</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Tag</TableHead>
                   <TableHead>Seguradora</TableHead>
                   <TableHead>Vigência</TableHead>
                   <TableHead>Valor</TableHead>
@@ -473,6 +474,15 @@ const Apolices = () => {
                             <Badge key={ae.id} variant="outline" className="text-xs">
                               {ae.equipamentos?.tipo} {ae.equipamentos?.modelo}
                             </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <div className="flex flex-wrap gap-1">
+                          {item.apolices_equipamentos?.map(ae => (
+                            <span key={ae.id} className="text-xs text-muted-foreground">
+                              {ae.equipamentos?.tag_placa || "—"}
+                            </span>
                           ))}
                         </div>
                       </TableCell>
