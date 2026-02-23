@@ -294,8 +294,8 @@ const Acompanhamento = () => {
               Histórico de Faturamento
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Empresa</TableHead>
@@ -360,8 +360,8 @@ const Acompanhamento = () => {
               Resumo por Empresa
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Empresa</TableHead>
