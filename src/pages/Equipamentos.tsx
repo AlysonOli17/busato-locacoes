@@ -192,7 +192,7 @@ const Equipamentos = () => {
             <h1 className="text-2xl font-bold text-foreground">Equipamentos</h1>
             <p className="text-sm text-muted-foreground">{items.length} equipamentos cadastrados</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input
               type="file"
               ref={fileInputRef}
@@ -219,8 +219,8 @@ const Equipamentos = () => {
         </div>
 
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Tipo</TableHead>

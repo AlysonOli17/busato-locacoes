@@ -217,7 +217,7 @@ const Apolices = () => {
             <h1 className="text-2xl font-bold text-foreground">Apólices de Seguro</h1>
             <p className="text-sm text-muted-foreground">{items.length} apólices cadastradas{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
               <FileDown className="h-4 w-4 mr-1" /> PDF
             </Button>
@@ -296,8 +296,8 @@ const Apolices = () => {
         </div>
 
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>

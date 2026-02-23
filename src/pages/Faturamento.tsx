@@ -608,8 +608,8 @@ const Faturamento = () => {
         </div>
 
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
