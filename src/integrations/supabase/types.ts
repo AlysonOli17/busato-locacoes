@@ -17,9 +17,7 @@ export type Database = {
       apolices: {
         Row: {
           created_at: string
-          equipamento_id: string
           id: string
-          numero_apolice: string
           numero_parcelas: number
           seguradora: string
           status: string
@@ -33,9 +31,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          equipamento_id: string
           id?: string
-          numero_apolice: string
           numero_parcelas?: number
           seguradora: string
           status?: string
@@ -49,9 +45,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          equipamento_id?: string
           id?: string
-          numero_apolice?: string
           numero_parcelas?: number
           seguradora?: string
           status?: string
@@ -63,9 +57,37 @@ export type Database = {
           vigencia_fim?: string
           vigencia_inicio?: string
         }
+        Relationships: []
+      }
+      apolices_equipamentos: {
+        Row: {
+          apolice_id: string
+          created_at: string
+          equipamento_id: string
+          id: string
+        }
+        Insert: {
+          apolice_id: string
+          created_at?: string
+          equipamento_id: string
+          id?: string
+        }
+        Update: {
+          apolice_id?: string
+          created_at?: string
+          equipamento_id?: string
+          id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "apolices_equipamento_id_fkey"
+            foreignKeyName: "apolices_equipamentos_apolice_id_fkey"
+            columns: ["apolice_id"]
+            isOneToOne: false
+            referencedRelation: "apolices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "apolices_equipamentos_equipamento_id_fkey"
             columns: ["equipamento_id"]
             isOneToOne: false
             referencedRelation: "equipamentos"

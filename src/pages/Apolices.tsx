@@ -9,18 +9,21 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock } from "lucide-react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
-interface Apolice {
+
+interface ApoliceEquipamento {
   id: string;
   equipamento_id: string;
-  numero_apolice: string;
+  equipamentos: Equipamento;
+}
+
+interface Apolice {
+  id: string;
   seguradora: string;
   vigencia_inicio: string;
   vigencia_fim: string;
@@ -30,14 +33,19 @@ interface Apolice {
   valor_adesao: number;
   tem_parcelamento: boolean;
   numero_parcelas: number;
-  equipamentos: Equipamento;
+  apolices_equipamentos: ApoliceEquipamento[];
 }
 
 const emptyForm = {
-  equipamento_id: "", numero_apolice: "", seguradora: "",
-  vigencia_inicio: "", vigencia_fim: "", valor: 0,
-  tem_adesao: false, valor_adesao: 0,
-  tem_parcelamento: false, numero_parcelas: 1,
+  equipamento_ids: [] as string[],
+  seguradora: "",
+  vigencia_inicio: "",
+  vigencia_fim: "",
+  valor: 0,
+  tem_adesao: false,
+  valor_adesao: 0,
+  tem_parcelamento: false,
+  numero_parcelas: 1,
 };
 
 const Apolices = () => {
@@ -54,7 +62,7 @@ const Apolices = () => {
 
   const fetchData = async () => {
     const [apolicesRes, equipRes] = await Promise.all([
-      supabase.from("apolices").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("created_at", { ascending: false }),
+      supabase.from("apolices").select("*, apolices_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa))").order("created_at", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
     ]);
     if (apolicesRes.data) setItems(apolicesRes.data as unknown as Apolice[]);
@@ -64,9 +72,16 @@ const Apolices = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = items.filter((i) =>
-    i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.numero_apolice.includes(search)
-  );
+  const getEquipLabel = (ae: ApoliceEquipamento) =>
+    `${ae.equipamentos?.tipo} ${ae.equipamentos?.modelo}${ae.equipamentos?.tag_placa ? ` (${ae.equipamentos.tag_placa})` : ""}`;
+
+  const getEquipLabels = (item: Apolice) =>
+    item.apolices_equipamentos?.map(getEquipLabel).join(", ") || "—";
+
+  const filtered = items.filter((i) => {
+    const s = search.toLowerCase();
+    return getEquipLabels(i).toLowerCase().includes(s) || i.seguradora.toLowerCase().includes(s);
+  });
 
   // Summary calculations
   const hoje = new Date();
@@ -83,7 +98,6 @@ const Apolices = () => {
     if (i.tem_parcelamento && i.numero_parcelas > 0) {
       return acc + i.valor / i.numero_parcelas;
     }
-    // Se à vista, distribui pelo período de vigência em meses
     const inicio = new Date(i.vigencia_inicio);
     const fim = new Date(i.vigencia_fim);
     const meses = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
@@ -102,13 +116,11 @@ const Apolices = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Equipamento", "Tag", "Nº Apólice", "Seguradora", "Vigência", "Valor (R$)", "Adesão", "Valor Adesão", "Parcelas", "Valor Parcela", "Status"];
+    const headers = ["Equipamentos", "Seguradora", "Vigência", "Valor (R$)", "Adesão", "Valor Adesão", "Parcelas", "Valor Parcela", "Status"];
     const rows = data.map(i => {
       const valorParcela = i.tem_parcelamento && i.numero_parcelas > 0 ? i.valor / i.numero_parcelas : i.valor;
       return [
-        `${i.equipamentos?.tipo} ${i.equipamentos?.modelo}`,
-        i.equipamentos?.tag_placa || "—",
-        i.numero_apolice,
+        getEquipLabels(i),
         i.seguradora,
         `${new Date(i.vigencia_inicio).toLocaleDateString("pt-BR")} - ${new Date(i.vigencia_fim).toLocaleDateString("pt-BR")}`,
         Number(i.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
@@ -126,21 +138,26 @@ const Apolices = () => {
   const openEdit = (item: Apolice) => {
     setEditing(item);
     setForm({
-      equipamento_id: item.equipamento_id, numero_apolice: item.numero_apolice,
-      seguradora: item.seguradora, vigencia_inicio: item.vigencia_inicio,
-      vigencia_fim: item.vigencia_fim, valor: item.valor,
-      tem_adesao: item.tem_adesao, valor_adesao: item.valor_adesao,
-      tem_parcelamento: item.tem_parcelamento, numero_parcelas: item.numero_parcelas,
+      equipamento_ids: item.apolices_equipamentos?.map(ae => ae.equipamento_id) || [],
+      seguradora: item.seguradora,
+      vigencia_inicio: item.vigencia_inicio,
+      vigencia_fim: item.vigencia_fim,
+      valor: item.valor,
+      tem_adesao: item.tem_adesao,
+      valor_adesao: item.valor_adesao,
+      tem_parcelamento: item.tem_parcelamento,
+      numero_parcelas: item.numero_parcelas,
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!form.equipamento_id || !form.numero_apolice) return;
+    if (form.equipamento_ids.length === 0) {
+      toast({ title: "Erro", description: "Selecione ao menos um equipamento", variant: "destructive" });
+      return;
+    }
     const status = new Date(form.vigencia_fim) >= new Date() ? "Vigente" : "Vencida";
     const payload = {
-      equipamento_id: form.equipamento_id,
-      numero_apolice: form.numero_apolice,
       seguradora: form.seguradora,
       vigencia_inicio: form.vigencia_inicio,
       vigencia_fim: form.vigencia_fim,
@@ -151,13 +168,26 @@ const Apolices = () => {
       tem_parcelamento: form.tem_parcelamento,
       numero_parcelas: form.tem_parcelamento ? Number(form.numero_parcelas) : 1,
     };
+
+    let apoliceId: string;
+
     if (editing) {
       const { error } = await supabase.from("apolices").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      apoliceId = editing.id;
+      // Remove old equipment links
+      await supabase.from("apolices_equipamentos").delete().eq("apolice_id", editing.id);
     } else {
-      const { error } = await supabase.from("apolices").insert(payload);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      const { data, error } = await supabase.from("apolices").insert(payload).select("id").single();
+      if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar", variant: "destructive" }); return; }
+      apoliceId = data.id;
     }
+
+    // Insert equipment links
+    const links = form.equipamento_ids.map(eid => ({ apolice_id: apoliceId, equipamento_id: eid }));
+    const { error: linkError } = await supabase.from("apolices_equipamentos").insert(links);
+    if (linkError) { toast({ title: "Erro", description: linkError.message, variant: "destructive" }); return; }
+
     setDialogOpen(false);
     fetchData();
   };
@@ -166,6 +196,15 @@ const Apolices = () => {
     const { error } = await supabase.from("apolices").delete().eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     fetchData();
+  };
+
+  const toggleEquipamento = (id: string) => {
+    setForm(prev => ({
+      ...prev,
+      equipamento_ids: prev.equipamento_ids.includes(id)
+        ? prev.equipamento_ids.filter(eid => eid !== id)
+        : [...prev.equipamento_ids, id],
+    }));
   };
 
   const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
@@ -222,7 +261,7 @@ const Apolices = () => {
                 <div className="mt-2 space-y-1">
                   {vencendoEm30.map(a => (
                     <div key={a.id} className="text-xs flex justify-between items-center">
-                      <span className="font-medium text-foreground truncate mr-2">{a.equipamentos?.tipo} {a.equipamentos?.modelo}</span>
+                      <span className="font-medium text-foreground truncate mr-2">{getEquipLabels(a)}</span>
                       <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px] shrink-0">
                         {new Date(a.vigencia_fim).toLocaleDateString("pt-BR")}
                       </Badge>
@@ -262,8 +301,7 @@ const Apolices = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead>Equipamento</TableHead>
-                  <TableHead>Nº Apólice</TableHead>
+                  <TableHead>Equipamentos</TableHead>
                   <TableHead>Seguradora</TableHead>
                   <TableHead>Vigência</TableHead>
                   <TableHead>Valor</TableHead>
@@ -279,8 +317,15 @@ const Apolices = () => {
                   return (
                     <TableRow key={item.id} className={`cursor-pointer ${selected.has(item.id) ? "bg-accent/5" : ""}`} onClick={() => setDetailItem(item)}>
                       <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
-                      <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
-                      <TableCell className="font-mono text-sm">{item.numero_apolice}</TableCell>
+                      <TableCell className="font-medium text-sm max-w-[250px]">
+                        <div className="flex flex-wrap gap-1">
+                          {item.apolices_equipamentos?.map(ae => (
+                            <Badge key={ae.id} variant="outline" className="text-xs">
+                              {ae.equipamentos?.tipo} {ae.equipamentos?.modelo}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-sm">{item.seguradora}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(item.vigencia_inicio).toLocaleDateString("pt-BR")} - {new Date(item.vigencia_fim).toLocaleDateString("pt-BR")}
@@ -307,7 +352,7 @@ const Apolices = () => {
                   );
                 })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -321,17 +366,26 @@ const Apolices = () => {
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-accent" />{editing ? "Editar Apólice" : "Nova Apólice"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
-              <Label>Equipamento</Label>
-              <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
-                <SelectContent>
-                  {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label>Equipamentos</Label>
+              <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais equipamentos</p>
+              <div className="max-h-40 overflow-y-auto rounded-md border border-input p-2 space-y-1">
+                {equipamentos.map((e) => (
+                  <label key={e.id} className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-muted/50 text-sm">
+                    <Checkbox
+                      checked={form.equipamento_ids.includes(e.id)}
+                      onCheckedChange={() => toggleEquipamento(e.id)}
+                    />
+                    <span>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</span>
+                  </label>
+                ))}
+              </div>
+              {form.equipamento_ids.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">{form.equipamento_ids.length} equipamento(s) selecionado(s)</p>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Nº Apólice</Label><Input value={form.numero_apolice} onChange={(e) => setForm({ ...form, numero_apolice: e.target.value })} /></div>
-              <div><Label>Seguradora</Label><Input value={form.seguradora} onChange={(e) => setForm({ ...form, seguradora: e.target.value })} /></div>
+            <div>
+              <Label>Seguradora</Label>
+              <Input value={form.seguradora} onChange={(e) => setForm({ ...form, seguradora: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Início Vigência</Label><Input type="date" value={form.vigencia_inicio} onChange={(e) => setForm({ ...form, vigencia_inicio: e.target.value })} /></div>
@@ -386,9 +440,16 @@ const Apolices = () => {
             const valorParcela = detailItem.tem_parcelamento && detailItem.numero_parcelas > 0 ? detailItem.valor / detailItem.numero_parcelas : detailItem.valor;
             return (
               <div className="space-y-3 py-2">
-                <Row label="Equipamento" value={`${detailItem.equipamentos?.tipo} ${detailItem.equipamentos?.modelo}`} />
-                <Row label="Tag/Placa" value={detailItem.equipamentos?.tag_placa || "—"} />
-                <Row label="Nº Apólice" value={detailItem.numero_apolice} />
+                <div className="py-1.5 border-b border-border">
+                  <span className="text-sm text-muted-foreground block mb-1">Equipamentos</span>
+                  <div className="flex flex-wrap gap-1">
+                    {detailItem.apolices_equipamentos?.map(ae => (
+                      <Badge key={ae.id} variant="outline" className="text-xs">
+                        {ae.equipamentos?.tipo} {ae.equipamentos?.modelo} {ae.equipamentos?.tag_placa ? `(${ae.equipamentos.tag_placa})` : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
                 <Row label="Seguradora" value={detailItem.seguradora} />
                 <Row label="Vigência" value={`${new Date(detailItem.vigencia_inicio).toLocaleDateString("pt-BR")} a ${new Date(detailItem.vigencia_fim).toLocaleDateString("pt-BR")}`} />
                 <Row label="Valor do Seguro" value={`R$ ${fmt(detailItem.valor)}`} bold />
