@@ -92,23 +92,57 @@ const Empresas = () => {
   const handleImportCNPJ = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Arquivo inválido",
+        description: "Use uma imagem do Cartão CNPJ (PNG, JPG ou WEBP).",
+        variant: "destructive",
+      });
+      e.target.value = "";
+      return;
+    }
+
     setImporting(true);
     try {
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1]);
-        };
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
 
+      const [prefix, base64] = dataUrl.split(",");
+      const mimeMatch = prefix?.match(/^data:(.*);base64$/);
+      const mimeType = mimeMatch?.[1] || file.type || "image/png";
+
+      if (!base64) {
+        throw new Error("Não foi possível ler a imagem selecionada.");
+      }
+
       const { data, error } = await supabase.functions.invoke("extract-cnpj", {
-        body: { image_base64: base64 },
+        body: {
+          image_base64: base64,
+          image_mime_type: mimeType,
+          image_data_url: dataUrl,
+        },
       });
 
-      if (error) throw error;
+      if (error) {
+        let detail = error.message;
+        const context = (error as any)?.context;
+
+        if (context) {
+          try {
+            const payload = await context.json();
+            if (payload?.error) detail = payload.error;
+          } catch {
+            // fallback para error.message
+          }
+        }
+
+        throw new Error(detail || "Não foi possível extrair os dados.");
+      }
 
       setForm((prev) => ({
         ...prev,
@@ -131,7 +165,11 @@ const Empresas = () => {
 
       toast({ title: "Importado!", description: "Dados do Cartão CNPJ extraídos com sucesso. Revise os campos." });
     } catch (err: any) {
-      toast({ title: "Erro na importação", description: err.message || "Não foi possível extrair os dados.", variant: "destructive" });
+      toast({
+        title: "Erro na importação",
+        description: err?.message || "Não foi possível extrair os dados.",
+        variant: "destructive",
+      });
     } finally {
       setImporting(false);
       e.target.value = "";
@@ -258,7 +296,7 @@ const Empresas = () => {
                 <label className="cursor-pointer">
                   <input
                     type="file"
-                    accept="image/*,.pdf"
+                    accept="image/*"
                     className="hidden"
                     onChange={handleImportCNPJ}
                     disabled={importing}
