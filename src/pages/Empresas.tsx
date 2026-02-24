@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -73,6 +73,7 @@ const Empresas = () => {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -87,6 +88,55 @@ const Empresas = () => {
   const filtered = items.filter(
     (i) => i.nome.toLowerCase().includes(search.toLowerCase()) || i.cnpj.includes(search) || (i.razao_social || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleImportCNPJ = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("extract-cnpj", {
+        body: { image_base64: base64 },
+      });
+
+      if (error) throw error;
+
+      setForm((prev) => ({
+        ...prev,
+        cnpj: data.cnpj ? formatCNPJ(data.cnpj) : prev.cnpj,
+        razao_social: data.razao_social || prev.razao_social,
+        nome_fantasia: data.nome_fantasia || prev.nome_fantasia,
+        atividade_principal: data.atividade_principal || prev.atividade_principal,
+        inscricao_estadual: data.inscricao_estadual || prev.inscricao_estadual,
+        inscricao_municipal: data.inscricao_municipal || prev.inscricao_municipal,
+        endereco_logradouro: data.endereco_logradouro || prev.endereco_logradouro,
+        endereco_numero: data.endereco_numero || prev.endereco_numero,
+        endereco_complemento: data.endereco_complemento || prev.endereco_complemento,
+        endereco_bairro: data.endereco_bairro || prev.endereco_bairro,
+        endereco_cidade: data.endereco_cidade || prev.endereco_cidade,
+        endereco_uf: data.endereco_uf || prev.endereco_uf,
+        endereco_cep: data.endereco_cep ? formatCEP(data.endereco_cep) : prev.endereco_cep,
+        email: data.email || prev.email,
+        telefone: data.telefone ? formatPhone(data.telefone) : prev.telefone,
+      }));
+
+      toast({ title: "Importado!", description: "Dados do Cartão CNPJ extraídos com sucesso. Revise os campos." });
+    } catch (err: any) {
+      toast({ title: "Erro na importação", description: err.message || "Não foi possível extrair os dados.", variant: "destructive" });
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
+  };
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Empresa) => {
@@ -203,7 +253,31 @@ const Empresas = () => {
           <div className="grid gap-5 py-4">
             {/* Dados Principais */}
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-accent">Dados Principais (Cartão CNPJ)</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-accent">Dados Principais (Cartão CNPJ)</p>
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    onChange={handleImportCNPJ}
+                    disabled={importing}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    disabled={importing}
+                    asChild
+                  >
+                    <span>
+                      {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      {importing ? "Importando..." : "Importar Cartão CNPJ"}
+                    </span>
+                  </Button>
+                </label>
+              </div>
               <div className="h-px bg-border" />
             </div>
             <div className="grid grid-cols-2 gap-4">
