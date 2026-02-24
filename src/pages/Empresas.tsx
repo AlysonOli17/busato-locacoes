@@ -93,10 +93,10 @@ const Empresas = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
       toast({
         title: "Arquivo inválido",
-        description: "Use uma imagem do Cartão CNPJ (PNG, JPG ou WEBP).",
+        description: "Use uma imagem (PNG, JPG, WEBP) ou PDF do Cartão CNPJ.",
         variant: "destructive",
       });
       e.target.value = "";
@@ -296,7 +296,7 @@ const Empresas = () => {
                 <label className="cursor-pointer">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     className="hidden"
                     onChange={handleImportCNPJ}
                     disabled={importing}
