@@ -14,21 +14,21 @@ serve(async (req) => {
   try {
     const { image_base64, image_data_url, image_mime_type } = await req.json();
 
-    let normalizedImageDataUrl = "";
+    let normalizedDataUrl = "";
 
-    if (typeof image_data_url === "string" && image_data_url.startsWith("data:image/")) {
-      normalizedImageDataUrl = image_data_url;
+    if (typeof image_data_url === "string" && (image_data_url.startsWith("data:image/") || image_data_url.startsWith("data:application/pdf"))) {
+      normalizedDataUrl = image_data_url;
     } else if (typeof image_base64 === "string" && image_base64.trim()) {
       const safeMimeType =
-        typeof image_mime_type === "string" && image_mime_type.startsWith("image/")
+        typeof image_mime_type === "string" && (image_mime_type.startsWith("image/") || image_mime_type === "application/pdf")
           ? image_mime_type
           : "image/png";
 
-      normalizedImageDataUrl = `data:${safeMimeType};base64,${image_base64.trim()}`;
+      normalizedDataUrl = `data:${safeMimeType};base64,${image_base64.trim()}`;
     }
 
-    if (!normalizedImageDataUrl) {
-      return new Response(JSON.stringify({ error: "Envie uma imagem válida do Cartão CNPJ (PNG, JPG ou WEBP)." }), {
+    if (!normalizedDataUrl) {
+      return new Response(JSON.stringify({ error: "Envie uma imagem (PNG, JPG, WEBP) ou PDF do Cartão CNPJ." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -76,7 +76,7 @@ Retorne APENAS o JSON, sem markdown, sem explicações. Se um campo não for enc
               {
                 type: "image_url",
                 image_url: {
-                  url: normalizedImageDataUrl,
+                  url: normalizedDataUrl,
                 },
               },
               {
