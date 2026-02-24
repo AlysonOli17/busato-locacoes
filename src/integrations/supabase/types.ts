@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           id: string
           numero_parcelas: number
+          renovacao_automatica: boolean
           seguradora: string
           status: string
           tem_adesao: boolean
@@ -33,6 +34,7 @@ export type Database = {
           created_at?: string
           id?: string
           numero_parcelas?: number
+          renovacao_automatica?: boolean
           seguradora: string
           status?: string
           tem_adesao?: boolean
@@ -47,6 +49,7 @@ export type Database = {
           created_at?: string
           id?: string
           numero_parcelas?: number
+          renovacao_automatica?: boolean
           seguradora?: string
           status?: string
           tem_adesao?: boolean

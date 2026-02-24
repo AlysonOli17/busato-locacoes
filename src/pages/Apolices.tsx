@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock, Upload } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock, Upload, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
@@ -34,6 +34,7 @@ interface Apolice {
   valor_adesao: number;
   tem_parcelamento: boolean;
   numero_parcelas: number;
+  renovacao_automatica: boolean;
   apolices_equipamentos: ApoliceEquipamento[];
 }
 
@@ -47,6 +48,7 @@ const emptyForm = {
   valor_adesao: 0,
   tem_parcelamento: false,
   numero_parcelas: 1,
+  renovacao_automatica: false,
 };
 
 const Apolices = () => {
@@ -61,7 +63,7 @@ const Apolices = () => {
   const [detailItem, setDetailItem] = useState<Apolice | null>(null);
   const [equipSearch, setEquipSearch] = useState("");
   const [importing, setImporting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"todos" | "Vigente" | "Vencida">("todos");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "Vigente" | "Vencida" | "Vence30">("todos");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -83,13 +85,6 @@ const Apolices = () => {
   const getEquipLabels = (item: Apolice) =>
     item.apolices_equipamentos?.map(getEquipLabel).join(", ") || "—";
 
-  const filtered = items.filter((i) => {
-    const s = search.toLowerCase();
-    const matchSearch = getEquipLabels(i).toLowerCase().includes(s) || i.seguradora.toLowerCase().includes(s);
-    const matchStatus = statusFilter === "todos" || i.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
-
   // Summary calculations
   const hoje = new Date();
   const em30dias = new Date();
@@ -99,6 +94,20 @@ const Apolices = () => {
   const vencendoEm30 = vigentes.filter(i => {
     const fim = new Date(i.vigencia_fim);
     return fim >= hoje && fim <= em30dias;
+  });
+
+  const isVence30 = (item: Apolice) => {
+    if (item.status !== "Vigente") return false;
+    const fim = new Date(item.vigencia_fim);
+    return fim >= hoje && fim <= em30dias;
+  };
+
+  const filtered = items.filter((i) => {
+    const s = search.toLowerCase();
+    const matchSearch = getEquipLabels(i).toLowerCase().includes(s) || i.seguradora.toLowerCase().includes(s);
+    if (statusFilter === "todos") return matchSearch;
+    if (statusFilter === "Vence30") return matchSearch && isVence30(i);
+    return matchSearch && i.status === statusFilter;
   });
 
   const totalMensal = vigentes.reduce((acc, i) => {
@@ -123,7 +132,7 @@ const Apolices = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Equipamentos", "Seguradora", "Vigência", "Valor (R$)", "Adesão", "Valor Adesão", "Parcelas", "Valor Parcela", "Status"];
+    const headers = ["Equipamentos", "Seguradora", "Vigência", "Valor (R$)", "Adesão", "Valor Adesão", "Parcelas", "Valor Parcela", "Renovação Auto", "Status"];
     const rows = data.map(i => {
       const valorParcela = i.tem_parcelamento && i.numero_parcelas > 0 ? i.valor / i.numero_parcelas : i.valor;
       return [
@@ -135,6 +144,7 @@ const Apolices = () => {
         i.tem_adesao ? Number(i.valor_adesao).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "—",
         i.tem_parcelamento ? `${i.numero_parcelas}x` : "À vista",
         valorParcela.toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+        i.renovacao_automatica ? "Sim" : "Não",
         i.status,
       ];
     });
@@ -154,6 +164,7 @@ const Apolices = () => {
       valor_adesao: item.valor_adesao,
       tem_parcelamento: item.tem_parcelamento,
       numero_parcelas: item.numero_parcelas,
+      renovacao_automatica: item.renovacao_automatica ?? false,
     });
     setDialogOpen(true);
   };
@@ -166,7 +177,6 @@ const Apolices = () => {
 
     const status = new Date(form.vigencia_fim) >= new Date() ? "Vigente" : "Vencida";
 
-    // Only check for duplicate equipment if the new/edited policy is Vigente
     if (status === "Vigente") {
       const editingId = editing?.id;
       const duplicados = form.equipamento_ids.filter(eid => {
@@ -195,6 +205,7 @@ const Apolices = () => {
       valor_adesao: form.tem_adesao ? Number(form.valor_adesao) : 0,
       tem_parcelamento: form.tem_parcelamento,
       numero_parcelas: form.tem_parcelamento ? Number(form.numero_parcelas) : 1,
+      renovacao_automatica: form.renovacao_automatica,
     };
 
     let apoliceId: string;
@@ -203,7 +214,6 @@ const Apolices = () => {
       const { error } = await supabase.from("apolices").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       apoliceId = editing.id;
-      // Remove old equipment links
       await supabase.from("apolices_equipamentos").delete().eq("apolice_id", editing.id);
     } else {
       const { data, error } = await supabase.from("apolices").insert(payload).select("id").single();
@@ -211,7 +221,6 @@ const Apolices = () => {
       apoliceId = data.id;
     }
 
-    // Insert equipment links
     const links = form.equipamento_ids.map(eid => ({ apolice_id: apoliceId, equipamento_id: eid }));
     const { error: linkError } = await supabase.from("apolices_equipamentos").insert(links);
     if (linkError) { toast({ title: "Erro", description: linkError.message, variant: "destructive" }); return; }
@@ -226,7 +235,6 @@ const Apolices = () => {
     fetchData();
   };
 
-  // Equipment IDs already in a vigent policy (excluding current editing)
   const equipamentosComApoliceVigente = new Set(
     items
       .filter(a => a.status === "Vigente" && a.id !== editing?.id)
@@ -300,7 +308,6 @@ const Apolices = () => {
         const parcelas = parcelasStr ? parseInt(parcelasStr.replace(/\D/g, "")) || 1 : 1;
         const equipRef = getCellVal("equipamento");
 
-        // Parse dates - try dd/mm/yyyy format
         const parseDate = (s: string) => {
           if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
             const [d, m, y] = s.split("/");
@@ -334,7 +341,6 @@ const Apolices = () => {
         const { data: apolice, error } = await supabase.from("apolices").insert(payload).select("id").single();
         if (error || !apolice) continue;
 
-        // Try to match equipment by tag/placa or tipo+modelo
         if (equipRef) {
           const refs = equipRef.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
           for (const ref of refs) {
@@ -360,6 +366,13 @@ const Apolices = () => {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  const filterButtons: { key: typeof statusFilter; label: string }[] = [
+    { key: "todos", label: "Todos" },
+    { key: "Vigente", label: "Vigente" },
+    { key: "Vencida", label: "Vencida" },
+    { key: "Vence30", label: "Vence em 30d" },
+  ];
 
   return (
     <Layout>
@@ -392,15 +405,18 @@ const Apolices = () => {
             <Input placeholder="Buscar apólices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <div className="flex gap-1">
-            {(["todos", "Vigente", "Vencida"] as const).map(s => (
+            {filterButtons.map(({ key, label }) => (
               <Button
-                key={s}
-                variant={statusFilter === s ? "default" : "outline"}
+                key={key}
+                variant={statusFilter === key ? "default" : "outline"}
                 size="sm"
-                onClick={() => setStatusFilter(s)}
-                className={statusFilter === s ? "bg-accent text-accent-foreground" : ""}
+                onClick={() => setStatusFilter(key)}
+                className={statusFilter === key ? "bg-accent text-accent-foreground" : ""}
               >
-                {s === "todos" ? "Todos" : s}
+                {label}
+                {key === "Vence30" && vencendoEm30.length > 0 && (
+                  <Badge className="ml-1 bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0">{vencendoEm30.length}</Badge>
+                )}
               </Button>
             ))}
           </div>
@@ -433,9 +449,12 @@ const Apolices = () => {
                   {vencendoEm30.map(a => (
                     <div key={a.id} className="text-xs flex justify-between items-center">
                       <span className="font-medium text-foreground truncate mr-2">{getEquipLabels(a)}</span>
-                      <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px] shrink-0">
-                        {new Date(a.vigencia_fim).toLocaleDateString("pt-BR")}
-                      </Badge>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {a.renovacao_automatica && <RefreshCw className="h-3 w-3 text-success" />}
+                        <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                          {new Date(a.vigencia_fim).toLocaleDateString("pt-BR")}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -466,8 +485,6 @@ const Apolices = () => {
           </Card>
         </div>
 
-
-
         <Card>
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[800px]">
@@ -481,6 +498,7 @@ const Apolices = () => {
                   <TableHead>Valor</TableHead>
                   <TableHead>Adesão</TableHead>
                   <TableHead>Parcelas</TableHead>
+                  <TableHead>Renov.</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
@@ -520,6 +538,13 @@ const Apolices = () => {
                       <TableCell className="text-sm">
                         {item.tem_parcelamento ? `${item.numero_parcelas}x R$ ${fmt(valorParcela)}` : "À vista"}
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {item.renovacao_automatica ? (
+                          <Badge className="bg-success/10 text-success border-0 text-xs"><RefreshCw className="h-3 w-3 mr-1" />Auto</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Manual</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
                           {item.status}
@@ -535,7 +560,7 @@ const Apolices = () => {
                   );
                 })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -590,6 +615,15 @@ const Apolices = () => {
               <div><Label>Fim Vigência</Label><Input type="date" value={form.vigencia_fim} onChange={(e) => setForm({ ...form, vigencia_fim: e.target.value })} /></div>
             </div>
             <div><Label>Valor do Seguro (R$)</Label><Input type="number" value={form.valor || ""} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} /></div>
+
+            {/* Renovação Automática */}
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div>
+                <Label className="text-sm font-medium">Renovação Automática?</Label>
+                <p className="text-xs text-muted-foreground">O seguro será renovado automaticamente</p>
+              </div>
+              <Switch checked={form.renovacao_automatica} onCheckedChange={(v) => setForm({ ...form, renovacao_automatica: v })} />
+            </div>
 
             {/* Adesão */}
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -651,6 +685,7 @@ const Apolices = () => {
                 <Row label="Seguradora" value={detailItem.seguradora} />
                 <Row label="Vigência" value={`${new Date(detailItem.vigencia_inicio).toLocaleDateString("pt-BR")} a ${new Date(detailItem.vigencia_fim).toLocaleDateString("pt-BR")}`} />
                 <Row label="Valor do Seguro" value={`R$ ${fmt(detailItem.valor)}`} bold />
+                <Row label="Renovação Automática" value={detailItem.renovacao_automatica ? "Sim" : "Não"} />
                 <Row label="Adesão" value={detailItem.tem_adesao ? `Sim — R$ ${fmt(detailItem.valor_adesao)}` : "Não"} />
                 <Row label="Parcelamento" value={detailItem.tem_parcelamento ? `${detailItem.numero_parcelas}x de R$ ${fmt(valorParcela)}` : "À vista"} />
                 <Row label="Status" value={detailItem.status} badge={detailItem.status === "Vigente" ? "success" : "destructive"} />
