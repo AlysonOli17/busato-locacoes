@@ -29,6 +29,8 @@ interface Medicao {
   equipamentos: Equipamento;
 }
 
+const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+
 const Medicoes = () => {
   const [items, setItems] = useState<Medicao[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
@@ -176,7 +178,7 @@ const Medicoes = () => {
               const rows = filtered.map(m => [
                 `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
                 m.equipamentos?.tag_placa || "—",
-                new Date(m.data).toLocaleDateString("pt-BR"),
+                parseLocalDate(m.data).toLocaleDateString("pt-BR"),
                 Number(m.horimetro_inicial).toFixed(1),
                 Number(m.horimetro_final).toFixed(1),
                 Number(m.horas_trabalhadas).toFixed(1),
@@ -286,7 +288,7 @@ const Medicoes = () => {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
-                    <TableCell className="text-sm">{new Date(item.data).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
                     <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
                     <TableCell>
@@ -339,7 +341,7 @@ const Medicoes = () => {
             </div>
             {form.equipamento_id && (
               <div className="p-3 rounded-lg bg-muted/50 border">
-                <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {new Date(form.data).toLocaleDateString("pt-BR")})</p>
+                <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {parseLocalDate(form.data).toLocaleDateString("pt-BR")})</p>
                 <p className="text-lg font-bold text-foreground">{horimetroAnterior.toFixed(1)}</p>
               </div>
             )}

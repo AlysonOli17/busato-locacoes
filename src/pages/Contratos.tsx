@@ -82,6 +82,8 @@ interface AjusteForm {
 
 const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30 };
 
+const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+
 const Contratos = () => {
   const [items, setItems] = useState<Contrato[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -223,8 +225,8 @@ const Contratos = () => {
           ce.equipamentos.tag_placa || "—",
           Number(ce.valor_hora).toFixed(2),
           String(ce.horas_contratadas),
-          new Date(i.data_inicio).toLocaleDateString("pt-BR"),
-          new Date(i.data_fim).toLocaleDateString("pt-BR"),
+          parseLocalDate(i.data_inicio).toLocaleDateString("pt-BR"),
+          parseLocalDate(i.data_fim).toLocaleDateString("pt-BR"),
           i.status,
         ]);
       });
@@ -321,7 +323,7 @@ const Contratos = () => {
         body: [
           ["Total Horas Contratadas", `${totalHoras}h`],
           ["Valor Total Estimado", fmt(valorEstimado)],
-          ["Período", `${new Date(item.data_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.data_fim).toLocaleDateString("pt-BR")}`],
+          ["Período", `${parseLocalDate(item.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(item.data_fim).toLocaleDateString("pt-BR")}`],
           ["Status", item.status],
           ["Observações", item.observacoes || "—"],
         ],
@@ -571,7 +573,7 @@ const Contratos = () => {
                                 {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
                               </span>
                               {ce.data_entrega && (
-                                <span className="text-xs text-muted-foreground">· Entrega: {new Date(ce.data_entrega).toLocaleDateString("pt-BR")}</span>
+                                <span className="text-xs text-muted-foreground">· Entrega: {parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR")}</span>
                               )}
                             </div>
                           ))}
@@ -579,7 +581,7 @@ const Contratos = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(item.data_inicio).toLocaleDateString("pt-BR")} - {new Date(item.data_fim).toLocaleDateString("pt-BR")}
+                        {parseLocalDate(item.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(item.data_fim).toLocaleDateString("pt-BR")}
                       </TableCell>
                       <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell>
@@ -615,7 +617,7 @@ const Contratos = () => {
               Dashboard de Uso — {dashboardContrato?.empresas?.nome}
             </DialogTitle>
             <DialogDescription>
-              Período: {dashboardContrato ? `${new Date(dashboardContrato.data_inicio).toLocaleDateString("pt-BR")} - ${new Date(dashboardContrato.data_fim).toLocaleDateString("pt-BR")}` : ""}
+              Período: {dashboardContrato ? `${parseLocalDate(dashboardContrato.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(dashboardContrato.data_fim).toLocaleDateString("pt-BR")}` : ""}
             </DialogDescription>
           </DialogHeader>
 
@@ -933,7 +935,7 @@ const Contratos = () => {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{new Date(aj.data_inicio).toLocaleDateString("pt-BR")} - {new Date(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                      <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
                       <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
                       <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
                       <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
