@@ -12,10 +12,23 @@ serve(async (req) => {
   }
 
   try {
-    const { image_base64 } = await req.json();
+    const { image_base64, image_data_url, image_mime_type } = await req.json();
 
-    if (!image_base64) {
-      return new Response(JSON.stringify({ error: "image_base64 is required" }), {
+    let normalizedImageDataUrl = "";
+
+    if (typeof image_data_url === "string" && image_data_url.startsWith("data:image/")) {
+      normalizedImageDataUrl = image_data_url;
+    } else if (typeof image_base64 === "string" && image_base64.trim()) {
+      const safeMimeType =
+        typeof image_mime_type === "string" && image_mime_type.startsWith("image/")
+          ? image_mime_type
+          : "image/png";
+
+      normalizedImageDataUrl = `data:${safeMimeType};base64,${image_base64.trim()}`;
+    }
+
+    if (!normalizedImageDataUrl) {
+      return new Response(JSON.stringify({ error: "Envie uma imagem válida do Cartão CNPJ (PNG, JPG ou WEBP)." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -63,7 +76,7 @@ Retorne APENAS o JSON, sem markdown, sem explicações. Se um campo não for enc
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/png;base64,${image_base64}`,
+                  url: normalizedImageDataUrl,
                 },
               },
               {
@@ -80,6 +93,14 @@ Retorne APENAS o JSON, sem markdown, sem explicações. Se um campo não for enc
 
     if (!response.ok) {
       const errorText = await response.text();
+
+      if (
+        response.status === 400 &&
+        (errorText.includes("Unable to process input image") || errorText.includes("INVALID_ARGUMENT"))
+      ) {
+        throw new Error("Não foi possível processar a imagem. Tente uma foto mais nítida e frontal do Cartão CNPJ.");
+      }
+
       throw new Error(`AI Gateway error: ${response.status} - ${errorText}`);
     }
 
