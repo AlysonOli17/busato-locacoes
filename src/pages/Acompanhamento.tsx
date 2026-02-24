@@ -55,6 +55,8 @@ interface Fatura {
   };
 }
 
+const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+
 const Acompanhamento = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -156,8 +158,8 @@ const Acompanhamento = () => {
         f.contratos?.empresas?.nome || "",
         f.contratos?.empresas?.cnpj || "",
         `${f.contratos?.equipamentos?.tipo} ${f.contratos?.equipamentos?.modelo}`,
-        f.periodo_medicao_inicio && f.periodo_medicao_fim ? `${new Date(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
-        new Date(f.emissao).toLocaleDateString("pt-BR"),
+        f.periodo_medicao_inicio && f.periodo_medicao_fim ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
+        parseLocalDate(f.emissao).toLocaleDateString("pt-BR"),
         getVencimento(f).toLocaleDateString("pt-BR"),
         Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
         status,
@@ -270,7 +272,7 @@ const Acompanhamento = () => {
                           <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
                             <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
                             <p className="text-xs text-muted-foreground">
-                              Período: {new Date(a.period.inicio).toLocaleDateString("pt-BR")} — {new Date(a.period.fim).toLocaleDateString("pt-BR")}
+                              Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
                             </p>
                             <Badge className="bg-warning text-warning-foreground text-xs">
                               Pendente de Emissão
@@ -321,10 +323,10 @@ const Acompanhamento = () => {
                       <TableCell className="text-sm">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {f.periodo_medicao_inicio && f.periodo_medicao_fim
-                          ? `${new Date(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+                          ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
                           : "—"}
                       </TableCell>
-                      <TableCell className="text-sm">{new Date(f.emissao).toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell className="text-sm">{parseLocalDate(f.emissao).toLocaleDateString("pt-BR")}</TableCell>
                       <TableCell className="text-sm">{getVencimento(f).toLocaleDateString("pt-BR")}</TableCell>
                       <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>

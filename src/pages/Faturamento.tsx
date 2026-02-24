@@ -99,6 +99,9 @@ interface EquipFormItem {
   ajuste: any | null;
 }
 
+// Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
+const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+
 const Faturamento = () => {
   const [items, setItems] = useState<Fatura[]>([]);
   const [contratos, setContratos] = useState<ContratoRef[]>([]);
@@ -304,7 +307,7 @@ const Faturamento = () => {
       i.contratos?.empresas?.nome || "",
       i.contratos?.empresas?.cnpj || "",
       i.numero_nota || "—",
-      i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${new Date(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
+      i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${parseLocalDate(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
       String(i.horas_normais),
       String(i.horas_excedentes),
       Number(i.total_gastos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
@@ -647,7 +650,7 @@ const Faturamento = () => {
                       <TableCell className="font-mono text-sm">{item.numero_nota || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
-                          ? `${new Date(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${new Date(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+                          ? `${parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
                           : "—"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -803,7 +806,7 @@ const Faturamento = () => {
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
                         <Switch checked={ef.primeiro_mes} onCheckedChange={() => togglePrimeiroMes(idx)} />
                         <Label className="text-xs cursor-pointer" onClick={() => togglePrimeiroMes(idx)}>Primeiro mês (proporcional)</Label>
-                        {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Entrega: {new Date(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
+                        {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Entrega: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
@@ -842,7 +845,7 @@ const Faturamento = () => {
                       <div key={g.id} className="flex items-center gap-2 text-sm">
                         <Checkbox checked={selectedGastos.has(g.id)} onCheckedChange={() => toggleGasto(g.id)} className="shrink-0" />
                         <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
-                          {new Date(g.data).toLocaleDateString("pt-BR")} — {eq ? `${eq.tipo} ${eq.modelo}` : ""} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
+                          {parseLocalDate(g.data).toLocaleDateString("pt-BR")} — {eq ? `${eq.tipo} ${eq.modelo}` : ""} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
                         </span>
                         <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-destructive" : "text-muted-foreground"}`}>
                           - R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
