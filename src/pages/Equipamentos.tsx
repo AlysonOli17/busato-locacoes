@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Upload } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, Search, Pencil, Trash2, Upload, ShieldCheck, ShieldOff, Truck, ParkingSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import ExcelJS from "exceljs";
@@ -28,6 +29,8 @@ interface Equipment {
 
 const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo", ano: "", valor_bem: "" };
 
+type StatusFilter = "todos" | "assegurados" | "nao-assegurados" | "locados" | "disponiveis";
+
 const Equipamentos = () => {
   const [items, setItems] = useState<Equipment[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -36,21 +39,51 @@ const Equipamentos = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
+  const [insuredIds, setInsuredIds] = useState<Set<string>>(new Set());
+  const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const { data, error } = await supabase.from("equipamentos").select("*").order("created_at", { ascending: false });
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    setItems(data || []);
+    const [eqRes, insRes, rentRes] = await Promise.all([
+      supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
+      supabase.from("apolices_equipamentos").select("equipamento_id, apolices!inner(status)").eq("apolices.status", "Vigente"),
+      supabase.from("contratos_equipamentos").select("equipamento_id, contratos!inner(status)").eq("contratos.status", "Ativo"),
+    ]);
+
+    if (eqRes.error) { toast({ title: "Erro", description: eqRes.error.message, variant: "destructive" }); return; }
+    setItems(eqRes.data || []);
+
+    const insured = new Set<string>();
+    (insRes.data || []).forEach((r: any) => insured.add(r.equipamento_id));
+    setInsuredIds(insured);
+
+    const rented = new Set<string>();
+    (rentRes.data || []).forEach((r: any) => rented.add(r.equipamento_id));
+    setRentedIds(rented);
+
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = items.filter(
-    (i) => i.tipo.toLowerCase().includes(search.toLowerCase()) || i.modelo.toLowerCase().includes(search.toLowerCase()) || (i.tag_placa || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = items.filter((i) => {
+    const matchesSearch =
+      i.tipo.toLowerCase().includes(search.toLowerCase()) ||
+      i.modelo.toLowerCase().includes(search.toLowerCase()) ||
+      (i.tag_placa || "").toLowerCase().includes(search.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    switch (statusFilter) {
+      case "assegurados": return insuredIds.has(i.id);
+      case "nao-assegurados": return !insuredIds.has(i.id);
+      case "locados": return rentedIds.has(i.id);
+      case "disponiveis": return !rentedIds.has(i.id);
+      default: return true;
+    }
+  });
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Equipment) => {
@@ -115,7 +148,6 @@ const Equipamentos = () => {
         headers[colNumber] = (cell.value?.toString() || "").trim().toLowerCase();
       });
 
-      // Map header names to DB fields
       const colMap: Record<string, string> = {};
       headers.forEach((h, idx) => {
         const normalized = h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -132,7 +164,7 @@ const Equipamentos = () => {
       }
 
       sheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return; // skip header
+        if (rowNumber === 1) return;
         const getCellVal = (field: string) => {
           const colIdx = colMap[field];
           if (!colIdx) return null;
@@ -142,7 +174,7 @@ const Equipamentos = () => {
 
         const tipo = getCellVal("tipo");
         const modelo = getCellVal("modelo");
-        if (!tipo && !modelo) return; // skip empty rows
+        if (!tipo && !modelo) return;
 
         const anoStr = getCellVal("ano");
         const valorStr = getCellVal("valor_bem");
@@ -184,6 +216,14 @@ const Equipamentos = () => {
     return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
+  const filterButtons: { label: string; value: StatusFilter }[] = [
+    { label: "Todos", value: "todos" },
+    { label: "Assegurados", value: "assegurados" },
+    { label: "Não-Assegurados", value: "nao-assegurados" },
+    { label: "Locados", value: "locados" },
+    { label: "Disponíveis", value: "disponiveis" },
+  ];
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -213,9 +253,32 @@ const Equipamentos = () => {
           </div>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar equipamentos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar equipamentos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {filterButtons.map((fb) => (
+              <Button
+                key={fb.value}
+                size="sm"
+                variant={statusFilter === fb.value ? "default" : "outline"}
+                onClick={() => setStatusFilter(fb.value)}
+                className="text-xs"
+              >
+                {fb.label}
+                {fb.value !== "todos" && (
+                  <span className="ml-1 opacity-70">
+                    ({fb.value === "assegurados" ? items.filter(i => insuredIds.has(i.id)).length
+                      : fb.value === "nao-assegurados" ? items.filter(i => !insuredIds.has(i.id)).length
+                      : fb.value === "locados" ? items.filter(i => rentedIds.has(i.id)).length
+                      : items.filter(i => !rentedIds.has(i.id)).length})
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
         </div>
 
         <Card>
@@ -230,31 +293,71 @@ const Equipamentos = () => {
                   <TableHead>Ano</TableHead>
                   <TableHead>Valor do Bem</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Seguro</TableHead>
+                  <TableHead className="text-center">Locação</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {filtered.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.tipo}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.tag_placa}</TableCell>
-                    <TableCell>{item.modelo}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{item.numero_serie}</TableCell>
-                    <TableCell>{item.ano || "—"}</TableCell>
-                    <TableCell>{formatCurrency(item.valor_bem)}</TableCell>
-                    <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum equipamento encontrado</TableCell></TableRow>
-                )}
-              </TableBody>
+              <TooltipProvider>
+                <TableBody>
+                  {filtered.map((item) => {
+                    const isInsured = insuredIds.has(item.id);
+                    const isRented = rentedIds.has(item.id);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.tipo}</TableCell>
+                        <TableCell className="font-mono text-sm">{item.tag_placa}</TableCell>
+                        <TableCell>{item.modelo}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{item.numero_serie}</TableCell>
+                        <TableCell>{item.ano || "—"}</TableCell>
+                        <TableCell>{formatCurrency(item.valor_bem)}</TableCell>
+                        <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
+                        <TableCell className="text-center">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex">
+                                {isInsured ? (
+                                  <ShieldCheck className="h-5 w-5 text-success" />
+                                ) : (
+                                  <ShieldOff className="h-5 w-5 text-destructive/60" />
+                                )}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>{isInsured ? "Assegurado" : "Sem seguro"}</TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex">
+                                {isRented ? (
+                                  <Badge className="bg-primary/10 text-primary border-primary/30 text-xs gap-1">
+                                    <Truck className="h-3.5 w-3.5" /> Locado
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-muted-foreground text-xs gap-1">
+                                    <ParkingSquare className="h-3.5 w-3.5" /> Disponível
+                                  </Badge>
+                                )}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>{isRented ? "Em contrato ativo" : "Disponível para locação"}</TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {!loading && filtered.length === 0 && (
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhum equipamento encontrado</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </TooltipProvider>
             </Table>
           </CardContent>
         </Card>
