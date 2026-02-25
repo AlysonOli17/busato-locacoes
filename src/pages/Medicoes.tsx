@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
+interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;}
 interface Medicao {
   id: string;
   equipamento_id: string;
@@ -47,26 +47,26 @@ const Medicoes = () => {
 
   const fetchData = async () => {
     const [medRes, equipRes] = await Promise.all([
-      supabase.from("medicoes").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
-    ]);
+    supabase.from("medicoes").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
+    supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo")]
+    );
     if (medRes.data) setItems(medRes.data as unknown as Medicao[]);
     if (equipRes.data) setEquipamentos(equipRes.data);
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {fetchData();}, []);
 
   // Busca o horímetro registrado ANTES da data selecionada para o equipamento
   const fetchHorimetroPorData = async (equipId: string, data: string, excludeId?: string) => {
-    let query = supabase
-      .from("medicoes")
-      .select("horimetro_final, data")
-      .eq("equipamento_id", equipId)
-      .lt("data", data)
-      .order("data", { ascending: false })
-      .limit(1);
-    
+    let query = supabase.
+    from("medicoes").
+    select("horimetro_final, data").
+    eq("equipamento_id", equipId).
+    lt("data", data).
+    order("data", { ascending: false }).
+    limit(1);
+
     const { data: result } = await query;
     if (result && result.length > 0) {
       setHorimetroAnterior(Number(result[0].horimetro_final));
@@ -77,12 +77,12 @@ const Medicoes = () => {
 
   const filtered = items.filter((i) => {
     if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
-    if (dataInicio) { if (new Date(i.data) < dataInicio) return false; }
-    if (dataFim) { const fim = new Date(dataFim); fim.setHours(23, 59, 59, 999); if (new Date(i.data) > fim) return false; }
+    if (dataInicio) {if (new Date(i.data) < dataInicio) return false;}
+    if (dataFim) {const fim = new Date(dataFim);fim.setHours(23, 59, 59, 999);if (new Date(i.data) > fim) return false;}
     return true;
   });
 
-  const summaryMap = new Map<string, { totalHoras: number; entries: number; label: string; tag: string }>();
+  const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;}>();
   filtered.forEach((m) => {
     const label = `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`;
     const tag = m.equipamentos?.tag_placa || "";
@@ -94,9 +94,9 @@ const Medicoes = () => {
 
   const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
-  const horasCalculadas = form.horimetro > 0
-    ? Math.max(0, form.horimetro - horimetroAnterior)
-    : 0;
+  const horasCalculadas = form.horimetro > 0 ?
+  Math.max(0, form.horimetro - horimetroAnterior) :
+  0;
 
   const openNew = () => {
     setEditingId(null);
@@ -125,18 +125,18 @@ const Medicoes = () => {
         data: form.data,
         horimetro_inicial: horimetroAnterior,
         horimetro_final: form.horimetro,
-        horas_trabalhadas: horasTrabalhadas,
+        horas_trabalhadas: horasTrabalhadas
       }).eq("id", editingId);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     } else {
       const { error } = await supabase.from("medicoes").insert({
         equipamento_id: form.equipamento_id,
         data: form.data,
         horimetro_inicial: horimetroAnterior,
         horimetro_final: form.horimetro,
-        horas_trabalhadas: horasTrabalhadas,
+        horas_trabalhadas: horasTrabalhadas
       });
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     }
     setDialogOpen(false);
     setEditingId(null);
@@ -146,22 +146,22 @@ const Medicoes = () => {
   const handleDelete = async () => {
     if (!deleteId) return;
     const { error } = await supabase.from("medicoes").delete().eq("id", deleteId);
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     setDeleteId(null);
     fetchData();
   };
 
   const onEquipChange = (v: string) => {
-    setForm(prev => ({ ...prev, equipamento_id: v }));
+    setForm((prev) => ({ ...prev, equipamento_id: v }));
     if (form.data) fetchHorimetroPorData(v, form.data, editingId || undefined);
   };
 
   const onDataChange = (v: string) => {
-    setForm(prev => ({ ...prev, data: v }));
+    setForm((prev) => ({ ...prev, data: v }));
     if (form.equipamento_id) fetchHorimetroPorData(form.equipamento_id, v, editingId || undefined);
   };
 
-  const clearFilters = () => { setFilterEquip("Todos"); setDataInicio(undefined); setDataFim(undefined); };
+  const clearFilters = () => {setFilterEquip("Todos");setDataInicio(undefined);setDataFim(undefined);};
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
   return (
@@ -175,16 +175,16 @@ const Medicoes = () => {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => {
               const headers = ["Equipamento", "Tag/Placa", "Data", "Horímetro Ant.", "Horímetro Atual", "Horas Trab."];
-              const rows = filtered.map(m => [
-                `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
-                m.equipamentos?.tag_placa || "—",
-                parseLocalDate(m.data).toLocaleDateString("pt-BR"),
-                Number(m.horimetro_inicial).toFixed(1),
-                Number(m.horimetro_final).toFixed(1),
-                Number(m.horas_trabalhadas).toFixed(1),
-              ]);
+              const rows = filtered.map((m) => [
+              `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
+              m.equipamentos?.tag_placa || "—",
+              parseLocalDate(m.data).toLocaleDateString("pt-BR"),
+              Number(m.horimetro_inicial).toFixed(1),
+              Number(m.horimetro_final).toFixed(1),
+              Number(m.horas_trabalhadas).toFixed(1)]
+              );
               const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
-              exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0,10)}` });
+              exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0, 10)}` });
             }}>
               <FileDown className="h-4 w-4 mr-1" /> PDF Horímetro
             </Button>
@@ -240,9 +240,9 @@ const Medicoes = () => {
                   </PopoverContent>
                 </Popover>
               </div>
-              {hasFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Limpar filtros</Button>
-              )}
+              {hasFilters &&
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Limpar filtros</Button>
+              }
             </div>
           </CardContent>
         </Card>
@@ -251,12 +251,12 @@ const Medicoes = () => {
           <Card className="border-accent/30 bg-accent/5">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-accent">{totalHorasGeral.toFixed(1)}h</div>
+              <div className="text-2xl font-bold text-sidebar">{totalHorasGeral.toFixed(1)}h</div>
               <p className="text-xs text-muted-foreground">{filtered.length} registros{hasFilters ? " (filtrado)" : ""}</p>
             </CardContent>
           </Card>
-          {Array.from(summaryMap.entries()).map(([id, data]) => (
-            <Card key={id} className="hover:shadow-md transition-shadow">
+          {Array.from(summaryMap.entries()).map(([id, data]) =>
+          <Card key={id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{data.label}</CardTitle>
                 {data.tag && <p className="text-xs font-mono text-muted-foreground">{data.tag}</p>}
@@ -266,7 +266,7 @@ const Medicoes = () => {
                 <p className="text-xs text-muted-foreground">{data.entries} registros</p>
               </CardContent>
             </Card>
-          ))}
+          )}
         </div>
 
         <Card>
@@ -284,8 +284,8 @@ const Medicoes = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => (
-                  <TableRow key={item.id}>
+                {filtered.map((item) =>
+                <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
@@ -307,10 +307,10 @@ const Medicoes = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
-                {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
                 )}
+                {!loading && filtered.length === 0 &&
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
+                }
               </TableBody>
             </Table>
           </CardContent>
@@ -339,23 +339,23 @@ const Medicoes = () => {
               <Label>Data</Label>
               <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
             </div>
-            {form.equipamento_id && (
-              <div className="p-3 rounded-lg bg-muted/50 border">
+            {form.equipamento_id &&
+            <div className="p-3 rounded-lg bg-muted/50 border">
                 <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {parseLocalDate(form.data).toLocaleDateString("pt-BR")})</p>
                 <p className="text-lg font-bold text-foreground">{horimetroAnterior.toFixed(1)}</p>
               </div>
-            )}
+            }
             <div>
               <Label>Horímetro Atual</Label>
               <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
             </div>
-            {horasCalculadas > 0 && (
-              <div className="p-3 rounded-lg bg-accent/10 text-center">
+            {horasCalculadas > 0 &&
+            <div className="p-3 rounded-lg bg-accent/10 text-center">
                 <p className="text-sm text-muted-foreground">Horas trabalhadas (diferença)</p>
                 <p className="text-2xl font-bold text-accent">{horasCalculadas.toFixed(1)}h</p>
                 <p className="text-xs text-muted-foreground">{horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
               </div>
-            )}
+            }
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
@@ -378,8 +378,8 @@ const Medicoes = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
-  );
+    </Layout>);
+
 };
 
 export default Medicoes;
