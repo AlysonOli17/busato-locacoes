@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2 } from "lucide-react";
@@ -204,13 +205,17 @@ const Medicoes = () => {
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Equipamento</Label>
-                <Select value={filterEquip} onValueChange={setFilterEquip}>
-                  <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Todos">Todos os Equipamentos</SelectItem>
-                    {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={filterEquip}
+                  onValueChange={setFilterEquip}
+                  placeholder="Todos os Equipamentos"
+                  searchPlaceholder="Pesquisar equipamento..."
+                  className="w-64"
+                  options={[
+                    { value: "Todos", label: "Todos os Equipamentos" },
+                    ...equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` })),
+                  ]}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Inicial</Label>
@@ -328,12 +333,13 @@ const Medicoes = () => {
           <div className="grid gap-4 py-4">
             <div>
               <Label>Equipamento</Label>
-              <Select value={form.equipamento_id} onValueChange={onEquipChange}>
-                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
-                <SelectContent>
-                  {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={form.equipamento_id}
+                onValueChange={onEquipChange}
+                placeholder="Selecione o equipamento"
+                searchPlaceholder="Pesquisar equipamento..."
+                options={equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+              />
             </div>
             <div>
               <Label>Data</Label>

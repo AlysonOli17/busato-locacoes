@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -729,19 +730,20 @@ const Faturamento = () => {
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
             <div>
               <Label>Contrato</Label>
-              <Select value={formContratoId} onValueChange={handleContratoSelect} disabled={!!editing}>
-                <SelectTrigger><SelectValue placeholder="Selecione o contrato" /></SelectTrigger>
-                <SelectContent>
-                  {contratos.map((c) => {
-                    const ceCount = c.contratos_equipamentos?.length || 0;
-                    return (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.empresas?.nome} — {ceCount > 0 ? `${ceCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formContratoId}
+                onValueChange={handleContratoSelect}
+                disabled={!!editing}
+                placeholder="Selecione o contrato"
+                searchPlaceholder="Pesquisar contrato..."
+                options={contratos.map((c) => {
+                  const ceCount = c.contratos_equipamentos?.length || 0;
+                  return {
+                    value: c.id,
+                    label: `${c.empresas?.nome} — ${ceCount > 0 ? `${ceCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}`,
+                  };
+                })}
+              />
             </div>
 
             {selectedContrato && (
