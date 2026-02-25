@@ -9,17 +9,84 @@ interface ExportConfig {
   filename: string;
 }
 
-export function exportToPDF({ title, headers, rows, filename }: ExportConfig) {
-  const doc = new jsPDF({ orientation: rows[0]?.length > 6 ? "landscape" : "portrait" });
+/**
+ * Loads the Busato logo and returns it as a base64 data URL.
+ * Cached after first call.
+ */
+let logoCache: string | null = null;
+
+async function loadLogo(): Promise<string | null> {
+  if (logoCache) return logoCache;
+  try {
+    const resp = await fetch("/images/logo-busato-horizontal.png");
+    const blob = await resp.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        logoCache = reader.result as string;
+        resolve(logoCache);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Adds the Busato letterhead (logo + line + date) to a jsPDF page.
+ * Returns the Y position after the header so content can start below it.
+ */
+export async function addLetterhead(doc: jsPDF, title: string): Promise<number> {
+  const logo = await loadLogo();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  let y = 12;
+
+  if (logo) {
+    // Logo on the left — 40×14 keeps aspect ratio of the horizontal logo
+    doc.addImage(logo, "PNG", 14, y, 40, 14);
+  }
+
+  // Title on the right side
   doc.setFontSize(16);
-  doc.text(title, 14, 18);
-  doc.setFontSize(9);
-  doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, 14, 25);
+  doc.setTextColor(60, 60, 60);
+  doc.text(title, pageWidth - 14, y + 8, { align: "right" });
+
+  y += 18;
+
+  // Separator line
+  doc.setDrawColor(41, 128, 185);
+  doc.setLineWidth(0.7);
+  doc.line(14, y, pageWidth - 14, y);
+
+  y += 4;
+
+  // Date
+  doc.setFontSize(8);
+  doc.setTextColor(140, 140, 140);
+  doc.text(
+    `Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`,
+    pageWidth - 14,
+    y,
+    { align: "right" },
+  );
+
+  y += 6;
+
+  return y;
+}
+
+export async function exportToPDF({ title, headers, rows, filename }: ExportConfig) {
+  const doc = new jsPDF({ orientation: rows[0]?.length > 6 ? "landscape" : "portrait" });
+
+  const startY = await addLetterhead(doc, title);
 
   autoTable(doc, {
     head: [headers],
     body: rows,
-    startY: 30,
+    startY,
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
