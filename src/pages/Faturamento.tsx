@@ -15,7 +15,7 @@ import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clo
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
 
 interface ContratoEquip {
   equipamento_id: string;
@@ -336,15 +336,9 @@ const Faturamento = () => {
       const emp = ct?.empresas;
       const gastosVal = Number(item.total_gastos || 0);
 
-      // Title
-      doc.setFontSize(18);
-      doc.setTextColor(41, 128, 185);
-      doc.text(`Faturamento Nº ${item.numero_sequencial}`, 14, 18);
-      doc.setFontSize(9);
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, 14, 24);
+      const startY = await addLetterhead(doc, `Faturamento Nº ${item.numero_sequencial}`);
 
-      let y = 32;
+      let y = startY;
 
       // Empresa
       doc.setFontSize(12);

@@ -16,7 +16,7 @@ import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, B
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
 
 interface Empresa { id: string; nome: string; cnpj: string; razao_social: string; nome_fantasia: string; inscricao_estadual: string; inscricao_municipal: string; endereco_logradouro: string; endereco_numero: string; endereco_complemento: string; endereco_bairro: string; endereco_cidade: string; endereco_uf: string; endereco_cep: string; contato: string | null; telefone: string | null; email: string; atividade_principal: string; }
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
@@ -251,14 +251,9 @@ const Contratos = () => {
       const emp = item.empresas;
       const ces = getContratoEquipamentos(item);
 
-      doc.setFontSize(18);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Contrato Detalhado", 14, 18);
-      doc.setFontSize(9);
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, 14, 24);
+      const startY = await addLetterhead(doc, "Contrato Detalhado");
 
-      let y = 32;
+      let y = startY;
 
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
