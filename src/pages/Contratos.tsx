@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -743,25 +744,26 @@ const Contratos = () => {
           <div className="grid gap-4 py-4">
             <div>
               <Label>Empresa</Label>
-              <Select value={form.empresa_id} onValueChange={(v) => setForm({ ...form, empresa_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
-                <SelectContent>
-                  {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome} — {e.cnpj}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={form.empresa_id}
+                onValueChange={(v) => setForm({ ...form, empresa_id: v })}
+                placeholder="Selecione a empresa"
+                searchPlaceholder="Pesquisar empresa..."
+                options={empresas.map((e) => ({ value: e.id, label: `${e.nome} — ${e.cnpj}` }))}
+              />
             </div>
 
             <div className="space-y-2">
               <Label>Equipamentos</Label>
               <div className="flex gap-2">
-                <Select value="" onValueChange={addEquipamento}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="Adicionar equipamento..." /></SelectTrigger>
-                  <SelectContent>
-                    {availableEquipamentos.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value=""
+                  onValueChange={addEquipamento}
+                  placeholder="Adicionar equipamento..."
+                  searchPlaceholder="Pesquisar equipamento..."
+                  className="flex-1"
+                  options={availableEquipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                />
               </div>
               {formEquipamentos.length > 0 && (
                 <div className="space-y-3 p-3 rounded-lg bg-muted/50">
@@ -961,27 +963,27 @@ const Contratos = () => {
           <div className="grid gap-4 py-4">
             <div>
               <Label>Equipamento</Label>
-              <Select value={ajusteForm.equipamento_id} onValueChange={(v) => {
-                const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
-                const ce = ces.find(c => c.equipamento_id === v);
-                setAjusteForm(prev => ({
-                  ...prev,
-                  equipamento_id: v,
-                  valor_hora: ce ? Number(ce.valor_hora) : prev.valor_hora,
-                  valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : prev.valor_hora_excedente,
-                  hora_minima: ce ? Number(ce.hora_minima) : prev.hora_minima,
-                  horas_contratadas: ce ? Number(ce.horas_contratadas) : prev.horas_contratadas,
-                }));
-              }}>
-                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
-                <SelectContent>
-                  {(ajustesContrato ? getContratoEquipamentos(ajustesContrato) : []).map(ce => (
-                    <SelectItem key={ce.equipamento_id} value={ce.equipamento_id}>
-                      {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={ajusteForm.equipamento_id}
+                onValueChange={(v) => {
+                  const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+                  const ce = ces.find(c => c.equipamento_id === v);
+                  setAjusteForm(prev => ({
+                    ...prev,
+                    equipamento_id: v,
+                    valor_hora: ce ? Number(ce.valor_hora) : prev.valor_hora,
+                    valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : prev.valor_hora_excedente,
+                    hora_minima: ce ? Number(ce.hora_minima) : prev.hora_minima,
+                    horas_contratadas: ce ? Number(ce.horas_contratadas) : prev.horas_contratadas,
+                  }));
+                }}
+                placeholder="Selecione o equipamento"
+                searchPlaceholder="Pesquisar equipamento..."
+                options={(ajustesContrato ? getContratoEquipamentos(ajustesContrato) : []).map(ce => ({
+                  value: ce.equipamento_id,
+                  label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo} ${ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}`,
+                }))}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Data Início</Label><Input type="date" value={ajusteForm.data_inicio} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_inicio: e.target.value }))} /></div>

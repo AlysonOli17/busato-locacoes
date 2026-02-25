@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Search, Pencil, Trash2, DollarSign, TrendingDown, CalendarClock, FileCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -215,13 +216,17 @@ const Gastos = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar gastos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
-          <Select value={filterTag} onValueChange={setFilterTag}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="Filtrar por Tag" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todas as Tags</SelectItem>
-              {uniqueTags.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={filterTag}
+            onValueChange={setFilterTag}
+            placeholder="Filtrar por Tag"
+            searchPlaceholder="Pesquisar tag..."
+            className="w-48"
+            options={[
+              { value: "Todos", label: "Todas as Tags" },
+              ...uniqueTags.map((tag) => ({ value: tag, label: tag })),
+            ]}
+          />
           <div className="flex items-end gap-2">
             <div>
               <Label className="text-xs text-muted-foreground">De</Label>
@@ -294,12 +299,13 @@ const Gastos = () => {
           <div className="grid gap-4 py-4">
             <div>
               <Label>Equipamento</Label>
-              <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
-                <SelectContent>
-                  {equipamentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={form.equipamento_id}
+                onValueChange={(v) => setForm({ ...form, equipamento_id: v })}
+                placeholder="Selecione o equipamento"
+                searchPlaceholder="Pesquisar equipamento..."
+                options={equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+              />
             </div>
             <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
             <div className="grid grid-cols-3 gap-4">
