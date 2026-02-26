@@ -466,6 +466,17 @@ const Faturamento = () => {
           const he = fe ? Number(fe.horas_excedentes) : 0;
           const vh = fe ? Number(fe.valor_hora) : Number(ce.valor_hora);
           const vhe = fe ? Number(fe.valor_hora_excedente) : Number(ce.valor_hora_excedente);
+
+          // Build observations for non-standard situations
+          const obs: string[] = [];
+          if (fe?.primeiro_mes) obs.push("1º mês (proporcional entrega)");
+          if (ce.data_devolucao && item.periodo_medicao_inicio && ce.data_devolucao <= (item.periodo_medicao_fim || "")) {
+            obs.push(`Devolvido em ${parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR")}`);
+          }
+          if (fe && Number(fe.hora_minima) !== Number(ce.hora_minima)) {
+            obs.push(`Hora mín. ajustada: ${Number(fe.hora_minima)}h`);
+          }
+
           return [
             `${eq?.tipo || ""} ${eq?.modelo || ""}`,
             eq?.tag_placa || "—",
@@ -474,18 +485,60 @@ const Faturamento = () => {
             fmt(vh),
             fmt(vhe),
             fmt(hn * vh + he * vhe),
+            obs.length > 0 ? obs.join("; ") : "—",
           ];
         });
 
         autoTable(doc, {
           startY: y,
-          head: [["Equipamento", "Tag", "H. Normais", "H. Excedentes", "Valor/h", "Valor Exc/h", "Subtotal"]],
+          head: [["Equipamento", "Tag", "H. Normais", "H. Exced.", "Valor/h", "Valor Exc/h", "Subtotal", "Observações"]],
           body: eqRows,
-          styles: { fontSize: 8, cellPadding: 3 },
+          styles: { fontSize: 7, cellPadding: 2 },
           headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+          columnStyles: { 7: { cellWidth: 40, fontStyle: "italic" } },
           theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      // Despesas deduzidas detalhadas
+      if (gastosVal > 0) {
+        const { data: fgData } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
+        if (fgData && fgData.length > 0) {
+          const gastoIds = fgData.map((fg: any) => fg.gasto_id);
+          const { data: gastosData } = await supabase.from("gastos").select("descricao, tipo, valor, data, equipamento_id").in("id", gastoIds);
+          if (gastosData && gastosData.length > 0) {
+            const gEqIds = [...new Set(gastosData.map((g: any) => g.equipamento_id))];
+            const { data: gEqData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").in("id", gEqIds);
+            const gEqMap = new Map((gEqData || []).map((e: any) => [e.id, e]));
+
+            if (y > 240) { doc.addPage(); y = 20; }
+            doc.setFontSize(12);
+            doc.setTextColor(41, 128, 185);
+            doc.text("Despesas Deduzidas", 14, y);
+            y += 2;
+            const gastoRows = gastosData.map((g: any) => {
+              const geq = gEqMap.get(g.equipamento_id);
+              return [
+                geq ? `${geq.tipo} ${geq.modelo}` : "—",
+                geq?.tag_placa || "—",
+                g.tipo,
+                g.descricao,
+                parseLocalDate(g.data).toLocaleDateString("pt-BR"),
+                fmt(Number(g.valor)),
+              ];
+            });
+            autoTable(doc, {
+              startY: y,
+              head: [["Equipamento", "Tag", "Tipo", "Descrição", "Data", "Valor"]],
+              body: gastoRows,
+              styles: { fontSize: 8, cellPadding: 2 },
+              headStyles: { fillColor: [192, 57, 43], textColor: 255 },
+              theme: "grid",
+            });
+            y = (doc as any).lastAutoTable.finalY + 8;
+          }
+        }
       }
 
       // Summary
