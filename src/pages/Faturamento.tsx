@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, CalendarRange } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -98,7 +98,6 @@ interface EquipFormItem {
   primeiro_mes: boolean;
   data_entrega: string | null;
   ajuste: any | null;
-  fim_efetivo?: string;
 }
 
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
@@ -151,54 +150,26 @@ const Faturamento = () => {
 
     const ceList = ct.contratos_equipamentos || [];
     // If no contratos_equipamentos, fallback to the main contract equipment
-    const allEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
-
-    // Filter out equipment already fully delivered before the billing period start
-    const equipIdsWithLimits: { id: string; fimEfetivo: string }[] = [];
-    for (const eqId of allEquipIds) {
-      const ce = ceList.find(c => c.equipamento_id === eqId);
-      const dataEntrega = ce?.data_entrega || null;
-      if (dataEntrega && dataEntrega < inicio) {
-        // Equipamento devolvido antes do período — ignorar
-        continue;
-      }
-      // Se data_entrega (devolução) está dentro do período, limitar medições até essa data
-      const fimEfetivo = dataEntrega && dataEntrega <= fim ? dataEntrega : fim;
-      equipIdsWithLimits.push({ id: eqId, fimEfetivo });
-    }
-
-    const equipIds = equipIdsWithLimits.map(e => e.id);
-
-    if (equipIds.length === 0) {
-      setEquipForms([]);
-      setGastosEquip([]);
-      setTotalGastos(0);
-      setSelectedGastos(new Set());
-      setLoadingMedicoes(false);
-      return;
-    }
+    const equipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
 
     // Fetch equipment details, medicoes, gastos, and ajustes for all equipment
-    const [equipRes, medResAll, gastosRes, ajustesRes] = await Promise.all([
+    const [equipRes, medRes, gastosRes, ajustesRes] = await Promise.all([
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", equipIds),
-      supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, data").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim),
+      supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim),
       supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
       supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", equipIds).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
 
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
-    const allMedicoes = medResAll.data || [];
+    const medicoesData = medRes.data || [];
     const ajustesData = ajustesRes.data || [];
 
-    // Build per-equipment form items, filtering medições by per-equipment effective end date
-    const newEquipForms: EquipFormItem[] = equipIdsWithLimits.map(({ id: eqId, fimEfetivo }) => {
+    // Build per-equipment form items
+    const newEquipForms: EquipFormItem[] = equipIds.map(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const eq = equipMap.get(eqId);
       const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
-      // Contar medições apenas até a data efetiva (devolução ou fim do período)
-      const horasMedidas = allMedicoes
-        .filter(m => m.equipamento_id === eqId && m.data <= fimEfetivo)
-        .reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      const horasMedidas = medicoesData.filter(m => m.equipamento_id === eqId).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
       const valorHora = ajuste ? Number(ajuste.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
       const valorExcedente = ajuste ? Number(ajuste.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : valorHora * 1.25;
@@ -221,7 +192,6 @@ const Faturamento = () => {
         primeiro_mes: false,
         data_entrega: dataEntrega,
         ajuste,
-        fim_efetivo: fimEfetivo,
       };
     });
 
@@ -235,13 +205,9 @@ const Faturamento = () => {
 
     setEquipForms(newEquipForms);
 
-    // Gastos - also filter by effective end date per equipment
+    // Gastos
     if (gastosRes.data) {
-      const filteredGastos = gastosRes.data.filter(g => {
-        const eqLimit = equipIdsWithLimits.find(e => e.id === g.equipamento_id);
-        return eqLimit && g.data <= eqLimit.fimEfetivo;
-      });
-      setGastosEquip(filteredGastos as GastoItem[]);
+      setGastosEquip(gastosRes.data as GastoItem[]);
       setSelectedGastos(new Set());
       setTotalGastos(0);
     } else {
@@ -802,20 +768,13 @@ const Faturamento = () => {
                 </div>
                 {equipForms.map((ef, idx) => (
                   <div key={ef.equipamento_id} className={`p-3 rounded-lg border space-y-2 ${ef.horas_excedentes > 0 ? "border-warning bg-warning/5" : "border-success bg-success/5"}`}>
-                    <div className="flex items-center justify-between flex-wrap gap-1">
+                    <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
-                      <div className="flex items-center gap-1">
-                        {ef.data_entrega && ef.fim_efetivo && ef.fim_efetivo !== formMedicaoFim && (
-                          <Badge variant="outline" className="text-xs border-warning text-warning">
-                            <CalendarRange className="h-3 w-3 mr-1" /> Devolução: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}
-                          </Badge>
-                        )}
-                        {ef.ajuste && (
-                          <Badge variant="outline" className="text-xs border-accent text-accent">
-                            <Settings2 className="h-3 w-3 mr-1" /> Ajuste Ativo
-                          </Badge>
-                        )}
-                      </div>
+                      {ef.ajuste && (
+                        <Badge variant="outline" className="text-xs border-accent text-accent">
+                          <Settings2 className="h-3 w-3 mr-1" /> Ajuste Ativo
+                        </Badge>
+                      )}
                     </div>
                     <div className="grid grid-cols-4 gap-2 text-center text-xs">
                       <div>
@@ -843,7 +802,7 @@ const Faturamento = () => {
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
                         <Switch checked={ef.primeiro_mes} onCheckedChange={() => togglePrimeiroMes(idx)} />
                         <Label className="text-xs cursor-pointer" onClick={() => togglePrimeiroMes(idx)}>Primeiro mês (proporcional)</Label>
-                        {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Devolução: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
+                        {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Entrega: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
