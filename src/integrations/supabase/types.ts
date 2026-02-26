@@ -168,6 +168,7 @@ export type Database = {
         Row: {
           contrato_id: string
           created_at: string
+          data_devolucao: string | null
           data_entrega: string | null
           equipamento_id: string
           hora_minima: number
@@ -179,6 +180,7 @@ export type Database = {
         Insert: {
           contrato_id: string
           created_at?: string
+          data_devolucao?: string | null
           data_entrega?: string | null
           equipamento_id: string
           hora_minima?: number
@@ -190,6 +192,7 @@ export type Database = {
         Update: {
           contrato_id?: string
           created_at?: string
+          data_devolucao?: string | null
           data_entrega?: string | null
           equipamento_id?: string
           hora_minima?: number

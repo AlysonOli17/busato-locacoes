@@ -24,6 +24,7 @@ interface ContratoEquip {
   horas_contratadas: number;
   hora_minima: number;
   data_entrega: string | null;
+  data_devolucao: string | null;
   equipamentos?: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
 }
 
@@ -97,6 +98,7 @@ interface EquipFormItem {
   horas_contratadas: number;
   primeiro_mes: boolean;
   data_entrega: string | null;
+  data_devolucao: string | null;
   ajuste: any | null;
 }
 
@@ -126,8 +128,8 @@ const Faturamento = () => {
 
   const fetchData = async () => {
     const [fatRes, ctRes] = await Promise.all([
-      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega))").order("numero_sequencial", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
+      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -152,16 +154,22 @@ const Faturamento = () => {
     // If no contratos_equipamentos, fallback to the main contract equipment
     const equipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
 
-    // Fetch equipment details, medicoes, gastos, and ajustes for all equipment
-    const [equipRes, medRes, gastosRes, ajustesRes] = await Promise.all([
+    // Fetch equipment details, gastos, and ajustes for all equipment
+    const [equipRes, gastosRes, ajustesRes] = await Promise.all([
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", equipIds),
-      supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim),
       supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
       supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", equipIds).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
 
+    // Fetch measurements per equipment, respecting data_devolucao
+    const medPromises = equipIds.map(eqId => {
+      const ce = ceList.find(c => c.equipamento_id === eqId);
+      const fimEfetivo = ce?.data_devolucao && ce.data_devolucao < fim ? ce.data_devolucao : fim;
+      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").eq("equipamento_id", eqId).gte("data", inicio).lte("data", fimEfetivo);
+    });
+    const medResults = await Promise.all(medPromises);
+    const medicoesData = medResults.flatMap(r => r.data || []);
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
-    const medicoesData = medRes.data || [];
     const ajustesData = ajustesRes.data || [];
 
     // Build per-equipment form items
@@ -169,7 +177,14 @@ const Faturamento = () => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const eq = equipMap.get(eqId);
       const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
-      const horasMedidas = medicoesData.filter(m => m.equipamento_id === eqId).reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      const dataDevolucao = ce?.data_devolucao || null;
+
+      // Filter measurements: if data_devolucao is set, only count up to that date
+      const filteredMedicoes = medicoesData.filter(m => {
+        if (m.equipamento_id !== eqId) return false;
+        return true; // date filtering already done by the query
+      });
+      const horasMedidas = filteredMedicoes.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
       const valorHora = ajuste ? Number(ajuste.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
       const valorExcedente = ajuste ? Number(ajuste.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : valorHora * 1.25;
@@ -191,6 +206,7 @@ const Faturamento = () => {
         horas_contratadas: horasContratadas,
         primeiro_mes: false,
         data_entrega: dataEntrega,
+        data_devolucao: dataDevolucao,
         ajuste,
       };
     });
@@ -798,11 +814,16 @@ const Faturamento = () => {
                       <span>V/h: R$ {ef.valor_hora.toFixed(2)} | V/h exc: R$ {ef.valor_hora_excedente.toFixed(2)}{ef.hora_minima > 0 ? ` | Mín: ${ef.hora_minima}h` : ""}</span>
                       <span className="font-semibold text-foreground">R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                     </div>
-                    {ef.hora_minima > 0 && (
+                      {ef.hora_minima > 0 && (
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
                         <Switch checked={ef.primeiro_mes} onCheckedChange={() => togglePrimeiroMes(idx)} />
                         <Label className="text-xs cursor-pointer" onClick={() => togglePrimeiroMes(idx)}>Primeiro mês (proporcional)</Label>
                         {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Entrega: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
+                      </div>
+                    )}
+                    {ef.data_devolucao && (
+                      <div className="text-xs text-warning font-medium bg-warning/10 rounded p-1.5">
+                        📅 Devolução em {parseLocalDate(ef.data_devolucao).toLocaleDateString("pt-BR")} — medições contabilizadas somente até esta data
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
