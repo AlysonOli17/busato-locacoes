@@ -636,7 +636,7 @@ const Faturamento = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead className="w-16">Nº</TableHead>
+                  
                   <TableHead>Empresa</TableHead>
                   <TableHead>Nº Nota</TableHead>
                   <TableHead>Período Medição</TableHead>
@@ -655,12 +655,6 @@ const Faturamento = () => {
                   return (
                     <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
                       <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="font-mono font-bold text-accent">{item.numero_sequencial}</span>
-                        </div>
-                      </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
