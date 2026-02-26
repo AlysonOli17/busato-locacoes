@@ -1,0 +1,1 @@
+ALTER TABLE public.contratos_equipamentos ADD COLUMN data_devolucao date DEFAULT NULL;
