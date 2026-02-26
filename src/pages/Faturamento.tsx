@@ -99,6 +99,9 @@ interface EquipFormItem {
   primeiro_mes: boolean;
   data_entrega: string | null;
   data_devolucao: string | null;
+  proporcional_devolucao: boolean;
+  horas_contratadas_original: number;
+  hora_minima_original: number;
   ajuste: any | null;
 }
 
@@ -188,9 +191,12 @@ const Faturamento = () => {
       let horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
       let horaMinima = ajuste ? Number(ajuste.hora_minima) : ce ? Number(ce.hora_minima) : 0;
       const dataEntrega = ce?.data_entrega || null;
+      const horasContratadasOriginal = horasContratadas;
+      const horasMinimaOriginal = horaMinima;
 
       // Proporcional: se data_devolucao está dentro do período, reduz horas contratadas e hora mínima proporcionalmente
-      if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
+      const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim;
+      if (temDevolucaoNoPeriodo) {
         const inicioDate = parseLocalDate(inicio);
         const fimDate = parseLocalDate(fim);
         const devolucaoDate = parseLocalDate(dataDevolucao);
@@ -216,6 +222,9 @@ const Faturamento = () => {
         primeiro_mes: false,
         data_entrega: dataEntrega,
         data_devolucao: dataDevolucao,
+        proporcional_devolucao: !!temDevolucaoNoPeriodo,
+        horas_contratadas_original: horasContratadasOriginal,
+        hora_minima_original: horasMinimaOriginal,
         ajuste,
       };
     });
@@ -263,16 +272,52 @@ const Faturamento = () => {
     setTotalGastos(total);
   }, [selectedGastos, gastosEquip]);
 
+  // Recalculate hours helper
+  const recalcHours = (ef: EquipFormItem) => {
+    const applyMinima = ef.hora_minima > 0 && !ef.primeiro_mes;
+    const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
+    ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+    ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+  };
+
   // Recalculate hours when primeiroMes toggles
   const togglePrimeiroMes = (idx: number) => {
     setEquipForms(prev => {
       const updated = [...prev];
       const ef = { ...updated[idx] };
       ef.primeiro_mes = !ef.primeiro_mes;
-      const applyMinima = ef.hora_minima > 0 && !ef.primeiro_mes;
-      const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
-      ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
-      ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+      recalcHours(ef);
+      updated[idx] = ef;
+      return updated;
+    });
+  };
+
+  // Toggle proporcional devolução
+  const toggleProporcionalDevolucao = (idx: number) => {
+    setEquipForms(prev => {
+      const updated = [...prev];
+      const ef = { ...updated[idx] };
+      ef.proporcional_devolucao = !ef.proporcional_devolucao;
+      if (ef.proporcional_devolucao && ef.data_devolucao) {
+        // Apply proportional
+        const inicio = formMedicaoInicio;
+        const fim = formMedicaoFim;
+        if (inicio && fim) {
+          const inicioDate = parseLocalDate(inicio);
+          const fimDate = parseLocalDate(fim);
+          const devolucaoDate = parseLocalDate(ef.data_devolucao);
+          const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)));
+          const diasUsados = Math.max(1, Math.round((devolucaoDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+          const fator = diasUsados / diasTotais;
+          ef.horas_contratadas = Number((ef.horas_contratadas_original * fator).toFixed(1));
+          ef.hora_minima = Number((ef.hora_minima_original * fator).toFixed(1));
+        }
+      } else {
+        // Restore original values
+        ef.horas_contratadas = ef.horas_contratadas_original;
+        ef.hora_minima = ef.hora_minima_original;
+      }
+      recalcHours(ef);
       updated[idx] = ef;
       return updated;
     });
@@ -830,8 +875,21 @@ const Faturamento = () => {
                       </div>
                     )}
                     {ef.data_devolucao && (
-                      <div className="text-xs text-warning font-medium bg-warning/10 rounded p-1.5">
-                        📅 Devolução em {parseLocalDate(ef.data_devolucao).toLocaleDateString("pt-BR")} — medições contabilizadas somente até esta data
+                      <div className="space-y-1.5 pt-1 border-t border-warning/30">
+                        <div className="text-xs text-warning font-medium bg-warning/10 rounded p-1.5">
+                          📅 Devolução em {parseLocalDate(ef.data_devolucao).toLocaleDateString("pt-BR")} — medições contabilizadas somente até esta data
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={ef.proporcional_devolucao} onCheckedChange={() => toggleProporcionalDevolucao(idx)} />
+                          <Label className="text-xs cursor-pointer" onClick={() => toggleProporcionalDevolucao(idx)}>
+                            Cobrar proporcional à devolução
+                          </Label>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {ef.proporcional_devolucao
+                              ? `Proporcional: ${ef.horas_contratadas}h / Mín: ${ef.hora_minima}h`
+                              : `Integral: ${ef.horas_contratadas_original}h / Mín: ${ef.hora_minima_original}h`}
+                          </span>
+                        </div>
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
