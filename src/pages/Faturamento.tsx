@@ -378,6 +378,10 @@ const Faturamento = () => {
           ["CNPJ", emp?.cnpj || "—"],
           ["Contato", emp?.contato || "—"],
           ["Telefone", emp?.telefone || "—"],
+          ["Nº Nota", item.numero_nota || "—"],
+          ["Período de Medição", item.periodo_medicao_inicio && item.periodo_medicao_fim
+            ? `${parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+            : "—"],
         ],
         styles: { fontSize: 9, cellPadding: 3 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
