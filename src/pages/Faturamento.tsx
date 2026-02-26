@@ -379,7 +379,7 @@ const Faturamento = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Nº", "Empresa", "CNPJ", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Gastos Deduzidos (R$)", "Valor Líquido (R$)", "Status"];
+    const headers = ["Nº", "Empresa", "CNPJ", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Custos Adicionais (R$)", "Valor Total (R$)", "Status"];
     const rows = data.map(i => [
       String(i.numero_sequencial),
       i.contratos?.empresas?.nome || "",
@@ -393,6 +393,7 @@ const Faturamento = () => {
       i.status,
     ]);
     return { title: "Relatório de Faturamento", headers, rows, filename: `faturamento_${new Date().toISOString().slice(0, 10)}` };
+
   };
 
   const exportDetailedPDF = async () => {
@@ -515,7 +516,7 @@ const Faturamento = () => {
             if (y > 240) { doc.addPage(); y = 20; }
             doc.setFontSize(12);
             doc.setTextColor(41, 128, 185);
-            doc.text("Despesas Deduzidas", 14, y);
+            doc.text("Custos Adicionais", 14, y);
             y += 2;
             const gastoRows = gastosData.map((g: any) => {
               const geq = gEqMap.get(g.equipamento_id);
@@ -643,7 +644,7 @@ const Faturamento = () => {
   const totalHorasNormais = equipForms.reduce((acc, ef) => acc + ef.horas_normais, 0);
   const totalHorasExcedentes = equipForms.reduce((acc, ef) => acc + ef.horas_excedentes, 0);
   const valorBruto = equipForms.reduce((acc, ef) => acc + ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente, 0);
-  const valorLiquido = Math.max(0, valorBruto - totalGastos);
+  const valorLiquido = valorBruto + totalGastos;
 
   // Average valor_hora for storage (weighted)
   const avgValorHora = totalHorasNormais > 0 ? equipForms.reduce((acc, ef) => acc + ef.horas_normais * ef.valor_hora, 0) / totalHorasNormais : 0;
@@ -753,8 +754,8 @@ const Faturamento = () => {
                   <TableHead>Prazo</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Horas</TableHead>
-                  <TableHead>Gastos Deduzidos</TableHead>
-                  <TableHead>Valor Líquido</TableHead>
+                  <TableHead>Custos Adicionais</TableHead>
+                  <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-16">Ações</TableHead>
                 </TableRow>
@@ -790,7 +791,7 @@ const Faturamento = () => {
                       </TableCell>
                       <TableCell className="text-sm">
                         {itemGastos > 0
-                          ? <span className="text-destructive font-semibold">- R$ {itemGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          ? <span className="text-accent font-semibold">+ R$ {itemGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                           : "—"}
                       </TableCell>
                       <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
@@ -969,13 +970,13 @@ const Faturamento = () => {
               </div>
             )}
 
-            {/* Gastos / Deduções */}
+            {/* Custos Adicionais */}
             {gastosEquip.length > 0 && (
-              <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5 space-y-3">
+              <div className="p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                  <div className="flex items-center gap-2 text-sm font-medium text-accent">
                     <TrendingDown className="h-4 w-4" />
-                    Gastos dos Equipamentos no Período
+                    Custos dos Equipamentos no Período
                   </div>
                   <Button variant="ghost" size="sm" className="text-xs h-7" onClick={toggleAllGastos}>
                     {selectedGastos.size === gastosEquip.length ? "Desmarcar todos" : "Selecionar todos"}
@@ -990,17 +991,17 @@ const Faturamento = () => {
                         <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
                           {parseLocalDate(g.data).toLocaleDateString("pt-BR")} — {eq ? `${eq.tipo} ${eq.modelo}` : ""} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
                         </span>
-                        <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-destructive" : "text-muted-foreground"}`}>
-                          - R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-accent" : "text-muted-foreground"}`}>
+                          + R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     );
                   })}
                 </div>
                 {selectedGastos.size > 0 && (
-                  <div className="flex items-center justify-between pt-2 border-t border-destructive/20 font-bold text-sm">
-                    <span>Total Gastos Selecionados ({selectedGastos.size}/{gastosEquip.length})</span>
-                    <span className="text-destructive">- R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <div className="flex items-center justify-between pt-2 border-t border-accent/20 font-bold text-sm">
+                    <span>Total Custos Selecionados ({selectedGastos.size}/{gastosEquip.length})</span>
+                    <span className="text-accent">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
               </div>
@@ -1032,13 +1033,13 @@ const Faturamento = () => {
                   <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
                 {totalGastos > 0 && (
-                  <div className="flex items-center justify-between text-sm text-destructive">
-                    <span>Gastos Deduzidos</span>
-                    <span className="font-semibold">- R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <div className="flex items-center justify-between text-sm text-accent">
+                    <span>Custos Adicionais</span>
+                    <span className="font-semibold">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-accent/20">
-                  <span className="text-sm font-medium">Valor Líquido a Receber</span>
+                  <span className="text-sm font-medium">Valor Total a Cobrar</span>
                   <span className="text-2xl font-bold text-accent">R$ {valorLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
