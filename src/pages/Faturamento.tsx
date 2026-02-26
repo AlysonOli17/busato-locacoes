@@ -554,8 +554,8 @@ const Faturamento = () => {
         head: [["Descrição", "Valor"]],
         body: [
           ["Valor Bruto (horas)", fmt(valorBrutoItem)],
-          ["(-) Gastos Deduzidos", gastosVal > 0 ? `- ${fmt(gastosVal)}` : "R$ 0,00"],
-          ["(=) Valor Líquido a Receber", fmt(Number(item.valor_total))],
+          ["(+) Custos Adicionais", gastosVal > 0 ? `+ ${fmt(gastosVal)}` : "R$ 0,00"],
+          ["(=) Valor Total a Cobrar", fmt(Number(item.valor_total))],
         ],
         styles: { fontSize: 10, cellPadding: 4 },
         headStyles: { fillColor: [39, 174, 96], textColor: 255 },
