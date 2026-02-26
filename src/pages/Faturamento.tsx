@@ -155,7 +155,14 @@ const Faturamento = () => {
 
     const ceList = ct.contratos_equipamentos || [];
     // If no contratos_equipamentos, fallback to the main contract equipment
-    const equipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
+    // Filter out equipment already returned before the billing period
+    const allEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
+    const equipIds = allEquipIds.filter(eqId => {
+      const ce = ceList.find(c => c.equipamento_id === eqId);
+      // Exclude if data_devolucao exists and is before the period start
+      if (ce?.data_devolucao && ce.data_devolucao < inicio) return false;
+      return true;
+    });
 
     // Fetch equipment details, gastos, and ajustes for all equipment
     const [equipRes, gastosRes, ajustesRes] = await Promise.all([
