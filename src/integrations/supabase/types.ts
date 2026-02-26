@@ -98,6 +98,48 @@ export type Database = {
           },
         ]
       }
+      contas_bancarias: {
+        Row: {
+          agencia: string
+          banco: string
+          cnpj_cpf: string | null
+          conta: string
+          created_at: string
+          id: string
+          observacoes: string | null
+          pix: string | null
+          tipo_conta: string
+          titular: string
+          updated_at: string
+        }
+        Insert: {
+          agencia: string
+          banco: string
+          cnpj_cpf?: string | null
+          conta: string
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          pix?: string | null
+          tipo_conta?: string
+          titular: string
+          updated_at?: string
+        }
+        Update: {
+          agencia?: string
+          banco?: string
+          cnpj_cpf?: string | null
+          conta?: string
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          pix?: string | null
+          tipo_conta?: string
+          titular?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contratos: {
         Row: {
           created_at: string
@@ -391,6 +433,7 @@ export type Database = {
       }
       faturamento: {
         Row: {
+          conta_bancaria_id: string | null
           contrato_id: string
           created_at: string
           emissao: string
@@ -409,6 +452,7 @@ export type Database = {
           valor_total: number
         }
         Insert: {
+          conta_bancaria_id?: string | null
           contrato_id: string
           created_at?: string
           emissao?: string
@@ -427,6 +471,7 @@ export type Database = {
           valor_total?: number
         }
         Update: {
+          conta_bancaria_id?: string | null
           contrato_id?: string
           created_at?: string
           emissao?: string
@@ -445,6 +490,13 @@ export type Database = {
           valor_total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "faturamento_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "faturamento_contrato_id_fkey"
             columns: ["contrato_id"]

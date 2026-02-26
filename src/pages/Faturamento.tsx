@@ -11,11 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
+import { ContasBancariasDialog, type ContaBancaria } from "@/components/ContasBancariasDialog";
 
 interface ContratoEquip {
   equipamento_id: string;
@@ -72,6 +73,7 @@ interface Fatura {
   periodo_medicao_fim: string | null;
   total_gastos: number;
   contratos: ContratoRef;
+  conta_bancaria_id: string | null;
 }
 
 interface GastoItem {
@@ -127,15 +129,20 @@ const Faturamento = () => {
   const [totalGastos, setTotalGastos] = useState(0);
   const [selectedGastos, setSelectedGastos] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
+  const [contasDialogOpen, setContasDialogOpen] = useState(false);
+  const [formContaBancariaId, setFormContaBancariaId] = useState("");
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [fatRes, ctRes] = await Promise.all([
+    const [fatRes, ctRes, contasRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("contas_bancarias").select("*").order("banco"),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
+    if (contasRes.data) setContasBancarias(contasRes.data as ContaBancaria[]);
     setLoading(false);
   };
 
@@ -562,6 +569,36 @@ const Faturamento = () => {
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
         theme: "grid",
       });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Bank account info
+      if (item.conta_bancaria_id) {
+        const conta = contasBancarias.find(c => c.id === item.conta_bancaria_id);
+        if (conta) {
+          if (y > 240) { doc.addPage(); y = 20; }
+          doc.setFontSize(12);
+          doc.setTextColor(41, 128, 185);
+          doc.text("Dados Bancários para Pagamento", 14, y);
+          y += 2;
+          const bankRows: string[][] = [
+            ["Banco", conta.banco],
+            ["Agência", conta.agencia],
+            ["Conta", `${conta.conta} (${conta.tipo_conta})`],
+            ["Titular", conta.titular],
+          ];
+          if (conta.cnpj_cpf) bankRows.push(["CNPJ/CPF", conta.cnpj_cpf]);
+          if (conta.pix) bankRows.push(["Chave PIX", conta.pix]);
+          autoTable(doc, {
+            startY: y,
+            head: [["Campo", "Dados"]],
+            body: bankRows,
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [52, 73, 94], textColor: 255 },
+            columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+            theme: "grid",
+          });
+        }
+      }
     }
 
     doc.save(`faturamento_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -604,6 +641,7 @@ const Faturamento = () => {
     setGastosEquip([]);
     setTotalGastos(0);
     setSelectedGastos(new Set());
+    setFormContaBancariaId("");
     setDialogOpen(true);
   };
 
@@ -613,6 +651,7 @@ const Faturamento = () => {
     setFormPeriodo(item.periodo);
     setFormNumeroNota(item.numero_nota || "");
     setFormStatus(item.status);
+    setFormContaBancariaId(item.conta_bancaria_id || "");
     setFormMedicaoInicio(item.periodo_medicao_inicio || "");
     setFormMedicaoFim(item.periodo_medicao_fim || "");
 
@@ -665,7 +704,8 @@ const Faturamento = () => {
       periodo_medicao_inicio: formMedicaoInicio || null,
       periodo_medicao_fim: formMedicaoFim || null,
       total_gastos: totalGastos,
-    };
+      conta_bancaria_id: formContaBancariaId || null,
+    } as any;
 
     let faturaId: string;
 
@@ -730,6 +770,7 @@ const Faturamento = () => {
             <p className="text-sm text-muted-foreground">Total pendente: <span className="text-accent font-semibold">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setContasDialogOpen(true)}><Landmark className="h-4 w-4 mr-1" /> Contas</Button>
             <Button variant="outline" size="sm" onClick={exportDetailedPDF}><FileDown className="h-4 w-4 mr-1" /> PDF Detalhado</Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Fatura</Button>
@@ -1007,16 +1048,31 @@ const Faturamento = () => {
               </div>
             )}
 
-            <div>
-              <Label>Status</Label>
-              <Select value={formStatus} onValueChange={setFormStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Pago">Pago</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Status</Label>
+                <Select value={formStatus} onValueChange={setFormStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pendente">Pendente</SelectItem>
+                    <SelectItem value="Pago">Pago</SelectItem>
+                    <SelectItem value="Cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Conta para Pagamento</Label>
+                <SearchableSelect
+                  value={formContaBancariaId}
+                  onValueChange={setFormContaBancariaId}
+                  placeholder="Selecione a conta"
+                  searchPlaceholder="Pesquisar conta..."
+                  options={[
+                    { value: "", label: "Nenhuma" },
+                    ...contasBancarias.map(c => ({ value: c.id, label: `${c.banco} - Ag ${c.agencia} / CC ${c.conta}` })),
+                  ]}
+                />
+              </div>
             </div>
 
             {/* Totals */}
@@ -1051,6 +1107,13 @@ const Faturamento = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ContasBancariasDialog
+        open={contasDialogOpen}
+        onOpenChange={setContasDialogOpen}
+        contas={contasBancarias}
+        onRefresh={fetchData}
+      />
     </Layout>
   );
 };
