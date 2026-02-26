@@ -144,11 +144,11 @@ const Gastos = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Gastos</h1>
-            <p className="text-sm text-muted-foreground">{filtered.length} gasto(s) no período</p>
+            <h1 className="text-2xl font-bold text-foreground">Custos</h1>
+            <p className="text-sm text-muted-foreground">{filtered.length} custo(s) no período</p>
           </div>
           <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> Novo Gasto
+            <Plus className="h-4 w-4 mr-2" /> Novo Custo
           </Button>
         </div>
 
@@ -157,7 +157,7 @@ const Gastos = () => {
           <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4" /> Total de Gastos
+                <DollarSign className="h-4 w-4" /> Total de Custos
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
@@ -168,23 +168,23 @@ const Gastos = () => {
           <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <FileCheck className="h-4 w-4" /> Deduzidos em Fatura
+                <FileCheck className="h-4 w-4" /> Incluídos em Fatura
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
               <p className="text-2xl font-bold text-success">R$ {fmt(totalDeduzido)}</p>
-              <p className="text-xs text-muted-foreground">{deduzidos.length} gasto(s) deduzido(s)</p>
+              <p className="text-xs text-muted-foreground">{deduzidos.length} custo(s) incluído(s)</p>
             </CardContent>
           </Card>
           <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" /> Não Deduzidos
+                <TrendingDown className="h-4 w-4" /> Não Incluídos
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
               <p className="text-2xl font-bold text-destructive">R$ {fmt(totalNaoDeduzido)}</p>
-              <p className="text-xs text-muted-foreground">{naoDeduzidos.length} gasto(s) sem fatura</p>
+              <p className="text-xs text-muted-foreground">{naoDeduzidos.length} custo(s) sem fatura</p>
             </CardContent>
           </Card>
           <Card className="h-[160px] flex flex-col">
@@ -214,7 +214,7 @@ const Gastos = () => {
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar gastos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Buscar custos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <SearchableSelect
             value={filterTag}
@@ -285,7 +285,7 @@ const Gastos = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum gasto encontrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum custo encontrado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -295,7 +295,7 @@ const Gastos = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-accent" />{editing ? "Editar Gasto" : "Novo Gasto"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-accent" />{editing ? "Editar Custo" : "Novo Custo"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
               <Label>Equipamento</Label>

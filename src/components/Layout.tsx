@@ -16,7 +16,7 @@ const allNavItems = [
   { to: "/medicoes", icon: Clock, label: "Medições" },
   { to: "/faturamento", icon: Receipt, label: "Faturamento" },
   { to: "/apolices", icon: Shield, label: "Apólices" },
-  { to: "/gastos", icon: DollarSign, label: "Gastos" },
+  { to: "/gastos", icon: DollarSign, label: "Custos" },
   { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },
   { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
 ];
