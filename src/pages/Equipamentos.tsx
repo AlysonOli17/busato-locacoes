@@ -49,7 +49,7 @@ const Equipamentos = () => {
     const [eqRes, insRes, rentRes] = await Promise.all([
       supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
       supabase.from("apolices_equipamentos").select("equipamento_id, apolices!inner(status)").eq("apolices.status", "Vigente"),
-      supabase.from("contratos_equipamentos").select("equipamento_id, contratos!inner(status)").eq("contratos.status", "Ativo"),
+      supabase.from("contratos_equipamentos").select("equipamento_id, data_devolucao, contratos!inner(status)").eq("contratos.status", "Ativo"),
     ]);
 
     if (eqRes.error) { toast({ title: "Erro", description: eqRes.error.message, variant: "destructive" }); return; }
@@ -60,7 +60,12 @@ const Equipamentos = () => {
     setInsuredIds(insured);
 
     const rented = new Set<string>();
-    (rentRes.data || []).forEach((r: any) => rented.add(r.equipamento_id));
+    const hoje = new Date().toISOString().slice(0, 10);
+    (rentRes.data || []).forEach((r: any) => {
+      // Se tem data_devolucao e já passou, não está mais locado
+      if (r.data_devolucao && r.data_devolucao < hoje) return;
+      rented.add(r.equipamento_id);
+    });
     setRentedIds(rented);
 
     setLoading(false);
