@@ -179,18 +179,27 @@ const Faturamento = () => {
       const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
       const dataDevolucao = ce?.data_devolucao || null;
 
-      // Filter measurements: if data_devolucao is set, only count up to that date
-      const filteredMedicoes = medicoesData.filter(m => {
-        if (m.equipamento_id !== eqId) return false;
-        return true; // date filtering already done by the query
-      });
+      // Filter measurements: date filtering already done by the query
+      const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       const horasMedidas = filteredMedicoes.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
       const valorHora = ajuste ? Number(ajuste.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
       const valorExcedente = ajuste ? Number(ajuste.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : valorHora * 1.25;
-      const horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
-      const horaMinima = ajuste ? Number(ajuste.hora_minima) : ce ? Number(ce.hora_minima) : 0;
+      let horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
+      let horaMinima = ajuste ? Number(ajuste.hora_minima) : ce ? Number(ce.hora_minima) : 0;
       const dataEntrega = ce?.data_entrega || null;
+
+      // Proporcional: se data_devolucao está dentro do período, reduz horas contratadas e hora mínima proporcionalmente
+      if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
+        const inicioDate = parseLocalDate(inicio);
+        const fimDate = parseLocalDate(fim);
+        const devolucaoDate = parseLocalDate(dataDevolucao);
+        const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const diasUsados = Math.max(1, Math.round((devolucaoDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+        const fatorProporcional = diasUsados / diasTotais;
+        horasContratadas = Number((horasContratadas * fatorProporcional).toFixed(1));
+        horaMinima = Number((horaMinima * fatorProporcional).toFixed(1));
+      }
 
       return {
         equipamento_id: eqId,
