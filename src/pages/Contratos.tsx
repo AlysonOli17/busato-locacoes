@@ -569,7 +569,7 @@ const Contratos = () => {
                                 {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
                               </span>
                               {ce.data_entrega && (
-                                <span className="text-xs text-muted-foreground">· Entrega: {parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR")}</span>
+                                <span className="text-xs text-muted-foreground">· Devolução: {parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR")}</span>
                               )}
                             </div>
                           ))}
@@ -796,7 +796,7 @@ const Contratos = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3 mt-2">
                           <div>
-                            <Label className="text-xs text-muted-foreground">Data de Entrega</Label>
+                            <Label className="text-xs text-muted-foreground">Data de Devolução</Label>
                             <Input type="date" value={fe.data_entrega || ""} onChange={(e) => updateEquipItemStr(fe.equipamento_id, "data_entrega", e.target.value)} className="h-8 text-sm" />
                           </div>
                           {fe.hora_minima > 0 && (

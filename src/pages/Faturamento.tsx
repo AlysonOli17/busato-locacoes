@@ -159,10 +159,10 @@ const Faturamento = () => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const dataEntrega = ce?.data_entrega || null;
       if (dataEntrega && dataEntrega < inicio) {
-        // Equipment was delivered before the period — skip entirely
+        // Equipamento devolvido antes do período — ignorar
         continue;
       }
-      // If data_entrega is within the period, limit measurements to that date
+      // Se data_entrega (devolução) está dentro do período, limitar medições até essa data
       const fimEfetivo = dataEntrega && dataEntrega <= fim ? dataEntrega : fim;
       equipIdsWithLimits.push({ id: eqId, fimEfetivo });
     }
@@ -195,7 +195,7 @@ const Faturamento = () => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const eq = equipMap.get(eqId);
       const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
-      // Only count medições up to the effective end date (data_entrega or period end)
+      // Contar medições apenas até a data efetiva (devolução ou fim do período)
       const horasMedidas = allMedicoes
         .filter(m => m.equipamento_id === eqId && m.data <= fimEfetivo)
         .reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
@@ -807,7 +807,7 @@ const Faturamento = () => {
                       <div className="flex items-center gap-1">
                         {ef.data_entrega && ef.fim_efetivo && ef.fim_efetivo !== formMedicaoFim && (
                           <Badge variant="outline" className="text-xs border-warning text-warning">
-                            <CalendarRange className="h-3 w-3 mr-1" /> Entrega: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}
+                            <CalendarRange className="h-3 w-3 mr-1" /> Devolução: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}
                           </Badge>
                         )}
                         {ef.ajuste && (
@@ -843,7 +843,7 @@ const Faturamento = () => {
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
                         <Switch checked={ef.primeiro_mes} onCheckedChange={() => togglePrimeiroMes(idx)} />
                         <Label className="text-xs cursor-pointer" onClick={() => togglePrimeiroMes(idx)}>Primeiro mês (proporcional)</Label>
-                        {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Entrega: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
+                        {ef.primeiro_mes && ef.data_entrega && <span className="text-xs text-muted-foreground ml-auto">Devolução: {parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR")}</span>}
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
