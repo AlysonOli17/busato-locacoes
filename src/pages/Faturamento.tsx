@@ -373,7 +373,7 @@ const Faturamento = () => {
       y += 2;
       autoTable(doc, {
         startY: y,
-        head: [["Campo", "Valor"]],
+        head: [["Campo", "Dados"]],
         body: [
           ["Empresa", emp?.nome || "—"],
           ["CNPJ", emp?.cnpj || "—"],
