@@ -300,6 +300,27 @@ const Faturamento = () => {
       const updated = [...prev];
       const ef = { ...updated[idx] };
       ef.primeiro_mes = !ef.primeiro_mes;
+      if (ef.primeiro_mes && ef.data_entrega) {
+        // Apply proportional based on data_entrega
+        const inicio = formMedicaoInicio;
+        const fim = formMedicaoFim;
+        if (inicio && fim && ef.data_entrega > inicio && ef.data_entrega <= fim) {
+          const inicioDate = parseLocalDate(inicio);
+          const fimDate = parseLocalDate(fim);
+          const entregaDate = parseLocalDate(ef.data_entrega);
+          const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)));
+          const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)));
+          const fator = diasUsados / diasTotais;
+          ef.horas_contratadas = Number((ef.horas_contratadas_original * fator).toFixed(1));
+          ef.hora_minima = Number((ef.hora_minima_original * fator).toFixed(1));
+        }
+      } else if (!ef.primeiro_mes) {
+        // Restore original values (unless proporcional_devolucao is active)
+        if (!ef.proporcional_devolucao) {
+          ef.horas_contratadas = ef.horas_contratadas_original;
+          ef.hora_minima = ef.hora_minima_original;
+        }
+      }
       recalcHours(ef);
       updated[idx] = ef;
       return updated;
