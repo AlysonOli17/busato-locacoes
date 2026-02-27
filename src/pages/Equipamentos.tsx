@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Search, Pencil, Trash2, Upload, ShieldCheck, ShieldOff, Truck, ParkingSquare } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Upload, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import ExcelJS from "exceljs";
+import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Equipment {
   id: string;
@@ -221,6 +222,22 @@ const Equipamentos = () => {
     return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
+  const getExportData = () => {
+    const headers = ["Tipo", "Tag/Placa", "Modelo", "Nº Série", "Ano", "Valor do Bem", "Status", "Seguro", "Locação"];
+    const rows = filtered.map(i => [
+      i.tipo,
+      i.tag_placa || "—",
+      i.modelo,
+      i.numero_serie || "—",
+      i.ano?.toString() || "—",
+      formatCurrency(i.valor_bem),
+      i.status,
+      insuredIds.has(i.id) ? "Sim" : "Não",
+      rentedIds.has(i.id) ? "Locado" : "Disponível",
+    ]);
+    return { title: "Equipamentos", headers, rows, filename: "equipamentos" };
+  };
+
   const filterButtons: { label: string; value: StatusFilter }[] = [
     { label: "Todos", value: "todos" },
     { label: "Assegurados", value: "assegurados" },
@@ -245,6 +262,12 @@ const Equipamentos = () => {
               className="hidden"
               onChange={handleImportExcel}
             />
+            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
+              <FileText className="h-4 w-4 mr-2" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+            </Button>
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
