@@ -245,7 +245,7 @@ const Faturamento = () => {
 
     // Calculate hours for each equipment
     newEquipForms.forEach(ef => {
-      const applyMinima = ef.hora_minima > 0 && !ef.primeiro_mes;
+      const applyMinima = ef.hora_minima > 0;
       const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
       ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
       ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
@@ -288,7 +288,8 @@ const Faturamento = () => {
 
   // Recalculate hours helper
   const recalcHours = (ef: EquipFormItem) => {
-    const applyMinima = ef.hora_minima > 0 && !ef.primeiro_mes;
+    // When primeiro_mes is true, hora_minima is already proportionally reduced — still apply it
+    const applyMinima = ef.hora_minima > 0;
     const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
     ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
     ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
