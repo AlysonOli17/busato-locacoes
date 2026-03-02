@@ -105,6 +105,8 @@ interface EquipFormItem {
   horas_contratadas_original: number;
   hora_minima_original: number;
   ajuste: any | null;
+  aditivo: any | null;
+  aditivo_numero: number | null;
 }
 
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
@@ -259,6 +261,8 @@ const Faturamento = () => {
         horaMinima = Number((horaMinima * fatorProporcional).toFixed(1));
       }
 
+      const aditivoHeader = aditivo ? aditivosData.find(a => a.id === aditivo.aditivo_id) : null;
+
       return {
         equipamento_id: eqId,
         tipo: eq?.tipo || "",
@@ -278,6 +282,8 @@ const Faturamento = () => {
         horas_contratadas_original: horasContratadasOriginal,
         hora_minima_original: horasMinimaOriginal,
         ajuste,
+        aditivo: !ajuste ? aditivo : null,
+        aditivo_numero: !ajuste && aditivoHeader ? aditivoHeader.numero : null,
       };
     });
 
@@ -657,6 +663,78 @@ const Faturamento = () => {
             columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
             theme: "grid",
           });
+      }
+
+      // Aditivos history
+      const { data: aditivosHist } = await supabase
+        .from("contratos_aditivos")
+        .select("id, numero, data_inicio, data_fim, motivo, observacoes")
+        .eq("contrato_id", item.contrato_id)
+        .order("numero", { ascending: true });
+
+      if (aditivosHist && aditivosHist.length > 0) {
+        const aditivoIds = aditivosHist.map(a => a.id);
+        const { data: aditivoEquips } = await supabase
+          .from("aditivos_equipamentos")
+          .select("*, equipamentos:equipamento_id(tipo, modelo, tag_placa)")
+          .in("aditivo_id", aditivoIds);
+        const aeByAditivo = new Map<string, any[]>();
+        (aditivoEquips || []).forEach((ae: any) => {
+          const list = aeByAditivo.get(ae.aditivo_id) || [];
+          list.push(ae);
+          aeByAditivo.set(ae.aditivo_id, list);
+        });
+
+        y = (doc as any).lastAutoTable?.finalY + 8 || y + 8;
+        if (y > 220) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text("Histórico de Aditivos", 14, y);
+        y += 2;
+
+        for (const ad of aditivosHist) {
+          if (y > 250) { doc.addPage(); y = 20; }
+          const adStatus = new Date() < parseLocalDate(ad.data_inicio) ? "Futuro" : new Date() > parseLocalDate(ad.data_fim) ? "Encerrado" : "Vigente";
+          autoTable(doc, {
+            startY: y,
+            head: [[`Aditivo #${ad.numero} — ${adStatus}`, ""]],
+            body: [
+              ["Vigência", `${parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}`],
+              ["Motivo", ad.motivo || "—"],
+              ...(ad.observacoes ? [["Observações", ad.observacoes]] : []),
+            ],
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [155, 89, 182], textColor: 255 },
+            columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+            theme: "grid",
+          });
+          y = (doc as any).lastAutoTable.finalY + 2;
+
+          const aeList = aeByAditivo.get(ad.id) || [];
+          if (aeList.length > 0) {
+            const aeRows = aeList.map((ae: any) => {
+              const eq = ae.equipamentos;
+              return [
+                eq ? `${eq.tipo} ${eq.modelo}` : "—",
+                eq?.tag_placa || "—",
+                fmt(Number(ae.valor_hora)),
+                fmt(Number(ae.valor_hora_excedente)),
+                `${ae.horas_contratadas}h`,
+                `${ae.hora_minima}h`,
+                ae.data_entrega ? parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR") : "—",
+                ae.data_devolucao ? parseLocalDate(ae.data_devolucao).toLocaleDateString("pt-BR") : "—",
+              ];
+            });
+            autoTable(doc, {
+              startY: y,
+              head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Entrega", "Devolução"]],
+              body: aeRows,
+              styles: { fontSize: 7, cellPadding: 2 },
+              headStyles: { fillColor: [142, 68, 173], textColor: 255 },
+              theme: "grid",
+            });
+            y = (doc as any).lastAutoTable.finalY + 4;
+          }
         }
       }
     }
@@ -1004,6 +1082,11 @@ const Faturamento = () => {
                       {ef.ajuste && (
                         <Badge variant="outline" className="text-xs border-accent text-accent">
                           <Settings2 className="h-3 w-3 mr-1" /> Ajuste Ativo
+                        </Badge>
+                      )}
+                      {ef.aditivo && (
+                        <Badge variant="outline" className="text-xs border-primary text-primary">
+                          <Hash className="h-3 w-3 mr-1" /> Aditivo {ef.aditivo_numero ? `#${ef.aditivo_numero}` : ""}
                         </Badge>
                       )}
                     </div>
