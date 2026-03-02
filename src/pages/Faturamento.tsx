@@ -663,6 +663,7 @@ const Faturamento = () => {
             columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
             theme: "grid",
           });
+        }
       }
 
       // Aditivos history
