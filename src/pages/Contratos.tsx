@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +83,39 @@ interface AjusteForm {
   motivo: string;
 }
 
+interface Aditivo {
+  id: string;
+  contrato_id: string;
+  numero: number;
+  data_inicio: string;
+  data_fim: string;
+  motivo: string;
+  observacoes: string;
+  created_at: string;
+  aditivos_equipamentos?: AditivoEquipamento[];
+}
+
+interface AditivoEquipamento {
+  id: string;
+  aditivo_id: string;
+  equipamento_id: string;
+  valor_hora: number;
+  horas_contratadas: number;
+  valor_hora_excedente: number;
+  hora_minima: number;
+  data_entrega: string | null;
+  data_devolucao: string | null;
+}
+
+interface AditivoForm {
+  numero: number;
+  data_inicio: string;
+  data_fim: string;
+  motivo: string;
+  observacoes: string;
+  equipamentos: FormEquipItem[];
+}
+
 const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30 };
 
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
@@ -108,6 +142,11 @@ const Contratos = () => {
   const [ajusteFormOpen, setAjusteFormOpen] = useState(false);
   const [editingAjuste, setEditingAjuste] = useState<AjusteTemporario | null>(null);
   const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_id: "", valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
+  // Aditivos
+  const [aditivos, setAditivos] = useState<Aditivo[]>([]);
+  const [aditivoFormOpen, setAditivoFormOpen] = useState(false);
+  const [editingAditivo, setEditingAditivo] = useState<Aditivo | null>(null);
+  const [aditivoForm, setAditivoForm] = useState<AditivoForm>({ numero: 1, data_inicio: "", data_fim: "", motivo: "", observacoes: "", equipamentos: [] });
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -496,6 +535,140 @@ const Contratos = () => {
     const hoje = new Date();
     return hoje >= new Date(aj.data_inicio) && hoje <= new Date(aj.data_fim);
   };
+
+  // --- Aditivos ---
+  const fetchAditivos = async (contratoId: string) => {
+    const { data } = await supabase
+      .from("contratos_aditivos")
+      .select("*, aditivos_equipamentos(*)")
+      .eq("contrato_id", contratoId)
+      .order("numero", { ascending: true });
+    setAditivos((data || []) as unknown as Aditivo[]);
+  };
+
+  const openAjustesWithAditivos = async (item: Contrato) => {
+    openAjustes(item);
+    fetchAditivos(item.id);
+  };
+
+  const openNewAditivo = () => {
+    setEditingAditivo(null);
+    const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+    const nextNumero = aditivos.length > 0 ? Math.max(...aditivos.map(a => a.numero)) + 1 : 1;
+    setAditivoForm({
+      numero: nextNumero,
+      data_inicio: ajustesContrato?.data_fim || "",
+      data_fim: "",
+      motivo: "",
+      observacoes: "",
+      equipamentos: ces.map(ce => ({
+        equipamento_id: ce.equipamento_id,
+        valor_hora: Number(ce.valor_hora),
+        horas_contratadas: Number(ce.horas_contratadas),
+        valor_hora_excedente: Number(ce.valor_hora_excedente),
+        hora_minima: Number(ce.hora_minima),
+        data_entrega: ce.data_entrega || "",
+        data_devolucao: ce.data_devolucao || "",
+      })),
+    });
+    setAditivoFormOpen(true);
+  };
+
+  const openEditAditivo = (ad: Aditivo) => {
+    setEditingAditivo(ad);
+    const eqs = ad.aditivos_equipamentos || [];
+    setAditivoForm({
+      numero: ad.numero,
+      data_inicio: ad.data_inicio,
+      data_fim: ad.data_fim,
+      motivo: ad.motivo,
+      observacoes: ad.observacoes || "",
+      equipamentos: eqs.map(ae => ({
+        equipamento_id: ae.equipamento_id,
+        valor_hora: Number(ae.valor_hora),
+        horas_contratadas: Number(ae.horas_contratadas),
+        valor_hora_excedente: Number(ae.valor_hora_excedente),
+        hora_minima: Number(ae.hora_minima),
+        data_entrega: ae.data_entrega || "",
+        data_devolucao: ae.data_devolucao || "",
+      })),
+    });
+    setAditivoFormOpen(true);
+  };
+
+  const handleSaveAditivo = async () => {
+    if (!ajustesContrato || !aditivoForm.data_inicio || !aditivoForm.data_fim) {
+      toast({ title: "Campos obrigatórios", description: "Preencha as datas de início e fim do aditivo.", variant: "destructive" });
+      return;
+    }
+    if (aditivoForm.equipamentos.length === 0) {
+      toast({ title: "Campos obrigatórios", description: "Adicione pelo menos um equipamento ao aditivo.", variant: "destructive" });
+      return;
+    }
+    const payload = {
+      contrato_id: ajustesContrato.id,
+      numero: aditivoForm.numero,
+      data_inicio: aditivoForm.data_inicio,
+      data_fim: aditivoForm.data_fim,
+      motivo: aditivoForm.motivo,
+      observacoes: aditivoForm.observacoes,
+    };
+
+    let aditivoId: string;
+    if (editingAditivo) {
+      const { error } = await supabase.from("contratos_aditivos").update(payload).eq("id", editingAditivo.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      aditivoId = editingAditivo.id;
+      await supabase.from("aditivos_equipamentos").delete().eq("aditivo_id", aditivoId);
+    } else {
+      const { data, error } = await supabase.from("contratos_aditivos").insert(payload).select("id").single();
+      if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar aditivo", variant: "destructive" }); return; }
+      aditivoId = data.id;
+    }
+
+    const eqRows = aditivoForm.equipamentos.map(fe => ({
+      aditivo_id: aditivoId,
+      equipamento_id: fe.equipamento_id,
+      valor_hora: Number(fe.valor_hora),
+      horas_contratadas: Number(fe.horas_contratadas),
+      valor_hora_excedente: Number(fe.valor_hora_excedente),
+      hora_minima: Number(fe.hora_minima),
+      data_entrega: fe.data_entrega || null,
+      data_devolucao: fe.data_devolucao || null,
+    }));
+    await supabase.from("aditivos_equipamentos").insert(eqRows);
+
+    setAditivoFormOpen(false);
+    toast({ title: "Sucesso", description: editingAditivo ? "Aditivo atualizado." : "Aditivo criado." });
+    fetchAditivos(ajustesContrato.id);
+  };
+
+  const handleDeleteAditivo = async (id: string) => {
+    const { error } = await supabase.from("contratos_aditivos").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    if (ajustesContrato) fetchAditivos(ajustesContrato.id);
+  };
+
+  const addAditivoEquipamento = (equipId: string) => {
+    if (equipId && !aditivoForm.equipamentos.some(fe => fe.equipamento_id === equipId)) {
+      setAditivoForm(prev => ({
+        ...prev,
+        equipamentos: [...prev.equipamentos, { equipamento_id: equipId, valor_hora: 0, horas_contratadas: 0, valor_hora_excedente: 0, hora_minima: 0, data_entrega: "", data_devolucao: "" }],
+      }));
+    }
+  };
+
+  const removeAditivoEquipamento = (equipId: string) => {
+    setAditivoForm(prev => ({ ...prev, equipamentos: prev.equipamentos.filter(fe => fe.equipamento_id !== equipId) }));
+  };
+
+  const updateAditivoEquipItem = (equipId: string, field: string, value: number | string) => {
+    setAditivoForm(prev => ({
+      ...prev,
+      equipamentos: prev.equipamentos.map(fe => fe.equipamento_id === equipId ? { ...fe, [field]: value } : fe),
+    }));
+  };
+
   // Summary totals for dashboard
   const dashboardTotals = {
     totalContratado: equipUsages.reduce((s, u) => s + u.custo_contratado, 0),
@@ -587,7 +760,7 @@ const Contratos = () => {
                       <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openAjustes(item)} title="Ajustes temporários">
+                          <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Ajustes e Aditivos">
                             <Settings2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openDashboard(item)} title="Dashboard de uso">
@@ -884,74 +1057,148 @@ const Contratos = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Ajustes Temporários Dialog */}
+      {/* Ajustes e Aditivos Dialog */}
       <Dialog open={ajustesOpen} onOpenChange={setAjustesOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-accent" />
-              Ajustes Temporários — {ajustesContrato?.empresas?.nome}
+              Gestão do Contrato — {ajustesContrato?.empresas?.nome}
             </DialogTitle>
             <DialogDescription>
-              Defina períodos com valores diferentes dos contratados. O faturamento usará automaticamente os valores do ajuste quando o período de medição coincidir.
+              Gerencie ajustes temporários e aditivos contratuais.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <Button onClick={() => openNewAjuste()} size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Novo Ajuste
-            </Button>
+          <Tabs defaultValue="ajustes" className="w-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="ajustes" className="flex-1">Ajustes Temporários</TabsTrigger>
+              <TabsTrigger value="aditivos" className="flex-1">Aditivos</TabsTrigger>
+            </TabsList>
 
-            {ajustes.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum ajuste temporário cadastrado para este contrato.</p>
-            )}
+            <TabsContent value="ajustes" className="space-y-4 mt-4">
+              <Button onClick={() => openNewAjuste()} size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+                <Plus className="h-4 w-4 mr-2" /> Novo Ajuste
+              </Button>
+              {ajustes.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum ajuste temporário cadastrado.</p>
+              )}
+              <div className="space-y-3">
+                {ajustes.map(aj => {
+                  const eq = equipamentos.find(e => e.id === aj.equipamento_id);
+                  const ativo = isAjusteAtivo(aj);
+                  const passado = new Date() > new Date(aj.data_fim);
+                  return (
+                    <div key={aj.id} className={`rounded-lg border p-4 space-y-2 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CalendarRange className="h-4 w-4 text-accent" />
+                          <span className="font-medium text-sm">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}</span>
+                          {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
+                          {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
+                          {!ativo && !passado && <Badge variant="outline" className="text-xs text-muted-foreground">Agendado</Badge>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAjuste(aj)}><Pencil className="h-3 w-3" /></Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Ajuste</AlertDialogTitle>
+                                <AlertDialogDescription>Tem certeza? O faturamento voltará a usar os valores originais.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteAjuste(aj.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                        <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
+                        <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
+                        <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
+                      </div>
+                      {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </TabsContent>
 
-            <div className="space-y-3">
-              {ajustes.map(aj => {
-                const eq = equipamentos.find(e => e.id === aj.equipamento_id);
-                const ativo = isAjusteAtivo(aj);
-                const passado = new Date() > new Date(aj.data_fim);
-                return (
-                  <div key={aj.id} className={`rounded-lg border p-4 space-y-2 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CalendarRange className="h-4 w-4 text-accent" />
-                        <span className="font-medium text-sm">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}</span>
-                        {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
-                        {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
-                        {!ativo && !passado && <Badge variant="outline" className="text-xs text-muted-foreground">Agendado</Badge>}
+            <TabsContent value="aditivos" className="space-y-4 mt-4">
+              <Button onClick={openNewAditivo} size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+                <Plus className="h-4 w-4 mr-2" /> Novo Aditivo
+              </Button>
+              {aditivos.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum aditivo cadastrado para este contrato.</p>
+              )}
+              <div className="space-y-3">
+                {aditivos.map(ad => {
+                  const eqs = ad.aditivos_equipamentos || [];
+                  const hoje = new Date();
+                  const inicio = new Date(ad.data_inicio);
+                  const fim = new Date(ad.data_fim);
+                  const ativo = hoje >= inicio && hoje <= fim;
+                  const futuro = hoje < inicio;
+                  const passado = hoje > fim;
+                  return (
+                    <div key={ad.id} className={`rounded-lg border p-4 space-y-3 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FilePlus2 className="h-4 w-4 text-accent" />
+                          <span className="font-semibold text-sm">Aditivo #{ad.numero}</span>
+                          {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Vigente</Badge>}
+                          {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
+                          {futuro && <Badge variant="outline" className="text-xs text-muted-foreground">Futuro</Badge>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAditivo(ad)}><Pencil className="h-3 w-3" /></Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Aditivo</AlertDialogTitle>
+                                <AlertDialogDescription>Tem certeza que deseja excluir o Aditivo #{ad.numero}? Todos os equipamentos associados serão removidos.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteAditivo(ad.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAjuste(aj)}><Pencil className="h-3 w-3" /></Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir Ajuste</AlertDialogTitle>
-                              <AlertDialogDescription>Tem certeza? O faturamento voltará a usar os valores originais do contrato.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteAjuste(aj.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Vigência:</span> <span className="font-medium">{parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                        <div><span className="text-muted-foreground">Equipamentos:</span> <span className="font-medium">{eqs.length}</span></div>
                       </div>
+                      {ad.motivo && <p className="text-xs text-muted-foreground italic">{ad.motivo}</p>}
+                      {eqs.length > 0 && (
+                        <div className="space-y-1 pt-1">
+                          {eqs.map(ae => {
+                            const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                            return (
+                              <div key={ae.id} className="flex items-center gap-2 flex-wrap text-xs">
+                                <Badge variant="outline" className="text-xs">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}</Badge>
+                                <span className="text-muted-foreground">{fmt(ae.valor_hora)}/h · {ae.horas_contratadas}h{ae.hora_minima > 0 ? ` · Mín: ${ae.hora_minima}h` : ""}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
-                      <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
-                      <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
-                      <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
-                    </div>
-                    {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  );
+                })}
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
@@ -1006,6 +1253,110 @@ const Contratos = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAjusteFormOpen(false)}>Cancelar</Button>
             <Button onClick={handleSaveAjuste} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Aditivo Form Dialog */}
+      <Dialog open={aditivoFormOpen} onOpenChange={setAditivoFormOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FilePlus2 className="h-5 w-5 text-accent" />
+              {editingAditivo ? `Editar Aditivo #${aditivoForm.numero}` : "Novo Aditivo"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Nº do Aditivo</Label>
+                <Input type="number" value={aditivoForm.numero} onChange={(e) => setAditivoForm(prev => ({ ...prev, numero: Number(e.target.value) }))} />
+              </div>
+              <div>
+                <Label>Data Início</Label>
+                <Input type="date" value={aditivoForm.data_inicio} onChange={(e) => setAditivoForm(prev => ({ ...prev, data_inicio: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Data Fim</Label>
+                <Input type="date" value={aditivoForm.data_fim} onChange={(e) => setAditivoForm(prev => ({ ...prev, data_fim: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label>Motivo do Aditivo</Label>
+              <Input value={aditivoForm.motivo} onChange={(e) => setAditivoForm(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: Renovação com reajuste de valores" />
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Textarea value={aditivoForm.observacoes} onChange={(e) => setAditivoForm(prev => ({ ...prev, observacoes: e.target.value }))} rows={2} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Equipamentos do Aditivo</Label>
+              <SearchableSelect
+                value=""
+                onValueChange={addAditivoEquipamento}
+                placeholder="Adicionar equipamento..."
+                searchPlaceholder="Pesquisar equipamento..."
+                options={equipamentos.filter(e => !aditivoForm.equipamentos.some(fe => fe.equipamento_id === e.id)).map(e => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+              />
+              {aditivoForm.equipamentos.length > 0 && (
+                <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+                  {aditivoForm.equipamentos.map(fe => {
+                    const eq = equipamentos.find(e => e.id === fe.equipamento_id);
+                    if (!eq) return null;
+                    return (
+                      <div key={fe.equipamento_id} className="space-y-2 border-b border-border pb-3 last:border-0 last:pb-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            {eq.tipo} {eq.modelo}
+                            {eq.tag_placa && <span className="text-muted-foreground ml-2 font-mono">({eq.tag_placa})</span>}
+                          </span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeAditivoEquipamento(fe.equipamento_id)}>
+                            <X className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
+                            <Input type="number" value={fe.valor_hora || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "valor_hora", Number(e.target.value))} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Valor Hora Excedente (R$)</Label>
+                            <Input type="number" value={fe.valor_hora_excedente || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "valor_hora_excedente", Number(e.target.value))} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
+                            <Input type="number" value={fe.horas_contratadas || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "horas_contratadas", Number(e.target.value))} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Hora Mínima</Label>
+                            <Input type="number" value={fe.hora_minima || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "hora_minima", Number(e.target.value))} className="h-8 text-sm" placeholder="0 = sem mínimo" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Data de Entrega</Label>
+                            <Input type="date" value={fe.data_entrega || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "data_entrega", e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Data de Devolução</Label>
+                            <Input type="date" value={fe.data_devolucao || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "data_devolucao", e.target.value)} className="h-8 text-sm" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground pt-1">{aditivoForm.equipamentos.length} equipamento(s)</p>
+                </div>
+              )}
+              {aditivoForm.equipamentos.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum equipamento. Adicione pelo menos um.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAditivoFormOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveAditivo} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar Aditivo</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
