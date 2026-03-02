@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      aditivos_equipamentos: {
+        Row: {
+          aditivo_id: string
+          created_at: string
+          data_devolucao: string | null
+          data_entrega: string | null
+          equipamento_id: string
+          hora_minima: number
+          horas_contratadas: number
+          id: string
+          valor_hora: number
+          valor_hora_excedente: number
+        }
+        Insert: {
+          aditivo_id: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega?: string | null
+          equipamento_id: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Update: {
+          aditivo_id?: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega?: string | null
+          equipamento_id?: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aditivos_equipamentos_aditivo_id_fkey"
+            columns: ["aditivo_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_aditivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aditivos_equipamentos_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apolices: {
         Row: {
           created_at: string
@@ -202,6 +256,47 @@ export type Database = {
             columns: ["equipamento_id"]
             isOneToOne: false
             referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos_aditivos: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          id: string
+          motivo: string
+          numero: number
+          observacoes: string | null
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          id?: string
+          motivo?: string
+          numero?: number
+          observacoes?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          id?: string
+          motivo?: string
+          numero?: number
+          observacoes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_aditivos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
             referencedColumns: ["id"]
           },
         ]
