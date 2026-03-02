@@ -353,7 +353,7 @@ const Contratos = () => {
       y += 2;
       const totalHoras = ces.reduce((s, ce) => s + Number(ce.horas_contratadas), 0);
       const valorEstimado = ces.reduce((s, ce) => s + Number(ce.valor_hora) * Number(ce.horas_contratadas), 0);
-      autoTable(doc, {
+        autoTable(doc, {
         startY: y,
         head: [["Campo", "Valor"]],
         body: [
@@ -368,6 +368,108 @@ const Contratos = () => {
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
         theme: "grid",
       });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // --- Ajustes Temporários ---
+      const { data: ajustesData } = await supabase
+        .from("contratos_equipamentos_ajustes")
+        .select("*")
+        .eq("contrato_id", item.id)
+        .order("data_inicio", { ascending: true });
+
+      if (ajustesData && ajustesData.length > 0) {
+        if (y > 220) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text("Ajustes Temporários", 14, y);
+        y += 2;
+        autoTable(doc, {
+          startY: y,
+          head: [["Equipamento", "Período", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Motivo"]],
+          body: ajustesData.map(aj => {
+            const eq = equipamentos.find(e => e.id === aj.equipamento_id);
+            return [
+              eq ? `${eq.tipo} - ${eq.modelo}` : aj.equipamento_id,
+              `${parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}`,
+              fmt(Number(aj.valor_hora)),
+              fmt(Number(aj.valor_hora_excedente)),
+              `${aj.horas_contratadas}h`,
+              `${aj.hora_minima}h`,
+              aj.motivo || "—",
+            ];
+          }),
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [230, 126, 34], textColor: 255 },
+          theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      // --- Aditivos ---
+      const { data: aditivosData } = await supabase
+        .from("contratos_aditivos")
+        .select("*")
+        .eq("contrato_id", item.id)
+        .order("numero", { ascending: true });
+
+      if (aditivosData && aditivosData.length > 0) {
+        const aditivoIds = aditivosData.map(a => a.id);
+        const { data: aditivosEquips } = await supabase
+          .from("aditivos_equipamentos")
+          .select("*")
+          .in("aditivo_id", aditivoIds);
+
+        for (const aditivo of aditivosData) {
+          if (y > 220) { doc.addPage(); y = 20; }
+          const now = new Date();
+          const inicio = parseLocalDate(aditivo.data_inicio);
+          const fim = parseLocalDate(aditivo.data_fim);
+          const statusAd = now < inicio ? "Futuro" : now > fim ? "Encerrado" : "Vigente";
+
+          doc.setFontSize(12);
+          doc.setTextColor(142, 68, 173);
+          doc.text(`Aditivo #${aditivo.numero} — ${statusAd}`, 14, y);
+          y += 2;
+          autoTable(doc, {
+            startY: y,
+            head: [["Campo", "Valor"]],
+            body: [
+              ["Vigência", `${inicio.toLocaleDateString("pt-BR")} - ${fim.toLocaleDateString("pt-BR")}`],
+              ["Motivo", aditivo.motivo || "—"],
+              ["Observações", aditivo.observacoes || "—"],
+            ],
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [142, 68, 173], textColor: 255 },
+            columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+            theme: "grid",
+          });
+          y = (doc as any).lastAutoTable.finalY + 4;
+
+          const eqs = (aditivosEquips || []).filter(ae => ae.aditivo_id === aditivo.id);
+          if (eqs.length > 0) {
+            autoTable(doc, {
+              startY: y,
+              head: [["Equipamento", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
+              body: eqs.map(ae => {
+                const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                return [
+                  eq ? `${eq.tipo} - ${eq.modelo}` : ae.equipamento_id,
+                  fmt(Number(ae.valor_hora)),
+                  fmt(Number(ae.valor_hora_excedente)),
+                  `${ae.horas_contratadas}h`,
+                  `${ae.hora_minima}h`,
+                  ae.data_entrega ? parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR") : "—",
+                  ae.data_devolucao ? parseLocalDate(ae.data_devolucao).toLocaleDateString("pt-BR") : "—",
+                ];
+              }),
+              styles: { fontSize: 8, cellPadding: 2 },
+              headStyles: { fillColor: [142, 68, 173], textColor: 255 },
+              theme: "grid",
+            });
+            y = (doc as any).lastAutoTable.finalY + 8;
+          }
+        }
+      }
     }
 
     doc.save(`contratos_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
