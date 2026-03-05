@@ -685,7 +685,7 @@ const Propostas = () => {
                     <SearchableSelect
                       options={[
                         ...equipamentosCadastro.map(e => ({
-                          value: `${e.tipo} - ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ''}`,
+                          value: e.tipo,
                           label: `${e.tipo} - ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ''}`,
                         })),
                       ]}
