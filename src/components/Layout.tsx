@@ -7,6 +7,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import logoBusato from "@/assets/logo-busato.png";
 
 const allNavItems = [
@@ -107,6 +108,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             <Menu className="h-5 w-5" />
           </button>
           <div className="lg:hidden font-semibold text-sm text-foreground">Busato Locações</div>
+          <div className="flex-1" />
+          <NotificationsDropdown />
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin">
