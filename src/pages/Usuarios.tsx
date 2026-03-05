@@ -33,6 +33,7 @@ const ALL_ROUTES = [
   { path: "/equipamentos", label: "Equipamentos" },
   { path: "/empresas", label: "Empresas" },
   { path: "/contratos", label: "Contratos" },
+  { path: "/propostas", label: "Propostas" },
   { path: "/medicoes", label: "Medições" },
   { path: "/faturamento", label: "Faturamento" },
   { path: "/apolices", label: "Apólices" },
