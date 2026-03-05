@@ -63,7 +63,7 @@ const Equipamentos = () => {
     const rented = new Set<string>();
     const hoje = new Date().toISOString().slice(0, 10);
     (rentRes.data || []).forEach((r: any) => {
-      if (r.data_devolucao && r.data_devolucao < hoje) return;
+      if (r.data_devolucao && r.data_devolucao <= hoje) return;
       rented.add(r.equipamento_id);
     });
 
@@ -83,7 +83,7 @@ const Equipamentos = () => {
         .in("aditivo_id", aditivoIds);
 
       (aditivosEquips || []).forEach((r: any) => {
-        if (r.data_devolucao && r.data_devolucao < hoje) return;
+        if (r.data_devolucao && r.data_devolucao <= hoje) return;
         rented.add(r.equipamento_id);
       });
     }
