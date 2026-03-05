@@ -597,12 +597,12 @@ const Propostas = () => {
         head: [["ATIVIDADE / ITEM", "BUSATO", clienteName.toUpperCase()]],
         body: resps.map(r => [
           r.atividade,
-          r.responsavel_busato ? "✔" : "",
-          r.responsavel_cliente ? "✔" : "",
+          r.responsavel_busato ? "X" : "",
+          r.responsavel_cliente ? "X" : "",
         ]),
         styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
-        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-        columnStyles: { 0: { cellWidth: contentW - 50 }, 1: { halign: "center", cellWidth: 25 }, 2: { halign: "center", cellWidth: 25 } },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8, halign: "center" },
+        columnStyles: { 0: { cellWidth: contentW - 50, halign: "left" }, 1: { halign: "center", cellWidth: 25 }, 2: { halign: "center", cellWidth: 25 } },
         alternateRowStyles: { fillColor: [245, 248, 252] },
         theme: "striped",
       });
