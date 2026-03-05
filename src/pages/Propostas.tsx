@@ -366,7 +366,7 @@ const Propostas = () => {
 
     // Header: logo + line for inner pages
     const addInnerHeader = () => {
-      if (logo) doc.addImage(logo, "PNG", margin, 10, 42, 14);
+      if (logo) doc.addImage(logo, "PNG", margin, 10, 48, 12);
       doc.setDrawColor(...brandBlue);
       doc.setLineWidth(0.6);
       doc.line(margin, 26, pw - margin, 26);
@@ -374,7 +374,7 @@ const Propostas = () => {
 
     // ===================== PAGE 1 — COVER =====================
     // Clean formal header: logo left, number right, thin line below
-    if (logo) doc.addImage(logo, "PNG", margin, 14, 52, 18);
+    if (logo) doc.addImage(logo, "PNG", margin, 14, 56, 14);
 
     doc.setFontSize(11);
     doc.setTextColor(...darkGray);
