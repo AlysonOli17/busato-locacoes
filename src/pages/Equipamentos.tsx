@@ -63,12 +63,32 @@ const Equipamentos = () => {
     const rented = new Set<string>();
     const hoje = new Date().toISOString().slice(0, 10);
     (rentRes.data || []).forEach((r: any) => {
-      // Se tem data_devolucao e já passou, não está mais locado
       if (r.data_devolucao && r.data_devolucao < hoje) return;
       rented.add(r.equipamento_id);
     });
-    setRentedIds(rented);
 
+    // Buscar equipamentos de aditivos vigentes
+    const { data: aditivosVigentes } = await supabase
+      .from("contratos_aditivos")
+      .select("id, data_inicio, data_fim, contratos!inner(status)")
+      .eq("contratos.status", "Ativo")
+      .lte("data_inicio", hoje)
+      .gte("data_fim", hoje);
+
+    if (aditivosVigentes && aditivosVigentes.length > 0) {
+      const aditivoIds = aditivosVigentes.map(a => a.id);
+      const { data: aditivosEquips } = await supabase
+        .from("aditivos_equipamentos")
+        .select("equipamento_id, data_devolucao")
+        .in("aditivo_id", aditivoIds);
+
+      (aditivosEquips || []).forEach((r: any) => {
+        if (r.data_devolucao && r.data_devolucao < hoje) return;
+        rented.add(r.equipamento_id);
+      });
+    }
+
+    setRentedIds(rented);
     setLoading(false);
   };
 
