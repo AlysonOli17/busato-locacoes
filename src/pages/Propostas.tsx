@@ -303,219 +303,277 @@ const Propostas = () => {
 
     const doc = new jsPDF({ orientation: "portrait" });
     const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
     const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+    const margin = 20;
+    const contentW = pw - margin * 2;
 
-    // Helper to add logo header on each page
-    const addPageHeader = async () => {
-      const logo = await loadLogoForPdf();
-      if (logo) doc.addImage(logo, "PNG", pw - 60, 8, 48, 16);
+    // Brand colors
+    const brandBlue: [number, number, number] = [41, 128, 185];
+    const darkGray: [number, number, number] = [50, 50, 50];
+    const medGray: [number, number, number] = [100, 100, 100];
+    const lightGray: [number, number, number] = [160, 160, 160];
+
+    const logo = await loadLogoForPdf();
+
+    // Footer on every page
+    const addFooter = (pageNum: number, totalPages: number) => {
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.5);
+      doc.line(margin, ph - 18, pw - margin, ph - 18);
+      doc.setFontSize(7);
+      doc.setTextColor(...lightGray);
+      doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA  •  CNPJ: 54.167.719/0001-40", margin, ph - 13);
+      doc.text(`Página ${pageNum} de ${totalPages}`, pw - margin, ph - 13, { align: "right" });
     };
 
-    await addPageHeader();
+    // Header bar + logo for inner pages
+    const addInnerHeader = () => {
+      doc.setFillColor(...brandBlue);
+      doc.rect(0, 0, pw, 6, "F");
+      if (logo) doc.addImage(logo, "PNG", pw - margin - 42, 10, 42, 14);
+    };
 
-    let y = 35;
-    // Title
-    doc.setFontSize(18);
-    doc.setTextColor(50, 50, 50);
-    doc.text("PROPOSTA COMERCIAL DE LOCAÇÃO", pw / 2, y, { align: "center" });
-    y += 12;
+    // ===================== PAGE 1 — COVER =====================
+    // Top blue bar
+    doc.setFillColor(...brandBlue);
+    doc.rect(0, 0, pw, 60, "F");
 
-    // Number, date, validity
-    doc.setFontSize(11);
-    doc.setTextColor(60, 60, 60);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Nº:`, 14, y); doc.setFont("helvetica", "normal"); doc.text(` ${String(item.numero_sequencial).padStart(3, "0")}`, 24, y); y += 6;
-    doc.setFont("helvetica", "bold");
-    doc.text(`Data:`, 14, y); doc.setFont("helvetica", "normal"); doc.text(` ${parseLocalDate(item.data).toLocaleDateString("pt-BR")}`, 28, y); y += 6;
-    doc.setFont("helvetica", "bold");
-    doc.text(`Validade:`, 14, y); doc.setFont("helvetica", "normal"); doc.text(` ${item.validade_dias} dias`, 38, y); y += 10;
+    // Logo on cover (white area below bar or on the bar)
+    if (logo) doc.addImage(logo, "PNG", margin, 14, 52, 18);
 
-    // Intro text
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text("Prezado(a) Cliente,", 14, y); y += 5;
-    const introLines = doc.splitTextToSize("Segue abaixo a nossa proposta comercial para locação do equipamento solicitado. Caso tenha dúvidas ou precise de mais informações, estamos à disposição para atendê-lo(a).", pw - 28);
-    doc.text(introLines, 14, y); y += introLines.length * 5 + 8;
-
-    // DADOS DA EMPRESA LOCADORA
-    doc.setFontSize(11);
-    doc.setTextColor(50, 50, 50);
+    // Proposal number badge on top-right
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.text("DADOS DA EMPRESA LOCADORA", 14, y); y += 6;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold"); doc.text("Razão Social: ", 14, y); doc.setFont("helvetica", "normal"); doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA", 14 + doc.getTextWidth("Razão Social: "), y); y += 5;
-    doc.setFont("helvetica", "bold"); doc.text("CNPJ: ", 14, y); doc.setFont("helvetica", "normal"); doc.text("54.167.719/0001-40", 14 + doc.getTextWidth("CNPJ: "), y); y += 10;
+    doc.text(`Nº ${String(item.numero_sequencial).padStart(3, "0")}`, pw - margin, 28, { align: "right" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(parseLocalDate(item.data).toLocaleDateString("pt-BR"), pw - margin, 36, { align: "right" });
 
-    // DADOS DO CLIENTE
-    doc.setFontSize(11);
+    // Main title
+    let y = 80;
+    doc.setFontSize(26);
+    doc.setTextColor(...darkGray);
     doc.setFont("helvetica", "bold");
-    doc.text("DADOS DO CLIENTE", 14, y); y += 6;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold"); doc.text("Razão Social: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(emp?.razao_social || emp?.nome || "—", 14 + doc.getTextWidth("Razão Social: "), y); y += 5;
-    doc.setFont("helvetica", "bold"); doc.text("CNPJ: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(emp?.cnpj || "—", 14 + doc.getTextWidth("CNPJ: "), y); y += 10;
+    doc.text("PROPOSTA COMERCIAL", margin, y);
+    y += 10;
+    doc.setFontSize(16);
+    doc.setTextColor(...brandBlue);
+    doc.text("DE LOCAÇÃO DE EQUIPAMENTOS", margin, y);
+    y += 16;
 
-    // DADOS DO CONSULTOR
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("DADOS DO CONSULTOR", 14, y); y += 6;
-    doc.setFontSize(10);
+    // Thin accent line
+    doc.setDrawColor(...brandBlue);
+    doc.setLineWidth(1.2);
+    doc.line(margin, y, margin + 50, y);
+    y += 14;
+
+    // Validity
+    doc.setFontSize(9);
+    doc.setTextColor(...lightGray);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Proposta válida por ${item.validade_dias} dias a partir da data de emissão.`, margin, y);
+    y += 16;
+
+    // Section helper
+    const sectionTitle = (label: string, yPos: number) => {
+      doc.setFillColor(240, 245, 250);
+      doc.roundedRect(margin, yPos - 5, contentW, 8, 1, 1, "F");
+      doc.setFontSize(10);
+      doc.setTextColor(...brandBlue);
+      doc.setFont("helvetica", "bold");
+      doc.text(label, margin + 4, yPos);
+      return yPos + 10;
+    };
+
+    // Info card helper
+    const infoLine = (label: string, value: string, yPos: number) => {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...darkGray);
+      doc.text(label, margin + 4, yPos);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...medGray);
+      doc.text(value || "—", margin + 44, yPos);
+      return yPos + 5.5;
+    };
+
+    // LOCADORA
+    y = sectionTitle("EMPRESA LOCADORA", y);
+    y = infoLine("Razão Social:", "BUSATO LOCAÇÕES E SERVIÇOS LTDA", y);
+    y = infoLine("CNPJ:", "54.167.719/0001-40", y);
+    y += 6;
+
+    // CLIENTE
+    y = sectionTitle("CLIENTE", y);
+    y = infoLine("Razão Social:", emp?.razao_social || emp?.nome || "—", y);
+    y = infoLine("CNPJ:", emp?.cnpj || "—", y);
+    y += 6;
+
+    // CONSULTOR
+    y = sectionTitle("CONSULTOR RESPONSÁVEL", y);
     if (item.consultor_nome) {
-      doc.setFont("helvetica", "bold"); doc.text("Nome: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(item.consultor_nome, 14 + doc.getTextWidth("Nome: "), y); y += 5;
-      if (item.consultor_email) { doc.setFont("helvetica", "bold"); doc.text("Email: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(item.consultor_email, 14 + doc.getTextWidth("Email: "), y); y += 5; }
-      if (item.consultor_telefone) { doc.setFont("helvetica", "bold"); doc.text("Telefone: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(item.consultor_telefone, 14 + doc.getTextWidth("Telefone: "), y); y += 8; }
+      y = infoLine("Nome:", item.consultor_nome, y);
+      if (item.consultor_email) y = infoLine("E-mail:", item.consultor_email, y);
+      if (item.consultor_telefone) y = infoLine("Telefone:", item.consultor_telefone, y);
     }
     if (item.consultor_nome_2) {
-      doc.setFont("helvetica", "bold"); doc.text("Nome: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(item.consultor_nome_2, 14 + doc.getTextWidth("Nome: "), y); y += 5;
-      if (item.consultor_email_2) { doc.setFont("helvetica", "bold"); doc.text("E-mail: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(item.consultor_email_2, 14 + doc.getTextWidth("E-mail: "), y); y += 5; }
-      if (item.consultor_telefone_2) { doc.setFont("helvetica", "bold"); doc.text("Telefone: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(item.consultor_telefone_2, 14 + doc.getTextWidth("Telefone: "), y); y += 5; }
+      y += 2;
+      y = infoLine("Nome:", item.consultor_nome_2, y);
+      if (item.consultor_email_2) y = infoLine("E-mail:", item.consultor_email_2, y);
+      if (item.consultor_telefone_2) y = infoLine("Telefone:", item.consultor_telefone_2, y);
     }
 
-    // --- PAGE 2 ---
+    // ===================== PAGE 2 — CONDITIONS =====================
     doc.addPage();
-    await addPageHeader();
+    addInnerHeader();
     y = 30;
 
     // 1. OBJETO
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(50, 50, 50);
-    doc.text("1. OBJETO", 14, y); y += 6;
-    doc.setFontSize(10);
+    y = sectionTitle("1. OBJETO", y);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("O objeto do presente é a proposta comercial dos seguintes equipamentos:", 14, y); y += 6;
+    doc.setTextColor(...medGray);
+    doc.text("Locação dos seguintes equipamentos:", margin + 4, y);
+    y += 6;
     (eqs || []).forEach(eq => {
-      doc.text(`•  ${eq.equipamento_tipo}`, 20, y); y += 5;
+      doc.setFillColor(...brandBlue);
+      doc.circle(margin + 7, y - 1.2, 1, "F");
+      doc.setTextColor(...darkGray);
+      doc.text(eq.equipamento_tipo, margin + 12, y);
+      y += 5;
     });
     y += 4;
 
     // 2. PRAZO
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("2. PRAZO", 14, y); y += 6;
-    doc.setFontSize(10);
+    y = sectionTitle("2. PRAZO", y);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const prazoLines = doc.splitTextToSize("A locação será contratada por período mensal, podendo ser prorrogada mediante solicitação e acordo das partes.", pw - 28);
-    doc.text(prazoLines, 14, y); y += prazoLines.length * 5 + 6;
+    doc.setTextColor(...medGray);
+    const prazoLines = doc.splitTextToSize("A locação será contratada por período mensal, podendo ser prorrogada mediante solicitação e acordo das partes.", contentW - 8);
+    doc.text(prazoLines, margin + 4, y);
+    y += prazoLines.length * 4.5 + 6;
 
     // 3. PREÇO E CONDIÇÕES
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("3. PREÇO E CONDIÇÕES", 14, y); y += 4;
+    y = sectionTitle("3. PREÇO E CONDIÇÕES", y);
     autoTable(doc, {
       startY: y,
-      head: [["Qtd.", "Tipo de Equipamento", "Valor/Hora (R$)", "Franquia Mensal (Horas)", "Valor Unitário (R$)"]],
+      margin: { left: margin, right: margin },
+      head: [["Qtd.", "Equipamento", "Valor/Hora", "Franquia (h)", "Total Mensal"]],
       body: (eqs || []).map(eq => [
         String(eq.quantidade).padStart(2, "0"),
         eq.equipamento_tipo,
         fmt(Number(eq.valor_hora)),
-        `${eq.franquia_mensal} horas`,
-        fmt(Number(eq.valor_hora) * Number(eq.franquia_mensal)),
+        String(eq.franquia_mensal),
+        fmt(Number(eq.valor_hora) * Number(eq.franquia_mensal) * Number(eq.quantidade)),
       ]),
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [200, 200, 200], textColor: [40, 40, 40], fontStyle: "bold" },
-      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
+      headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 248, 252] },
+      theme: "striped",
     });
     y = (doc as any).lastAutoTable.finalY + 8;
 
-    // 3.1 Mobilização
-    if (item.valor_mobilizacao > 0 || item.valor_mobilizacao_texto) {
-      doc.setFontSize(10);
+    // Sub-items
+    const subItem = (num: string, title: string, text: string, yPos: number) => {
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text("3.1. Mobilização / Desmobilização: ", 14, y);
+      doc.setTextColor(...darkGray);
+      doc.text(`${num} ${title}`, margin + 4, yPos);
       doc.setFont("helvetica", "normal");
-      doc.text(item.valor_mobilizacao_texto || fmt(Number(item.valor_mobilizacao)) + " transporte do equipamento.", 14 + doc.getTextWidth("3.1. Mobilização / Desmobilização: "), y);
-      y += 6;
-    }
+      doc.setTextColor(...medGray);
+      const lines = doc.splitTextToSize(text, contentW - 8);
+      doc.text(lines, margin + 4, yPos + 5);
+      return yPos + 5 + lines.length * 4.5 + 4;
+    };
 
-    // 3.2 Franquia
+    if (item.valor_mobilizacao > 0 || item.valor_mobilizacao_texto) {
+      y = subItem("3.1.", "Mobilização / Desmobilização", item.valor_mobilizacao_texto || fmt(Number(item.valor_mobilizacao)) + " para transporte do equipamento.", y);
+    }
     if (item.franquia_horas_texto) {
-      doc.setFont("helvetica", "bold"); doc.text("3.2 Franquia de Horas: ", 14, y);
-      doc.setFont("helvetica", "normal");
-      const fLines = doc.splitTextToSize(item.franquia_horas_texto, pw - 28 - doc.getTextWidth("3.2 Franquia de Horas: "));
-      doc.text(fLines, 14 + doc.getTextWidth("3.2 Franquia de Horas: "), y);
-      y += fLines.length * 5 + 2;
+      y = subItem("3.2.", "Franquia de Horas", item.franquia_horas_texto, y);
     }
-
-    // 3.3 Horas Excedentes
     if (item.horas_excedentes_texto) {
-      doc.setFont("helvetica", "bold"); doc.text("3.3. Horas Excedentes: ", 14, y);
-      doc.setFont("helvetica", "normal");
-      doc.text(item.horas_excedentes_texto, 14 + doc.getTextWidth("3.3. Horas Excedentes: "), y);
-      y += 6;
+      y = subItem("3.3.", "Horas Excedentes", item.horas_excedentes_texto, y);
     }
-
-    // 3.4 Disponibilidade
     if (item.disponibilidade_texto) {
-      doc.setFont("helvetica", "bold"); doc.text("3.4. Disponibilidade: ", 14, y);
-      doc.setFont("helvetica", "normal");
-      const dLines = doc.splitTextToSize(item.disponibilidade_texto, pw - 28 - doc.getTextWidth("3.4. Disponibilidade: "));
-      doc.text(dLines, 14 + doc.getTextWidth("3.4. Disponibilidade: "), y);
-      y += dLines.length * 5 + 2;
+      y = subItem("3.4.", "Disponibilidade", item.disponibilidade_texto, y);
     }
-
-    // 3.5 Análise
     if (item.analise_cadastral_texto) {
-      doc.setFont("helvetica", "bold"); doc.text("3.5. Análise Cadastral: ", 14, y);
-      doc.setFont("helvetica", "normal");
-      doc.text(item.analise_cadastral_texto, 14 + doc.getTextWidth("3.5. Análise Cadastral: "), y);
-      y += 6;
+      y = subItem("3.5.", "Análise Cadastral", item.analise_cadastral_texto, y);
+    }
+    if (item.seguro_texto) {
+      y = subItem("3.6.", "Seguro", item.seguro_texto, y);
     }
 
-    // 3.6 Seguro
-    if (item.seguro_texto) {
-      doc.setFont("helvetica", "bold"); doc.text("3.6. Seguro: ", 14, y);
-      doc.setFont("helvetica", "normal");
-      doc.text(item.seguro_texto, 14 + doc.getTextWidth("3.6. Seguro: "), y);
-      y += 10;
+    // Check if we need a new page for payment section
+    if (y > ph - 80) {
+      doc.addPage();
+      addInnerHeader();
+      y = 30;
     }
 
     // 4. PAGAMENTO
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("4. PAGAMENTO", 14, y); y += 6;
-    doc.setFontSize(10);
+    y = sectionTitle("4. PAGAMENTO", y);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const pagLines = doc.splitTextToSize(`Os pagamentos deverão ser realizados no prazo de até ${item.prazo_pagamento} (${item.prazo_pagamento === 30 ? "trinta" : String(item.prazo_pagamento)}) dias após a emissão da nota fiscal, condicionado à aprovação da medição.`, pw - 28);
-    doc.text(pagLines, 14, y);
-    y += pagLines.length * 5 + 6;
+    doc.setTextColor(...medGray);
+    const pagLines = doc.splitTextToSize(`Os pagamentos deverão ser realizados no prazo de até ${item.prazo_pagamento} (${item.prazo_pagamento === 30 ? "trinta" : String(item.prazo_pagamento)}) dias após a emissão da nota fiscal, condicionado à aprovação da medição.`, contentW - 8);
+    doc.text(pagLines, margin + 4, y);
+    y += pagLines.length * 4.5 + 8;
 
-    // Dados bancários
+    // Bank details card
     if (conta) {
+      doc.setFillColor(245, 248, 252);
+      const cardH = 38 + (conta.cnpj_cpf ? 5.5 : 0);
+      doc.roundedRect(margin, y - 5, contentW, cardH, 2, 2, "F");
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(margin, y - 5, contentW, cardH, 2, 2, "S");
+
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text("Dados Bancários para Depósito:", 14, y); y += 6;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold"); doc.text("Favorecido: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(conta.titular, 14 + doc.getTextWidth("Favorecido: "), y); y += 5;
-      if (conta.cnpj_cpf) { doc.setFont("helvetica", "bold"); doc.text("CNPJ: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(conta.cnpj_cpf, 14 + doc.getTextWidth("CNPJ: "), y); y += 5; }
-      doc.setFont("helvetica", "bold"); doc.text("Banco: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(conta.banco, 14 + doc.getTextWidth("Banco: "), y); y += 5;
-      doc.setFont("helvetica", "bold"); doc.text("Agência: ", 14, y); doc.setFont("helvetica", "normal"); doc.text(conta.agencia, 14 + doc.getTextWidth("Agência: "), y); y += 5;
-      doc.setFont("helvetica", "bold"); doc.text(`${conta.tipo_conta}: `, 14, y); doc.setFont("helvetica", "normal"); doc.text(conta.conta, 14 + doc.getTextWidth(`${conta.tipo_conta}: `), y); y += 5;
+      doc.setTextColor(...brandBlue);
+      doc.text("DADOS BANCÁRIOS", margin + 6, y + 1);
+      y += 8;
+      y = infoLine("Favorecido:", conta.titular, y);
+      if (conta.cnpj_cpf) y = infoLine("CNPJ:", conta.cnpj_cpf, y);
+      y = infoLine("Banco:", conta.banco, y);
+      y = infoLine("Agência:", conta.agencia, y);
+      y = infoLine(`${conta.tipo_conta}:`, conta.conta, y);
     }
 
-    // --- PAGE 3: RESPONSABILIDADES ---
+    // ===================== PAGE 3 — RESPONSIBILITIES =====================
     if (resps && resps.length > 0) {
       doc.addPage();
-      await addPageHeader();
+      addInnerHeader();
       y = 30;
 
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(50, 50, 50);
-      doc.text("5. RESPONSABILIDADE", 14, y); y += 4;
-
+      y = sectionTitle("5. RESPONSABILIDADES", y);
       const clienteName = emp?.razao_social || emp?.nome || "CLIENTE";
       autoTable(doc, {
         startY: y,
-        head: [["ATIVIDADE/ITEM", "BUSATO", clienteName.toUpperCase()]],
+        margin: { left: margin, right: margin },
+        head: [["ATIVIDADE / ITEM", "BUSATO", clienteName.toUpperCase()]],
         body: resps.map(r => [
           r.atividade,
-          r.responsavel_busato ? "X" : "",
-          r.responsavel_cliente ? "X" : "",
+          r.responsavel_busato ? "✔" : "",
+          r.responsavel_cliente ? "✔" : "",
         ]),
-        styles: { fontSize: 9, cellPadding: 4 },
-        headStyles: { fillColor: [200, 200, 200], textColor: [40, 40, 40], fontStyle: "bold" },
-        columnStyles: { 0: { cellWidth: 120 }, 1: { halign: "center" }, 2: { halign: "center" } },
-        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        columnStyles: { 0: { cellWidth: contentW - 50 }, 1: { halign: "center", cellWidth: 25 }, 2: { halign: "center", cellWidth: 25 } },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        theme: "striped",
       });
+    }
+
+    // Add footers to all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addFooter(i, totalPages);
     }
 
     const numStr = String(item.numero_sequencial).padStart(3, "0");
