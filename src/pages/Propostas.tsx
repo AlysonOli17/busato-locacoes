@@ -115,7 +115,7 @@ const Propostas = () => {
 
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes] = await Promise.all([
-      supabase.from("propostas").select("*, empresas:empresa_id(id, nome, cnpj, razao_social, nome_fantasia)").order("numero_sequencial", { ascending: false }),
+      supabase.from("propostas").select("*").order("numero_sequencial", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status").eq("status", "Ativo").order("tipo"),
@@ -129,11 +129,14 @@ const Propostas = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = items.filter(i =>
-    (i.empresas?.nome || "").toLowerCase().includes(search.toLowerCase()) ||
-    String(i.numero_sequencial).includes(search) ||
-    i.status.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = items.filter(i => {
+    const empresa = empresas.find(e => e.id === i.empresa_id);
+    return (
+      (empresa?.nome || "").toLowerCase().includes(search.toLowerCase()) ||
+      String(i.numero_sequencial).includes(search) ||
+      i.status.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   const openNew = () => {
     setEditing(null);
@@ -565,12 +568,14 @@ const Propostas = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(item => (
+                {filtered.map(item => {
+                  const empresa = empresas.find(e => e.id === item.empresa_id);
+                  return (
                   <TableRow key={item.id}>
                     <TableCell className="font-mono font-bold">{String(item.numero_sequencial).padStart(3, "0")}</TableCell>
                     <TableCell>
-                      <p className="font-medium text-sm">{item.empresas?.nome}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{item.empresas?.cnpj}</p>
+                      <p className="font-medium text-sm">{empresa?.nome || "—"}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{empresa?.cnpj || "—"}</p>
                     </TableCell>
                     <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">—</TableCell>
@@ -596,7 +601,8 @@ const Propostas = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {!loading && filtered.length === 0 && (
                   <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma proposta encontrada</TableCell></TableRow>
                 )}
