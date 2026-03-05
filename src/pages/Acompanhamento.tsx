@@ -122,18 +122,25 @@ const Acompanhamento = () => {
   }, [contratos, filtroEmpresa]);
 
   const alertasPendentes = useMemo(() => {
+    const hoje = new Date();
     return contratosAtivos.map(ct => {
+      // Ignorar contratos cuja data de início ainda não chegou
+      const dataInicio = parseLocalDate(ct.data_inicio);
+      if (hoje < dataInicio) return null;
+
       const period = calcCurrentPeriod(ct);
+      // Também ignorar se o período de medição começa antes do início do contrato
+      if (period.inicio < ct.data_inicio) return null;
+
       const faturado = faturas.some(f =>
         f.contrato_id === ct.id &&
         f.periodo_medicao_inicio === period.inicio &&
         f.periodo_medicao_fim === period.fim
       );
       const periodEnd = new Date(period.fim);
-      const hoje = new Date();
       const periodoEncerrado = hoje > periodEnd;
       return { contrato: ct, period, faturado, periodoEncerrado };
-    }).filter(a => !a.faturado && a.periodoEncerrado);
+    }).filter((a): a is NonNullable<typeof a> => a !== null && !a.faturado && a.periodoEncerrado);
   }, [contratosAtivos, faturas]);
 
   const faturasFiltered = useMemo(() => {
