@@ -147,6 +147,8 @@ const Contratos = () => {
   const [aditivoFormOpen, setAditivoFormOpen] = useState(false);
   const [editingAditivo, setEditingAditivo] = useState<Aditivo | null>(null);
   const [aditivoForm, setAditivoForm] = useState<AditivoForm>({ numero: 1, data_inicio: "", data_fim: "", motivo: "", observacoes: "", equipamentos: [] });
+  // Aditivos por contrato (para exibição na tabela)
+  const [aditivosPorContrato, setAditivosPorContrato] = useState<Record<string, Aditivo[]>>({});
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -158,6 +160,36 @@ const Contratos = () => {
     if (contratosRes.data) setItems(contratosRes.data as unknown as Contrato[]);
     if (empresasRes.data) setEmpresas(empresasRes.data);
     if (equipRes.data) setEquipamentos(equipRes.data as Equipamento[]);
+
+    // Carregar aditivos com equipamentos para todos os contratos
+    if (contratosRes.data && contratosRes.data.length > 0) {
+      const contratoIds = contratosRes.data.map((c: any) => c.id);
+      const { data: allAditivos } = await supabase
+        .from("contratos_aditivos")
+        .select("*")
+        .in("contrato_id", contratoIds)
+        .order("numero", { ascending: true });
+
+      if (allAditivos && allAditivos.length > 0) {
+        const aditivoIds = allAditivos.map(a => a.id);
+        const { data: allAditivosEquips } = await supabase
+          .from("aditivos_equipamentos")
+          .select("*")
+          .in("aditivo_id", aditivoIds);
+
+        const grouped: Record<string, Aditivo[]> = {};
+        for (const ad of allAditivos) {
+          const eqs = (allAditivosEquips || []).filter(ae => ae.aditivo_id === ad.id);
+          const aditivo: Aditivo = { ...ad, observacoes: ad.observacoes || "", aditivos_equipamentos: eqs };
+          if (!grouped[ad.contrato_id]) grouped[ad.contrato_id] = [];
+          grouped[ad.contrato_id].push(aditivo);
+        }
+        setAditivosPorContrato(grouped);
+      } else {
+        setAditivosPorContrato({});
+      }
+    }
+
     setLoading(false);
   };
 
@@ -836,6 +868,7 @@ const Contratos = () => {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
                           {ces.map(ce => (
                             <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
                               <Badge variant="outline" className="text-xs">
@@ -854,6 +887,46 @@ const Contratos = () => {
                             </div>
                           ))}
                           {ces.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
+                          {/* Equipamentos de Aditivos */}
+                          {(aditivosPorContrato[item.id] || []).map(ad => {
+                            const now = new Date();
+                            const inicio = parseLocalDate(ad.data_inicio);
+                            const fim = parseLocalDate(ad.data_fim);
+                            const statusAd = now < inicio ? "Futuro" : now > fim ? "Encerrado" : "Vigente";
+                            const statusColor = statusAd === "Vigente" ? "bg-primary/10 text-primary border-primary/30" : statusAd === "Encerrado" ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent border-accent/30";
+                            return (
+                              <div key={ad.id} className="mt-1 pt-1 border-t border-dashed border-muted-foreground/20">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <Badge variant="outline" className={`text-[10px] ${statusColor}`}>
+                                    Aditivo #{ad.numero} — {statusAd}
+                                  </Badge>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}
+                                  </span>
+                                </div>
+                                {(ad.aditivos_equipamentos || []).map(ae => {
+                                  const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                                  return (
+                                    <div key={ae.id} className="flex items-center gap-2 flex-wrap ml-3">
+                                      <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                                        {eq ? `${eq.tipo} ${eq.modelo}` : ae.equipamento_id} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}
+                                      </Badge>
+                                      <span className="text-xs text-muted-foreground">
+                                        R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
+                                        {Number(ae.hora_minima) > 0 && <span className="text-accent"> · Mín: {ae.hora_minima}h</span>}
+                                      </span>
+                                      {ae.data_entrega && (
+                                        <span className="text-xs text-muted-foreground">· Entrega: {parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR")}</span>
+                                      )}
+                                      {ae.data_devolucao && (
+                                        <span className="text-xs text-warning">· Devolução: {parseLocalDate(ae.data_devolucao).toLocaleDateString("pt-BR")}</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
