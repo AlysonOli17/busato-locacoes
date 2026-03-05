@@ -663,11 +663,6 @@ const Propostas = () => {
                 <div><Label>Email</Label><Input value={form.consultor_email} onChange={e => setForm(f => ({ ...f, consultor_email: e.target.value }))} /></div>
                 <div><Label>Telefone</Label><Input value={form.consultor_telefone} onChange={e => setForm(f => ({ ...f, consultor_telefone: e.target.value }))} /></div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                <div><Label>Nome (2º)</Label><Input value={form.consultor_nome_2} onChange={e => setForm(f => ({ ...f, consultor_nome_2: e.target.value }))} /></div>
-                <div><Label>Email (2º)</Label><Input value={form.consultor_email_2} onChange={e => setForm(f => ({ ...f, consultor_email_2: e.target.value }))} /></div>
-                <div><Label>Telefone (2º)</Label><Input value={form.consultor_telefone_2} onChange={e => setForm(f => ({ ...f, consultor_telefone_2: e.target.value }))} /></div>
-              </div>
             </div>
 
             {/* Equipamentos */}
