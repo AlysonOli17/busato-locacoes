@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { addLetterhead } from "@/lib/exportUtils";
 
 interface Empresa {
@@ -60,6 +61,7 @@ interface Proposta {
   analise_cadastral_texto: string;
   seguro_texto: string;
   created_at: string;
+  created_by: string | null;
   empresas?: Empresa;
 }
 
@@ -112,6 +114,7 @@ const Propostas = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { role, user } = useAuth();
 
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes] = await Promise.all([
@@ -189,11 +192,18 @@ const Propostas = () => {
       return;
     }
 
+    // Determine status based on role
+    let statusToSave = form.status;
+    const isNew = !editing;
+    if (isNew && role === "operador") {
+      statusToSave = "Aguardando Aprovação";
+    }
+
     const payload: any = {
       empresa_id: form.empresa_id,
       data: form.data,
       validade_dias: form.validade_dias,
-      status: form.status,
+      status: statusToSave,
       valor_mobilizacao: form.valor_mobilizacao,
       valor_mobilizacao_texto: form.valor_mobilizacao_texto,
       prazo_pagamento: form.prazo_pagamento,
@@ -212,15 +222,22 @@ const Propostas = () => {
       seguro_texto: form.seguro_texto,
     };
 
+    if (isNew && user) {
+      payload.created_by = user.id;
+    }
+
     let propostaId: string;
+    let numSeq: number | undefined;
     if (editing) {
       const { error } = await supabase.from("propostas").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       propostaId = editing.id;
+      numSeq = editing.numero_sequencial;
     } else {
-      const { data, error } = await supabase.from("propostas").insert(payload).select("id").single();
+      const { data, error } = await supabase.from("propostas").insert(payload).select("id, numero_sequencial").single();
       if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro", variant: "destructive" }); return; }
       propostaId = data.id;
+      numSeq = data.numero_sequencial;
     }
 
     // Save equipamentos
@@ -239,8 +256,28 @@ const Propostas = () => {
       );
     }
 
+    // Notify admins if operator created a proposal
+    if (isNew && role === "operador") {
+      const emp = empresas.find(e => e.id === form.empresa_id);
+      const numStr = String(numSeq).padStart(3, "0");
+      // Get all admin user_ids
+      const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+      if (adminRoles && adminRoles.length > 0) {
+        await supabase.from("notificacoes").insert(
+          adminRoles.map(ar => ({
+            user_id: ar.user_id,
+            tipo: "aprovacao",
+            titulo: `Proposta Nº ${numStr} aguardando aprovação`,
+            mensagem: `O operador criou a proposta ${numStr} para ${emp?.nome || "empresa"}. Acesse Propostas para aprovar.`,
+            referencia_tipo: "proposta",
+            referencia_id: propostaId,
+          }))
+        );
+      }
+    }
+
     setDialogOpen(false);
-    toast({ title: "Sucesso", description: editing ? "Proposta atualizada." : "Proposta criada." });
+    toast({ title: "Sucesso", description: editing ? "Proposta atualizada." : (role === "operador" ? "Proposta criada e enviada para aprovação." : "Proposta criada.") });
     fetchData();
   };
 
@@ -587,10 +624,33 @@ const Propostas = () => {
     }
   };
 
+  const handleApprove = async (item: Proposta) => {
+    const { error } = await supabase.from("propostas").update({ status: "Rascunho" }).eq("id", item.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+
+    // Notify the creator that the proposal was approved
+    if (item.created_by) {
+      const numStr = String(item.numero_sequencial).padStart(3, "0");
+      const emp = empresas.find(e => e.id === item.empresa_id);
+      await supabase.from("notificacoes").insert({
+        user_id: item.created_by,
+        tipo: "aprovacao",
+        titulo: `Proposta Nº ${numStr} aprovada!`,
+        mensagem: `A proposta ${numStr} para ${emp?.nome || "empresa"} foi aprovada pelo administrador e já pode ser enviada ao cliente.`,
+        referencia_tipo: "proposta",
+        referencia_id: item.id,
+      });
+    }
+
+    toast({ title: "Proposta aprovada", description: "O operador foi notificado." });
+    fetchData();
+  };
+
   const statusColor = (s: string) => {
     if (s === "Aprovada") return "bg-success text-success-foreground";
     if (s === "Enviada") return "bg-accent text-accent-foreground";
     if (s === "Recusada") return "bg-destructive text-destructive-foreground";
+    if (s === "Aguardando Aprovação") return "bg-warning text-warning-foreground";
     return "bg-muted text-muted-foreground";
   };
 
@@ -640,6 +700,11 @@ const Propostas = () => {
                     <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {role === "admin" && item.status === "Aguardando Aprovação" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleApprove(item)} title="Aprovar proposta" className="text-success hover:text-success">
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => generatePDF(item)} title="Gerar PDF">
                           <FileDown className="h-4 w-4 text-accent" />
                         </Button>
@@ -690,18 +755,26 @@ const Propostas = () => {
                   placeholder="Selecione a empresa"
                 />
               </div>
+              {role === "admin" ? (
               <div>
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Rascunho">Rascunho</SelectItem>
+                    <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
                     <SelectItem value="Enviada">Enviada</SelectItem>
                     <SelectItem value="Aprovada">Aprovada</SelectItem>
                     <SelectItem value="Recusada">Recusada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              ) : (
+              <div>
+                <Label>Status</Label>
+                <Input value={editing ? form.status : "Aguardando Aprovação"} disabled className="bg-muted" />
+              </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
