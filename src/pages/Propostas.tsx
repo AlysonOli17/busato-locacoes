@@ -686,7 +686,7 @@ const Propostas = () => {
                       options={[
                         ...equipamentosCadastro.map(e => ({
                           value: e.tipo,
-                          label: `${e.tipo} - ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ''}`,
+                          label: `${e.tipo} - ${e.modelo}`,
                         })),
                       ]}
                       value={eq.equipamento_tipo}
