@@ -364,32 +364,34 @@ const Propostas = () => {
       doc.text(`Página ${pageNum} de ${totalPages}`, pw - margin, ph - 13, { align: "right" });
     };
 
-    // Header bar + logo for inner pages
+    // Header: logo + line for inner pages
     const addInnerHeader = () => {
-      doc.setFillColor(...brandBlue);
-      doc.rect(0, 0, pw, 6, "F");
-      if (logo) doc.addImage(logo, "PNG", pw - margin - 42, 10, 42, 14);
+      if (logo) doc.addImage(logo, "PNG", margin, 10, 42, 14);
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.6);
+      doc.line(margin, 26, pw - margin, 26);
     };
 
     // ===================== PAGE 1 — COVER =====================
-    // Top blue bar
-    doc.setFillColor(...brandBlue);
-    doc.rect(0, 0, pw, 60, "F");
-
-    // Logo on cover (white area below bar or on the bar)
+    // Clean formal header: logo left, number right, thin line below
     if (logo) doc.addImage(logo, "PNG", margin, 14, 52, 18);
 
-    // Proposal number badge on top-right
-    doc.setFontSize(12);
-    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setTextColor(...darkGray);
     doc.setFont("helvetica", "bold");
-    doc.text(`Nº ${String(item.numero_sequencial).padStart(3, "0")}`, pw - margin, 28, { align: "right" });
-    doc.setFontSize(8);
+    doc.text(`Nº ${String(item.numero_sequencial).padStart(3, "0")}`, pw - margin, 22, { align: "right" });
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(parseLocalDate(item.data).toLocaleDateString("pt-BR"), pw - margin, 36, { align: "right" });
+    doc.setTextColor(...medGray);
+    doc.text(parseLocalDate(item.data).toLocaleDateString("pt-BR"), pw - margin, 28, { align: "right" });
+
+    // Separator line
+    doc.setDrawColor(...brandBlue);
+    doc.setLineWidth(0.8);
+    doc.line(margin, 36, pw - margin, 36);
 
     // Main title
-    let y = 80;
+    let y = 52;
     doc.setFontSize(26);
     doc.setTextColor(...darkGray);
     doc.setFont("helvetica", "bold");
