@@ -678,12 +678,19 @@ const Propostas = () => {
                   <div>
                     {idx === 0 && <Label className="text-xs">Equipamento</Label>}
                     <SearchableSelect
-                      options={[
-                        ...equipamentosCadastro.map(e => ({
-                          value: e.tipo,
-                          label: `${e.tipo} - ${e.modelo}`,
-                        })),
-                      ]}
+                      options={(() => {
+                        const seen = new Set<string>();
+                        return equipamentosCadastro
+                          .map(e => {
+                            const label = `${e.tipo} - ${e.modelo}`;
+                            return { value: e.tipo, label };
+                          })
+                          .filter(o => {
+                            if (seen.has(o.label)) return false;
+                            seen.add(o.label);
+                            return true;
+                          });
+                      })()}
                       value={eq.equipamento_tipo}
                       onValueChange={v => { const n = [...equipamentos]; n[idx].equipamento_tipo = v; setEquipamentos(n); }}
                       placeholder="Selecione o equipamento"
