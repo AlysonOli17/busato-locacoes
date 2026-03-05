@@ -24,6 +24,10 @@ interface ContaBancaria {
   id: string; banco: string; agencia: string; conta: string; titular: string; cnpj_cpf: string | null; tipo_conta: string;
 }
 
+interface Equipamento {
+  id: string; tipo: string; modelo: string; tag_placa: string | null; status: string;
+}
+
 interface PropostaEquip {
   equipamento_tipo: string; quantidade: number; valor_hora: number; franquia_mensal: number;
 }
@@ -99,6 +103,7 @@ const Propostas = () => {
   const [items, setItems] = useState<Proposta[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
+  const [equipamentosCadastro, setEquipamentosCadastro] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Proposta | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -109,14 +114,16 @@ const Propostas = () => {
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [propRes, empRes, contasRes] = await Promise.all([
+    const [propRes, empRes, contasRes, eqCadRes] = await Promise.all([
       supabase.from("propostas").select("*, empresas:empresa_id(id, nome, cnpj, razao_social, nome_fantasia)").order("numero_sequencial", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status").eq("status", "Ativo").order("tipo"),
     ]);
     if (propRes.data) setItems(propRes.data as unknown as Proposta[]);
     if (empRes.data) setEmpresas(empRes.data as Empresa[]);
     if (contasRes.data) setContas(contasRes.data as ContaBancaria[]);
+    if (eqCadRes.data) setEquipamentosCadastro(eqCadRes.data as Equipamento[]);
     setLoading(false);
   };
 
@@ -674,8 +681,20 @@ const Propostas = () => {
               {equipamentos.map((eq, idx) => (
                 <div key={idx} className="grid grid-cols-[1fr_80px_100px_100px_40px] gap-2 mb-2 items-end">
                   <div>
-                    {idx === 0 && <Label className="text-xs">Tipo de Equipamento</Label>}
-                    <Input value={eq.equipamento_tipo} onChange={e => { const n = [...equipamentos]; n[idx].equipamento_tipo = e.target.value; setEquipamentos(n); }} placeholder="Ex: CAMINHÃO PIPA 20 MIL" />
+                    {idx === 0 && <Label className="text-xs">Equipamento</Label>}
+                    <SearchableSelect
+                      options={[
+                        ...equipamentosCadastro.map(e => ({
+                          value: `${e.tipo} - ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ''}`,
+                          label: `${e.tipo} - ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ''}`,
+                        })),
+                      ]}
+                      value={eq.equipamento_tipo}
+                      onValueChange={v => { const n = [...equipamentos]; n[idx].equipamento_tipo = v; setEquipamentos(n); }}
+                      placeholder="Selecione o equipamento"
+                      searchPlaceholder="Buscar equipamento..."
+                      emptyMessage="Nenhum equipamento encontrado"
+                    />
                   </div>
                   <div>
                     {idx === 0 && <Label className="text-xs">Qtd.</Label>}
