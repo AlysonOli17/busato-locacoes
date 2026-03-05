@@ -391,16 +391,16 @@ const Propostas = () => {
     doc.line(margin, 36, pw - margin, 36);
 
     // Main title
-    let y = 52;
-    doc.setFontSize(26);
+    let y = 50;
+    doc.setFontSize(20);
     doc.setTextColor(...darkGray);
     doc.setFont("helvetica", "bold");
     doc.text("PROPOSTA COMERCIAL", margin, y);
-    y += 10;
-    doc.setFontSize(16);
+    y += 8;
+    doc.setFontSize(12);
     doc.setTextColor(...brandBlue);
-    doc.text("DE LOCAÇÃO DE EQUIPAMENTOS", margin, y);
-    y += 16;
+    doc.text("LOCAÇÃO DE EQUIPAMENTOS", margin, y);
+    y += 14;
 
     // Thin accent line
     doc.setDrawColor(...brandBlue);
