@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   Wrench, Building2, FileText, Clock,
-  Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut
+  Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut, FileSignature
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ const allNavItems = [
   { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
   { to: "/empresas", icon: Building2, label: "Empresas" },
   { to: "/contratos", icon: FileText, label: "Contratos" },
+  { to: "/propostas", icon: FileSignature, label: "Propostas" },
   { to: "/medicoes", icon: Clock, label: "Medições" },
   { to: "/faturamento", icon: Receipt, label: "Faturamento" },
   { to: "/apolices", icon: Shield, label: "Apólices" },

@@ -800,6 +800,160 @@ export type Database = {
         }
         Relationships: []
       }
+      propostas: {
+        Row: {
+          analise_cadastral_texto: string | null
+          consultor_email: string
+          consultor_email_2: string | null
+          consultor_nome: string
+          consultor_nome_2: string | null
+          consultor_telefone: string
+          consultor_telefone_2: string | null
+          conta_bancaria_id: string | null
+          created_at: string
+          data: string
+          disponibilidade_texto: string | null
+          empresa_id: string
+          franquia_horas_texto: string | null
+          horas_excedentes_texto: string | null
+          id: string
+          numero_sequencial: number
+          observacoes: string | null
+          prazo_pagamento: number
+          seguro_texto: string | null
+          status: string
+          updated_at: string
+          validade_dias: number
+          valor_mobilizacao: number
+          valor_mobilizacao_texto: string
+        }
+        Insert: {
+          analise_cadastral_texto?: string | null
+          consultor_email?: string
+          consultor_email_2?: string | null
+          consultor_nome?: string
+          consultor_nome_2?: string | null
+          consultor_telefone?: string
+          consultor_telefone_2?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          data?: string
+          disponibilidade_texto?: string | null
+          empresa_id: string
+          franquia_horas_texto?: string | null
+          horas_excedentes_texto?: string | null
+          id?: string
+          numero_sequencial?: number
+          observacoes?: string | null
+          prazo_pagamento?: number
+          seguro_texto?: string | null
+          status?: string
+          updated_at?: string
+          validade_dias?: number
+          valor_mobilizacao?: number
+          valor_mobilizacao_texto?: string
+        }
+        Update: {
+          analise_cadastral_texto?: string | null
+          consultor_email?: string
+          consultor_email_2?: string | null
+          consultor_nome?: string
+          consultor_nome_2?: string | null
+          consultor_telefone?: string
+          consultor_telefone_2?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          data?: string
+          disponibilidade_texto?: string | null
+          empresa_id?: string
+          franquia_horas_texto?: string | null
+          horas_excedentes_texto?: string | null
+          id?: string
+          numero_sequencial?: number
+          observacoes?: string | null
+          prazo_pagamento?: number
+          seguro_texto?: string | null
+          status?: string
+          updated_at?: string
+          validade_dias?: number
+          valor_mobilizacao?: number
+          valor_mobilizacao_texto?: string
+        }
+        Relationships: []
+      }
+      propostas_equipamentos: {
+        Row: {
+          created_at: string
+          equipamento_tipo: string
+          franquia_mensal: number
+          id: string
+          proposta_id: string
+          quantidade: number
+          valor_hora: number
+        }
+        Insert: {
+          created_at?: string
+          equipamento_tipo?: string
+          franquia_mensal?: number
+          id?: string
+          proposta_id: string
+          quantidade?: number
+          valor_hora?: number
+        }
+        Update: {
+          created_at?: string
+          equipamento_tipo?: string
+          franquia_mensal?: number
+          id?: string
+          proposta_id?: string
+          quantidade?: number
+          valor_hora?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_equipamentos_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propostas_responsabilidades: {
+        Row: {
+          atividade: string
+          created_at: string
+          id: string
+          proposta_id: string
+          responsavel_busato: boolean
+          responsavel_cliente: boolean
+        }
+        Insert: {
+          atividade: string
+          created_at?: string
+          id?: string
+          proposta_id: string
+          responsavel_busato?: boolean
+          responsavel_cliente?: boolean
+        }
+        Update: {
+          atividade?: string
+          created_at?: string
+          id?: string
+          proposta_id?: string
+          responsavel_busato?: boolean
+          responsavel_cliente?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_responsabilidades_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string
