@@ -260,8 +260,9 @@ const Propostas = () => {
     if (isNew && role === "operador") {
       const emp = empresas.find(e => e.id === form.empresa_id);
       const numStr = String(numSeq).padStart(3, "0");
-      // Get all admin user_ids
-      const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+      // Get all admin user_ids via security definer function
+      const { data: adminIds } = await supabase.rpc("get_admin_user_ids");
+      const adminRoles = adminIds ? adminIds.map((id: string) => ({ user_id: id })) : [];
       if (adminRoles && adminRoles.length > 0) {
         await supabase.from("notificacoes").insert(
           adminRoles.map(ar => ({
