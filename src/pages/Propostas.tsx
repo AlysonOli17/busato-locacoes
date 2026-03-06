@@ -150,6 +150,9 @@ const Propostas = () => {
   };
 
   const openEdit = async (item: Proposta) => {
+    // Reset state first to prevent showing stale data
+    setEquipamentos([]);
+    setResponsabilidades([]);
     setEditing(item);
     setForm({
       empresa_id: item.empresa_id,
@@ -173,16 +176,28 @@ const Propostas = () => {
       analise_cadastral_texto: item.analise_cadastral_texto || "",
       seguro_texto: item.seguro_texto || "",
     });
-    // Load equipamentos
-    const { data: eqs } = await supabase.from("propostas_equipamentos").select("*").eq("proposta_id", item.id);
-    setEquipamentos((eqs || []).map(e => ({ equipamento_tipo: e.equipamento_tipo, quantidade: e.quantidade, valor_hora: Number(e.valor_hora), franquia_mensal: Number(e.franquia_mensal) })));
-    // Load responsabilidades
-    const { data: resps } = await supabase.from("propostas_responsabilidades").select("*").eq("proposta_id", item.id);
-    if (resps && resps.length > 0) {
-      setResponsabilidades(resps.map(r => ({ atividade: r.atividade, responsavel_busato: r.responsavel_busato, responsavel_cliente: r.responsavel_cliente })));
-    } else {
-      setResponsabilidades([...defaultResp]);
-    }
+
+    // Load related data from database
+    const [eqRes, respRes] = await Promise.all([
+      supabase.from("propostas_equipamentos").select("*").eq("proposta_id", item.id),
+      supabase.from("propostas_responsabilidades").select("*").eq("proposta_id", item.id),
+    ]);
+
+    const loadedEqs = (eqRes.data || []).map(e => ({
+      equipamento_tipo: e.equipamento_tipo,
+      quantidade: e.quantidade,
+      valor_hora: Number(e.valor_hora),
+      franquia_mensal: Number(e.franquia_mensal),
+    }));
+    setEquipamentos(loadedEqs.length > 0 ? loadedEqs : [{ equipamento_tipo: "", quantidade: 1, valor_hora: 0, franquia_mensal: 0 }]);
+
+    const loadedResps = (respRes.data || []).map(r => ({
+      atividade: r.atividade,
+      responsavel_busato: r.responsavel_busato,
+      responsavel_cliente: r.responsavel_cliente,
+    }));
+    setResponsabilidades(loadedResps.length > 0 ? loadedResps : [...defaultResp]);
+
     setDialogOpen(true);
   };
 
