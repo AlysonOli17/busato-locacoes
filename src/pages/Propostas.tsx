@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle, Mail } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle, Mail, FileText, Clock, CheckSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -696,6 +696,50 @@ const Propostas = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar propostas..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
+
+        {/* Cards Gerenciais */}
+        {(() => {
+          const total = items.length;
+          const aguardando = items.filter(i => i.status === "Aguardando Aprovação").length;
+          const aprovadas = items.filter(i => i.status === "Proposta Aprovada").length;
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="rounded-lg bg-primary/10 p-3">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total de Propostas</p>
+                    <p className="text-2xl font-bold text-foreground">{total}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="rounded-lg bg-warning/10 p-3">
+                    <Clock className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Aguardando Aprovação</p>
+                    <p className="text-2xl font-bold text-foreground">{aguardando}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="rounded-lg bg-success/10 p-3">
+                    <CheckSquare className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Propostas Aprovadas</p>
+                    <p className="text-2xl font-bold text-foreground">{aprovadas}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })()}
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">
