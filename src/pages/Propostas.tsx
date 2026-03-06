@@ -620,11 +620,20 @@ const Propostas = () => {
     const empName = (emp?.nome || "proposta").replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
     doc.save(`${numStr}_PROPOSTA_COMERCIAL_DE_LOCAÇÃO_-_${empName}.pdf`);
     
-    // Update status to Enviada if Rascunho
-    if (item.status === "Rascunho") {
-      await supabase.from("propostas").update({ status: "Enviada" }).eq("id", item.id);
-      fetchData();
-    }
+  };
+
+  const handleSendEmail = async (item: Proposta) => {
+    const emp = empresas.find(e => e.id === item.empresa_id);
+    const numStr = String(item.numero_sequencial).padStart(3, "0");
+    const subject = encodeURIComponent(`Proposta Comercial Nº ${numStr} - BUSATO LOCAÇÕES`);
+    const body = encodeURIComponent(
+      `Prezado(a),\n\nSegue em anexo a Proposta Comercial Nº ${numStr} para ${emp?.nome || "sua empresa"}.\n\nFicamos à disposição para esclarecimentos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
+    );
+    // Generate PDF first
+    await generatePDF(item);
+    // Open mailto
+    window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+    toast({ title: "PDF gerado", description: "Anexe o PDF baixado ao e-mail que será aberto." });
   };
 
   const handleApprove = async (item: Proposta) => {
