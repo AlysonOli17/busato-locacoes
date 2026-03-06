@@ -297,7 +297,7 @@ const Propostas = () => {
       empresa_id: item.empresa_id,
       data: new Date().toISOString().slice(0, 10),
       validade_dias: item.validade_dias,
-      status: "Rascunho",
+      status: "Aguardando Aprovação",
       valor_mobilizacao: item.valor_mobilizacao,
       valor_mobilizacao_texto: item.valor_mobilizacao_texto,
       prazo_pagamento: item.prazo_pagamento,
