@@ -715,6 +715,11 @@ const Propostas = () => {
                             <CheckCircle className="h-4 w-4" />
                           </Button>
                         )}
+                        {item.status === "Proposta Aprovada" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleSendEmail(item)} title="Enviar por e-mail" className="text-primary hover:text-primary">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => generatePDF(item)} title="Gerar PDF">
                           <FileDown className="h-4 w-4 text-accent" />
                         </Button>
