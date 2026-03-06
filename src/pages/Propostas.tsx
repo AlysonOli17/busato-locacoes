@@ -845,13 +845,10 @@ const Propostas = () => {
                       options={(() => {
                         const seen = new Set<string>();
                         return equipamentosCadastro
-                          .map(e => {
-                            const label = `${e.tipo} - ${e.modelo}`;
-                            return { value: e.tipo, label };
-                          })
+                          .map(e => ({ value: e.tipo, label: e.tipo }))
                           .filter(o => {
-                            if (seen.has(o.label)) return false;
-                            seen.add(o.label);
+                            if (seen.has(o.value)) return false;
+                            seen.add(o.value);
                             return true;
                           });
                       })()}
