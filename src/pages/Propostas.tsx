@@ -637,7 +637,7 @@ const Propostas = () => {
   };
 
   const handleApprove = async (item: Proposta) => {
-    const { error } = await supabase.from("propostas").update({ status: "Rascunho" }).eq("id", item.id);
+    const { error } = await supabase.from("propostas").update({ status: "Proposta Aprovada" }).eq("id", item.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
 
     // Notify the creator that the proposal was approved
