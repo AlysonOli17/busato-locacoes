@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -80,7 +80,7 @@ const emptyForm = {
   empresa_id: "",
   data: new Date().toISOString().slice(0, 10),
   validade_dias: 10,
-  status: "Rascunho",
+  status: "Aguardando Aprovação",
   valor_mobilizacao: 0,
   valor_mobilizacao_texto: "",
   prazo_pagamento: 30,
@@ -195,7 +195,7 @@ const Propostas = () => {
     // Determine status based on role
     let statusToSave = form.status;
     const isNew = !editing;
-    if (isNew && role === "operador") {
+    if (role === "operador") {
       statusToSave = "Aguardando Aprovação";
     }
 
@@ -297,7 +297,7 @@ const Propostas = () => {
       empresa_id: item.empresa_id,
       data: new Date().toISOString().slice(0, 10),
       validade_dias: item.validade_dias,
-      status: "Rascunho",
+      status: "Aguardando Aprovação",
       valor_mobilizacao: item.valor_mobilizacao,
       valor_mobilizacao_texto: item.valor_mobilizacao_texto,
       prazo_pagamento: item.prazo_pagamento,
@@ -620,15 +620,24 @@ const Propostas = () => {
     const empName = (emp?.nome || "proposta").replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
     doc.save(`${numStr}_PROPOSTA_COMERCIAL_DE_LOCAÇÃO_-_${empName}.pdf`);
     
-    // Update status to Enviada if Rascunho
-    if (item.status === "Rascunho") {
-      await supabase.from("propostas").update({ status: "Enviada" }).eq("id", item.id);
-      fetchData();
-    }
+  };
+
+  const handleSendEmail = async (item: Proposta) => {
+    const emp = empresas.find(e => e.id === item.empresa_id);
+    const numStr = String(item.numero_sequencial).padStart(3, "0");
+    const subject = encodeURIComponent(`Proposta Comercial Nº ${numStr} - BUSATO LOCAÇÕES`);
+    const body = encodeURIComponent(
+      `Prezado(a),\n\nSegue em anexo a Proposta Comercial Nº ${numStr} para ${emp?.nome || "sua empresa"}.\n\nFicamos à disposição para esclarecimentos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
+    );
+    // Generate PDF first
+    await generatePDF(item);
+    // Open mailto
+    window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+    toast({ title: "PDF gerado", description: "Anexe o PDF baixado ao e-mail que será aberto." });
   };
 
   const handleApprove = async (item: Proposta) => {
-    const { error } = await supabase.from("propostas").update({ status: "Rascunho" }).eq("id", item.id);
+    const { error } = await supabase.from("propostas").update({ status: "Proposta Aprovada" }).eq("id", item.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
 
     // Notify the creator that the proposal was approved
@@ -650,9 +659,7 @@ const Propostas = () => {
   };
 
   const statusColor = (s: string) => {
-    if (s === "Aprovada") return "bg-success text-success-foreground";
-    if (s === "Enviada") return "bg-accent text-accent-foreground";
-    if (s === "Recusada") return "bg-destructive text-destructive-foreground";
+    if (s === "Proposta Aprovada") return "bg-success text-success-foreground";
     if (s === "Aguardando Aprovação") return "bg-warning text-warning-foreground";
     return "bg-muted text-muted-foreground";
   };
@@ -706,6 +713,11 @@ const Propostas = () => {
                         {role === "admin" && item.status === "Aguardando Aprovação" && (
                           <Button variant="ghost" size="icon" onClick={() => handleApprove(item)} title="Aprovar proposta" className="text-success hover:text-success">
                             <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {item.status === "Proposta Aprovada" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleSendEmail(item)} title="Enviar por e-mail" className="text-primary hover:text-primary">
+                            <Mail className="h-4 w-4" />
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" onClick={() => generatePDF(item)} title="Gerar PDF">
@@ -764,18 +776,15 @@ const Propostas = () => {
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Rascunho">Rascunho</SelectItem>
                     <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
-                    <SelectItem value="Enviada">Enviada</SelectItem>
-                    <SelectItem value="Aprovada">Aprovada</SelectItem>
-                    <SelectItem value="Recusada">Recusada</SelectItem>
+                    <SelectItem value="Proposta Aprovada">Proposta Aprovada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               ) : (
               <div>
                 <Label>Status</Label>
-                <Input value={editing ? form.status : "Aguardando Aprovação"} disabled className="bg-muted" />
+                <Input value="Aguardando Aprovação" disabled className="bg-muted" />
               </div>
               )}
             </div>
