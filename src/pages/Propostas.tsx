@@ -195,7 +195,7 @@ const Propostas = () => {
     // Determine status based on role
     let statusToSave = form.status;
     const isNew = !editing;
-    if (isNew && role === "operador") {
+    if (role === "operador") {
       statusToSave = "Aguardando Aprovação";
     }
 
