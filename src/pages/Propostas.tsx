@@ -659,9 +659,7 @@ const Propostas = () => {
   };
 
   const statusColor = (s: string) => {
-    if (s === "Aprovada") return "bg-success text-success-foreground";
-    if (s === "Enviada") return "bg-accent text-accent-foreground";
-    if (s === "Recusada") return "bg-destructive text-destructive-foreground";
+    if (s === "Proposta Aprovada") return "bg-success text-success-foreground";
     if (s === "Aguardando Aprovação") return "bg-warning text-warning-foreground";
     return "bg-muted text-muted-foreground";
   };
