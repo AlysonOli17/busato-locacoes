@@ -697,6 +697,50 @@ const Propostas = () => {
           <Input placeholder="Buscar propostas..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
 
+        {/* Cards Gerenciais */}
+        {(() => {
+          const total = items.length;
+          const aguardando = items.filter(i => i.status === "Aguardando Aprovação").length;
+          const aprovadas = items.filter(i => i.status === "Proposta Aprovada").length;
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="rounded-lg bg-primary/10 p-3">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total de Propostas</p>
+                    <p className="text-2xl font-bold text-foreground">{total}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="rounded-lg bg-warning/10 p-3">
+                    <Clock className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Aguardando Aprovação</p>
+                    <p className="text-2xl font-bold text-foreground">{aguardando}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="rounded-lg bg-success/10 p-3">
+                    <CheckSquare className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Propostas Aprovadas</p>
+                    <p className="text-2xl font-bold text-foreground">{aprovadas}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })()}
+
         <Card>
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[700px]">
