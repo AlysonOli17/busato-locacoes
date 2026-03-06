@@ -80,7 +80,7 @@ const emptyForm = {
   empresa_id: "",
   data: new Date().toISOString().slice(0, 10),
   validade_dias: 10,
-  status: "Rascunho",
+  status: "Aguardando Aprovação",
   valor_mobilizacao: 0,
   valor_mobilizacao_texto: "",
   prazo_pagamento: 30,
