@@ -771,18 +771,15 @@ const Propostas = () => {
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Rascunho">Rascunho</SelectItem>
                     <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
-                    <SelectItem value="Enviada">Enviada</SelectItem>
-                    <SelectItem value="Aprovada">Aprovada</SelectItem>
-                    <SelectItem value="Recusada">Recusada</SelectItem>
+                    <SelectItem value="Proposta Aprovada">Proposta Aprovada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               ) : (
               <div>
                 <Label>Status</Label>
-                <Input value={editing ? form.status : "Aguardando Aprovação"} disabled className="bg-muted" />
+                <Input value="Aguardando Aprovação" disabled className="bg-muted" />
               </div>
               )}
             </div>
