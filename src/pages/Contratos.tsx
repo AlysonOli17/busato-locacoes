@@ -507,13 +507,14 @@ const Contratos = () => {
         .eq("contrato_id", item.id)
         .order("numero", { ascending: true });
 
+      let allAditivosEquips: any[] = [];
       if (aditivosData && aditivosData.length > 0) {
         const aditivoIds = aditivosData.map(a => a.id);
         const { data: aditivosEquips } = await supabase
           .from("aditivos_equipamentos")
           .select("*")
           .in("aditivo_id", aditivoIds);
-
+        allAditivosEquips = aditivosEquips || [];
         for (const aditivo of aditivosData) {
           if (y > 220) { doc.addPage(); y = 20; }
           const now = new Date();
