@@ -1412,7 +1412,7 @@ const Contratos = () => {
                             {changedFields.includes("Hora Mínima") && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
                             {changedFields.includes("Horas Contratadas") && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
                           </div>
-                          {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
+                          {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo.replace(/^\[LOTE\]\s*/, "")}</p>}
                         </div>
                       );
                     }
