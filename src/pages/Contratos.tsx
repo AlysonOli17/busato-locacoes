@@ -592,8 +592,7 @@ const Contratos = () => {
       
       // Override with aditivos vigentes
       if (aditivosData && aditivosData.length > 0) {
-        const aditivoIds2 = aditivosData.map(a => a.id);
-        const aditivosEquips2 = aditivosEquips || [];
+        const aditivosEquipsFinal = aditivosEquips || [];
         for (const aditivo of aditivosData) {
           if (aditivo.data_fim < hoje) continue; // encerrado
           const aeqs = aditivosEquips2.filter(ae => ae.aditivo_id === aditivo.id);
