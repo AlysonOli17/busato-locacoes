@@ -406,11 +406,14 @@ const Contratos = () => {
 
     // --- Tabela principal de contratos ---
     const mainRows: string[][] = [];
+    
     data.forEach(i => {
       const ces = getContratoEquipamentos(i);
       const globalDev = globalDevolucaoByContrato[i.id] || {};
       ces.forEach(ce => {
         const devDate = globalDev[ce.equipamento_id] || null;
+        // Skip equipment already returned (devolução before today)
+        if (devDate && devDate < hoje) return;
         mainRows.push([
           i.empresas?.nome || "",
           i.empresas?.cnpj || "",
@@ -534,7 +537,7 @@ const Contratos = () => {
 
     const doc = new jsPDF({ orientation: "portrait" });
     const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-
+    const hoje = new Date().toISOString().slice(0, 10);
     for (let idx = 0; idx < data.length; idx++) {
       const item = data[idx];
       if (idx > 0) doc.addPage();
@@ -612,15 +615,23 @@ const Contratos = () => {
         }
       }
 
+      // Filter base contract equipment: exclude already-returned items
+      
+      const activeCes = ces.filter(ce => {
+        const devDate = globalDevolucao[ce.equipamento_id] || null;
+        if (devDate && devDate < hoje) return false;
+        return true;
+      });
+
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
-      doc.text(`Equipamentos (${ces.length})`, 14, y);
+      doc.text(`Equipamentos (${activeCes.length})`, 14, y);
       y += 2;
       const equipHeaders = ["Tipo", "Modelo", "Tag/Placa", "Nº Série", "Valor/Hora", "Horas Contrat.", "Entrega", "Devolução"];
       autoTable(doc, {
         startY: y,
         head: [equipHeaders],
-        body: ces.map(ce => {
+        body: activeCes.map(ce => {
           const devDate = globalDevolucao[ce.equipamento_id] || null;
           const devDentro = devDate && devDate >= item.data_inicio && devDate <= item.data_fim;
           return [
@@ -770,7 +781,7 @@ const Contratos = () => {
       
       // Build final consolidated equipment map: latest values per equipment
       // Only show currently ACTIVE equipment (not returned)
-      const hoje = new Date().toISOString().slice(0, 10);
+      
       const consolidado: Record<string, { tipo: string; modelo: string; tag: string; valor_hora: number; horas_contratadas: number; hora_minima: number; valor_hora_excedente: number; origem: string }> = {};
       
       // Track the latest data_devolucao per equipment across all sources
