@@ -377,11 +377,40 @@ const Contratos = () => {
 
     let y = await addLetterhead(doc, "Relatório de Contratos");
 
+    // --- Pre-fetch all aditivos equipment to build global devolucao map per contract ---
+    const globalDevolucaoByContrato: Record<string, Record<string, string | null>> = {};
+
+    for (const item of data) {
+      const globalDev: Record<string, string | null> = {};
+      // From base contract equipment
+      const ces = getContratoEquipamentos(item);
+      for (const ce of ces) {
+        if (ce.data_devolucao) {
+          const existing = globalDev[ce.equipamento_id];
+          if (!existing || ce.data_devolucao > existing) globalDev[ce.equipamento_id] = ce.data_devolucao;
+        }
+      }
+      // From aditivos
+      const { data: adData } = await supabase.from("contratos_aditivos").select("id").eq("contrato_id", item.id);
+      if (adData && adData.length > 0) {
+        const { data: aeData } = await supabase.from("aditivos_equipamentos").select("equipamento_id, data_devolucao").in("aditivo_id", adData.map(a => a.id));
+        for (const ae of (aeData || [])) {
+          if (ae.data_devolucao) {
+            const existing = globalDev[ae.equipamento_id];
+            if (!existing || ae.data_devolucao > existing) globalDev[ae.equipamento_id] = ae.data_devolucao;
+          }
+        }
+      }
+      globalDevolucaoByContrato[item.id] = globalDev;
+    }
+
     // --- Tabela principal de contratos ---
     const mainRows: string[][] = [];
     data.forEach(i => {
       const ces = getContratoEquipamentos(i);
+      const globalDev = globalDevolucaoByContrato[i.id] || {};
       ces.forEach(ce => {
+        const devDate = globalDev[ce.equipamento_id] || null;
         mainRows.push([
           i.empresas?.nome || "",
           i.empresas?.cnpj || "",
@@ -390,7 +419,7 @@ const Contratos = () => {
           fmt(Number(ce.valor_hora)),
           String(ce.horas_contratadas),
           ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
-          ce.data_devolucao ? parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR") : "—",
+          devDate ? parseLocalDate(devDate).toLocaleDateString("pt-BR") : "—",
           parseLocalDate(i.data_inicio).toLocaleDateString("pt-BR"),
           parseLocalDate(i.data_fim).toLocaleDateString("pt-BR"),
           i.status,
@@ -410,6 +439,7 @@ const Contratos = () => {
 
     // --- Resumo de modificações por contrato ---
     for (const item of data) {
+      const globalDev = globalDevolucaoByContrato[item.id] || {};
       const { data: aditivosData } = await supabase
         .from("contratos_aditivos")
         .select("*")
@@ -442,8 +472,13 @@ const Contratos = () => {
         allAeqs = aeqs || [];
 
         for (const ad of aditivosData) {
-          const eqCount = allAeqs.filter(ae => ae.aditivo_id === ad.id).length;
-          const devolvidos = allAeqs.filter(ae => ae.aditivo_id === ad.id && ae.data_devolucao && ae.data_devolucao <= hoje).length;
+          const adEqs = allAeqs.filter(ae => ae.aditivo_id === ad.id);
+          const eqCount = adEqs.length;
+          // Count devolvidos using global map: equipment returned within this aditivo's period
+          const devolvidos = adEqs.filter(ae => {
+            const devDate = globalDev[ae.equipamento_id];
+            return devDate && devDate >= ad.data_inicio && devDate <= ad.data_fim;
+          }).length;
           const statusAd = ad.data_fim < hoje ? "Encerrado" : ad.data_inicio > hoje ? "Futuro" : "Vigente";
           modRows.push([
             `Aditivo #${ad.numero}`,
