@@ -242,7 +242,7 @@ const Faturamento = () => {
       const ae = aditivoEquipMap.get(eqId);
       // Effective devolucao: addendum overrides base contract
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
-      if (dataDevolucao && dataDevolucao < inicio) return false;
+      if (dataDevolucao && dataDevolucao <= inicio) return false;
       return true;
     });
     const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
