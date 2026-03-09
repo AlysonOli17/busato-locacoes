@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -143,6 +144,7 @@ const Contratos = () => {
   const [ajusteFormOpen, setAjusteFormOpen] = useState(false);
   const [editingAjuste, setEditingAjuste] = useState<AjusteTemporario | null>(null);
   const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_id: "", valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
+  const [ajusteTodos, setAjusteTodos] = useState(false);
   // Aditivos
   const [aditivos, setAditivos] = useState<Aditivo[]>([]);
   const [aditivoFormOpen, setAditivoFormOpen] = useState(false);
@@ -602,6 +604,7 @@ const Contratos = () => {
 
   const openNewAjuste = (equipId?: string) => {
     setEditingAjuste(null);
+    setAjusteTodos(false);
     const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
     const firstEquip = equipId || (ces.length > 0 ? ces[0].equipamento_id : "");
     const ce = ces.find(c => c.equipamento_id === firstEquip);
@@ -634,25 +637,59 @@ const Contratos = () => {
   };
 
   const handleSaveAjuste = async () => {
-    if (!ajustesContrato || !ajusteForm.equipamento_id || !ajusteForm.data_inicio || !ajusteForm.data_fim) {
-      toast({ title: "Campos obrigatórios", description: "Preencha equipamento, datas de início e fim.", variant: "destructive" });
+    if (!ajustesContrato || !ajusteForm.data_inicio || !ajusteForm.data_fim) {
+      toast({ title: "Campos obrigatórios", description: "Preencha as datas de início e fim.", variant: "destructive" });
       return;
     }
-    const payload = {
-      contrato_id: ajustesContrato.id,
-      equipamento_id: ajusteForm.equipamento_id,
-      valor_hora: Number(ajusteForm.valor_hora),
-      valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
-      hora_minima: Number(ajusteForm.hora_minima),
-      horas_contratadas: Number(ajusteForm.horas_contratadas),
-      data_inicio: ajusteForm.data_inicio,
-      data_fim: ajusteForm.data_fim,
-      motivo: ajusteForm.motivo,
-    };
+    if (!ajusteTodos && !ajusteForm.equipamento_id) {
+      toast({ title: "Campos obrigatórios", description: "Selecione um equipamento.", variant: "destructive" });
+      return;
+    }
+
     if (editingAjuste) {
+      // Edição: sempre individual
+      const payload = {
+        contrato_id: ajustesContrato.id,
+        equipamento_id: ajusteForm.equipamento_id,
+        valor_hora: Number(ajusteForm.valor_hora),
+        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
+        hora_minima: Number(ajusteForm.hora_minima),
+        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        data_inicio: ajusteForm.data_inicio,
+        data_fim: ajusteForm.data_fim,
+        motivo: ajusteForm.motivo,
+      };
       const { error } = await supabase.from("contratos_equipamentos_ajustes").update(payload).eq("id", editingAjuste.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else if (ajusteTodos) {
+      // Aplicar a todos os equipamentos do contrato
+      const ces = getContratoEquipamentos(ajustesContrato);
+      const rows = ces.map(ce => ({
+        contrato_id: ajustesContrato.id,
+        equipamento_id: ce.equipamento_id,
+        valor_hora: Number(ajusteForm.valor_hora),
+        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
+        hora_minima: Number(ajusteForm.hora_minima),
+        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        data_inicio: ajusteForm.data_inicio,
+        data_fim: ajusteForm.data_fim,
+        motivo: ajusteForm.motivo,
+      }));
+      const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
+      // Individual
+      const payload = {
+        contrato_id: ajustesContrato.id,
+        equipamento_id: ajusteForm.equipamento_id,
+        valor_hora: Number(ajusteForm.valor_hora),
+        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
+        hora_minima: Number(ajusteForm.hora_minima),
+        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        data_inicio: ajusteForm.data_inicio,
+        data_fim: ajusteForm.data_fim,
+        motivo: ajusteForm.motivo,
+      };
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(payload);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
@@ -1416,6 +1453,16 @@ const Contratos = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {!editingAjuste && (
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                <div>
+                  <Label className="text-sm font-medium">Aplicar a todos os equipamentos</Label>
+                  <p className="text-xs text-muted-foreground">O ajuste será aplicado a todos os equipamentos do contrato</p>
+                </div>
+                <Switch checked={ajusteTodos} onCheckedChange={setAjusteTodos} />
+              </div>
+            )}
+            {!ajusteTodos && (
             <div>
               <Label>Equipamento</Label>
               <SearchableSelect
@@ -1440,6 +1487,7 @@ const Contratos = () => {
                 }))}
               />
             </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Data Início</Label><Input type="date" value={ajusteForm.data_inicio} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_inicio: e.target.value }))} /></div>
               <div><Label>Data Fim</Label><Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} /></div>
