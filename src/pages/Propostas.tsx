@@ -96,7 +96,7 @@ const emptyForm = {
   horas_excedentes_texto: "Serão cobradas horas excedentes conforme valor unitário por hora.",
   disponibilidade_texto: "Equipamentos sujeitos à disponibilidade no momento da contratação.",
   analise_cadastral_texto: "Sujeito a verificação cadastral conforme normas vigentes.",
-  seguro_texto: "O seguro do equipamento é responsabilidade do cliente.",
+  seguro_texto: "Em caso de acionamento do seguro a franquia é de responsabilidade do cliente.",
 };
 
 const parseLocalDate = (d: string) => new Date(d + "T00:00:00");
