@@ -58,6 +58,7 @@ interface EquipUsage {
   custo_real: number;
   custo_contratado: number;
   percentual: number;
+  origem: string; // "Contrato" or "Aditivo #N"
 }
 
 interface AjusteTemporario {
@@ -228,14 +229,64 @@ const Contratos = () => {
     setDashboardOpen(true);
     setDashboardLoading(true);
 
+    // Collect all equipment: from contract + from aditivos
     const ces = getContratoEquipamentos(item);
+    const contratoAditivos = aditivosPorContrato[item.id] || [];
+    
+    // Build a combined list with source info
+    interface DashEquip {
+      equipamento_id: string;
+      equipamento: Equipamento;
+      valor_hora: number;
+      horas_contratadas: number;
+      origem: string;
+    }
+    
+    const allEquips: DashEquip[] = [];
+    const seenIds = new Set<string>();
+    
+    // Add contract equipment
+    for (const ce of ces) {
+      seenIds.add(ce.equipamento_id);
+      allEquips.push({
+        equipamento_id: ce.equipamento_id,
+        equipamento: ce.equipamentos,
+        valor_hora: Number(ce.valor_hora),
+        horas_contratadas: Number(ce.horas_contratadas),
+        origem: "Contrato",
+      });
+    }
+    
+    // Add aditivo equipment (update existing or add new)
+    for (const aditivo of contratoAditivos) {
+      for (const ae of (aditivo.aditivos_equipamentos || [])) {
+        const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+        if (!eq) continue;
+        const existing = allEquips.find(e => e.equipamento_id === ae.equipamento_id);
+        if (existing) {
+          // Update with latest aditivo values
+          existing.valor_hora = Number(ae.valor_hora);
+          existing.horas_contratadas = Number(ae.horas_contratadas);
+          existing.origem = `Aditivo #${aditivo.numero}`;
+        } else {
+          allEquips.push({
+            equipamento_id: ae.equipamento_id,
+            equipamento: eq,
+            valor_hora: Number(ae.valor_hora),
+            horas_contratadas: Number(ae.horas_contratadas),
+            origem: `Aditivo #${aditivo.numero}`,
+          });
+        }
+      }
+    }
+
     const usages: EquipUsage[] = [];
 
-    for (const ce of ces) {
+    for (const de of allEquips) {
       const { data: medicoes } = await supabase
         .from("medicoes")
         .select("horas_trabalhadas, horimetro_inicial, horimetro_final")
-        .eq("equipamento_id", ce.equipamento_id)
+        .eq("equipamento_id", de.equipamento_id)
         .gte("data", item.data_inicio)
         .lte("data", item.data_fim);
 
@@ -244,19 +295,20 @@ const Contratos = () => {
         return sum + h;
       }, 0);
 
-      const horasContratadas = Number(ce.horas_contratadas);
-      const valorHora = Number(ce.valor_hora);
+      const horasContratadas = de.horas_contratadas;
+      const valorHora = de.valor_hora;
       const percentual = horasContratadas > 0 ? (horasUtilizadas / horasContratadas) * 100 : 0;
 
       usages.push({
-        equipamento_id: ce.equipamento_id,
-        equipamento: ce.equipamentos,
+        equipamento_id: de.equipamento_id,
+        equipamento: de.equipamento,
         valor_hora: valorHora,
         horas_contratadas: horasContratadas,
         horas_utilizadas: horasUtilizadas,
         custo_real: horasUtilizadas * valorHora,
         custo_contratado: horasContratadas * valorHora,
         percentual,
+        origem: de.origem,
       });
     }
 
@@ -1099,7 +1151,10 @@ const Contratos = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-sm text-foreground">{u.equipamento.tipo} {u.equipamento.modelo}</p>
-                          {u.equipamento.tag_placa && <p className="text-xs text-muted-foreground font-mono">{u.equipamento.tag_placa}</p>}
+                          <div className="flex items-center gap-2">
+                            {u.equipamento.tag_placa && <p className="text-xs text-muted-foreground font-mono">{u.equipamento.tag_placa}</p>}
+                            <Badge variant="outline" className="text-xs">{u.origem}</Badge>
+                          </div>
                         </div>
                         <Badge className={status.className}>{status.label}</Badge>
                       </div>
