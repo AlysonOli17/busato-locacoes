@@ -615,15 +615,23 @@ const Contratos = () => {
         }
       }
 
+      // Filter base contract equipment: exclude already-returned items
+      const hoje = new Date().toISOString().slice(0, 10);
+      const activeCes = ces.filter(ce => {
+        const devDate = globalDevolucao[ce.equipamento_id] || null;
+        if (devDate && devDate < hoje) return false;
+        return true;
+      });
+
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
-      doc.text(`Equipamentos (${ces.length})`, 14, y);
+      doc.text(`Equipamentos (${activeCes.length})`, 14, y);
       y += 2;
       const equipHeaders = ["Tipo", "Modelo", "Tag/Placa", "Nº Série", "Valor/Hora", "Horas Contrat.", "Entrega", "Devolução"];
       autoTable(doc, {
         startY: y,
         head: [equipHeaders],
-        body: ces.map(ce => {
+        body: activeCes.map(ce => {
           const devDate = globalDevolucao[ce.equipamento_id] || null;
           const devDentro = devDate && devDate >= item.data_inicio && devDate <= item.data_fim;
           return [
