@@ -541,7 +541,6 @@ const Contratos = () => {
         startY: y,
         head: [equipHeaders],
         body: ces.map(ce => {
-          const devDentro = ce.data_devolucao && ce.data_devolucao >= item.data_inicio && ce.data_devolucao <= item.data_fim;
           return [
             ce.equipamentos.tipo || "—",
             ce.equipamentos.modelo || "—",
@@ -550,7 +549,7 @@ const Contratos = () => {
             fmt(Number(ce.valor_hora)),
             `${ce.horas_contratadas}h`,
             ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
-            devDentro ? parseLocalDate(ce.data_devolucao!).toLocaleDateString("pt-BR") : "—",
+            ce.data_devolucao ? parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR") : "—",
           ];
         }),
         styles: { fontSize: 8, cellPadding: 2 },
@@ -666,7 +665,6 @@ const Contratos = () => {
               head: [["Equipamento", "Tag", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
               body: eqs.map(ae => {
                 const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                const devDentro = ae.data_devolucao && ae.data_devolucao >= aditivo.data_inicio && ae.data_devolucao <= aditivo.data_fim;
                 return [
                   eq ? `${eq.tipo} - ${eq.modelo}` : ae.equipamento_id,
                   eq?.tag_placa || "—",
@@ -675,7 +673,7 @@ const Contratos = () => {
                   `${ae.horas_contratadas}h`,
                   `${ae.hora_minima}h`,
                   ae.data_entrega ? parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR") : "—",
-                  devDentro ? parseLocalDate(ae.data_devolucao!).toLocaleDateString("pt-BR") : "—",
+                  ae.data_devolucao ? parseLocalDate(ae.data_devolucao).toLocaleDateString("pt-BR") : "—",
                 ];
               }),
               styles: { fontSize: 8, cellPadding: 2 },
