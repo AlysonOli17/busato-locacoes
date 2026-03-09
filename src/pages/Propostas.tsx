@@ -92,7 +92,7 @@ const emptyForm = {
   consultor_email_2: "",
   consultor_telefone_2: "",
   observacoes: "",
-  franquia_horas_texto: "",
+  franquia_horas_texto: "Garantia mínima de horas",
   horas_excedentes_texto: "Serão cobradas horas excedentes conforme valor unitário por hora.",
   disponibilidade_texto: "Equipamentos sujeitos à disponibilidade no momento da contratação.",
   analise_cadastral_texto: "Sujeito a verificação cadastral conforme normas vigentes.",
