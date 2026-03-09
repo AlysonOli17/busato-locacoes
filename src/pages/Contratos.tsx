@@ -616,7 +616,7 @@ const Contratos = () => {
       }
 
       // Filter base contract equipment: exclude already-returned items
-      const hoje = new Date().toISOString().slice(0, 10);
+      
       const activeCes = ces.filter(ce => {
         const devDate = globalDevolucao[ce.equipamento_id] || null;
         if (devDate && devDate < hoje) return false;
