@@ -1392,15 +1392,26 @@ const Contratos = () => {
                               {(() => {
                                 const hoje = new Date().toISOString().slice(0, 10);
                                 const allAditivos = (aditivosPorContrato[item.id] || []);
+                                // Build global devolucao map
+                                const globalDev2: Record<string, string | null> = {};
+                                for (const ce of ces) {
+                                  if (ce.data_devolucao && (!globalDev2[ce.equipamento_id] || ce.data_devolucao > globalDev2[ce.equipamento_id]!)) globalDev2[ce.equipamento_id] = ce.data_devolucao;
+                                }
+                                for (const ad of allAditivos) {
+                                  for (const ae of (ad.aditivos_equipamentos || [])) {
+                                    if (ae.data_devolucao && (!globalDev2[ae.equipamento_id] || ae.data_devolucao > globalDev2[ae.equipamento_id]!)) globalDev2[ae.equipamento_id] = ae.data_devolucao;
+                                  }
+                                }
+                                const isDevolvido2 = (eqId: string) => { const d = globalDev2[eqId]; return d && d <= hoje; };
+
                                 const vigentes = allAditivos.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
                                 const ultimoAditivo = vigentes.length > 0
                                   ? vigentes.reduce((latest, ad) => ad.numero > latest.numero ? ad : latest, vigentes[0])
                                   : null;
 
                                 if (ultimoAditivo) {
-                                  // Show only the last active addendum's equipment
                                   const activeEquips = (ultimoAditivo.aditivos_equipamentos || [])
-                                    .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje);
+                                    .filter((ae: any) => !isDevolvido2(ae.equipamento_id));
                                   return (
                                     <>
                                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -1426,7 +1437,7 @@ const Contratos = () => {
                                 }
 
                                 // No active addendum — show base contract
-                                const activeBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
+                                const activeBase = ces.filter(ce => !isDevolvido2(ce.equipamento_id));
                                 return (
                                   <>
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
