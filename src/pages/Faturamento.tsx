@@ -169,8 +169,8 @@ const Faturamento = () => {
     // We'll do the final filtering after we know about addendums, but pre-filter obvious cases
     const equipIds = allEquipIds.filter(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
-      // Exclude if data_devolucao exists and is before the period start
-      if (ce?.data_devolucao && ce.data_devolucao < inicio) return false;
+      // Exclude if data_devolucao exists and is on or before the period start
+      if (ce?.data_devolucao && ce.data_devolucao <= inicio) return false;
       return true;
     });
 
@@ -204,7 +204,7 @@ const Faturamento = () => {
         aditivoExtraEquipIds = [...new Set(aeData.map(ae => ae.equipamento_id))].filter(id => {
           if (equipIds.includes(id)) return false;
           const ae = aditivoEquipMap.get(id);
-          if (ae?.data_devolucao && ae.data_devolucao < inicio) return false;
+          if (ae?.data_devolucao && ae.data_devolucao <= inicio) return false;
           return true;
         });
       }
@@ -242,7 +242,7 @@ const Faturamento = () => {
       const ae = aditivoEquipMap.get(eqId);
       // Effective devolucao: addendum overrides base contract
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
-      if (dataDevolucao && dataDevolucao < inicio) return false;
+      if (dataDevolucao && dataDevolucao <= inicio) return false;
       return true;
     });
     const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
