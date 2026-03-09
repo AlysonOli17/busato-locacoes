@@ -1178,8 +1178,42 @@ const Contratos = () => {
                             <div className="space-y-2">
                               {(() => {
                                 const hoje = new Date().toISOString().slice(0, 10);
+                                const allAditivos = (aditivosPorContrato[item.id] || []);
+                                const vigentes = allAditivos.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
+                                const ultimoAditivo = vigentes.length > 0
+                                  ? vigentes.reduce((latest, ad) => ad.numero > latest.numero ? ad : latest, vigentes[0])
+                                  : null;
+
+                                if (ultimoAditivo) {
+                                  // Show only the last active addendum's equipment
+                                  const activeEquips = (ultimoAditivo.aditivos_equipamentos || [])
+                                    .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje);
+                                  return (
+                                    <>
+                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                        Aditivo #{ultimoAditivo.numero} — Vigente
+                                      </p>
+                                      {activeEquips.map((ae: any) => {
+                                        const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                                        return (
+                                          <div key={ae.id} className="flex items-center gap-2 flex-wrap">
+                                            <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                                              {eq ? `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}` : ae.equipamento_id}
+                                            </Badge>
+                                            <span className="text-xs text-muted-foreground">
+                                              R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
+                                              {Number(ae.hora_minima) > 0 && <span className="text-accent"> · Mín: {ae.hora_minima}h</span>}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                      {activeEquips.length === 0 && <span className="text-xs text-muted-foreground">Nenhum equipamento ativo</span>}
+                                    </>
+                                  );
+                                }
+
+                                // No active addendum — show base contract
                                 const activeBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
-                                const vigentAditivos = (aditivosPorContrato[item.id] || []).filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
                                 return (
                                   <>
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
@@ -1195,28 +1229,6 @@ const Contratos = () => {
                                       </div>
                                     ))}
                                     {activeBase.length === 0 && <span className="text-xs text-muted-foreground">Nenhum equipamento ativo</span>}
-                                    {vigentAditivos.map(ad => (
-                                      <div key={ad.id} className="pt-2 border-t border-dashed border-muted-foreground/20">
-                                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-                                          Aditivo #{ad.numero} — Vigente
-                                        </Badge>
-                                        {(ad.aditivos_equipamentos || [])
-                                          .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje)
-                                          .map((ae: any) => {
-                                            const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                                            return (
-                                              <div key={ae.id} className="flex items-center gap-2 flex-wrap ml-3 mt-1">
-                                                <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-                                                  {eq ? `${eq.tipo} ${eq.modelo}` : ae.equipamento_id}
-                                                </Badge>
-                                                <span className="text-xs text-muted-foreground">
-                                                  R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
-                                                </span>
-                                              </div>
-                                            );
-                                          })}
-                                      </div>
-                                    ))}
                                   </>
                                 );
                               })()}
