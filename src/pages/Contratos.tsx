@@ -716,15 +716,64 @@ const Contratos = () => {
       const { error } = await supabase.from("contratos_equipamentos_ajustes").update(payload).eq("id", editingAjuste.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else if (ajusteTodos) {
-      // Aplicar a todos os equipamentos do contrato
+      // Aplicar a todos os equipamentos do contrato (base + aditivos) ativos no período do ajuste
+      const ajInicio = parseLocalDate(ajusteForm.data_inicio);
+      const ajFim = parseLocalDate(ajusteForm.data_fim);
+
+      // Collect all unique equipment with their latest values
+      const equipMap = new Map<string, { valor_hora: number; valor_hora_excedente: number; hora_minima: number; horas_contratadas: number }>();
+
+      // Base contract equipment
       const ces = getContratoEquipamentos(ajustesContrato);
-      const rows = ces.map(ce => ({
+      ces.forEach(ce => {
+        // Check if equipment is active within the adjustment period
+        const entrega = ce.data_entrega ? parseLocalDate(ce.data_entrega) : null;
+        const devolucao = ce.data_devolucao ? parseLocalDate(ce.data_devolucao) : null;
+        // Equipment is active if: entrega <= ajFim AND (no devolucao OR devolucao >= ajInicio)
+        if (entrega && entrega > ajFim) return;
+        if (devolucao && devolucao < ajInicio) return;
+        equipMap.set(ce.equipamento_id, {
+          valor_hora: Number(ce.valor_hora),
+          valor_hora_excedente: Number(ce.valor_hora_excedente),
+          hora_minima: Number(ce.hora_minima),
+          horas_contratadas: Number(ce.horas_contratadas),
+        });
+      });
+
+      // Aditivos equipment - override or add new equipment
+      const contratoAditivos = aditivos.filter(a => a.contrato_id === ajustesContrato.id);
+      contratoAditivos.sort((a, b) => a.numero - b.numero);
+      contratoAditivos.forEach(aditivo => {
+        const adInicio = parseLocalDate(aditivo.data_inicio);
+        const adFim = parseLocalDate(aditivo.data_fim);
+        // Only consider aditivos whose period overlaps with the adjustment period
+        if (adInicio > ajFim || adFim < ajInicio) return;
+        (aditivo.aditivos_equipamentos || []).forEach(ae => {
+          const entrega = ae.data_entrega ? parseLocalDate(ae.data_entrega) : null;
+          const devolucao = ae.data_devolucao ? parseLocalDate(ae.data_devolucao) : null;
+          if (entrega && entrega > ajFim) return;
+          if (devolucao && devolucao < ajInicio) return;
+          equipMap.set(ae.equipamento_id, {
+            valor_hora: Number(ae.valor_hora),
+            valor_hora_excedente: Number(ae.valor_hora_excedente),
+            hora_minima: Number(ae.hora_minima),
+            horas_contratadas: Number(ae.horas_contratadas),
+          });
+        });
+      });
+
+      if (equipMap.size === 0) {
+        toast({ title: "Nenhum equipamento", description: "Não há equipamentos ativos no período informado.", variant: "destructive" });
+        return;
+      }
+
+      const rows = Array.from(equipMap.entries()).map(([eqId, vals]) => ({
         contrato_id: ajustesContrato.id,
-        equipamento_id: ce.equipamento_id,
-        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : Number(ce.valor_hora),
-        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : Number(ce.valor_hora_excedente),
-        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : Number(ce.hora_minima),
-        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : Number(ce.horas_contratadas),
+        equipamento_id: eqId,
+        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : vals.valor_hora,
+        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : vals.valor_hora_excedente,
+        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : vals.hora_minima,
+        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : vals.horas_contratadas,
         data_inicio: ajusteForm.data_inicio,
         data_fim: ajusteForm.data_fim,
         motivo: ajusteForm.motivo ? `[LOTE] ${ajusteForm.motivo}` : "[LOTE]",
