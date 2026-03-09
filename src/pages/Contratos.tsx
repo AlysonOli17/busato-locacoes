@@ -418,18 +418,24 @@ const Contratos = () => {
       doc.setTextColor(41, 128, 185);
       doc.text(`Equipamentos (${ces.length})`, 14, y);
       y += 2;
+      const equipHeaders = ["Tipo", "Modelo", "Tag/Placa", "Nº Série", "Valor/Hora", "Horas Contrat.", "Entrega", "Devolução"];
       autoTable(doc, {
         startY: y,
-        head: [["Tipo", "Modelo", "Tag/Placa", "Nº Série", "Valor/Hora", "Horas Contrat."]],
-        body: ces.map(ce => [
-          ce.equipamentos.tipo || "—",
-          ce.equipamentos.modelo || "—",
-          ce.equipamentos.tag_placa || "—",
-          ce.equipamentos.numero_serie || "—",
-          fmt(Number(ce.valor_hora)),
-          `${ce.horas_contratadas}h`,
-        ]),
-        styles: { fontSize: 9, cellPadding: 3 },
+        head: [equipHeaders],
+        body: ces.map(ce => {
+          const devDentro = ce.data_devolucao && ce.data_devolucao >= item.data_inicio && ce.data_devolucao <= item.data_fim;
+          return [
+            ce.equipamentos.tipo || "—",
+            ce.equipamentos.modelo || "—",
+            ce.equipamentos.tag_placa || "—",
+            ce.equipamentos.numero_serie || "—",
+            fmt(Number(ce.valor_hora)),
+            `${ce.horas_contratadas}h`,
+            ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
+            devDentro ? parseLocalDate(ce.data_devolucao!).toLocaleDateString("pt-BR") : "—",
+          ];
+        }),
+        styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
         theme: "grid",
       });
