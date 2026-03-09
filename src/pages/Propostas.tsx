@@ -199,6 +199,7 @@ const Propostas = () => {
       responsavel_cliente: r.responsavel_cliente,
     }));
     setResponsabilidades(loadedResps.length > 0 ? loadedResps : [...defaultResp]);
+    setShowObservacoes(!!(item.observacoes && item.observacoes.trim()));
 
     setDialogOpen(true);
   };
