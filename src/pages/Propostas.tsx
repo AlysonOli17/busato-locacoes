@@ -113,6 +113,7 @@ const Propostas = () => {
   const [responsabilidades, setResponsabilidades] = useState<PropostaResp[]>(defaultResp);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showObservacoes, setShowObservacoes] = useState(false);
   const { toast } = useToast();
   const { role, user } = useAuth();
 
