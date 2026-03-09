@@ -541,7 +541,7 @@ const Contratos = () => {
           });
           y = (doc as any).lastAutoTable.finalY + 4;
 
-          const eqs = (aditivosEquips || []).filter(ae => ae.aditivo_id === aditivo.id);
+          const eqs = allAditivosEquips.filter(ae => ae.aditivo_id === aditivo.id);
           if (eqs.length > 0) {
             autoTable(doc, {
               startY: y,
