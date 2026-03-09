@@ -1062,48 +1062,50 @@ const Contratos = () => {
                           </HoverCardTrigger>
                           <HoverCardContent className="w-96 max-h-80 overflow-y-auto" align="start">
                             <div className="space-y-2">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
-                              {ces.map(ce => (
-                                <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
-                                  <Badge variant="outline" className="text-xs">
-                                    {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
-                                    {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
-                                  </span>
-                                  {ce.data_devolucao && (
-                                    <span className="text-xs text-warning">· Dev: {parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR")}</span>
-                                  )}
-                                </div>
-                              ))}
-                              {ces.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
-                              {(aditivosPorContrato[item.id] || []).map(ad => {
-                                const now = new Date();
-                                const inicio = parseLocalDate(ad.data_inicio);
-                                const fim = parseLocalDate(ad.data_fim);
-                                const statusAd = now < inicio ? "Futuro" : now > fim ? "Encerrado" : "Vigente";
-                                const statusColor = statusAd === "Vigente" ? "bg-primary/10 text-primary border-primary/30" : statusAd === "Encerrado" ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent border-accent/30";
+                              {(() => {
+                                const hoje = new Date().toISOString().slice(0, 10);
+                                const activeBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
+                                const vigentAditivos = (aditivosPorContrato[item.id] || []).filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
                                 return (
-                                  <div key={ad.id} className="pt-2 border-t border-dashed border-muted-foreground/20">
-                                    <Badge variant="outline" className={`text-[10px] ${statusColor}`}>
-                                      Aditivo #{ad.numero} — {statusAd}
-                                    </Badge>
-                                    {(ad.aditivos_equipamentos || []).map(ae => {
-                                      const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                                      return (
-                                        <div key={ae.id} className="flex items-center gap-2 flex-wrap ml-3 mt-1">
-                                          <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-                                            {eq ? `${eq.tipo} ${eq.modelo}` : ae.equipamento_id}
-                                          </Badge>
-                                          <span className="text-xs text-muted-foreground">
-                                            R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
+                                  <>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
+                                    {activeBase.map(ce => (
+                                      <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="text-xs">
+                                          {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                          R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
+                                          {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {activeBase.length === 0 && <span className="text-xs text-muted-foreground">Nenhum equipamento ativo</span>}
+                                    {vigentAditivos.map(ad => (
+                                      <div key={ad.id} className="pt-2 border-t border-dashed border-muted-foreground/20">
+                                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                                          Aditivo #{ad.numero} — Vigente
+                                        </Badge>
+                                        {(ad.aditivos_equipamentos || [])
+                                          .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje)
+                                          .map((ae: any) => {
+                                            const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                                            return (
+                                              <div key={ae.id} className="flex items-center gap-2 flex-wrap ml-3 mt-1">
+                                                <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                                                  {eq ? `${eq.tipo} ${eq.modelo}` : ae.equipamento_id}
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                  R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
+                                                </span>
+                                              </div>
+                                            );
+                                          })}
+                                      </div>
+                                    ))}
+                                  </>
                                 );
+                              })()}
                               })}
                             </div>
                           </HoverCardContent>
