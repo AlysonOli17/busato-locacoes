@@ -579,7 +579,7 @@ const Propostas = () => {
     }
 
     // Check if we need a new page for payment section
-    if (y > ph - 80) {
+    if (y > bottomLimit - 60) {
       doc.addPage();
       addInnerHeader();
       y = 30;
