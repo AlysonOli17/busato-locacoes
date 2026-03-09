@@ -1453,6 +1453,16 @@ const Contratos = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {!editingAjuste && (
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                <div>
+                  <Label className="text-sm font-medium">Aplicar a todos os equipamentos</Label>
+                  <p className="text-xs text-muted-foreground">O ajuste será aplicado a todos os equipamentos do contrato</p>
+                </div>
+                <Switch checked={ajusteTodos} onCheckedChange={setAjusteTodos} />
+              </div>
+            )}
+            {!ajusteTodos && (
             <div>
               <Label>Equipamento</Label>
               <SearchableSelect
@@ -1477,6 +1487,7 @@ const Contratos = () => {
                 }))}
               />
             </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Data Início</Label><Input type="date" value={ajusteForm.data_inicio} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_inicio: e.target.value }))} /></div>
               <div><Label>Data Fim</Label><Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} /></div>
