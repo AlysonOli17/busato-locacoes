@@ -101,7 +101,7 @@ const emptyForm = {
 
 const parseLocalDate = (d: string) => new Date(d + "T00:00:00");
 
-const Propostas = () => {
+const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const [items, setItems] = useState<Proposta[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
