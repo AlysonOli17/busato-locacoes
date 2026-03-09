@@ -8,8 +8,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Equipamentos from "./pages/Equipamentos";
 import Empresas from "./pages/Empresas";
 import Contratos from "./pages/Contratos";
-
-import Medicoes from "./pages/Medicoes";
 import Faturamento from "./pages/Faturamento";
 import Apolices from "./pages/Apolices";
 import Gastos from "./pages/Gastos";
@@ -33,8 +31,7 @@ const App = () => (
             <Route path="/equipamentos" element={<ProtectedRoute requiredPermission="/equipamentos"><Equipamentos /></ProtectedRoute>} />
             <Route path="/empresas" element={<ProtectedRoute requiredPermission="/empresas"><Empresas /></ProtectedRoute>} />
             <Route path="/contratos" element={<ProtectedRoute requiredPermission="/contratos"><Contratos /></ProtectedRoute>} />
-            <Route path="/propostas" element={<ProtectedRoute requiredPermission="/contratos"><Propostas /></ProtectedRoute>} />
-            <Route path="/medicoes" element={<ProtectedRoute requiredPermission="/medicoes"><Medicoes /></ProtectedRoute>} />
+            <Route path="/propostas" element={<ProtectedRoute requiredPermission="/contraNavigate to="/contratos" replace /element={<ProtectedRoute requiredPermission="/medicoes"><Medicoes /></ProtectedRoute>} />
             <Route path="/faturamento" element={<ProtectedRoute requiredPermission="/faturamento"><Faturamento /></ProtectedRoute>} />
             <Route path="/apolices" element={<ProtectedRoute requiredPermission="/apolices"><Apolices /></ProtectedRoute>} />
             <Route path="/gastos" element={<ProtectedRoute requiredPermission="/gastos"><Gastos /></ProtectedRoute>} />
