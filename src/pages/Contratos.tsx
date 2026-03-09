@@ -58,6 +58,7 @@ interface EquipUsage {
   custo_real: number;
   custo_contratado: number;
   percentual: number;
+  origem: string; // "Contrato" or "Aditivo #N"
 }
 
 interface AjusteTemporario {
