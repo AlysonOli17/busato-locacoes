@@ -541,7 +541,6 @@ const Contratos = () => {
         startY: y,
         head: [equipHeaders],
         body: ces.map(ce => {
-          const devDentro = ce.data_devolucao && ce.data_devolucao >= item.data_inicio && ce.data_devolucao <= item.data_fim;
           return [
             ce.equipamentos.tipo || "—",
             ce.equipamentos.modelo || "—",
@@ -550,7 +549,7 @@ const Contratos = () => {
             fmt(Number(ce.valor_hora)),
             `${ce.horas_contratadas}h`,
             ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
-            devDentro ? parseLocalDate(ce.data_devolucao!).toLocaleDateString("pt-BR") : "—",
+            ce.data_devolucao ? parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR") : "—",
           ];
         }),
         styles: { fontSize: 8, cellPadding: 2 },
