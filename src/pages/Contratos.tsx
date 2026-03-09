@@ -1613,7 +1613,7 @@ const Contratos = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarRange className="h-5 w-5 text-accent" />
-              {editingAjuste ? "Editar Ajuste" : "Novo Ajuste Temporário"}
+              {editingAjuste ? "Editar Ajuste" : ajusteTodos ? "Novo Ajuste de Contrato" : "Novo Ajuste Temporário"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
