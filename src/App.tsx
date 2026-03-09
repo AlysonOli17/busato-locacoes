@@ -8,7 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Equipamentos from "./pages/Equipamentos";
 import Empresas from "./pages/Empresas";
 import Contratos from "./pages/Contratos";
-import Propostas from "./pages/Propostas";
+
 import Medicoes from "./pages/Medicoes";
 import Faturamento from "./pages/Faturamento";
 import Apolices from "./pages/Apolices";
