@@ -95,10 +95,12 @@ const Equipamentos = () => {
   useEffect(() => { fetchData(); }, []);
 
   const filtered = items.filter((i) => {
+    const s = search.toLowerCase();
     const matchesSearch =
-      i.tipo.toLowerCase().includes(search.toLowerCase()) ||
-      i.modelo.toLowerCase().includes(search.toLowerCase()) ||
-      (i.tag_placa || "").toLowerCase().includes(search.toLowerCase());
+      i.tipo.toLowerCase().includes(s) ||
+      i.modelo.toLowerCase().includes(s) ||
+      (i.tag_placa || "").toLowerCase().includes(s) ||
+      (i.numero_serie || "").toLowerCase().includes(s);
 
     if (!matchesSearch) return false;
 
