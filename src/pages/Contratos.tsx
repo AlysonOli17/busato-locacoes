@@ -815,6 +815,12 @@ const Contratos = () => {
 
   return (
     <Layout>
+      <Tabs defaultValue="contratos" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="contratos" className="gap-2"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
+          <TabsTrigger value="propostas" className="gap-2"><FileSignature className="h-4 w-4" /> Propostas Comerciais</TabsTrigger>
+        </TabsList>
+        <TabsContent value="contratos">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
