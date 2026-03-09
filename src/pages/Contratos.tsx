@@ -604,6 +604,7 @@ const Contratos = () => {
 
   const openNewAjuste = (equipId?: string) => {
     setEditingAjuste(null);
+    setAjusteTodos(false);
     const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
     const firstEquip = equipId || (ces.length > 0 ? ces[0].equipamento_id : "");
     const ce = ces.find(c => c.equipamento_id === firstEquip);
