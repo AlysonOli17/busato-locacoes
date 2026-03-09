@@ -1327,49 +1327,156 @@ const Contratos = () => {
                 <p className="text-sm text-muted-foreground text-center py-6">Nenhum ajuste temporário cadastrado.</p>
               )}
               <div className="space-y-3">
-                {ajustes.map(aj => {
-                  const eq = equipamentos.find(e => e.id === aj.equipamento_id);
-                  const ativo = isAjusteAtivo(aj);
-                  const passado = new Date() > new Date(aj.data_fim);
-                  return (
-                    <div key={aj.id} className={`rounded-lg border p-4 space-y-2 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <CalendarRange className="h-4 w-4 text-accent" />
-                          <span className="font-medium text-sm">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}</span>
-                          {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
-                          {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
-                          {!ativo && !passado && <Badge variant="outline" className="text-xs text-muted-foreground">Agendado</Badge>}
+                {(() => {
+                  // Group adjustments: bulk (same motivo+dates+close created_at) vs individual
+                  const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+                  const groups: { key: string; items: AjusteTemporario[]; isBulk: boolean }[] = [];
+                  const used = new Set<string>();
+                  
+                  ajustes.forEach(aj => {
+                    if (used.has(aj.id)) return;
+                    // Find siblings with same motivo + dates + created_at within 5 seconds
+                    const siblings = ajustes.filter(other => 
+                      !used.has(other.id) &&
+                      other.motivo === aj.motivo &&
+                      other.data_inicio === aj.data_inicio &&
+                      other.data_fim === aj.data_fim &&
+                      Math.abs(new Date(other.created_at).getTime() - new Date(aj.created_at).getTime()) < 5000
+                    );
+                    const isBulk = siblings.length > 1 && siblings.length >= ces.length;
+                    siblings.forEach(s => used.add(s.id));
+                    groups.push({ key: siblings.map(s => s.id).join(","), items: siblings, isBulk });
+                  });
+
+                  const detectChangedFields = (groupItems: AjusteTemporario[]): string[] => {
+                    const fields: string[] = [];
+                    const first = groupItems[0];
+                    // Compare against original contract equipment values
+                    for (const aj of groupItems) {
+                      const ce = ces.find(c => c.equipamento_id === aj.equipamento_id);
+                      if (!ce) continue;
+                      if (Number(aj.valor_hora) !== Number(ce.valor_hora) && !fields.includes("Valor/Hora")) fields.push("Valor/Hora");
+                      if (Number(aj.valor_hora_excedente) !== Number(ce.valor_hora_excedente) && !fields.includes("Valor Hora Excedente")) fields.push("Valor Hora Excedente");
+                      if (Number(aj.hora_minima) !== Number(ce.hora_minima) && !fields.includes("Hora Mínima")) fields.push("Hora Mínima");
+                      if (Number(aj.horas_contratadas) !== Number(ce.horas_contratadas) && !fields.includes("Horas Contratadas")) fields.push("Horas Contratadas");
+                    }
+                    return fields.length > 0 ? fields : ["Valor/Hora", "Hora Mínima", "Horas Contratadas"];
+                  };
+
+                  return groups.map(group => {
+                    const aj = group.items[0];
+                    const ativo = isAjusteAtivo(aj);
+                    const passado = new Date() > new Date(aj.data_fim);
+
+                    if (group.isBulk) {
+                      const changedFields = detectChangedFields(group.items);
+                      return (
+                        <div key={group.key} className={`rounded-lg border p-4 space-y-2 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <CalendarRange className="h-4 w-4 text-accent" />
+                              <span className="font-medium text-sm">Todo o Contrato</span>
+                              <Badge variant="secondary" className="text-xs">Lote · {group.items.length} equip.</Badge>
+                              {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
+                              {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
+                              {!ativo && !passado && <Badge variant="outline" className="text-xs text-muted-foreground">Agendado</Badge>}
+                            </div>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAjuste(aj)}><Pencil className="h-3 w-3" /></Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir Ajuste em Lote</AlertDialogTitle>
+                                    <AlertDialogDescription>Tem certeza? Todos os {group.items.length} ajustes deste lote serão removidos.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={async () => { for (const item of group.items) { await handleDeleteAjuste(item.id); } }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir Todos</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="text-xs text-muted-foreground">Alterações:</span>
+                            {changedFields.map(f => (
+                              <Badge key={f} variant="outline" className="text-xs bg-accent/10 border-accent/30">{f}</Badge>
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                            {changedFields.includes("Valor/Hora") && <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>}
+                            {changedFields.includes("Hora Mínima") && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
+                            {changedFields.includes("Horas Contratadas") && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
+                          </div>
+                          {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
                         </div>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAjuste(aj)}><Pencil className="h-3 w-3" /></Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Ajuste</AlertDialogTitle>
-                                <AlertDialogDescription>Tem certeza? O faturamento voltará a usar os valores originais.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteAjuste(aj.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                      );
+                    }
+
+                    // Individual adjustment - single equipment
+                    const eq = equipamentos.find(e => e.id === aj.equipamento_id);
+                    const ce = ces.find(c => c.equipamento_id === aj.equipamento_id);
+                    const indivChanges: string[] = [];
+                    if (ce) {
+                      if (Number(aj.valor_hora) !== Number(ce.valor_hora)) indivChanges.push("Valor/Hora");
+                      if (Number(aj.valor_hora_excedente) !== Number(ce.valor_hora_excedente)) indivChanges.push("Valor Hora Excedente");
+                      if (Number(aj.hora_minima) !== Number(ce.hora_minima)) indivChanges.push("Hora Mínima");
+                      if (Number(aj.horas_contratadas) !== Number(ce.horas_contratadas)) indivChanges.push("Horas Contratadas");
+                    }
+
+                    return (
+                      <div key={aj.id} className={`rounded-lg border p-4 space-y-2 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CalendarRange className="h-4 w-4 text-accent" />
+                            <span className="font-medium text-sm">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}</span>
+                            <Badge variant="secondary" className="text-xs">Individual</Badge>
+                            {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
+                            {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
+                            {!ativo && !passado && <Badge variant="outline" className="text-xs text-muted-foreground">Agendado</Badge>}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAjuste(aj)}><Pencil className="h-3 w-3" /></Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir Ajuste</AlertDialogTitle>
+                                  <AlertDialogDescription>Tem certeza? O faturamento voltará a usar os valores originais.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteAjuste(aj.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
+                        {indivChanges.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="text-xs text-muted-foreground">Alterações:</span>
+                            {indivChanges.map(f => (
+                              <Badge key={f} variant="outline" className="text-xs bg-accent/10 border-accent/30">{f}</Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                          <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
+                          <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
+                          <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
+                        </div>
+                        {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                        <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
-                        <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
-                        <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
-                        <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
-                      </div>
-                      {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </TabsContent>
 
