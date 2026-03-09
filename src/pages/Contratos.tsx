@@ -1430,7 +1430,7 @@ const Contratos = () => {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <CalendarRange className="h-4 w-4 text-accent" />
-                              <span className="font-medium text-sm">Todo o Contrato</span>
+                              <span className="font-medium text-sm">Ajuste de Contrato</span>
                               <Badge variant="secondary" className="text-xs">Lote · {group.items.length} equip.</Badge>
                               {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
                               {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
@@ -1523,9 +1523,9 @@ const Contratos = () => {
                         )}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                           <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
-                          <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
-                          <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
-                          <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
+                          {(indivChanges.length === 0 || indivChanges.includes("Valor/Hora")) && <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>}
+                          {(indivChanges.length === 0 || indivChanges.includes("Hora Mínima")) && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
+                          {(indivChanges.length === 0 || indivChanges.includes("Horas Contratadas")) && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
                         </div>
                         {aj.motivo && aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "").trim() && <p className="text-xs text-muted-foreground italic">{aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "")}</p>}
                       </div>
@@ -1613,7 +1613,7 @@ const Contratos = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarRange className="h-5 w-5 text-accent" />
-              {editingAjuste ? "Editar Ajuste" : "Novo Ajuste Temporário"}
+              {editingAjuste ? "Editar Ajuste" : ajusteTodos ? "Novo Ajuste de Contrato" : "Novo Ajuste Temporário"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
