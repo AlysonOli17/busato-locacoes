@@ -472,9 +472,15 @@ const Contratos = () => {
         allAeqs = aeqs || [];
 
         for (const ad of aditivosData) {
-          const adEqs = allAeqs.filter(ae => ae.aditivo_id === ad.id);
+          // Filter out equipment returned before this aditivo started
+          const adEqs = allAeqs.filter(ae => {
+            if (ae.aditivo_id !== ad.id) return false;
+            const devDate = globalDev[ae.equipamento_id];
+            if (devDate && devDate < ad.data_inicio) return false;
+            return true;
+          });
           const eqCount = adEqs.length;
-          // Count devolvidos using global map: equipment returned within this aditivo's period
+          // Count devolvidos: equipment returned within this aditivo's period
           const devolvidos = adEqs.filter(ae => {
             const devDate = globalDev[ae.equipamento_id];
             return devDate && devDate >= ad.data_inicio && devDate <= ad.data_fim;
@@ -721,14 +727,20 @@ const Contratos = () => {
           });
           y = (doc as any).lastAutoTable.finalY + 4;
 
-          const eqs = allAditivosEquips.filter(ae => ae.aditivo_id === aditivo.id);
+          // Filter out equipment that was returned BEFORE this aditivo started
+          const eqs = allAditivosEquips.filter(ae => {
+            if (ae.aditivo_id !== aditivo.id) return false;
+            const devDate = globalDevolucao[ae.equipamento_id] || null;
+            // If equipment was returned before this aditivo's start, exclude it entirely
+            if (devDate && devDate < aditivo.data_inicio) return false;
+            return true;
+          });
           if (eqs.length > 0) {
             autoTable(doc, {
               startY: y,
               head: [["Equipamento", "Tag", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
               body: eqs.map(ae => {
                 const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                // Use global devolucao: check if this equipment was returned within THIS aditivo's period
                 const devDate = globalDevolucao[ae.equipamento_id] || null;
                 const devDentro = devDate && devDate >= aditivo.data_inicio && devDate <= aditivo.data_fim;
                 return [
@@ -1347,19 +1359,28 @@ const Contratos = () => {
                               {(() => {
                                 const hoje = new Date().toISOString().slice(0, 10);
                                 const allAditivos = (aditivosPorContrato[item.id] || []);
-                                // Find the latest addendum (highest numero) that is currently active or most recent
+                                // Build global devolucao map across ALL sources
+                                const globalDev: Record<string, string | null> = {};
+                                for (const ce of ces) {
+                                  if (ce.data_devolucao && (!globalDev[ce.equipamento_id] || ce.data_devolucao > globalDev[ce.equipamento_id]!)) globalDev[ce.equipamento_id] = ce.data_devolucao;
+                                }
+                                for (const ad of allAditivos) {
+                                  for (const ae of (ad.aditivos_equipamentos || [])) {
+                                    if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id]!)) globalDev[ae.equipamento_id] = ae.data_devolucao;
+                                  }
+                                }
+                                const isDevolvido = (eqId: string) => { const d = globalDev[eqId]; return d && d <= hoje; };
+
                                 const vigentes = allAditivos.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
                                 const ultimoAditivo = vigentes.length > 0
                                   ? vigentes.reduce((latest, ad) => ad.numero > latest.numero ? ad : latest, vigentes[0])
                                   : null;
                                 
                                 if (ultimoAditivo) {
-                                  // Count only from the last active addendum
                                   return (ultimoAditivo.aditivos_equipamentos || [])
-                                    .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje).length;
+                                    .filter((ae: any) => !isDevolvido(ae.equipamento_id)).length;
                                 }
-                                // No active addendum — use base contract
-                                return ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje).length;
+                                return ces.filter(ce => !isDevolvido(ce.equipamento_id)).length;
                               })()} equipamento(s)
                               {(aditivosPorContrato[item.id] || []).length > 0 && (
                                 <Badge variant="outline" className="text-[10px]">{(aditivosPorContrato[item.id] || []).length} aditivo(s)</Badge>
@@ -1371,15 +1392,26 @@ const Contratos = () => {
                               {(() => {
                                 const hoje = new Date().toISOString().slice(0, 10);
                                 const allAditivos = (aditivosPorContrato[item.id] || []);
+                                // Build global devolucao map
+                                const globalDev2: Record<string, string | null> = {};
+                                for (const ce of ces) {
+                                  if (ce.data_devolucao && (!globalDev2[ce.equipamento_id] || ce.data_devolucao > globalDev2[ce.equipamento_id]!)) globalDev2[ce.equipamento_id] = ce.data_devolucao;
+                                }
+                                for (const ad of allAditivos) {
+                                  for (const ae of (ad.aditivos_equipamentos || [])) {
+                                    if (ae.data_devolucao && (!globalDev2[ae.equipamento_id] || ae.data_devolucao > globalDev2[ae.equipamento_id]!)) globalDev2[ae.equipamento_id] = ae.data_devolucao;
+                                  }
+                                }
+                                const isDevolvido2 = (eqId: string) => { const d = globalDev2[eqId]; return d && d <= hoje; };
+
                                 const vigentes = allAditivos.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
                                 const ultimoAditivo = vigentes.length > 0
                                   ? vigentes.reduce((latest, ad) => ad.numero > latest.numero ? ad : latest, vigentes[0])
                                   : null;
 
                                 if (ultimoAditivo) {
-                                  // Show only the last active addendum's equipment
                                   const activeEquips = (ultimoAditivo.aditivos_equipamentos || [])
-                                    .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje);
+                                    .filter((ae: any) => !isDevolvido2(ae.equipamento_id));
                                   return (
                                     <>
                                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -1405,7 +1437,7 @@ const Contratos = () => {
                                 }
 
                                 // No active addendum — show base contract
-                                const activeBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
+                                const activeBase = ces.filter(ce => !isDevolvido2(ce.equipamento_id));
                                 return (
                                   <>
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
