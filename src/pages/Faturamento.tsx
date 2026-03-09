@@ -164,8 +164,9 @@ const Faturamento = () => {
 
     const ceList = ct.contratos_equipamentos || [];
     // If no contratos_equipamentos, fallback to the main contract equipment
-    // Filter out equipment already returned before the billing period
     const allEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
+
+    // We'll do the final filtering after we know about addendums, but pre-filter obvious cases
     const equipIds = allEquipIds.filter(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       // Exclude if data_devolucao exists and is before the period start
@@ -199,7 +200,13 @@ const Faturamento = () => {
           }
         }
         // Find equipment IDs from addendums not already in the contract
-        aditivoExtraEquipIds = [...new Set(aeData.map(ae => ae.equipamento_id))].filter(id => !equipIds.includes(id));
+        // Also exclude addendum equipment returned before the billing period
+        aditivoExtraEquipIds = [...new Set(aeData.map(ae => ae.equipamento_id))].filter(id => {
+          if (equipIds.includes(id)) return false;
+          const ae = aditivoEquipMap.get(id);
+          if (ae?.data_devolucao && ae.data_devolucao < inicio) return false;
+          return true;
+        });
       }
     }
 
@@ -229,7 +236,16 @@ const Faturamento = () => {
     const ajustesData = ajustesRes.data || [];
 
     // Build per-equipment form items (including extra equipment from addendums)
-    const newEquipForms: EquipFormItem[] = allEquipIdsWithAditivos.map(eqId => {
+    // Final filter: exclude equipment whose effective data_devolucao is before the period start
+    const filteredEquipIds = allEquipIdsWithAditivos.filter(eqId => {
+      const ce = ceList.find(c => c.equipamento_id === eqId);
+      const ae = aditivoEquipMap.get(eqId);
+      // Effective devolucao: addendum overrides base contract
+      const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+      if (dataDevolucao && dataDevolucao < inicio) return false;
+      return true;
+    });
+    const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const eq = equipMap.get(eqId);
       const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
