@@ -119,7 +119,7 @@ const Propostas = () => {
 
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes] = await Promise.all([
-      supabase.from("propostas").select("*").order("numero_sequencial", { ascending: false }),
+      supabase.from("propostas").select("*, propostas_equipamentos(quantidade)").order("numero_sequencial", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status").eq("status", "Ativo").order("tipo"),
