@@ -544,17 +544,19 @@ const Contratos = () => {
           if (eqs.length > 0) {
             autoTable(doc, {
               startY: y,
-              head: [["Equipamento", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
+              head: [["Equipamento", "Tag", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
               body: eqs.map(ae => {
                 const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                const devDentro = ae.data_devolucao && ae.data_devolucao >= aditivo.data_inicio && ae.data_devolucao <= aditivo.data_fim;
                 return [
                   eq ? `${eq.tipo} - ${eq.modelo}` : ae.equipamento_id,
+                  eq?.tag_placa || "—",
                   fmt(Number(ae.valor_hora)),
                   fmt(Number(ae.valor_hora_excedente)),
                   `${ae.horas_contratadas}h`,
                   `${ae.hora_minima}h`,
                   ae.data_entrega ? parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR") : "—",
-                  ae.data_devolucao ? parseLocalDate(ae.data_devolucao).toLocaleDateString("pt-BR") : "—",
+                  devDentro ? parseLocalDate(ae.data_devolucao!).toLocaleDateString("pt-BR") : "—",
                 ];
               }),
               styles: { fontSize: 8, cellPadding: 2 },
@@ -565,6 +567,110 @@ const Contratos = () => {
           }
         }
       }
+
+      // --- Valor Previsto Final (consolidado com todas as modificações) ---
+      if (y > 220) { doc.addPage(); y = 20; }
+      
+      // Build final consolidated equipment map: latest values per equipment
+      const hoje = new Date().toISOString().slice(0, 10);
+      const consolidado: Record<string, { tipo: string; modelo: string; tag: string; valor_hora: number; horas_contratadas: number; hora_minima: number; valor_hora_excedente: number; origem: string }> = {};
+      
+      // Start with base contract equipment (not returned)
+      for (const ce of ces) {
+        if (ce.data_devolucao && ce.data_devolucao <= hoje) continue;
+        consolidado[ce.equipamento_id] = {
+          tipo: ce.equipamentos.tipo,
+          modelo: ce.equipamentos.modelo,
+          tag: ce.equipamentos.tag_placa || "—",
+          valor_hora: Number(ce.valor_hora),
+          horas_contratadas: Number(ce.horas_contratadas),
+          hora_minima: Number(ce.hora_minima || 0),
+          valor_hora_excedente: Number(ce.valor_hora_excedente || 0),
+          origem: "Contrato",
+        };
+      }
+      
+      // Override with aditivos vigentes
+      if (aditivosData && aditivosData.length > 0) {
+        const aditivoIds2 = aditivosData.map(a => a.id);
+        const aditivosEquips2 = aditivosEquips || [];
+        for (const aditivo of aditivosData) {
+          if (aditivo.data_fim < hoje) continue; // encerrado
+          const aeqs = aditivosEquips2.filter(ae => ae.aditivo_id === aditivo.id);
+          for (const ae of aeqs) {
+            if (ae.data_devolucao && ae.data_devolucao <= hoje) {
+              delete consolidado[ae.equipamento_id];
+              continue;
+            }
+            const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+            consolidado[ae.equipamento_id] = {
+              tipo: eq?.tipo || "—",
+              modelo: eq?.modelo || "—",
+              tag: eq?.tag_placa || "—",
+              valor_hora: Number(ae.valor_hora),
+              horas_contratadas: Number(ae.horas_contratadas),
+              hora_minima: Number(ae.hora_minima || 0),
+              valor_hora_excedente: Number(ae.valor_hora_excedente || 0),
+              origem: `Aditivo #${aditivo.numero}`,
+            };
+          }
+        }
+      }
+      
+      // Override with ajustes vigentes
+      if (ajustesData && ajustesData.length > 0) {
+        for (const aj of ajustesData) {
+          if (aj.data_fim < hoje || aj.data_inicio > hoje) continue;
+          const existing = consolidado[aj.equipamento_id];
+          if (existing) {
+            existing.valor_hora = Number(aj.valor_hora);
+            existing.horas_contratadas = Number(aj.horas_contratadas);
+            existing.hora_minima = Number(aj.hora_minima);
+            existing.valor_hora_excedente = Number(aj.valor_hora_excedente);
+            existing.origem += " + Ajuste";
+          }
+        }
+      }
+      
+      const consolidadoList = Object.values(consolidado);
+      const totalHorasFinal = consolidadoList.reduce((s, c) => s + c.horas_contratadas, 0);
+      const valorPrevistoFinal = consolidadoList.reduce((s, c) => s + c.valor_hora * c.horas_contratadas, 0);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(39, 174, 96);
+      doc.text("Valor Previsto Atual (com todas as modificações)", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Equipamento", "Tag", "Valor/Hora", "Horas Contr.", "Subtotal", "Origem"]],
+        body: consolidadoList.map(c => [
+          `${c.tipo} - ${c.modelo}`,
+          c.tag,
+          fmt(c.valor_hora),
+          `${c.horas_contratadas}h`,
+          fmt(c.valor_hora * c.horas_contratadas),
+          c.origem,
+        ]),
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 4;
+      
+      autoTable(doc, {
+        startY: y,
+        head: [["", ""]],
+        body: [
+          ["Total Horas", `${totalHorasFinal}h`],
+          ["Valor Mensal Previsto", fmt(valorPrevistoFinal)],
+        ],
+        styles: { fontSize: 10, cellPadding: 4, fontStyle: "bold" },
+        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
+        columnStyles: { 0: { cellWidth: 60 } },
+        theme: "grid",
+        showHead: false,
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
     }
 
     doc.save(`contratos_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
