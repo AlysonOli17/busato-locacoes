@@ -1474,65 +1474,6 @@ const Contratos = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Histórico de Aditivos */}
-          {aditivos.length > 0 && (
-            <div className="space-y-2 border rounded-lg p-3 bg-muted/30 max-h-52 overflow-y-auto">
-              <p className="text-sm font-semibold flex items-center gap-1.5">
-                <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                Histórico de Aditivos
-              </p>
-              {/* Contrato Original */}
-              {ajustesContrato && (() => {
-                const cesOriginal = getContratoEquipamentos(ajustesContrato);
-                return (
-                  <div className="text-xs border rounded p-2 bg-background space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-foreground">Contrato Original</span>
-                      <Badge variant="outline" className="text-[10px]">{ajustesContrato.data_inicio} → {ajustesContrato.data_fim}</Badge>
-                    </div>
-                    {cesOriginal.map(ce => {
-                      const eq = ce.equipamentos;
-                      return (
-                        <div key={ce.equipamento_id} className="flex flex-wrap gap-x-3 text-muted-foreground">
-                          <span className="font-medium text-foreground">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ''}</span>
-                          <span>R$ {Number(ce.valor_hora).toFixed(2)}/h</span>
-                          <span>{Number(ce.horas_contratadas)}h contratadas</span>
-                          {ce.data_entrega && <span>Entrega: {ce.data_entrega}</span>}
-                          {ce.data_devolucao && <span>Devolução: {ce.data_devolucao}</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-              {/* Aditivos anteriores */}
-              {aditivos
-                .filter(a => !editingAditivo || a.id !== editingAditivo.id)
-                .sort((a, b) => a.numero - b.numero)
-                .map(ad => (
-                  <div key={ad.id} className="text-xs border rounded p-2 bg-background space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-foreground">Aditivo #{ad.numero} — {ad.motivo || 'Sem motivo'}</span>
-                      <Badge variant="outline" className="text-[10px]">{ad.data_inicio} → {ad.data_fim}</Badge>
-                    </div>
-                    {(ad.aditivos_equipamentos || []).map(ae => {
-                      const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                      return (
-                        <div key={ae.id} className="flex flex-wrap gap-x-3 text-muted-foreground">
-                          <span className="font-medium text-foreground">{eq?.tipo} {eq?.modelo} {eq?.tag_placa ? `(${eq.tag_placa})` : ''}</span>
-                          <span>R$ {Number(ae.valor_hora).toFixed(2)}/h</span>
-                          <span>Exc: R$ {Number(ae.valor_hora_excedente).toFixed(2)}/h</span>
-                          <span>{Number(ae.horas_contratadas)}h</span>
-                          {ae.data_entrega && <span>Entrega: {ae.data_entrega}</span>}
-                          {ae.data_devolucao && <span>Devolução: {ae.data_devolucao}</span>}
-                        </div>
-                      );
-                    })}
-                    {ad.observacoes && <p className="text-muted-foreground italic">Obs: {ad.observacoes}</p>}
-                  </div>
-                ))}
-            </div>
-          )}
 
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-3 gap-3">
