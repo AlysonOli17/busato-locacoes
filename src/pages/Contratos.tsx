@@ -1036,67 +1036,64 @@ const Contratos = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
-                          {ces.map(ce => (
-                            <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="outline" className="text-xs">
-                                {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
-                                {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
-                              </span>
-                              {ce.data_entrega && (
-                                <span className="text-xs text-muted-foreground">· Entrega: {parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR")}</span>
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <button className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors cursor-pointer">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              {ces.length + (aditivosPorContrato[item.id] || []).reduce((acc, ad) => acc + (ad.aditivos_equipamentos?.length || 0), 0)} equipamento(s)
+                              {(aditivosPorContrato[item.id] || []).length > 0 && (
+                                <Badge variant="outline" className="text-[10px]">{(aditivosPorContrato[item.id] || []).length} aditivo(s)</Badge>
                               )}
-                              {ce.data_devolucao && (
-                                <span className="text-xs text-warning">· Devolução: {parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR")}</span>
-                              )}
-                            </div>
-                          ))}
-                          {ces.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
-                          {/* Equipamentos de Aditivos */}
-                          {(aditivosPorContrato[item.id] || []).map(ad => {
-                            const now = new Date();
-                            const inicio = parseLocalDate(ad.data_inicio);
-                            const fim = parseLocalDate(ad.data_fim);
-                            const statusAd = now < inicio ? "Futuro" : now > fim ? "Encerrado" : "Vigente";
-                            const statusColor = statusAd === "Vigente" ? "bg-primary/10 text-primary border-primary/30" : statusAd === "Encerrado" ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent border-accent/30";
-                            return (
-                              <div key={ad.id} className="mt-1 pt-1 border-t border-dashed border-muted-foreground/20">
-                                <div className="flex items-center gap-1 mb-1">
-                                  <Badge variant="outline" className={`text-[10px] ${statusColor}`}>
-                                    Aditivo #{ad.numero} — {statusAd}
+                            </button>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-96 max-h-80 overflow-y-auto" align="start">
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
+                              {ces.map(ce => (
+                                <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant="outline" className="text-xs">
+                                    {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
                                   </Badge>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}
+                                  <span className="text-xs text-muted-foreground">
+                                    R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
+                                    {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
                                   </span>
+                                  {ce.data_devolucao && (
+                                    <span className="text-xs text-warning">· Dev: {parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR")}</span>
+                                  )}
                                 </div>
-                                {(ad.aditivos_equipamentos || []).map(ae => {
-                                  const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                                  return (
-                                    <div key={ae.id} className="flex items-center gap-2 flex-wrap ml-3">
-                                      <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-                                        {eq ? `${eq.tipo} ${eq.modelo}` : ae.equipamento_id} {eq?.tag_placa ? `(${eq.tag_placa})` : ""}
-                                      </Badge>
-                                      <span className="text-xs text-muted-foreground">
-                                        R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
-                                        {Number(ae.hora_minima) > 0 && <span className="text-accent"> · Mín: {ae.hora_minima}h</span>}
-                                      </span>
-                                      {ae.data_entrega && (
-                                        <span className="text-xs text-muted-foreground">· Entrega: {parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR")}</span>
-                                      )}
-                                      {ae.data_devolucao && (
-                                        <span className="text-xs text-warning">· Devolução: {parseLocalDate(ae.data_devolucao).toLocaleDateString("pt-BR")}</span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })}
-                        </div>
+                              ))}
+                              {ces.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                              {(aditivosPorContrato[item.id] || []).map(ad => {
+                                const now = new Date();
+                                const inicio = parseLocalDate(ad.data_inicio);
+                                const fim = parseLocalDate(ad.data_fim);
+                                const statusAd = now < inicio ? "Futuro" : now > fim ? "Encerrado" : "Vigente";
+                                const statusColor = statusAd === "Vigente" ? "bg-primary/10 text-primary border-primary/30" : statusAd === "Encerrado" ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent border-accent/30";
+                                return (
+                                  <div key={ad.id} className="pt-2 border-t border-dashed border-muted-foreground/20">
+                                    <Badge variant="outline" className={`text-[10px] ${statusColor}`}>
+                                      Aditivo #{ad.numero} — {statusAd}
+                                    </Badge>
+                                    {(ad.aditivos_equipamentos || []).map(ae => {
+                                      const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                                      return (
+                                        <div key={ae.id} className="flex items-center gap-2 flex-wrap ml-3 mt-1">
+                                          <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                                            {eq ? `${eq.tipo} ${eq.modelo}` : ae.equipamento_id}
+                                          </Badge>
+                                          <span className="text-xs text-muted-foreground">
+                                            R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </HoverCardContent>
+                        </HoverCard>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {parseLocalDate(item.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(item.data_fim).toLocaleDateString("pt-BR")}
