@@ -1000,9 +1000,27 @@ const Propostas = () => {
               ))}
             </div>
 
+            {/* Observações toggle */}
             <div>
-              <Label>Observações</Label>
-              <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3} />
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={showObservacoes ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setShowObservacoes(prev => {
+                      if (prev) setForm(f => ({ ...f, observacoes: "" }));
+                      return !prev;
+                    });
+                  }}
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  {showObservacoes ? "Remover Observações" : "Adicionar Observações"}
+                </Button>
+              </div>
+              {showObservacoes && (
+                <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3} placeholder="Digite as observações da proposta..." />
+              )}
             </div>
           </div>
 
