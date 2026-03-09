@@ -693,7 +693,7 @@ const Contratos = () => {
     setAditivoForm({
       numero: nextNumero,
       data_inicio: ajustesContrato?.data_fim || "",
-      data_fim: "",
+      data_fim: ajustesContrato?.data_fim || "",
       motivo: "",
       observacoes: "",
       equipamentos: ces.map(ce => ({
