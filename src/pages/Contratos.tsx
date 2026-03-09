@@ -1234,7 +1234,7 @@ const Contratos = () => {
             <Button variant="outline" size="sm" onClick={exportDetailedPDF}>
               <FileDown className="h-4 w-4 mr-1" /> PDF Detalhado
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
+            <Button variant="outline" size="sm" onClick={exportSimplePDF}>
               <FileDown className="h-4 w-4 mr-1" /> PDF Simples
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
