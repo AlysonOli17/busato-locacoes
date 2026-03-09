@@ -1106,7 +1106,6 @@ const Contratos = () => {
                                   </>
                                 );
                               })()}
-                              })}
                             </div>
                           </HoverCardContent>
                         </HoverCard>
