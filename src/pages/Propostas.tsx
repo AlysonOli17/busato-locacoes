@@ -101,7 +101,7 @@ const emptyForm = {
 
 const parseLocalDate = (d: string) => new Date(d + "T00:00:00");
 
-const Propostas = () => {
+const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const [items, setItems] = useState<Proposta[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
@@ -713,8 +713,8 @@ const Propostas = () => {
     return "bg-muted text-muted-foreground";
   };
 
-  return (
-    <Layout>
+  const content = (
+    <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -1047,9 +1047,13 @@ const Propostas = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </>
   );
+
+  return embedded ? content : <Layout>{content}</Layout>;
 };
+
+export const PropostasContent = () => <Propostas embedded />;
 
 // Logo loader for PDF
 let pdfLogoCache: string | null = null;

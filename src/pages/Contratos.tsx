@@ -12,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PropostasContent } from "@/pages/Propostas";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -814,6 +815,12 @@ const Contratos = () => {
 
   return (
     <Layout>
+      <Tabs defaultValue="contratos" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="contratos" className="gap-2"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
+          <TabsTrigger value="propostas" className="gap-2"><FileSignature className="h-4 w-4" /> Propostas Comerciais</TabsTrigger>
+        </TabsList>
+        <TabsContent value="contratos">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -1535,6 +1542,11 @@ const Contratos = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+        <TabsContent value="propostas">
+          <PropostasContent />
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 };
