@@ -593,10 +593,9 @@ const Contratos = () => {
       
       // Override with aditivos vigentes
       if (aditivosData && aditivosData.length > 0) {
-        const aditivosEquipsFinal = aditivosEquips || [];
         for (const aditivo of aditivosData) {
-          if (aditivo.data_fim < hoje) continue; // encerrado
-          const aeqs = aditivosEquips2.filter(ae => ae.aditivo_id === aditivo.id);
+          if (aditivo.data_fim < hoje) continue;
+          const aeqs = allAditivosEquips.filter(ae => ae.aditivo_id === aditivo.id);
           for (const ae of aeqs) {
             if (ae.data_devolucao && ae.data_devolucao <= hoje) {
               delete consolidado[ae.equipamento_id];
