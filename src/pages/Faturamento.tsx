@@ -204,7 +204,7 @@ const Faturamento = () => {
         aditivoExtraEquipIds = [...new Set(aeData.map(ae => ae.equipamento_id))].filter(id => {
           if (equipIds.includes(id)) return false;
           const ae = aditivoEquipMap.get(id);
-          if (ae?.data_devolucao && ae.data_devolucao < inicio) return false;
+          if (ae?.data_devolucao && ae.data_devolucao <= inicio) return false;
           return true;
         });
       }
