@@ -364,6 +364,124 @@ const Contratos = () => {
     return { title: "Relatório de Contratos", headers, rows, filename: `contratos_${new Date().toISOString().slice(0,10)}` };
   };
 
+  const exportSimplePDF = async () => {
+    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+    if (data.length === 0) return;
+
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+
+    const doc = new jsPDF({ orientation: "landscape" });
+    const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+    const hoje = new Date().toISOString().slice(0, 10);
+
+    let y = await addLetterhead(doc, "Relatório de Contratos");
+
+    // --- Tabela principal de contratos ---
+    const mainRows: string[][] = [];
+    data.forEach(i => {
+      const ces = getContratoEquipamentos(i);
+      ces.forEach(ce => {
+        mainRows.push([
+          i.empresas?.nome || "",
+          i.empresas?.cnpj || "",
+          `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}`,
+          ce.equipamentos.tag_placa || "—",
+          fmt(Number(ce.valor_hora)),
+          String(ce.horas_contratadas),
+          parseLocalDate(i.data_inicio).toLocaleDateString("pt-BR"),
+          parseLocalDate(i.data_fim).toLocaleDateString("pt-BR"),
+          i.status,
+        ]);
+      });
+    });
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Empresa", "CNPJ", "Equipamento", "Tag", "Valor/Hora", "Horas", "Início", "Fim", "Status"]],
+      body: mainRows,
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+
+    // --- Resumo de modificações por contrato ---
+    for (const item of data) {
+      const { data: aditivosData } = await supabase
+        .from("contratos_aditivos")
+        .select("*")
+        .eq("contrato_id", item.id)
+        .order("numero", { ascending: true });
+
+      const { data: ajustesData } = await supabase
+        .from("contratos_equipamentos_ajustes")
+        .select("*")
+        .eq("contrato_id", item.id)
+        .order("data_inicio", { ascending: true });
+
+      const hasModifs = (aditivosData && aditivosData.length > 0) || (ajustesData && ajustesData.length > 0);
+      if (!hasModifs) continue;
+
+      if (y > 160) { doc.addPage(); y = 20; }
+
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Modificações — ${item.empresas?.nome || ""} (${item.empresas?.cnpj || ""})`, 14, y);
+      y += 4;
+
+      const modRows: string[][] = [];
+
+      // Aditivos
+      if (aditivosData && aditivosData.length > 0) {
+        let allAeqs: any[] = [];
+        const aditivoIds = aditivosData.map(a => a.id);
+        const { data: aeqs } = await supabase.from("aditivos_equipamentos").select("*").in("aditivo_id", aditivoIds);
+        allAeqs = aeqs || [];
+
+        for (const ad of aditivosData) {
+          const eqCount = allAeqs.filter(ae => ae.aditivo_id === ad.id).length;
+          const devolvidos = allAeqs.filter(ae => ae.aditivo_id === ad.id && ae.data_devolucao && ae.data_devolucao <= hoje).length;
+          const statusAd = ad.data_fim < hoje ? "Encerrado" : ad.data_inicio > hoje ? "Futuro" : "Vigente";
+          modRows.push([
+            `Aditivo #${ad.numero}`,
+            `${parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}`,
+            statusAd,
+            `${eqCount} equip.${devolvidos > 0 ? ` (${devolvidos} devolvido${devolvidos > 1 ? "s" : ""})` : ""}`,
+            ad.motivo || "—",
+          ]);
+        }
+      }
+
+      // Ajustes
+      if (ajustesData && ajustesData.length > 0) {
+        for (const aj of ajustesData) {
+          const eq = equipamentos.find(e => e.id === aj.equipamento_id);
+          const statusAj = aj.data_fim < hoje ? "Encerrado" : aj.data_inicio > hoje ? "Futuro" : "Vigente";
+          modRows.push([
+            "Ajuste Temporário",
+            `${parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}`,
+            statusAj,
+            eq ? `${eq.tipo} ${eq.modelo}` : "—",
+            aj.motivo || "—",
+          ]);
+        }
+      }
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Tipo", "Vigência", "Status", "Detalhes", "Motivo"]],
+        body: modRows,
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [142, 68, 173], textColor: 255 },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    doc.save(`contratos_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   const exportDetailedPDF = async () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
     if (data.length === 0) return;
