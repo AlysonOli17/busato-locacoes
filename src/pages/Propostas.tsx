@@ -799,7 +799,9 @@ const Propostas = () => {
                       <p className="text-xs text-muted-foreground font-mono">{empresa?.cnpj || "—"}</p>
                     </TableCell>
                     <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">—</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {(item as any).propostas_equipamentos?.reduce((sum: number, e: any) => sum + (e.quantidade || 0), 0) || "—"}
+                    </TableCell>
                     <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
