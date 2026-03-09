@@ -675,7 +675,7 @@ const Contratos = () => {
         horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : Number(ce.horas_contratadas),
         data_inicio: ajusteForm.data_inicio,
         data_fim: ajusteForm.data_fim,
-        motivo: ajusteForm.motivo,
+        motivo: ajusteForm.motivo ? `[LOTE] ${ajusteForm.motivo}` : "[LOTE]",
       }));
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
