@@ -1151,7 +1151,10 @@ const Contratos = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-sm text-foreground">{u.equipamento.tipo} {u.equipamento.modelo}</p>
-                          {u.equipamento.tag_placa && <p className="text-xs text-muted-foreground font-mono">{u.equipamento.tag_placa}</p>}
+                          <div className="flex items-center gap-2">
+                            {u.equipamento.tag_placa && <p className="text-xs text-muted-foreground font-mono">{u.equipamento.tag_placa}</p>}
+                            <Badge variant="outline" className="text-xs">{u.origem}</Badge>
+                          </div>
                         </div>
                         <Badge className={status.className}>{status.label}</Badge>
                       </div>
