@@ -1047,6 +1047,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
   );
 
   return embedded ? content : <Layout>{content}</Layout>;
