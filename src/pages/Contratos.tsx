@@ -637,25 +637,59 @@ const Contratos = () => {
   };
 
   const handleSaveAjuste = async () => {
-    if (!ajustesContrato || !ajusteForm.equipamento_id || !ajusteForm.data_inicio || !ajusteForm.data_fim) {
-      toast({ title: "Campos obrigatórios", description: "Preencha equipamento, datas de início e fim.", variant: "destructive" });
+    if (!ajustesContrato || !ajusteForm.data_inicio || !ajusteForm.data_fim) {
+      toast({ title: "Campos obrigatórios", description: "Preencha as datas de início e fim.", variant: "destructive" });
       return;
     }
-    const payload = {
-      contrato_id: ajustesContrato.id,
-      equipamento_id: ajusteForm.equipamento_id,
-      valor_hora: Number(ajusteForm.valor_hora),
-      valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
-      hora_minima: Number(ajusteForm.hora_minima),
-      horas_contratadas: Number(ajusteForm.horas_contratadas),
-      data_inicio: ajusteForm.data_inicio,
-      data_fim: ajusteForm.data_fim,
-      motivo: ajusteForm.motivo,
-    };
+    if (!ajusteTodos && !ajusteForm.equipamento_id) {
+      toast({ title: "Campos obrigatórios", description: "Selecione um equipamento.", variant: "destructive" });
+      return;
+    }
+
     if (editingAjuste) {
+      // Edição: sempre individual
+      const payload = {
+        contrato_id: ajustesContrato.id,
+        equipamento_id: ajusteForm.equipamento_id,
+        valor_hora: Number(ajusteForm.valor_hora),
+        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
+        hora_minima: Number(ajusteForm.hora_minima),
+        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        data_inicio: ajusteForm.data_inicio,
+        data_fim: ajusteForm.data_fim,
+        motivo: ajusteForm.motivo,
+      };
       const { error } = await supabase.from("contratos_equipamentos_ajustes").update(payload).eq("id", editingAjuste.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else if (ajusteTodos) {
+      // Aplicar a todos os equipamentos do contrato
+      const ces = getContratoEquipamentos(ajustesContrato);
+      const rows = ces.map(ce => ({
+        contrato_id: ajustesContrato.id,
+        equipamento_id: ce.equipamento_id,
+        valor_hora: Number(ajusteForm.valor_hora),
+        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
+        hora_minima: Number(ajusteForm.hora_minima),
+        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        data_inicio: ajusteForm.data_inicio,
+        data_fim: ajusteForm.data_fim,
+        motivo: ajusteForm.motivo,
+      }));
+      const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
+      // Individual
+      const payload = {
+        contrato_id: ajustesContrato.id,
+        equipamento_id: ajusteForm.equipamento_id,
+        valor_hora: Number(ajusteForm.valor_hora),
+        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
+        hora_minima: Number(ajusteForm.hora_minima),
+        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        data_inicio: ajusteForm.data_inicio,
+        data_fim: ajusteForm.data_fim,
+        motivo: ajusteForm.motivo,
+      };
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(payload);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
