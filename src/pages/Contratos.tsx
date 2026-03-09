@@ -389,6 +389,8 @@ const Contratos = () => {
           ce.equipamentos.tag_placa || "—",
           fmt(Number(ce.valor_hora)),
           String(ce.horas_contratadas),
+          ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
+          ce.data_devolucao ? parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR") : "—",
           parseLocalDate(i.data_inicio).toLocaleDateString("pt-BR"),
           parseLocalDate(i.data_fim).toLocaleDateString("pt-BR"),
           i.status,
@@ -398,7 +400,7 @@ const Contratos = () => {
 
     autoTable(doc, {
       startY: y,
-      head: [["Empresa", "CNPJ", "Equipamento", "Tag", "Valor/Hora", "Horas", "Início", "Fim", "Status"]],
+      head: [["Empresa", "CNPJ", "Equipamento", "Tag", "Valor/Hora", "Horas", "Entrega", "Devolução", "Início", "Fim", "Status"]],
       body: mainRows,
       styles: { fontSize: 7, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
