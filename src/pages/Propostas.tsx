@@ -643,6 +643,21 @@ const Propostas = () => {
       });
     }
 
+    // OBSERVAÇÕES (if present)
+    if (item.observacoes && item.observacoes.trim()) {
+      const lastTableY = resps && resps.length > 0 ? (doc as any).lastAutoTable.finalY + 10 : 30;
+      let obsY = lastTableY;
+      const obsLines = doc.splitTextToSize(item.observacoes, contentW - 8);
+      const obsHeight = 12 + obsLines.length * 4.5 + 4;
+      obsY = checkPageBreak(obsY, obsHeight);
+
+      obsY = sectionTitle("6. OBSERVAÇÕES", obsY);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...medGray);
+      doc.text(obsLines, margin + 4, obsY);
+    }
+
     // Add footers to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
