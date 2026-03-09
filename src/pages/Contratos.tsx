@@ -721,14 +721,20 @@ const Contratos = () => {
           });
           y = (doc as any).lastAutoTable.finalY + 4;
 
-          const eqs = allAditivosEquips.filter(ae => ae.aditivo_id === aditivo.id);
+          // Filter out equipment that was returned BEFORE this aditivo started
+          const eqs = allAditivosEquips.filter(ae => {
+            if (ae.aditivo_id !== aditivo.id) return false;
+            const devDate = globalDevolucao[ae.equipamento_id] || null;
+            // If equipment was returned before this aditivo's start, exclude it entirely
+            if (devDate && devDate < aditivo.data_inicio) return false;
+            return true;
+          });
           if (eqs.length > 0) {
             autoTable(doc, {
               startY: y,
               head: [["Equipamento", "Tag", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
               body: eqs.map(ae => {
                 const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                // Use global devolucao: check if this equipment was returned within THIS aditivo's period
                 const devDate = globalDevolucao[ae.equipamento_id] || null;
                 const devDentro = devDate && devDate >= aditivo.data_inicio && devDate <= aditivo.data_fim;
                 return [
