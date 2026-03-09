@@ -1041,7 +1041,14 @@ const Contratos = () => {
                           <HoverCardTrigger asChild>
                             <button className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors cursor-pointer">
                               <Package className="h-4 w-4 text-muted-foreground" />
-                              {ces.length + (aditivosPorContrato[item.id] || []).reduce((acc, ad) => acc + (ad.aditivos_equipamentos?.length || 0), 0)} equipamento(s)
+                              {(() => {
+                                const hoje = new Date().toISOString().slice(0, 10);
+                                const countBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje).length;
+                                const countAditivos = (aditivosPorContrato[item.id] || []).reduce((acc, ad) => {
+                                  return acc + (ad.aditivos_equipamentos || []).filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje).length;
+                                }, 0);
+                                return countBase + countAditivos;
+                              })()} equipamento(s)
                               {(aditivosPorContrato[item.id] || []).length > 0 && (
                                 <Badge variant="outline" className="text-[10px]">{(aditivosPorContrato[item.id] || []).length} aditivo(s)</Badge>
                               )}
