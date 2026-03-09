@@ -119,7 +119,7 @@ const Propostas = () => {
 
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes] = await Promise.all([
-      supabase.from("propostas").select("*").order("numero_sequencial", { ascending: false }),
+      supabase.from("propostas").select("*, propostas_equipamentos(quantidade)").order("numero_sequencial", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status").eq("status", "Ativo").order("tipo"),
@@ -799,7 +799,9 @@ const Propostas = () => {
                       <p className="text-xs text-muted-foreground font-mono">{empresa?.cnpj || "—"}</p>
                     </TableCell>
                     <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">—</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {(item as any).propostas_equipamentos?.reduce((sum: number, e: any) => sum + (e.quantidade || 0), 0) || "—"}
+                    </TableCell>
                     <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
