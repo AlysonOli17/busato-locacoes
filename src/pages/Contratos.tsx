@@ -1542,6 +1542,11 @@ const Contratos = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+        <TabsContent value="propostas">
+          <PropostasContent />
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 };
