@@ -633,9 +633,7 @@ const Contratos = () => {
       horas_contratadas: aj.horas_contratadas,
       data_inicio: aj.data_inicio,
       data_fim: aj.data_fim,
-      motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]", ""),
-    });
-    setAjusteFormOpen(true);
+      motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]"setAjusteFormOpen(true);
   };
 
   const handleSaveAjuste = async () => {
@@ -1472,8 +1470,7 @@ const Contratos = () => {
                           <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
                           <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
                         </div>
-                        {aj.motivo && <p className="text-xs text.replace(/^\[LOTE\]\s*/, "")-muted-foreground italic">{aj.motivo}</p>}
-                      </div>
+                        {aj.motivo && <p className="text-xs text.replace(/^\[LOTE\]-muted-foreground italic">{aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "")          </div>
                     );
                   });
                 })()}
