@@ -688,15 +688,28 @@ const Contratos = () => {
 
   const openNewAditivo = () => {
     setEditingAditivo(null);
-    const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
     const nextNumero = aditivos.length > 0 ? Math.max(...aditivos.map(a => a.numero)) + 1 : 1;
-    setAditivoForm({
-      numero: nextNumero,
-      data_inicio: ajustesContrato?.data_fim || "",
-      data_fim: ajustesContrato?.data_fim || "",
-      motivo: "",
-      observacoes: "",
-      equipamentos: ces.map(ce => ({
+
+    // Se existem aditivos anteriores, herdar equipamentos do último aditivo
+    const sortedAditivos = [...aditivos].sort((a, b) => b.numero - a.numero);
+    const ultimoAditivo = sortedAditivos.length > 0 ? sortedAditivos[0] : null;
+
+    let equipamentosBase: FormEquipItem[];
+    if (ultimoAditivo && ultimoAditivo.aditivos_equipamentos && ultimoAditivo.aditivos_equipamentos.length > 0) {
+      // Herdar do último aditivo
+      equipamentosBase = ultimoAditivo.aditivos_equipamentos.map(ae => ({
+        equipamento_id: ae.equipamento_id,
+        valor_hora: Number(ae.valor_hora),
+        horas_contratadas: Number(ae.horas_contratadas),
+        valor_hora_excedente: Number(ae.valor_hora_excedente),
+        hora_minima: Number(ae.hora_minima),
+        data_entrega: ae.data_entrega || "",
+        data_devolucao: ae.data_devolucao || "",
+      }));
+    } else {
+      // Herdar do contrato original
+      const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+      equipamentosBase = ces.map(ce => ({
         equipamento_id: ce.equipamento_id,
         valor_hora: Number(ce.valor_hora),
         horas_contratadas: Number(ce.horas_contratadas),
@@ -704,7 +717,16 @@ const Contratos = () => {
         hora_minima: Number(ce.hora_minima),
         data_entrega: ce.data_entrega || "",
         data_devolucao: ce.data_devolucao || "",
-      })),
+      }));
+    }
+
+    setAditivoForm({
+      numero: nextNumero,
+      data_inicio: "",
+      data_fim: ajustesContrato?.data_fim || "",
+      motivo: "",
+      observacoes: "",
+      equipamentos: equipamentosBase,
     });
     setAditivoFormOpen(true);
   };
