@@ -666,6 +666,7 @@ const Contratos = () => {
               head: [["Equipamento", "Tag", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
               body: eqs.map(ae => {
                 const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                const devDentro = ae.data_devolucao && ae.data_devolucao >= aditivo.data_inicio && ae.data_devolucao <= aditivo.data_fim;
                 return [
                   eq ? `${eq.tipo} - ${eq.modelo}` : ae.equipamento_id,
                   eq?.tag_placa || "—",
@@ -674,7 +675,7 @@ const Contratos = () => {
                   `${ae.horas_contratadas}h`,
                   `${ae.hora_minima}h`,
                   ae.data_entrega ? parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR") : "—",
-                  ae.data_devolucao ? parseLocalDate(ae.data_devolucao).toLocaleDateString("pt-BR") : "—",
+                  devDentro ? parseLocalDate(ae.data_devolucao!).toLocaleDateString("pt-BR") : "—",
                 ];
               }),
               styles: { fontSize: 8, cellPadding: 2 },
