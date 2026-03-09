@@ -633,7 +633,7 @@ const Contratos = () => {
       horas_contratadas: aj.horas_contratadas,
       data_inicio: aj.data_inicio,
       data_fim: aj.data_fim,
-      motivo: aj.motivo,
+      motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]", ""),
     });
     setAjusteFormOpen(true);
   };
@@ -675,7 +675,7 @@ const Contratos = () => {
         horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : Number(ce.horas_contratadas),
         data_inicio: ajusteForm.data_inicio,
         data_fim: ajusteForm.data_fim,
-        motivo: ajusteForm.motivo,
+        motivo: ajusteForm.motivo ? `[LOTE] ${ajusteForm.motivo}` : "[LOTE]",
       }));
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
@@ -1343,7 +1343,7 @@ const Contratos = () => {
                       other.data_fim === aj.data_fim &&
                       Math.abs(new Date(other.created_at).getTime() - new Date(aj.created_at).getTime()) < 5000
                     );
-                    const isBulk = siblings.length > 1 && siblings.length >= ces.length;
+                    const isBulk = aj.motivo?.startsWith("[LOTE]") || (siblings.length > 1 && siblings.length >= ces.length);
                     siblings.forEach(s => used.add(s.id));
                     groups.push({ key: siblings.map(s => s.id).join(","), items: siblings, isBulk });
                   });
@@ -1412,7 +1412,7 @@ const Contratos = () => {
                             {changedFields.includes("Hora Mínima") && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
                             {changedFields.includes("Horas Contratadas") && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
                           </div>
-                          {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
+                          {aj.motivo && aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "").trim() && <p className="text-xs text-muted-foreground italic">{aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "")}</p>}
                         </div>
                       );
                     }
@@ -1472,7 +1472,7 @@ const Contratos = () => {
                           <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
                           <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
                         </div>
-                        {aj.motivo && <p className="text-xs text-muted-foreground italic">{aj.motivo}</p>}
+                        {aj.motivo && aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "").trim() && <p className="text-xs text-muted-foreground italic">{aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "")}</p>}
                       </div>
                     );
                   });
