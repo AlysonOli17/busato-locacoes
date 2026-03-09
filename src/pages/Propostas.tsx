@@ -1046,9 +1046,12 @@ const Propostas = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Layout>
   );
+
+  return embedded ? content : <Layout>{content}</Layout>;
 };
+
+export const PropostasContent = () => <Propostas embedded />;
 
 // Logo loader for PDF
 let pdfLogoCache: string | null = null;
