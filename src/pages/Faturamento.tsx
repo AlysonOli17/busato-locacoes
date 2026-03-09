@@ -199,7 +199,13 @@ const Faturamento = () => {
           }
         }
         // Find equipment IDs from addendums not already in the contract
-        aditivoExtraEquipIds = [...new Set(aeData.map(ae => ae.equipamento_id))].filter(id => !equipIds.includes(id));
+        // Also exclude addendum equipment returned before the billing period
+        aditivoExtraEquipIds = [...new Set(aeData.map(ae => ae.equipamento_id))].filter(id => {
+          if (equipIds.includes(id)) return false;
+          const ae = aditivoEquipMap.get(id);
+          if (ae?.data_devolucao && ae.data_devolucao < inicio) return false;
+          return true;
+        });
       }
     }
 
