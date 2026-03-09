@@ -537,7 +537,7 @@ const Contratos = () => {
 
     const doc = new jsPDF({ orientation: "portrait" });
     const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-
+    const hoje = new Date().toISOString().slice(0, 10);
     for (let idx = 0; idx < data.length; idx++) {
       const item = data[idx];
       if (idx > 0) doc.addPage();
