@@ -633,7 +633,9 @@ const Contratos = () => {
       horas_contratadas: aj.horas_contratadas,
       data_inicio: aj.data_inicio,
       data_fim: aj.data_fim,
-      motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]"setAjusteFormOpen(true);
+      motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]", ""),
+    });
+    setAjusteFormOpen(true);
   };
 
   const handleSaveAjuste = async () => {
