@@ -1359,19 +1359,28 @@ const Contratos = () => {
                               {(() => {
                                 const hoje = new Date().toISOString().slice(0, 10);
                                 const allAditivos = (aditivosPorContrato[item.id] || []);
-                                // Find the latest addendum (highest numero) that is currently active or most recent
+                                // Build global devolucao map across ALL sources
+                                const globalDev: Record<string, string | null> = {};
+                                for (const ce of ces) {
+                                  if (ce.data_devolucao && (!globalDev[ce.equipamento_id] || ce.data_devolucao > globalDev[ce.equipamento_id]!)) globalDev[ce.equipamento_id] = ce.data_devolucao;
+                                }
+                                for (const ad of allAditivos) {
+                                  for (const ae of (ad.aditivos_equipamentos || [])) {
+                                    if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id]!)) globalDev[ae.equipamento_id] = ae.data_devolucao;
+                                  }
+                                }
+                                const isDevolvido = (eqId: string) => { const d = globalDev[eqId]; return d && d <= hoje; };
+
                                 const vigentes = allAditivos.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
                                 const ultimoAditivo = vigentes.length > 0
                                   ? vigentes.reduce((latest, ad) => ad.numero > latest.numero ? ad : latest, vigentes[0])
                                   : null;
                                 
                                 if (ultimoAditivo) {
-                                  // Count only from the last active addendum
                                   return (ultimoAditivo.aditivos_equipamentos || [])
-                                    .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje).length;
+                                    .filter((ae: any) => !isDevolvido(ae.equipamento_id)).length;
                                 }
-                                // No active addendum — use base contract
-                                return ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje).length;
+                                return ces.filter(ce => !isDevolvido(ce.equipamento_id)).length;
                               })()} equipamento(s)
                               {(aditivosPorContrato[item.id] || []).length > 0 && (
                                 <Badge variant="outline" className="text-[10px]">{(aditivosPorContrato[item.id] || []).length} aditivo(s)</Badge>
