@@ -113,6 +113,7 @@ const Propostas = () => {
   const [responsabilidades, setResponsabilidades] = useState<PropostaResp[]>(defaultResp);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showObservacoes, setShowObservacoes] = useState(false);
   const { toast } = useToast();
   const { role, user } = useAuth();
 
@@ -146,6 +147,7 @@ const Propostas = () => {
     setForm(emptyForm);
     setEquipamentos([{ equipamento_tipo: "", quantidade: 1, valor_hora: 0, franquia_mensal: 0 }]);
     setResponsabilidades([...defaultResp]);
+    setShowObservacoes(false);
     setDialogOpen(true);
   };
 
@@ -197,6 +199,7 @@ const Propostas = () => {
       responsavel_cliente: r.responsavel_cliente,
     }));
     setResponsabilidades(loadedResps.length > 0 ? loadedResps : [...defaultResp]);
+    setShowObservacoes(!!(item.observacoes && item.observacoes.trim()));
 
     setDialogOpen(true);
   };
@@ -640,6 +643,21 @@ const Propostas = () => {
       });
     }
 
+    // OBSERVAÇÕES (if present)
+    if (item.observacoes && item.observacoes.trim()) {
+      const lastTableY = resps && resps.length > 0 ? (doc as any).lastAutoTable.finalY + 10 : 30;
+      let obsY = lastTableY;
+      const obsLines = doc.splitTextToSize(item.observacoes, contentW - 8);
+      const obsHeight = 12 + obsLines.length * 4.5 + 4;
+      obsY = checkPageBreak(obsY, obsHeight);
+
+      obsY = sectionTitle("6. OBSERVAÇÕES", obsY);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...medGray);
+      doc.text(obsLines, margin + 4, obsY);
+    }
+
     // Add footers to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
@@ -997,9 +1015,27 @@ const Propostas = () => {
               ))}
             </div>
 
+            {/* Observações toggle */}
             <div>
-              <Label>Observações</Label>
-              <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3} />
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={showObservacoes ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setShowObservacoes(prev => {
+                      if (prev) setForm(f => ({ ...f, observacoes: "" }));
+                      return !prev;
+                    });
+                  }}
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  {showObservacoes ? "Remover Observações" : "Adicionar Observações"}
+                </Button>
+              </div>
+              {showObservacoes && (
+                <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3} placeholder="Digite as observações da proposta..." />
+              )}
             </div>
           </div>
 
