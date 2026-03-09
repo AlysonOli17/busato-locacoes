@@ -169,8 +169,8 @@ const Faturamento = () => {
     // We'll do the final filtering after we know about addendums, but pre-filter obvious cases
     const equipIds = allEquipIds.filter(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
-      // Exclude if data_devolucao exists and is before the period start
-      if (ce?.data_devolucao && ce.data_devolucao < inicio) return false;
+      // Exclude if data_devolucao exists and is on or before the period start
+      if (ce?.data_devolucao && ce.data_devolucao <= inicio) return false;
       return true;
     });
 
