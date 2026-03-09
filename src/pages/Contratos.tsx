@@ -606,6 +606,7 @@ const Contratos = () => {
   const openNewAjuste = (equipId?: string) => {
     setEditingAjuste(null);
     setAjusteTodos(false);
+    setAjusteCampos({ valor_hora: true, valor_hora_excedente: true, hora_minima: true, horas_contratadas: true });
     const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
     const firstEquip = equipId || (ces.length > 0 ? ces[0].equipamento_id : "");
     const ce = ces.find(c => c.equipamento_id === firstEquip);
