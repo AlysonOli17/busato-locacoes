@@ -164,8 +164,9 @@ const Faturamento = () => {
 
     const ceList = ct.contratos_equipamentos || [];
     // If no contratos_equipamentos, fallback to the main contract equipment
-    // Filter out equipment already returned before the billing period
     const allEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
+
+    // We'll do the final filtering after we know about addendums, but pre-filter obvious cases
     const equipIds = allEquipIds.filter(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       // Exclude if data_devolucao exists and is before the period start
