@@ -236,7 +236,16 @@ const Faturamento = () => {
     const ajustesData = ajustesRes.data || [];
 
     // Build per-equipment form items (including extra equipment from addendums)
-    const newEquipForms: EquipFormItem[] = allEquipIdsWithAditivos.map(eqId => {
+    // Final filter: exclude equipment whose effective data_devolucao is before the period start
+    const filteredEquipIds = allEquipIdsWithAditivos.filter(eqId => {
+      const ce = ceList.find(c => c.equipamento_id === eqId);
+      const ae = aditivoEquipMap.get(eqId);
+      // Effective devolucao: addendum overrides base contract
+      const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+      if (dataDevolucao && dataDevolucao < inicio) return false;
+      return true;
+    });
+    const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const eq = equipMap.get(eqId);
       const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
