@@ -144,6 +144,7 @@ const Contratos = () => {
   const [ajusteFormOpen, setAjusteFormOpen] = useState(false);
   const [editingAjuste, setEditingAjuste] = useState<AjusteTemporario | null>(null);
   const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_id: "", valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
+  const [ajusteTodos, setAjusteTodos] = useState(false);
   // Aditivos
   const [aditivos, setAditivos] = useState<Aditivo[]>([]);
   const [aditivoFormOpen, setAditivoFormOpen] = useState(false);
