@@ -1430,7 +1430,7 @@ const Contratos = () => {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <CalendarRange className="h-4 w-4 text-accent" />
-                              <span className="font-medium text-sm">Todo o Contrato</span>
+                              <span className="font-medium text-sm">Ajuste de Contrato</span>
                               <Badge variant="secondary" className="text-xs">Lote · {group.items.length} equip.</Badge>
                               {ativo && <Badge className="bg-accent text-accent-foreground text-xs">Ativo</Badge>}
                               {passado && <Badge variant="outline" className="text-xs">Encerrado</Badge>}
