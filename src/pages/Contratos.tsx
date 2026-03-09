@@ -1523,9 +1523,9 @@ const Contratos = () => {
                         )}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                           <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
-                          <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>
-                          <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>
-                          <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>
+                          {(indivChanges.length === 0 || indivChanges.includes("Valor/Hora")) && <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>}
+                          {(indivChanges.length === 0 || indivChanges.includes("Hora Mínima")) && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
+                          {(indivChanges.length === 0 || indivChanges.includes("Horas Contratadas")) && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
                         </div>
                         {aj.motivo && aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "").trim() && <p className="text-xs text-muted-foreground italic">{aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "")}</p>}
                       </div>
