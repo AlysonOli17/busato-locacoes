@@ -727,11 +727,14 @@ const Contratos = () => {
           });
           y = (doc as any).lastAutoTable.finalY + 4;
 
-          // Filter out equipment that was returned BEFORE this aditivo started
+          // Filter out equipment that was returned BEFORE or ON the start of this aditivo
           const eqs = allAditivosEquips.filter(ae => {
             if (ae.aditivo_id !== aditivo.id) return false;
-            const devDate = globalDevolucao[ae.equipamento_id] || null;
-            // If equipment was returned before this aditivo's start, exclude it entirely
+            // Check both the record's own devolucao AND the global map
+            const devFromRecord = ae.data_devolucao || null;
+            const devFromGlobal = globalDevolucao[ae.equipamento_id] || null;
+            const devDate = devFromRecord || devFromGlobal;
+            // If equipment was returned before this aditivo started, exclude it
             if (devDate && devDate < aditivo.data_inicio) return false;
             return true;
           });
