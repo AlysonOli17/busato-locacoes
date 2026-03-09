@@ -1343,7 +1343,7 @@ const Contratos = () => {
                       other.data_fim === aj.data_fim &&
                       Math.abs(new Date(other.created_at).getTime() - new Date(aj.created_at).getTime()) < 5000
                     );
-                    const isBulk = siblings.length > 1 && siblings.length >= ces.length;
+                    const isBulk = aj.motivo?.startsWith("[LOTE]") || (siblings.length > 1 && siblings.length >= ces.length);
                     siblings.forEach(s => used.add(s.id));
                     groups.push({ key: siblings.map(s => s.id).join(","), items: siblings, isBulk });
                   });
