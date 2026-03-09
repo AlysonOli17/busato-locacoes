@@ -530,17 +530,33 @@ const Propostas = () => {
     });
     y = (doc as any).lastAutoTable.finalY + 8;
 
+    // Bottom margin – content must not go below this Y to avoid overlapping the footer
+    const bottomLimit = ph - 25;
+
+    // Helper: check page break before rendering content of a given height
+    const checkPageBreak = (yPos: number, neededHeight: number): number => {
+      if (yPos + neededHeight > bottomLimit) {
+        doc.addPage();
+        addInnerHeader();
+        return 30;
+      }
+      return yPos;
+    };
+
     // Sub-items
     const subItem = (num: string, title: string, text: string, yPos: number) => {
       doc.setFontSize(9);
+      const lines = doc.splitTextToSize(text, contentW - 8);
+      const itemHeight = 5 + lines.length * 4.5 + 4;
+      yPos = checkPageBreak(yPos, itemHeight);
+
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...darkGray);
       doc.text(`${num} ${title}`, margin + 4, yPos);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...medGray);
-      const lines = doc.splitTextToSize(text, contentW - 8);
       doc.text(lines, margin + 4, yPos + 5);
-      return yPos + 5 + lines.length * 4.5 + 4;
+      return yPos + itemHeight;
     };
 
     if (item.valor_mobilizacao > 0 || item.valor_mobilizacao_texto) {
@@ -563,7 +579,7 @@ const Propostas = () => {
     }
 
     // Check if we need a new page for payment section
-    if (y > ph - 80) {
+    if (y > bottomLimit - 60) {
       doc.addPage();
       addInnerHeader();
       y = 30;
