@@ -1729,6 +1729,50 @@ const Contratos = () => {
               <div><Label>Data Início</Label><Input type="date" value={ajusteForm.data_inicio} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_inicio: e.target.value }))} /></div>
               <div><Label>Data Fim</Label><Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} /></div>
             </div>
+            {ajusteTodos && ajusteForm.data_inicio && ajusteForm.data_fim && (() => {
+              const ajInicio = parseLocalDate(ajusteForm.data_inicio);
+              const ajFim = parseLocalDate(ajusteForm.data_fim);
+              const equipIds = new Set<string>();
+              const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+              ces.forEach(ce => {
+                const ent = ce.data_entrega ? parseLocalDate(ce.data_entrega) : null;
+                const dev = ce.data_devolucao ? parseLocalDate(ce.data_devolucao) : null;
+                if (ent && ent > ajFim) return;
+                if (dev && dev < ajInicio) return;
+                equipIds.add(ce.equipamento_id);
+              });
+              const contratoAditivos = aditivos.filter(a => a.contrato_id === ajustesContrato?.id);
+              contratoAditivos.forEach(ad => {
+                const adI = parseLocalDate(ad.data_inicio);
+                const adF = parseLocalDate(ad.data_fim);
+                if (adI > ajFim || adF < ajInicio) return;
+                (ad.aditivos_equipamentos || []).forEach(ae => {
+                  const ent = ae.data_entrega ? parseLocalDate(ae.data_entrega) : null;
+                  const dev = ae.data_devolucao ? parseLocalDate(ae.data_devolucao) : null;
+                  if (ent && ent > ajFim) return;
+                  if (dev && dev < ajInicio) return;
+                  equipIds.add(ae.equipamento_id);
+                });
+              });
+              const names = Array.from(equipIds).map(id => {
+                const eq = equipamentos.find(e => e.id === id);
+                return eq ? `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}` : id;
+              });
+              return (
+                <div className="p-3 rounded-lg border bg-accent/10 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">{equipIds.size} equipamento{equipIds.size !== 1 ? "s" : ""}</Badge>
+                    <span className="text-xs text-muted-foreground">serão afetados neste período</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {names.map((n, i) => (
+                      <Badge key={i} variant="outline" className="text-xs font-normal">{n}</Badge>
+                    ))}
+                  </div>
+                  {equipIds.size === 0 && <p className="text-xs text-destructive">Nenhum equipamento ativo neste período.</p>}
+                </div>
+              );
+            })()}
             <div className="grid grid-cols-2 gap-3">
               <div className={ajusteTodos && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><Input type="number" value={ajusteForm.valor_hora || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora: Number(e.target.value) }))} /></div>
               <div className={ajusteTodos && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><Input type="number" value={ajusteForm.valor_hora_excedente || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: Number(e.target.value) }))} /></div>
