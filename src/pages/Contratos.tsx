@@ -534,6 +534,43 @@ const Contratos = () => {
       });
       y = (doc as any).lastAutoTable.finalY + 8;
 
+      // --- Fetch ALL aditivos + their equipment upfront to build global devolucao map ---
+      const { data: aditivosData } = await supabase
+        .from("contratos_aditivos")
+        .select("*")
+        .eq("contrato_id", item.id)
+        .order("numero", { ascending: true });
+
+      let allAditivosEquips: any[] = [];
+      if (aditivosData && aditivosData.length > 0) {
+        const aditivoIds = aditivosData.map(a => a.id);
+        const { data: aditivosEquips } = await supabase
+          .from("aditivos_equipamentos")
+          .select("*")
+          .in("aditivo_id", aditivoIds);
+        allAditivosEquips = aditivosEquips || [];
+      }
+
+      // Build a global map: for each equipamento_id, find the actual data_devolucao
+      // from ANY source (base contract equips OR any aditivo equip)
+      const globalDevolucao: Record<string, string | null> = {};
+      for (const ce of ces) {
+        if (ce.data_devolucao) {
+          const existing = globalDevolucao[ce.equipamento_id];
+          if (!existing || ce.data_devolucao > existing) {
+            globalDevolucao[ce.equipamento_id] = ce.data_devolucao;
+          }
+        }
+      }
+      for (const ae of allAditivosEquips) {
+        if (ae.data_devolucao) {
+          const existing = globalDevolucao[ae.equipamento_id];
+          if (!existing || ae.data_devolucao > existing) {
+            globalDevolucao[ae.equipamento_id] = ae.data_devolucao;
+          }
+        }
+      }
+
       doc.setFontSize(12);
       doc.setTextColor(41, 128, 185);
       doc.text(`Equipamentos (${ces.length})`, 14, y);
@@ -543,7 +580,8 @@ const Contratos = () => {
         startY: y,
         head: [equipHeaders],
         body: ces.map(ce => {
-          const devDentro = ce.data_devolucao && ce.data_devolucao >= item.data_inicio && ce.data_devolucao <= item.data_fim;
+          const devDate = globalDevolucao[ce.equipamento_id] || null;
+          const devDentro = devDate && devDate >= item.data_inicio && devDate <= item.data_fim;
           return [
             ce.equipamentos.tipo || "—",
             ce.equipamentos.modelo || "—",
@@ -552,7 +590,7 @@ const Contratos = () => {
             fmt(Number(ce.valor_hora)),
             `${ce.horas_contratadas}h`,
             ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
-            devDentro ? parseLocalDate(ce.data_devolucao!).toLocaleDateString("pt-BR") : "—",
+            devDentro ? parseLocalDate(devDate!).toLocaleDateString("pt-BR") : "—",
           ];
         }),
         styles: { fontSize: 8, cellPadding: 2 },
@@ -621,20 +659,7 @@ const Contratos = () => {
       }
 
       // --- Aditivos ---
-      const { data: aditivosData } = await supabase
-        .from("contratos_aditivos")
-        .select("*")
-        .eq("contrato_id", item.id)
-        .order("numero", { ascending: true });
-
-      let allAditivosEquips: any[] = [];
       if (aditivosData && aditivosData.length > 0) {
-        const aditivoIds = aditivosData.map(a => a.id);
-        const { data: aditivosEquips } = await supabase
-          .from("aditivos_equipamentos")
-          .select("*")
-          .in("aditivo_id", aditivoIds);
-        allAditivosEquips = aditivosEquips || [];
         for (const aditivo of aditivosData) {
           if (y > 220) { doc.addPage(); y = 20; }
           const now = new Date();
@@ -668,7 +693,9 @@ const Contratos = () => {
               head: [["Equipamento", "Tag", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
               body: eqs.map(ae => {
                 const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                const devDentro = ae.data_devolucao && ae.data_devolucao >= aditivo.data_inicio && ae.data_devolucao <= aditivo.data_fim;
+                // Use global devolucao: check if this equipment was returned within THIS aditivo's period
+                const devDate = globalDevolucao[ae.equipamento_id] || null;
+                const devDentro = devDate && devDate >= aditivo.data_inicio && devDate <= aditivo.data_fim;
                 return [
                   eq ? `${eq.tipo} - ${eq.modelo}` : ae.equipamento_id,
                   eq?.tag_placa || "—",
@@ -677,7 +704,7 @@ const Contratos = () => {
                   `${ae.horas_contratadas}h`,
                   `${ae.hora_minima}h`,
                   ae.data_entrega ? parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR") : "—",
-                  devDentro ? parseLocalDate(ae.data_devolucao!).toLocaleDateString("pt-BR") : "—",
+                  devDentro ? parseLocalDate(devDate!).toLocaleDateString("pt-BR") : "—",
                 ];
               }),
               styles: { fontSize: 8, cellPadding: 2 },
@@ -688,7 +715,6 @@ const Contratos = () => {
           }
         }
       }
-
       // --- Valor Previsto Final (consolidado com todas as modificações) ---
       if (y > 220) { doc.addPage(); y = 20; }
       
