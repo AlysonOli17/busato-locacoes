@@ -573,12 +573,16 @@ const Contratos = () => {
       if (y > 220) { doc.addPage(); y = 20; }
       
       // Build final consolidated equipment map: latest values per equipment
+      // Only show currently ACTIVE equipment (not returned)
       const hoje = new Date().toISOString().slice(0, 10);
       const consolidado: Record<string, { tipo: string; modelo: string; tag: string; valor_hora: number; horas_contratadas: number; hora_minima: number; valor_hora_excedente: number; origem: string }> = {};
       
-      // Start with base contract equipment (not returned)
+      // Track the latest data_devolucao per equipment across all sources
+      const latestDevolucao: Record<string, string | null> = {};
+      
+      // Start with base contract equipment
       for (const ce of ces) {
-        if (ce.data_devolucao && ce.data_devolucao <= hoje) continue;
+        latestDevolucao[ce.equipamento_id] = ce.data_devolucao || null;
         consolidado[ce.equipamento_id] = {
           tipo: ce.equipamentos.tipo,
           modelo: ce.equipamentos.modelo,
@@ -591,16 +595,15 @@ const Contratos = () => {
         };
       }
       
-      // Override with aditivos vigentes
+      // Override with aditivos (sorted by numero, so last one wins)
       if (aditivosData && aditivosData.length > 0) {
-        for (const aditivo of aditivosData) {
+        const sortedAditivos = [...aditivosData].sort((a, b) => a.numero - b.numero);
+        for (const aditivo of sortedAditivos) {
           if (aditivo.data_fim < hoje) continue;
           const aeqs = allAditivosEquips.filter(ae => ae.aditivo_id === aditivo.id);
           for (const ae of aeqs) {
-            if (ae.data_devolucao && ae.data_devolucao <= hoje) {
-              delete consolidado[ae.equipamento_id];
-              continue;
-            }
+            // Update devolucao tracking — latest aditivo's value takes precedence
+            latestDevolucao[ae.equipamento_id] = ae.data_devolucao || null;
             const eq = equipamentos.find(e => e.id === ae.equipamento_id);
             consolidado[ae.equipamento_id] = {
               tipo: eq?.tipo || "—",
@@ -613,6 +616,14 @@ const Contratos = () => {
               origem: `Aditivo #${aditivo.numero}`,
             };
           }
+        }
+      }
+      
+      // Remove all equipment that has been returned (data_devolucao <= hoje)
+      for (const eqId of Object.keys(consolidado)) {
+        const dev = latestDevolucao[eqId];
+        if (dev && dev <= hoje) {
+          delete consolidado[eqId];
         }
       }
       
