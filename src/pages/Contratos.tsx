@@ -406,11 +406,14 @@ const Contratos = () => {
 
     // --- Tabela principal de contratos ---
     const mainRows: string[][] = [];
+    const hoje = new Date().toISOString().slice(0, 10);
     data.forEach(i => {
       const ces = getContratoEquipamentos(i);
       const globalDev = globalDevolucaoByContrato[i.id] || {};
       ces.forEach(ce => {
         const devDate = globalDev[ce.equipamento_id] || null;
+        // Skip equipment already returned (devolução before today)
+        if (devDate && devDate < hoje) return;
         mainRows.push([
           i.empresas?.nome || "",
           i.empresas?.cnpj || "",
