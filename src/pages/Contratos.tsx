@@ -472,9 +472,15 @@ const Contratos = () => {
         allAeqs = aeqs || [];
 
         for (const ad of aditivosData) {
-          const adEqs = allAeqs.filter(ae => ae.aditivo_id === ad.id);
+          // Filter out equipment returned before this aditivo started
+          const adEqs = allAeqs.filter(ae => {
+            if (ae.aditivo_id !== ad.id) return false;
+            const devDate = globalDev[ae.equipamento_id];
+            if (devDate && devDate < ad.data_inicio) return false;
+            return true;
+          });
           const eqCount = adEqs.length;
-          // Count devolvidos using global map: equipment returned within this aditivo's period
+          // Count devolvidos: equipment returned within this aditivo's period
           const devolvidos = adEqs.filter(ae => {
             const devDate = globalDev[ae.equipamento_id];
             return devDate && devDate >= ad.data_inicio && devDate <= ad.data_fim;
