@@ -147,6 +147,7 @@ const Propostas = () => {
     setForm(emptyForm);
     setEquipamentos([{ equipamento_tipo: "", quantidade: 1, valor_hora: 0, franquia_mensal: 0 }]);
     setResponsabilidades([...defaultResp]);
+    setShowObservacoes(false);
     setDialogOpen(true);
   };
 
