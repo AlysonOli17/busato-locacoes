@@ -406,7 +406,7 @@ const Contratos = () => {
 
     // --- Tabela principal de contratos ---
     const mainRows: string[][] = [];
-    const hoje = new Date().toISOString().slice(0, 10);
+    
     data.forEach(i => {
       const ces = getContratoEquipamentos(i);
       const globalDev = globalDevolucaoByContrato[i.id] || {};
