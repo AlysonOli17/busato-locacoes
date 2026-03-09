@@ -781,7 +781,7 @@ const Contratos = () => {
       
       // Build final consolidated equipment map: latest values per equipment
       // Only show currently ACTIVE equipment (not returned)
-      const hoje = new Date().toISOString().slice(0, 10);
+      
       const consolidado: Record<string, { tipo: string; modelo: string; tag: string; valor_hora: number; horas_contratadas: number; hora_minima: number; valor_hora_excedente: number; origem: string }> = {};
       
       // Track the latest data_devolucao per equipment across all sources
