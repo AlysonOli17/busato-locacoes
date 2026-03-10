@@ -396,10 +396,6 @@ const Apolices = () => {
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
               <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
             </Button>
-            <input type="file" ref={fileInputRef} accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-              <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : "Importar Excel"}
-            </Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" /> Nova Apólice
             </Button>
