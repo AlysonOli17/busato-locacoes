@@ -999,7 +999,7 @@ const Apolices = () => {
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Franquia (R$)</Label>
                     <Input type="number" step="0.01" value={sinistroForm.franquia} onChange={e => setSinistroForm(p => ({ ...p, franquia: Number(e.target.value) }))} />
