@@ -897,27 +897,13 @@ const Faturamento = () => {
     setDialogOpen(true);
   };
 
-  const handleContratoSelect = async (contratoId: string) => {
+  const handleContratoSelect = (contratoId: string) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
       const dates = calcMedicaoDates(ct);
       setFormContratoId(contratoId);
       setFormMedicaoInicio(dates.inicio);
       setFormMedicaoFim(dates.fim);
-
-      // Check for sinistros on contract equipment
-      const equipIds = ct.contratos_equipamentos?.map(ce => ce.equipamento_id) || [ct.equipamento_id];
-      const { data: sinistros } = await supabase
-        .from("sinistros")
-        .select("id, equipamento_id, tipo_sinistro, franquia, data_sinistro, equipamentos(tipo, modelo, tag_placa), apolices(seguradora)")
-        .in("equipamento_id", equipIds)
-        .eq("status", "Aberto");
-      if (sinistros && sinistros.length > 0) {
-        setSinistroAlerts(sinistros as unknown as SinistroAlert[]);
-        setSinistroAlertShown(true);
-      } else {
-        setSinistroAlerts([]);
-      }
     }
   };
 
