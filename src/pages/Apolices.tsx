@@ -958,14 +958,16 @@ const Apolices = () => {
               <div className="space-y-4">
                 <div>
                   <Label>Apólice *</Label>
-                  <Select value={sinistroForm.apolice_id} onValueChange={(v) => setSinistroForm(p => ({ ...p, apolice_id: v, equipamento_id: "" }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione a apólice" /></SelectTrigger>
-                    <SelectContent>
-                      {items.filter(a => a.status === "Vigente").map(a => (
-                        <SelectItem key={a.id} value={a.id}>{a.seguradora} — {getEquipLabels(a)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={items.filter(a => a.status === "Vigente").map(a => ({
+                      value: a.id,
+                      label: `${a.seguradora} — ${getEquipLabels(a)}`,
+                    }))}
+                    value={sinistroForm.apolice_id}
+                    onValueChange={(v) => setSinistroForm(p => ({ ...p, apolice_id: v, equipamento_id: "" }))}
+                    placeholder="Selecione a apólice"
+                    searchPlaceholder="Pesquisar apólice..."
+                  />
                 </div>
                 <div>
                   <Label>Equipamento *</Label>
