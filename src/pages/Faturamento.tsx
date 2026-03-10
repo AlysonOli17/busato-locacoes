@@ -274,17 +274,16 @@ const Faturamento = () => {
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       const horasMedidas = filteredMedicoes.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
-      // Priority: ajuste > aditivo > contrato_equipamento > contrato
-      // For each field, only use ajuste value if it's > 0 (meaning it was intentionally set)
-      // For hora_minima, 0 is valid (no minimum), so we check if ajuste has ANY non-zero field to confirm it's a real override
+      // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
+      // Ajustes now save original values for unchecked fields, so we can use them directly
       const baseValorHora = aditivo ? Number(aditivo.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
       const baseValorExcedente = aditivo ? Number(aditivo.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : baseValorHora * 1.25;
       const baseHorasContratadas = aditivo ? Number(aditivo.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
       const baseHoraMinima = aditivo ? Number(aditivo.hora_minima) : ce ? Number(ce.hora_minima) : 0;
 
-      const valorHora = ajuste && Number(ajuste.valor_hora) > 0 ? Number(ajuste.valor_hora) : baseValorHora;
-      const valorExcedente = ajuste && Number(ajuste.valor_hora_excedente) > 0 ? Number(ajuste.valor_hora_excedente) : baseValorExcedente;
-      let horasContratadas = ajuste && Number(ajuste.horas_contratadas) > 0 ? Number(ajuste.horas_contratadas) : baseHorasContratadas;
+      const valorHora = ajuste ? Number(ajuste.valor_hora) : baseValorHora;
+      const valorExcedente = ajuste ? Number(ajuste.valor_hora_excedente) : baseValorExcedente;
+      let horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : baseHorasContratadas;
       let horaMinima = ajuste ? Number(ajuste.hora_minima) : baseHoraMinima;
       const horasContratadasOriginal = horasContratadas;
       const horasMinimaOriginal = horaMinima;
