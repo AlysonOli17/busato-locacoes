@@ -1009,7 +1009,7 @@ const Apolices = () => {
                     <Input type="date" value={sinistroForm.data_sinistro} onChange={e => setSinistroForm(p => ({ ...p, data_sinistro: e.target.value }))} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Previsão de Retorno</Label>
                     <Input type="date" value={sinistroForm.data_previsao_retorno} onChange={e => setSinistroForm(p => ({ ...p, data_previsao_retorno: e.target.value }))} />
