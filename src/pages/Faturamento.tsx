@@ -305,16 +305,33 @@ const Faturamento = () => {
       const horasContratadasOriginal = horasContratadas;
       const horasMinimaOriginal = horaMinima;
 
-      const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim;
-      if (temDevolucaoNoPeriodo) {
+      // Auto-apply proportional for delivery date within period (primeiro mês)
+      const temEntregaNoPeriodo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim;
+      if (temEntregaNoPeriodo) {
         const inicioDate = parseLocalDate(inicio);
         const fimDate = parseLocalDate(fim);
-        const devolucaoDate = parseLocalDate(dataDevolucao);
+        const entregaDate = parseLocalDate(dataEntrega);
         const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const fatorEntrega = diasUsados / diasTotais;
+        horasContratadas = Number((horasContratadas * fatorEntrega).toFixed(1));
+        horaMinima = Number((horaMinima * fatorEntrega).toFixed(1));
+      }
+
+      const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim;
+      if (temDevolucaoNoPeriodo) {
+        // If both entrega and devolucao are in the period, use the effective range
+        const baseHoras = temEntregaNoPeriodo ? horasContratadasOriginal : horasContratadas;
+        const baseMinima = temEntregaNoPeriodo ? horasMinimaOriginal : horaMinima;
+        const refInicio = temEntregaNoPeriodo && dataEntrega ? dataEntrega : inicio;
+        const inicioDate = parseLocalDate(refInicio);
+        const fimDate = parseLocalDate(fim);
+        const devolucaoDate = parseLocalDate(dataDevolucao);
+        const diasTotais = Math.max(1, Math.round((fimDate.getTime() - parseLocalDate(inicio).getTime()) / (1000 * 60 * 60 * 24)));
         const diasUsados = Math.max(1, Math.round((devolucaoDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
         const fatorProporcional = diasUsados / diasTotais;
-        horasContratadas = Number((horasContratadas * fatorProporcional).toFixed(1));
-        horaMinima = Number((horaMinima * fatorProporcional).toFixed(1));
+        horasContratadas = Number((baseHoras * fatorProporcional).toFixed(1));
+        horaMinima = Number((baseMinima * fatorProporcional).toFixed(1));
       }
 
       const aditivoHeader = aditivo ? aditivosData.find(a => a.id === aditivo.aditivo_id) : null;
@@ -331,7 +348,7 @@ const Faturamento = () => {
         valor_hora_excedente: valorExcedente,
         hora_minima: horaMinima,
         horas_contratadas: horasContratadas,
-        primeiro_mes: false,
+        primeiro_mes: !!temEntregaNoPeriodo,
         data_entrega: dataEntrega,
         data_devolucao: dataDevolucao,
         proporcional_devolucao: !!temDevolucaoNoPeriodo,
