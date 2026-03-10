@@ -256,13 +256,16 @@ const Faturamento = () => {
       if (extraGastosRes.data) gastosRes.data?.push(...extraGastosRes.data);
     }
 
-    // Fetch measurements per equipment, respecting data_devolucao
+    // Fetch measurements per equipment, respecting data_entrega and data_devolucao
     const medPromises = allEquipIdsWithAditivos.map(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const ae = aditivoEquipMap.get(eqId);
+      const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao;
+      // Effective start: max(inicio, data_entrega) — only count measurements from delivery onwards
+      const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
       const fimEfetivo = dataDevolucao && dataDevolucao < fim ? dataDevolucao : fim;
-      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").eq("equipamento_id", eqId).gte("data", inicio).lte("data", fimEfetivo);
+      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo);
     });
     const medResults = await Promise.all(medPromises);
     const medicoesData = medResults.flatMap(r => r.data || []);
