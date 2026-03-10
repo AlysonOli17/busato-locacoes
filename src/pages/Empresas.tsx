@@ -354,7 +354,7 @@ const Empresas = () => {
               <p className="text-sm font-semibold text-accent">Endereço</p>
               <div className="h-px bg-border" />
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="col-span-2">
                 <Label>CEP</Label>
                 <Input value={form.endereco_cep} onChange={(e) => setForm({ ...form, endereco_cep: formatCEP(e.target.value) })} placeholder="00000-000" maxLength={9} />
