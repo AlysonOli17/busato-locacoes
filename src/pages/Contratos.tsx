@@ -2181,7 +2181,7 @@ const Contratos = () => {
 
 
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <Label>Nº do Aditivo</Label>
                 <Input type="number" value={aditivoForm.numero} onChange={(e) => setAditivoForm(prev => ({ ...prev, numero: Number(e.target.value) }))} />
