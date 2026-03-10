@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock, RefreshCw, AlertCircle, Eye } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
