@@ -101,6 +101,7 @@ const Equipamentos = () => {
     setSinistroIds(sinistroSet);
 
     setLoading(false);
+  };
 
   useEffect(() => { fetchData(); }, []);
 
