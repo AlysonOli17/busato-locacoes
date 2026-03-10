@@ -43,6 +43,7 @@ const Equipamentos = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [insuredIds, setInsuredIds] = useState<Set<string>>(new Set());
   const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
+  const [sinistroIds, setSinistroIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
