@@ -774,7 +774,7 @@ const Apolices = () => {
               <Switch checked={form.tem_adesao} onCheckedChange={(v) => setForm({ ...form, tem_adesao: v, valor_adesao: v ? form.valor_adesao : 0 })} />
             </div>
             {form.tem_adesao && (
-              <div><Label>Valor da Adesão (R$)</Label><Input type="number" value={form.valor_adesao || ""} onChange={(e) => setForm({ ...form, valor_adesao: Number(e.target.value) })} /></div>
+              <div><Label>Valor da Adesão (R$)</Label><CurrencyInput value={form.valor_adesao} onValueChange={(v) => setForm({ ...form, valor_adesao: v })} /></div>
             )}
 
             {/* Parcelamento */}
