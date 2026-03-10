@@ -2054,7 +2054,7 @@ const Contratos = () => {
             {ajusteTodos && !editingAjuste && (
               <div className="p-3 rounded-lg border bg-muted/20 space-y-2">
                 <Label className="text-sm font-medium">Quais campos deseja alterar?</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={ajusteCampos.valor_hora} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, valor_hora: !!v }))} />
                     Valor/Hora
