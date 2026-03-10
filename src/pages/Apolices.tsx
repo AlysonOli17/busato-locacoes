@@ -969,18 +969,21 @@ const Apolices = () => {
                 </div>
                 <div>
                   <Label>Equipamento *</Label>
-                  <Select value={sinistroForm.equipamento_id} onValueChange={(v) => {
-                    const apolice = items.find(a => a.id === sinistroForm.apolice_id);
-                    const defaultFranquia = apolice ? apolice.valor_adesao : 0;
-                    setSinistroForm(p => ({ ...p, equipamento_id: v, franquia: p.franquia || defaultFranquia }));
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
-                    <SelectContent>
-                      {equipamentosAssegurados(sinistroForm.apolice_id).map(eq => (
-                        <SelectItem key={eq.id} value={eq.id}>{getEquipLabelFromEquip(eq)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={equipamentosAssegurados(sinistroForm.apolice_id).map(eq => ({
+                      value: eq.id,
+                      label: getEquipLabelFromEquip(eq),
+                    }))}
+                    value={sinistroForm.equipamento_id}
+                    onValueChange={(v) => {
+                      const apolice = items.find(a => a.id === sinistroForm.apolice_id);
+                      const defaultFranquia = apolice ? apolice.valor_adesao : 0;
+                      setSinistroForm(p => ({ ...p, equipamento_id: v, franquia: p.franquia || defaultFranquia }));
+                    }}
+                    placeholder="Selecione o equipamento"
+                    searchPlaceholder="Pesquisar equipamento..."
+                    emptyMessage="Nenhum equipamento encontrado."
+                  />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
