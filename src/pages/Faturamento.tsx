@@ -136,18 +136,7 @@ const Faturamento = () => {
   const [formContaBancariaId, setFormContaBancariaId] = useState("");
   const { toast } = useToast();
 
-  // Sinistro alerts state
-  interface SinistroAlert {
-    id: string;
-    equipamento_id: string;
-    tipo_sinistro: string;
-    franquia: number;
-    data_sinistro: string;
-    equipamentos?: { tipo: string; modelo: string; tag_placa: string | null };
-    apolices?: { seguradora: string };
-  }
-  const [sinistroAlerts, setSinistroAlerts] = useState<SinistroAlert[]>([]);
-  const [sinistroAlertShown, setSinistroAlertShown] = useState(false);
+  const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
 
