@@ -836,18 +836,232 @@ const Apolices = () => {
         </TabsContent>
         <TabsContent value="sinistro">
           <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Acionamento de Sinistro</h1>
-              <p className="text-sm text-muted-foreground">Gerencie os acionamentos de sinistro das apólices</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Acionamento de Sinistro</h1>
+                <p className="text-sm text-muted-foreground">
+                  {sinistros.length} sinistro(s) registrado(s) · {sinistrosAbertos.length} aberto(s)
+                </p>
+              </div>
+              <Button onClick={openNewSinistro} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                <Plus className="h-4 w-4 mr-2" /> Novo Sinistro
+              </Button>
             </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" /> Sinistros Abertos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-foreground">{sinistrosAbertos.length}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" /> Total Franquias (Abertos)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-foreground">
+                    R$ {sinistrosAbertos.reduce((acc, s) => acc + Number(s.franquia), 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4" /> Equipamentos Indisponíveis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-foreground">{sinistrosAbertos.length}</p>
+                  <p className="text-xs text-muted-foreground">em sinistro ativo</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar sinistros..." value={sinistroSearch} onChange={(e) => setSinistroSearch(e.target.value)} className="pl-9" />
+            </div>
+
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <AlertCircle className="h-12 w-12 mb-4 opacity-40" />
-                <p className="text-lg font-medium">Nenhum sinistro registrado</p>
-                <p className="text-sm mt-1">Os acionamentos de sinistro aparecerão aqui</p>
-              </CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Equipamento</TableHead>
+                    <TableHead>Seguradora</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Data Sinistro</TableHead>
+                    <TableHead>Franquia</TableHead>
+                    <TableHead>Prev. Retorno</TableHead>
+                    <TableHead>Retorno</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSinistros.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                        Nenhum sinistro registrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredSinistros.map(s => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">{getEquipLabelFromEquip(s.equipamentos)}</TableCell>
+                        <TableCell>{s.apolices?.seguradora || "—"}</TableCell>
+                        <TableCell>{s.tipo_sinistro}</TableCell>
+                        <TableCell>{new Date(s.data_sinistro).toLocaleDateString("pt-BR")}</TableCell>
+                        <TableCell>R$ {fmt(s.franquia)}</TableCell>
+                        <TableCell>{s.data_previsao_retorno ? new Date(s.data_previsao_retorno).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                        <TableCell>{s.data_retorno ? new Date(s.data_retorno).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                        <TableCell>
+                          <Badge className={s.status === "Aberto" ? "bg-destructive text-destructive-foreground" : "bg-success text-success-foreground"}>
+                            {s.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => setSinistroDetailItem(s)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => openEditSinistro(s)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSinistro(s.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </Card>
           </div>
+
+          {/* Sinistro Form Dialog */}
+          <Dialog open={sinistroDialogOpen} onOpenChange={setSinistroDialogOpen}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingSinistro ? "Editar Sinistro" : "Novo Sinistro"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Apólice *</Label>
+                  <Select value={sinistroForm.apolice_id} onValueChange={(v) => setSinistroForm(p => ({ ...p, apolice_id: v, equipamento_id: "" }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a apólice" /></SelectTrigger>
+                    <SelectContent>
+                      {items.filter(a => a.status === "Vigente").map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.seguradora} — {getEquipLabels(a)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Equipamento *</Label>
+                  <Select value={sinistroForm.equipamento_id} onValueChange={(v) => {
+                    const apolice = items.find(a => a.id === sinistroForm.apolice_id);
+                    const defaultFranquia = apolice ? apolice.valor_adesao : 0;
+                    setSinistroForm(p => ({ ...p, equipamento_id: v, franquia: p.franquia || defaultFranquia }));
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
+                    <SelectContent>
+                      {equipamentosAssegurados(sinistroForm.apolice_id).map(eq => (
+                        <SelectItem key={eq.id} value={eq.id}>{getEquipLabelFromEquip(eq)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Tipo de Sinistro *</Label>
+                    <Select value={sinistroForm.tipo_sinistro} onValueChange={(v) => setSinistroForm(p => ({ ...p, tipo_sinistro: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_SINISTRO.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        <SelectItem value="Outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {sinistroForm.tipo_sinistro === "Outro" && (
+                    <div>
+                      <Label>Especifique</Label>
+                      <Input value={sinistroForm.tipo_sinistro_custom} onChange={e => setSinistroForm(p => ({ ...p, tipo_sinistro_custom: e.target.value }))} />
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Franquia (R$)</Label>
+                    <Input type="number" step="0.01" value={sinistroForm.franquia} onChange={e => setSinistroForm(p => ({ ...p, franquia: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <Label>Data do Sinistro *</Label>
+                    <Input type="date" value={sinistroForm.data_sinistro} onChange={e => setSinistroForm(p => ({ ...p, data_sinistro: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Previsão de Retorno</Label>
+                    <Input type="date" value={sinistroForm.data_previsao_retorno} onChange={e => setSinistroForm(p => ({ ...p, data_previsao_retorno: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Data de Retorno</Label>
+                    <Input type="date" value={sinistroForm.data_retorno} onChange={e => setSinistroForm(p => ({ ...p, data_retorno: e.target.value }))} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={sinistroForm.status} onValueChange={(v) => setSinistroForm(p => ({ ...p, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Aberto">Aberto</SelectItem>
+                      <SelectItem value="Concluído">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea value={sinistroForm.observacoes} onChange={e => setSinistroForm(p => ({ ...p, observacoes: e.target.value }))} rows={3} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSinistroDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSaveSinistro}>{editingSinistro ? "Salvar" : "Registrar"}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Sinistro Detail Dialog */}
+          <Dialog open={!!sinistroDetailItem} onOpenChange={() => setSinistroDetailItem(null)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Detalhes do Sinistro</DialogTitle>
+              </DialogHeader>
+              {sinistroDetailItem && (
+                <div className="space-y-1">
+                  <Row label="Equipamento" value={getEquipLabelFromEquip(sinistroDetailItem.equipamentos)} />
+                  <Row label="Seguradora" value={sinistroDetailItem.apolices?.seguradora || "—"} />
+                  <Row label="Tipo" value={sinistroDetailItem.tipo_sinistro} />
+                  <Row label="Data do Sinistro" value={new Date(sinistroDetailItem.data_sinistro).toLocaleDateString("pt-BR")} />
+                  <Row label="Franquia" value={`R$ ${fmt(sinistroDetailItem.franquia)}`} bold />
+                  <Row label="Prev. Retorno" value={sinistroDetailItem.data_previsao_retorno ? new Date(sinistroDetailItem.data_previsao_retorno).toLocaleDateString("pt-BR") : "—"} />
+                  <Row label="Data Retorno" value={sinistroDetailItem.data_retorno ? new Date(sinistroDetailItem.data_retorno).toLocaleDateString("pt-BR") : "—"} />
+                  <Row label="Status" value={sinistroDetailItem.status} badge={sinistroDetailItem.status === "Aberto" ? "destructive" : "success"} />
+                  {sinistroDetailItem.observacoes && <Row label="Observações" value={sinistroDetailItem.observacoes} />}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </Layout>
