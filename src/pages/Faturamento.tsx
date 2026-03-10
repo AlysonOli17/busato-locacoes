@@ -192,7 +192,7 @@ const Faturamento = () => {
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", equipIds),
       supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
       supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", equipIds).lte("data_inicio", fim).gte("data_fim", inicio),
-      supabase.from("contratos_aditivos").select("id, numero, data_inicio, data_fim").eq("contrato_id", contratoId).lte("data_inicio", fim).gte("data_fim", inicio),
+      supabase.from("contratos_aditivos").select("id, numero, data_inicio, data_fim").eq("contrato_id", contratoId).gte("data_fim", inicio),
     ]);
 
     // Fetch aditivos_equipamentos for active addendums
@@ -204,7 +204,10 @@ const Faturamento = () => {
       const { data: aeData } = await supabase.from("aditivos_equipamentos").select("*").in("aditivo_id", aditivoIds);
       if (aeData) {
         // For each equipment, pick the addendum with highest numero (most recent)
+        // Only consider addendum equipment whose data_entrega is within or before the billing period end
         for (const ae of aeData) {
+          // Skip equipment not yet delivered (data_entrega after period end)
+          if (ae.data_entrega && ae.data_entrega > fim) continue;
           const aditivo = aditivosData.find(a => a.id === ae.aditivo_id);
           const existing = aditivoEquipMap.get(ae.equipamento_id);
           const existingAditivo = existing ? aditivosData.find(a => a.id === existing.aditivo_id) : null;
@@ -213,8 +216,12 @@ const Faturamento = () => {
           }
         }
         // Find equipment IDs from addendums not already in the contract
-        // Also exclude addendum equipment returned before the billing period
-        aditivoExtraEquipIds = [...new Set(aeData.map(ae => ae.equipamento_id))].filter(id => {
+        // Also exclude addendum equipment returned before the billing period or not yet delivered
+        aditivoExtraEquipIds = [...new Set(
+          aeData
+            .filter(ae => !ae.data_entrega || ae.data_entrega <= fim) // only delivered equipment
+            .map(ae => ae.equipamento_id)
+        )].filter(id => {
           if (equipIds.includes(id)) return false;
           const ae = aditivoEquipMap.get(id);
           if (ae?.data_devolucao && ae.data_devolucao <= inicio) return false;
