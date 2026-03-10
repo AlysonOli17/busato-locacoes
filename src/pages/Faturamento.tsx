@@ -1319,6 +1319,34 @@ const Faturamento = () => {
         contas={contasBancarias}
         onRefresh={fetchData}
       />
+
+      {/* Sinistro Alert Pop-up */}
+      <AlertDialog open={sinistroAlertShown} onOpenChange={setSinistroAlertShown}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" /> Sinistro Ativo Detectado
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Os seguintes equipamentos deste contrato possuem sinistro aberto com franquia a cobrar:</p>
+                {sinistroAlerts.map(sa => (
+                  <div key={sa.id} className="p-2 rounded border border-destructive/20 bg-destructive/5 text-sm">
+                    <p className="font-medium">{sa.equipamentos?.tipo} {sa.equipamentos?.modelo} {sa.equipamentos?.tag_placa ? `(${sa.equipamentos.tag_placa})` : ""}</p>
+                    <p className="text-muted-foreground">{sa.tipo_sinistro} · Franquia: <strong>R$ {Number(sa.franquia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></p>
+                    <p className="text-muted-foreground">Seguradora: {sa.apolices?.seguradora || "—"} · Data: {new Date(sa.data_sinistro).toLocaleDateString("pt-BR")}</p>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">O valor da franquia pode ser incluído como custo adicional nesta fatura.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </Layout>
   );
 };
