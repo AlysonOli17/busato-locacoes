@@ -1293,6 +1293,10 @@ const Faturamento = () => {
                         ⚡ Hora mínima: {ef.horas_medidas.toFixed(1)}h → cobrando {ef.hora_minima}h
                       </div>
                     )}
+                    <div className="flex items-center justify-between pt-1.5 border-t border-border/40 text-xs text-muted-foreground">
+                      <span>📦 Entrega: {ef.data_entrega ? parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR") : "Não informada"}</span>
+                      {ef.data_devolucao && <span>🔙 Devolução: {parseLocalDate(ef.data_devolucao).toLocaleDateString("pt-BR")}</span>}
+                    </div>
                   </div>
                 ))}
                 {loadingMedicoes && <p className="text-xs text-muted-foreground">Calculando...</p>}
