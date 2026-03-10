@@ -399,7 +399,7 @@ const Empresas = () => {
               <p className="text-sm font-semibold text-accent">Contato</p>
               <div className="h-px bg-border" />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>Responsável</Label>
                 <Input value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} placeholder="Nome do contato" />
