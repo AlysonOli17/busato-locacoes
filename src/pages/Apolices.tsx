@@ -785,7 +785,7 @@ const Apolices = () => {
               <Switch checked={form.tem_parcelamento} onCheckedChange={(v) => setForm({ ...form, tem_parcelamento: v, numero_parcelas: v ? form.numero_parcelas : 1 })} />
             </div>
             {form.tem_parcelamento && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><Label>Nº de Parcelas</Label><Input type="number" min={1} value={form.numero_parcelas} onChange={(e) => setForm({ ...form, numero_parcelas: Math.max(1, Number(e.target.value)) })} /></div>
                 <div>
                   <Label>Valor por Parcela</Label>
