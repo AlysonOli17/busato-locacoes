@@ -1014,6 +1014,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sinistros: {
+        Row: {
+          apolice_id: string
+          created_at: string
+          data_previsao_retorno: string | null
+          data_retorno: string | null
+          data_sinistro: string
+          equipamento_id: string
+          franquia: number
+          id: string
+          observacoes: string | null
+          status: string
+          tipo_sinistro: string
+          updated_at: string
+        }
+        Insert: {
+          apolice_id: string
+          created_at?: string
+          data_previsao_retorno?: string | null
+          data_retorno?: string | null
+          data_sinistro?: string
+          equipamento_id: string
+          franquia?: number
+          id?: string
+          observacoes?: string | null
+          status?: string
+          tipo_sinistro?: string
+          updated_at?: string
+        }
+        Update: {
+          apolice_id?: string
+          created_at?: string
+          data_previsao_retorno?: string | null
+          data_retorno?: string | null
+          data_sinistro?: string
+          equipamento_id?: string
+          franquia?: number
+          id?: string
+          observacoes?: string | null
+          status?: string
+          tipo_sinistro?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sinistros_apolice_id_fkey"
+            columns: ["apolice_id"]
+            isOneToOne: false
+            referencedRelation: "apolices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sinistros_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
