@@ -2005,7 +2005,7 @@ const Contratos = () => {
                           </AlertDialog>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         <div><span className="text-muted-foreground">Vigência:</span> <span className="font-medium">{parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}</span></div>
                         <div><span className="text-muted-foreground">Equipamentos:</span> <span className="font-medium">{eqs.length}</span></div>
                       </div>
