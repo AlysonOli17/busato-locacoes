@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock, Upload, RefreshCw } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock, Upload, RefreshCw, AlertCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
@@ -376,12 +377,18 @@ const Apolices = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Apólices de Seguro</h1>
-            <p className="text-sm text-muted-foreground">{items.length} apólices cadastradas{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
-          </div>
+      <Tabs defaultValue="apolices" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="apolices" className="gap-2"><Shield className="h-4 w-4" /> Apólices</TabsTrigger>
+          <TabsTrigger value="sinistro" className="gap-2"><AlertCircle className="h-4 w-4" /> Acionamento de Sinistro</TabsTrigger>
+        </TabsList>
+        <TabsContent value="apolices">
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Apólices de Seguro</h1>
+                <p className="text-sm text-muted-foreground">{items.length} apólices cadastradas{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
+              </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
               <FileDown className="h-4 w-4 mr-1" /> PDF
@@ -694,6 +701,23 @@ const Apolices = () => {
           })()}
         </DialogContent>
       </Dialog>
+        </TabsContent>
+        <TabsContent value="sinistro">
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Acionamento de Sinistro</h1>
+              <p className="text-sm text-muted-foreground">Gerencie os acionamentos de sinistro das apólices</p>
+            </div>
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <AlertCircle className="h-12 w-12 mb-4 opacity-40" />
+                <p className="text-lg font-medium">Nenhum sinistro registrado</p>
+                <p className="text-sm mt-1">Os acionamentos de sinistro aparecerão aqui</p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 };
