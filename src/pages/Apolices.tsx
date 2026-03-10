@@ -26,6 +26,37 @@ interface ApoliceEquipamento {
   equipamentos: Equipamento;
 }
 
+interface Sinistro {
+  id: string;
+  apolice_id: string;
+  equipamento_id: string;
+  tipo_sinistro: string;
+  franquia: number;
+  data_sinistro: string;
+  data_previsao_retorno: string | null;
+  data_retorno: string | null;
+  observacoes: string | null;
+  status: string;
+  created_at: string;
+  apolices?: { seguradora: string };
+  equipamentos?: Equipamento;
+}
+
+const TIPOS_SINISTRO = ["Colisão", "Roubo/Furto", "Incêndio", "Danos Elétricos", "Alagamento", "Vandalismo"];
+
+const emptySinistroForm = {
+  apolice_id: "",
+  equipamento_id: "",
+  tipo_sinistro: "",
+  tipo_sinistro_custom: "",
+  franquia: 0,
+  data_sinistro: new Date().toISOString().slice(0, 10),
+  data_previsao_retorno: "",
+  data_retorno: "",
+  observacoes: "",
+  status: "Aberto",
+};
+
 interface Apolice {
   id: string;
   seguradora: string;
