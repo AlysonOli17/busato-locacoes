@@ -136,6 +136,19 @@ const Faturamento = () => {
   const [formContaBancariaId, setFormContaBancariaId] = useState("");
   const { toast } = useToast();
 
+  // Sinistro alerts state
+  interface SinistroAlert {
+    id: string;
+    equipamento_id: string;
+    tipo_sinistro: string;
+    franquia: number;
+    data_sinistro: string;
+    equipamentos?: { tipo: string; modelo: string; tag_placa: string | null };
+    apolices?: { seguradora: string };
+  }
+  const [sinistroAlerts, setSinistroAlerts] = useState<SinistroAlert[]>([]);
+  const [sinistroAlertShown, setSinistroAlertShown] = useState(false);
+
   const fetchData = async () => {
     const [fatRes, ctRes, contasRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
