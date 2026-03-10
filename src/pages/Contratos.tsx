@@ -1695,7 +1695,7 @@ const Contratos = () => {
                             <Input type="number" value={fe.hora_minima || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "hora_minima", Number(e.target.value))} className="h-8 text-sm" placeholder="0 = sem mínimo" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                           <div>
                             <Label className="text-xs text-muted-foreground">Data de Entrega</Label>
                             <Input type="date" value={fe.data_entrega || ""} onChange={(e) => updateEquipItemStr(fe.equipamento_id, "data_entrega", e.target.value)} className="h-8 text-sm" />
