@@ -369,7 +369,7 @@ const Empresas = () => {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
                 <Label>Logradouro</Label>
                 <Input value={form.endereco_logradouro} onChange={(e) => setForm({ ...form, endereco_logradouro: e.target.value })} placeholder="Rua, Av, etc." />
