@@ -190,37 +190,29 @@ const Faturamento = () => {
     setLoadingMedicoes(true);
 
     const ceList = ct.contratos_equipamentos || [];
-    // If no contratos_equipamentos, fallback to the main contract equipment
-    const allEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
+    const baseEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
 
-    // We'll do the final filtering after we know about addendums, but pre-filter obvious cases
-    const equipIds = allEquipIds.filter(eqId => {
+    // Pre-filter: exclude equipment returned before period start
+    const equipIds = baseEquipIds.filter(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
-      // Exclude if data_devolucao exists and is on or before the period start
       if (ce?.data_devolucao && ce.data_devolucao <= inicio) return false;
       return true;
     });
 
-    // Fetch equipment details, gastos, ajustes, and aditivos for all equipment
-    const [equipRes, gastosRes, ajustesRes, aditivosRes] = await Promise.all([
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", equipIds),
-      supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
-      supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", equipIds).lte("data_inicio", fim).gte("data_fim", inicio),
-      supabase.from("contratos_aditivos").select("id, numero, data_inicio, data_fim").eq("contrato_id", contratoId).gte("data_fim", inicio),
-    ]);
+    // Step 1: Fetch addendums first to discover ALL equipment IDs
+    const { data: aditivosData } = await supabase
+      .from("contratos_aditivos")
+      .select("id, numero, data_inicio, data_fim")
+      .eq("contrato_id", contratoId)
+      .gte("data_fim", inicio);
 
-    // Fetch aditivos_equipamentos for active addendums
-    const aditivosData = aditivosRes.data || [];
     let aditivoEquipMap = new Map<string, any>();
     let aditivoExtraEquipIds: string[] = [];
-    if (aditivosData.length > 0) {
+    if (aditivosData && aditivosData.length > 0) {
       const aditivoIds = aditivosData.map(a => a.id);
       const { data: aeData } = await supabase.from("aditivos_equipamentos").select("*").in("aditivo_id", aditivoIds);
       if (aeData) {
-        // For each equipment, pick the addendum with highest numero (most recent)
-        // Only consider addendum equipment whose data_entrega is within or before the billing period end
         for (const ae of aeData) {
-          // Skip equipment not yet delivered (data_entrega after period end)
           if (ae.data_entrega && ae.data_entrega > fim) continue;
           const aditivo = aditivosData.find(a => a.id === ae.aditivo_id);
           const existing = aditivoEquipMap.get(ae.equipamento_id);
@@ -229,11 +221,9 @@ const Faturamento = () => {
             aditivoEquipMap.set(ae.equipamento_id, ae);
           }
         }
-        // Find equipment IDs from addendums not already in the contract
-        // Also exclude addendum equipment returned before the billing period or not yet delivered
         aditivoExtraEquipIds = [...new Set(
           aeData
-            .filter(ae => !ae.data_entrega || ae.data_entrega <= fim) // only delivered equipment
+            .filter(ae => !ae.data_entrega || ae.data_entrega <= fim)
             .map(ae => ae.equipamento_id)
         )].filter(id => {
           if (equipIds.includes(id)) return false;
@@ -244,17 +234,17 @@ const Faturamento = () => {
       }
     }
 
-    // If addendums add new equipment, fetch their details and measurements too
-    let allEquipIdsWithAditivos = [...equipIds];
-    if (aditivoExtraEquipIds.length > 0) {
-      allEquipIdsWithAditivos = [...equipIds, ...aditivoExtraEquipIds];
-      const [extraEquipRes, extraGastosRes] = await Promise.all([
-        supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", aditivoExtraEquipIds),
-        supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", aditivoExtraEquipIds).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
-      ]);
-      if (extraEquipRes.data) equipRes.data?.push(...extraEquipRes.data);
-      if (extraGastosRes.data) gastosRes.data?.push(...extraGastosRes.data);
-    }
+    // Step 2: Now we know ALL equipment IDs — fetch equipment, gastos, AND adjustments
+    const allEquipIdsWithAditivos = [...equipIds, ...aditivoExtraEquipIds];
+
+    const [equipRes, gastosRes, ajustesRes] = await Promise.all([
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allEquipIdsWithAditivos),
+      supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", allEquipIdsWithAditivos).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
+      // FIXED: fetch adjustments for ALL equipment (base + addendum)
+      supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", allEquipIdsWithAditivos).lte("data_inicio", fim).gte("data_fim", inicio),
+    ]);
+
+    const ajustesData = ajustesRes.data || [];
 
     // Fetch measurements per equipment, respecting data_entrega and data_devolucao
     const medPromises = allEquipIdsWithAditivos.map(eqId => {
@@ -262,7 +252,6 @@ const Faturamento = () => {
       const ae = aditivoEquipMap.get(eqId);
       const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao;
-      // Effective start: max(inicio, data_entrega) — only count measurements from delivery onwards
       const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
       const fimEfetivo = dataDevolucao && dataDevolucao < fim ? dataDevolucao : fim;
       return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo);
@@ -270,42 +259,43 @@ const Faturamento = () => {
     const medResults = await Promise.all(medPromises);
     const medicoesData = medResults.flatMap(r => r.data || []);
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
-    const ajustesData = ajustesRes.data || [];
 
-    // Build per-equipment form items (including extra equipment from addendums)
-    // Final filter: exclude equipment whose effective data_devolucao is before the period start
+    // Final filter: exclude equipment returned before period or not yet delivered
     const filteredEquipIds = allEquipIdsWithAditivos.filter(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const ae = aditivoEquipMap.get(eqId);
-      // Effective devolucao: addendum overrides base contract
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
       if (dataDevolucao && dataDevolucao <= inicio) return false;
-      // Exclude equipment not yet delivered by end of period
       const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
       if (dataEntrega && dataEntrega > fim) return false;
       return true;
     });
+
     const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const eq = equipMap.get(eqId);
-      const ajuste = ajustesData.find(a => a.equipamento_id === eqId) || null;
       const aditivo = aditivoEquipMap.get(eqId) || null;
-
-      // Priority: ajuste > aditivo > contrato_equipamento > contrato
+      const dataEntrega = aditivo?.data_entrega || ce?.data_entrega || null;
       const dataDevolucao = aditivo?.data_devolucao || ce?.data_devolucao || null;
+
+      // Find the most specific ajuste for this equipment (pick the one with latest data_inicio within the period)
+      const ajustesEquip = ajustesData.filter(a => a.equipamento_id === eqId);
+      const ajuste = ajustesEquip.length > 0
+        ? ajustesEquip.sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0]
+        : null;
 
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       const horasMedidas = filteredMedicoes.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
+      // Priority: ajuste > aditivo > contrato_equipamento > contrato
       const valorHora = ajuste ? Number(ajuste.valor_hora) : aditivo ? Number(aditivo.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
       const valorExcedente = ajuste ? Number(ajuste.valor_hora_excedente) : aditivo ? Number(aditivo.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : valorHora * 1.25;
       let horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : aditivo ? Number(aditivo.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
       let horaMinima = ajuste ? Number(ajuste.hora_minima) : aditivo ? Number(aditivo.hora_minima) : ce ? Number(ce.hora_minima) : 0;
-      const dataEntrega = aditivo?.data_entrega || ce?.data_entrega || null;
       const horasContratadasOriginal = horasContratadas;
       const horasMinimaOriginal = horaMinima;
 
-      // Auto-apply proportional for delivery date within period (primeiro mês)
+      // Proportional for delivery date within period (primeiro mês)
       const temEntregaNoPeriodo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim;
       if (temEntregaNoPeriodo) {
         const inicioDate = parseLocalDate(inicio);
@@ -320,7 +310,6 @@ const Faturamento = () => {
 
       const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim;
       if (temDevolucaoNoPeriodo) {
-        // If both entrega and devolucao are in the period, use the effective range
         const baseHoras = temEntregaNoPeriodo ? horasContratadasOriginal : horasContratadas;
         const baseMinima = temEntregaNoPeriodo ? horasMinimaOriginal : horaMinima;
         const refInicio = temEntregaNoPeriodo && dataEntrega ? dataEntrega : inicio;
@@ -334,7 +323,7 @@ const Faturamento = () => {
         horaMinima = Number((baseMinima * fatorProporcional).toFixed(1));
       }
 
-      const aditivoHeader = aditivo ? aditivosData.find(a => a.id === aditivo.aditivo_id) : null;
+      const aditivoHeader = aditivo ? (aditivosData || []).find(a => a.id === aditivo.aditivo_id) : null;
 
       return {
         equipamento_id: eqId,
