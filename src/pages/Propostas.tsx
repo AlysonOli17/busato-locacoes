@@ -945,7 +945,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                   </div>
                   <div>
                     {idx === 0 && <Label className="text-xs">Valor/Hora</Label>}
-                    <Input type="number" step="0.01" value={eq.valor_hora} onChange={e => { const n = [...equipamentos]; n[idx].valor_hora = Number(e.target.value); setEquipamentos(n); }} />
+                    <CurrencyInput value={eq.valor_hora} onValueChange={v => { const n = [...equipamentos]; n[idx].valor_hora = v; setEquipamentos(n); }} />
                   </div>
                   <div>
                     {idx === 0 && <Label className="text-xs">Franquia (h)</Label>}
