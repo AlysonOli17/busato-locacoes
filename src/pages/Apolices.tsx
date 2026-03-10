@@ -981,7 +981,7 @@ const Apolices = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Tipo de Sinistro *</Label>
                     <Select value={sinistroForm.tipo_sinistro} onValueChange={(v) => setSinistroForm(p => ({ ...p, tipo_sinistro: v }))}>
