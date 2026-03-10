@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Search, Pencil, Trash2, Upload, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import ExcelJS from "exceljs";
@@ -445,7 +446,7 @@ const Equipamentos = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div><Label>Ano</Label><Input type="number" value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} placeholder="Ex: 2023" /></div>
-              <div><Label>Valor do Bem</Label><Input type="number" step="0.01" value={form.valor_bem} onChange={(e) => setForm({ ...form, valor_bem: e.target.value })} placeholder="Ex: 150000" /></div>
+              <div><Label>Valor do Bem (R$)</Label><CurrencyInput value={Number(form.valor_bem) || 0} onValueChange={(v) => setForm({ ...form, valor_bem: String(v) })} /></div>
               <div>
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>

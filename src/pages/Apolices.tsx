@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, Shield, FileDown, FileSpreadsheet, AlertTriangle, DollarSign, CalendarClock, RefreshCw, AlertCircle, Eye } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -754,7 +755,7 @@ const Apolices = () => {
               <div><Label>Início Vigência</Label><Input type="date" value={form.vigencia_inicio} onChange={(e) => setForm({ ...form, vigencia_inicio: e.target.value })} /></div>
               <div><Label>Fim Vigência</Label><Input type="date" value={form.vigencia_fim} onChange={(e) => setForm({ ...form, vigencia_fim: e.target.value })} /></div>
             </div>
-            <div><Label>Valor do Seguro (R$)</Label><Input type="number" value={form.valor || ""} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} /></div>
+            <div><Label>Valor do Seguro (R$)</Label><CurrencyInput value={form.valor} onValueChange={(v) => setForm({ ...form, valor: v })} /></div>
 
             {/* Renovação Automática */}
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -774,7 +775,7 @@ const Apolices = () => {
               <Switch checked={form.tem_adesao} onCheckedChange={(v) => setForm({ ...form, tem_adesao: v, valor_adesao: v ? form.valor_adesao : 0 })} />
             </div>
             {form.tem_adesao && (
-              <div><Label>Valor da Adesão (R$)</Label><Input type="number" value={form.valor_adesao || ""} onChange={(e) => setForm({ ...form, valor_adesao: Number(e.target.value) })} /></div>
+              <div><Label>Valor da Adesão (R$)</Label><CurrencyInput value={form.valor_adesao} onValueChange={(v) => setForm({ ...form, valor_adesao: v })} /></div>
             )}
 
             {/* Parcelamento */}
@@ -1008,7 +1009,7 @@ const Apolices = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Franquia (R$)</Label>
-                    <Input type="number" step="0.01" value={sinistroForm.franquia} onChange={e => setSinistroForm(p => ({ ...p, franquia: Number(e.target.value) }))} />
+                    <CurrencyInput value={sinistroForm.franquia} onValueChange={(v) => setSinistroForm(p => ({ ...p, franquia: v }))} />
                   </div>
                   <div>
                     <Label>Data do Sinistro *</Label>

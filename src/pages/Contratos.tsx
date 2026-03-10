@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1680,11 +1681,11 @@ const Contratos = () => {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
                             <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
-                            <Input type="number" value={fe.valor_hora || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "valor_hora", Number(e.target.value))} className="h-8 text-sm" />
+                            <CurrencyInput value={fe.valor_hora} onValueChange={(v) => updateEquipItem(fe.equipamento_id, "valor_hora", v)} className="h-8 text-sm" />
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Valor Hora Excedente (R$)</Label>
-                            <Input type="number" value={fe.valor_hora_excedente || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "valor_hora_excedente", Number(e.target.value))} className="h-8 text-sm" />
+                            <CurrencyInput value={fe.valor_hora_excedente} onValueChange={(v) => updateEquipItem(fe.equipamento_id, "valor_hora_excedente", v)} className="h-8 text-sm" />
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
@@ -2150,8 +2151,8 @@ const Contratos = () => {
               );
             })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className={ajusteTodos && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><Input type="number" value={ajusteForm.valor_hora || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora: Number(e.target.value) }))} /></div>
-              <div className={ajusteTodos && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><Input type="number" value={ajusteForm.valor_hora_excedente || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: Number(e.target.value) }))} /></div>
+              <div className={ajusteTodos && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><CurrencyInput value={ajusteForm.valor_hora} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora: v }))} /></div>
+              <div className={ajusteTodos && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><CurrencyInput value={ajusteForm.valor_hora_excedente} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: v }))} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={ajusteTodos && !ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
@@ -2232,11 +2233,11 @@ const Contratos = () => {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
                             <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
-                            <Input type="number" value={fe.valor_hora || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "valor_hora", Number(e.target.value))} className="h-8 text-sm" />
+                            <CurrencyInput value={fe.valor_hora} onValueChange={(v) => updateAditivoEquipItem(fe.equipamento_id, "valor_hora", v)} className="h-8 text-sm" />
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Valor Hora Excedente (R$)</Label>
-                            <Input type="number" value={fe.valor_hora_excedente || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "valor_hora_excedente", Number(e.target.value))} className="h-8 text-sm" />
+                            <CurrencyInput value={fe.valor_hora_excedente} onValueChange={(v) => updateAditivoEquipItem(fe.equipamento_id, "valor_hora_excedente", v)} className="h-8 text-sm" />
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>

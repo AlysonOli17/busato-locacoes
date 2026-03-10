@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle, Mail, FileText, Clock, CheckSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -945,7 +946,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                   </div>
                   <div>
                     {idx === 0 && <Label className="text-xs">Valor/Hora</Label>}
-                    <Input type="number" step="0.01" value={eq.valor_hora} onChange={e => { const n = [...equipamentos]; n[idx].valor_hora = Number(e.target.value); setEquipamentos(n); }} />
+                    <CurrencyInput value={eq.valor_hora} onValueChange={v => { const n = [...equipamentos]; n[idx].valor_hora = v; setEquipamentos(n); }} />
                   </div>
                   <div>
                     {idx === 0 && <Label className="text-xs">Franquia (h)</Label>}
@@ -962,7 +963,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Valor Mobilização (R$)</Label>
-                <Input type="number" step="0.01" value={form.valor_mobilizacao} onChange={e => setForm(f => ({ ...f, valor_mobilizacao: Number(e.target.value) }))} />
+                <CurrencyInput value={form.valor_mobilizacao} onValueChange={v => setForm(f => ({ ...f, valor_mobilizacao: v }))} />
               </div>
               <div>
                 <Label>Texto Mobilização</Label>
