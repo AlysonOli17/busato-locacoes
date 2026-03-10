@@ -2052,7 +2052,7 @@ const Contratos = () => {
                 <Switch checked={ajusteTodos} onCheckedChange={setAjusteTodos} />
               </div>
             )}
-            {ajusteTodos && !editingAjuste && (
+            {!editingAjuste && (
               <div className="p-3 rounded-lg border bg-muted/20 space-y-2">
                 <Label className="text-sm font-medium">Quais campos deseja alterar?</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2073,7 +2073,7 @@ const Contratos = () => {
                     Horas Contratadas
                   </label>
                 </div>
-                <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais de cada equipamento</p>
+                <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais do equipamento</p>
               </div>
             )}
             {!ajusteTodos && (
