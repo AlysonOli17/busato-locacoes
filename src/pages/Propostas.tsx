@@ -962,7 +962,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Valor Mobilização (R$)</Label>
-                <Input type="number" step="0.01" value={form.valor_mobilizacao} onChange={e => setForm(f => ({ ...f, valor_mobilizacao: Number(e.target.value) }))} />
+                <CurrencyInput value={form.valor_mobilizacao} onValueChange={v => setForm(f => ({ ...f, valor_mobilizacao: v }))} />
               </div>
               <div>
                 <Label>Texto Mobilização</Label>

@@ -445,7 +445,7 @@ const Equipamentos = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div><Label>Ano</Label><Input type="number" value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} placeholder="Ex: 2023" /></div>
-              <div><Label>Valor do Bem</Label><Input type="number" step="0.01" value={form.valor_bem} onChange={(e) => setForm({ ...form, valor_bem: e.target.value })} placeholder="Ex: 150000" /></div>
+              <div><Label>Valor do Bem (R$)</Label><CurrencyInput value={Number(form.valor_bem) || 0} onValueChange={(v) => setForm({ ...form, valor_bem: String(v) })} /></div>
               <div>
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>

@@ -1008,7 +1008,7 @@ const Apolices = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Franquia (R$)</Label>
-                    <Input type="number" step="0.01" value={sinistroForm.franquia} onChange={e => setSinistroForm(p => ({ ...p, franquia: Number(e.target.value) }))} />
+                    <CurrencyInput value={sinistroForm.franquia} onValueChange={(v) => setSinistroForm(p => ({ ...p, franquia: v }))} />
                   </div>
                   <div>
                     <Label>Data do Sinistro *</Label>
