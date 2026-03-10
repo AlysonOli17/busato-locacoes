@@ -364,6 +364,7 @@ const Equipamentos = () => {
                   {filtered.map((item) => {
                     const isInsured = insuredIds.has(item.id);
                     const isRented = rentedIds.has(item.id);
+                    const hasSinistro = sinistroIds.has(item.id);
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.tipo}</TableCell>
@@ -391,7 +392,11 @@ const Equipamentos = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="inline-flex">
-                                {isRented ? (
+                                {hasSinistro ? (
+                                  <Badge className="bg-destructive/10 text-destructive border-destructive/30 text-xs gap-1">
+                                    <AlertCircle className="h-3.5 w-3.5" /> Indisponível
+                                  </Badge>
+                                ) : isRented ? (
                                   <Badge className="bg-primary/10 text-primary border-primary/30 text-xs gap-1">
                                     <Truck className="h-3.5 w-3.5" /> Locado
                                   </Badge>
@@ -402,7 +407,7 @@ const Equipamentos = () => {
                                 )}
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent>{isRented ? "Em contrato ativo" : "Disponível para locação"}</TooltipContent>
+                            <TooltipContent>{hasSinistro ? "Em sinistro — equipamento indisponível" : isRented ? "Em contrato ativo" : "Disponível para locação"}</TooltipContent>
                           </Tooltip>
                         </TableCell>
                         <TableCell>
