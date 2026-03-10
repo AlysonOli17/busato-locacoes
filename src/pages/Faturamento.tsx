@@ -267,9 +267,34 @@ const Faturamento = () => {
 
       // Find the most specific ajuste for this equipment (pick the one with latest data_inicio within the period)
       const ajustesEquip = ajustesData.filter(a => a.equipamento_id === eqId);
-      const ajuste = ajustesEquip.length > 0
+      let ajuste = ajustesEquip.length > 0
         ? ajustesEquip.sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0]
         : null;
+
+      // If no specific ajuste exists, check for LOTE ajustes that cover this period
+      // Equipment added via aditivo after a batch adjustment should still inherit LOTE values
+      if (!ajuste) {
+        const loteAjustes = ajustesData.filter(a => a.motivo && a.motivo.startsWith("[LOTE]") && a.equipamento_id !== eqId);
+        if (loteAjustes.length > 0) {
+          // Get the most recent LOTE ajuste to extract common values (hora_minima, horas_contratadas)
+          const latestLote = loteAjustes.sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0];
+          // Check if the equipment's delivery date falls within the LOTE validity period
+          const equipEntrega = dataEntrega || inicio;
+          if (equipEntrega >= latestLote.data_inicio && equipEntrega <= latestLote.data_fim) {
+            // Create a virtual ajuste using LOTE's hora_minima and horas_contratadas but keeping equipment's own valor_hora
+            const bValorHora = aditivo ? Number(aditivo.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
+            const bValorExcedente = aditivo ? Number(aditivo.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : bValorHora * 1.25;
+            ajuste = {
+              ...latestLote,
+              equipamento_id: eqId,
+              valor_hora: bValorHora,
+              valor_hora_excedente: bValorExcedente,
+              hora_minima: Number(latestLote.hora_minima),
+              horas_contratadas: Number(latestLote.horas_contratadas),
+            } as typeof latestLote;
+          }
+        }
+      }
 
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       const horasMedidas = filteredMedicoes.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
