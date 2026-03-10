@@ -1112,14 +1112,20 @@ const Contratos = () => {
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      // Individual
+      // Individual - respect ajusteCampos selection
+      const ces = getContratoEquipamentos(ajustesContrato);
+      const ce = ces.find(c => c.equipamento_id === ajusteForm.equipamento_id);
+      const origValorHora = ce ? Number(ce.valor_hora) : 0;
+      const origValorExcedente = ce ? Number(ce.valor_hora_excedente) : 0;
+      const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
+      const origHorasContratadas = ce ? Number(ce.horas_contratadas) : 0;
       const payload = {
         contrato_id: ajustesContrato.id,
         equipamento_id: ajusteForm.equipamento_id,
-        valor_hora: Number(ajusteForm.valor_hora),
-        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
-        hora_minima: Number(ajusteForm.hora_minima),
-        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : origValorHora,
+        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : origValorExcedente,
+        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : origHoraMinima,
+        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : origHorasContratadas,
         data_inicio: ajusteForm.data_inicio,
         data_fim: ajusteForm.data_fim,
         motivo: ajusteForm.motivo,
