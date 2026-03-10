@@ -318,7 +318,7 @@ const Empresas = () => {
               </div>
               <div className="h-px bg-border" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>CNPJ <span className="text-destructive">*</span></Label>
                 <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: formatCNPJ(e.target.value) })} placeholder="00.000.000/0001-00" maxLength={18} />
