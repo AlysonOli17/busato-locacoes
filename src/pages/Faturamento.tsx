@@ -644,6 +644,44 @@ const Faturamento = () => {
         }
       }
 
+      // Sinistros section
+      const ceEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct?.equipamento_id].filter(Boolean);
+      const { data: sinistrosData } = await supabase
+        .from("sinistros")
+        .select("*, equipamentos(tipo, modelo, tag_placa), apolices(seguradora)")
+        .in("equipamento_id", ceEquipIds as string[]);
+
+      if (sinistrosData && sinistrosData.length > 0) {
+        if (y > 240) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setTextColor(192, 57, 43);
+        doc.text("Acionamentos de Sinistro", 14, y);
+        y += 2;
+        const sinistroRows = sinistrosData.map((s: any) => {
+          const eq = s.equipamentos;
+          return [
+            eq ? `${eq.tipo} ${eq.modelo}` : "—",
+            eq?.tag_placa || "—",
+            s.tipo_sinistro,
+            new Date(s.data_sinistro).toLocaleDateString("pt-BR"),
+            s.data_previsao_retorno ? new Date(s.data_previsao_retorno).toLocaleDateString("pt-BR") : "—",
+            s.data_retorno ? new Date(s.data_retorno).toLocaleDateString("pt-BR") : "—",
+            fmt(Number(s.franquia)),
+            s.apolices?.seguradora || "—",
+            s.status,
+          ];
+        });
+        autoTable(doc, {
+          startY: y,
+          head: [["Equipamento", "Tag", "Tipo Sinistro", "Data", "Prev. Retorno", "Retorno", "Franquia", "Seguradora", "Status"]],
+          body: sinistroRows,
+          styles: { fontSize: 7, cellPadding: 2 },
+          headStyles: { fillColor: [192, 57, 43], textColor: 255 },
+          theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
       // Summary
       if (y > 240) { doc.addPage(); y = 20; }
       const valorBrutoItem = Number(item.horas_normais) * Number(item.valor_hora) + Number(item.horas_excedentes) * Number(item.valor_excedente_hora);
