@@ -1163,7 +1163,7 @@ const Faturamento = () => {
               <div><Label>Período</Label><Input value={formPeriodo} onChange={(e) => setFormPeriodo(e.target.value)} placeholder="Mês/Ano" /></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Medição Início</Label><Input type="date" value={formMedicaoInicio} onChange={(e) => setFormMedicaoInicio(e.target.value)} /></div>
               <div><Label>Medição Fim</Label><Input type="date" value={formMedicaoFim} onChange={(e) => setFormMedicaoFim(e.target.value)} /></div>
             </div>
