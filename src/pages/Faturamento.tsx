@@ -138,8 +138,6 @@ const Faturamento = () => {
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
 
-  const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
-
   const fetchData = async () => {
     const [fatRes, ctRes, contasRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
