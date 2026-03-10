@@ -149,6 +149,8 @@ const Faturamento = () => {
   const [sinistroAlerts, setSinistroAlerts] = useState<SinistroAlert[]>([]);
   const [sinistroAlertShown, setSinistroAlertShown] = useState(false);
 
+  const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
+
   const fetchData = async () => {
     const [fatRes, ctRes, contasRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
@@ -156,7 +158,19 @@ const Faturamento = () => {
       supabase.from("contas_bancarias").select("*").order("banco"),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
-    if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
+    const ctData = ctRes.data as unknown as ContratoRef[] || [];
+    if (ctData.length > 0) {
+      setContratos(ctData);
+      // Fetch aditivos for all active contracts to compute equipment count
+      const ctIds = ctData.map(c => c.id);
+      const { data: adData } = await supabase.from("contratos_aditivos").select("id, contrato_id, numero, data_inicio, data_fim, aditivos_equipamentos(equipamento_id, data_devolucao)").in("contrato_id", ctIds);
+      const adMap: Record<string, any[]> = {};
+      for (const ad of (adData || [])) {
+        if (!adMap[ad.contrato_id]) adMap[ad.contrato_id] = [];
+        adMap[ad.contrato_id].push(ad);
+      }
+      setAditivosPorContratoFat(adMap);
+    }
     if (contasRes.data) setContasBancarias(contasRes.data as ContaBancaria[]);
     setLoading(false);
   };
