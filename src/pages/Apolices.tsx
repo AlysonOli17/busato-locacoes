@@ -119,7 +119,102 @@ const Apolices = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  const fetchSinistros = async () => {
+    const { data } = await supabase
+      .from("sinistros")
+      .select("*, apolices(seguradora), equipamentos(id, tipo, modelo, tag_placa)")
+      .order("created_at", { ascending: false });
+    if (data) setSinistros(data as unknown as Sinistro[]);
+  };
+
+  useEffect(() => { fetchData(); fetchSinistros(); }, []);
+
+  const getEquipLabelFromEquip = (eq: Equipamento | undefined) =>
+    eq ? `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}` : "—";
+
+  const equipamentosAssegurados = (apoliceId?: string) => {
+    const apolice = items.find(a => a.id === apoliceId);
+    if (!apolice) return [];
+    return apolice.apolices_equipamentos?.map(ae => ae.equipamentos).filter(Boolean) || [];
+  };
+
+  const openNewSinistro = () => {
+    setEditingSinistro(null);
+    setSinistroForm(emptySinistroForm);
+    setSinistroDialogOpen(true);
+  };
+
+  const openEditSinistro = (s: Sinistro) => {
+    setEditingSinistro(s);
+    const tipoCustom = TIPOS_SINISTRO.includes(s.tipo_sinistro) ? "" : s.tipo_sinistro;
+    const tipoSelect = TIPOS_SINISTRO.includes(s.tipo_sinistro) ? s.tipo_sinistro : "Outro";
+    setSinistroForm({
+      apolice_id: s.apolice_id,
+      equipamento_id: s.equipamento_id,
+      tipo_sinistro: tipoSelect,
+      tipo_sinistro_custom: tipoCustom,
+      franquia: s.franquia,
+      data_sinistro: s.data_sinistro,
+      data_previsao_retorno: s.data_previsao_retorno || "",
+      data_retorno: s.data_retorno || "",
+      observacoes: s.observacoes || "",
+      status: s.status,
+    });
+    setSinistroDialogOpen(true);
+  };
+
+  const handleSaveSinistro = async () => {
+    if (!sinistroForm.apolice_id || !sinistroForm.equipamento_id) {
+      toast({ title: "Erro", description: "Selecione a apólice e o equipamento", variant: "destructive" });
+      return;
+    }
+    const tipoFinal = sinistroForm.tipo_sinistro === "Outro" ? sinistroForm.tipo_sinistro_custom : sinistroForm.tipo_sinistro;
+    if (!tipoFinal) {
+      toast({ title: "Erro", description: "Informe o tipo de sinistro", variant: "destructive" });
+      return;
+    }
+
+    // Auto-close if return date is set
+    const status = sinistroForm.data_retorno ? "Concluído" : sinistroForm.status;
+
+    const payload = {
+      apolice_id: sinistroForm.apolice_id,
+      equipamento_id: sinistroForm.equipamento_id,
+      tipo_sinistro: tipoFinal,
+      franquia: Number(sinistroForm.franquia),
+      data_sinistro: sinistroForm.data_sinistro,
+      data_previsao_retorno: sinistroForm.data_previsao_retorno || null,
+      data_retorno: sinistroForm.data_retorno || null,
+      observacoes: sinistroForm.observacoes || "",
+      status,
+    };
+
+    if (editingSinistro) {
+      const { error } = await supabase.from("sinistros").update(payload).eq("id", editingSinistro.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("sinistros").insert(payload);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    }
+
+    setSinistroDialogOpen(false);
+    fetchSinistros();
+    toast({ title: "Sucesso", description: editingSinistro ? "Sinistro atualizado" : "Sinistro registrado" });
+  };
+
+  const handleDeleteSinistro = async (id: string) => {
+    const { error } = await supabase.from("sinistros").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchSinistros();
+  };
+
+  const sinistrosAbertos = sinistros.filter(s => s.status === "Aberto");
+
+  const filteredSinistros = sinistros.filter(s => {
+    const q = sinistroSearch.toLowerCase();
+    const eqLabel = getEquipLabelFromEquip(s.equipamentos);
+    return eqLabel.toLowerCase().includes(q) || s.tipo_sinistro.toLowerCase().includes(q) || (s.apolices?.seguradora || "").toLowerCase().includes(q);
+  });
 
   const getEquipLabel = (ae: ApoliceEquipamento) =>
     `${ae.equipamentos?.tipo} ${ae.equipamentos?.modelo}${ae.equipamentos?.tag_placa ? ` (${ae.equipamentos.tag_placa})` : ""}`;
