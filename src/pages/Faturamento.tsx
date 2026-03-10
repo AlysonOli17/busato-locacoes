@@ -1102,7 +1102,23 @@ const Faturamento = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Sinistro Alert */}
+            {sinistroAlerts.length > 0 && (
+              <div className="p-3 rounded-lg border border-destructive/50 bg-destructive/5 space-y-2">
+                <div className="flex items-center gap-2 text-destructive font-medium text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  Atenção: {sinistroAlerts.length} equipamento(s) com sinistro aberto
+                </div>
+                {sinistroAlerts.map(sa => (
+                  <div key={sa.id} className="text-xs text-muted-foreground pl-6">
+                    <strong>{sa.equipamentos?.tipo} {sa.equipamentos?.modelo} {sa.equipamentos?.tag_placa ? `(${sa.equipamentos.tag_placa})` : ""}</strong>
+                    {" — "}{sa.tipo_sinistro} · Franquia: R$ {Number(sa.franquia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    {" · Seguradora: "}{sa.apolices?.seguradora || "—"}
+                    {" · Data: "}{new Date(sa.data_sinistro).toLocaleDateString("pt-BR")}
+                  </div>
+                ))}
+              </div>
+            )}
               <div><Label>Nº Nota / Fatura</Label><Input value={formNumeroNota} onChange={(e) => setFormNumeroNota(e.target.value)} placeholder="Ex: NF-001" /></div>
               <div><Label>Período</Label><Input value={formPeriodo} onChange={(e) => setFormPeriodo(e.target.value)} placeholder="Mês/Ano" /></div>
             </div>
