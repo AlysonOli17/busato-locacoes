@@ -2153,7 +2153,7 @@ const Contratos = () => {
               <div className={ajusteTodos && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><Input type="number" value={ajusteForm.valor_hora || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora: Number(e.target.value) }))} /></div>
               <div className={ajusteTodos && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><Input type="number" value={ajusteForm.valor_hora_excedente || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: Number(e.target.value) }))} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={ajusteTodos && !ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
               <div className={ajusteTodos && !ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
             </div>
