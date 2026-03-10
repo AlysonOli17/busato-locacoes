@@ -754,7 +754,7 @@ const Apolices = () => {
               <div><Label>Início Vigência</Label><Input type="date" value={form.vigencia_inicio} onChange={(e) => setForm({ ...form, vigencia_inicio: e.target.value })} /></div>
               <div><Label>Fim Vigência</Label><Input type="date" value={form.vigencia_fim} onChange={(e) => setForm({ ...form, vigencia_fim: e.target.value })} /></div>
             </div>
-            <div><Label>Valor do Seguro (R$)</Label><Input type="number" value={form.valor || ""} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} /></div>
+            <div><Label>Valor do Seguro (R$)</Label><CurrencyInput value={form.valor} onValueChange={(v) => setForm({ ...form, valor: v })} /></div>
 
             {/* Renovação Automática */}
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
