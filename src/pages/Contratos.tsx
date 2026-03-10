@@ -1684,7 +1684,7 @@ const Contratos = () => {
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Valor Hora Excedente (R$)</Label>
-                            <Input type="number" value={fe.valor_hora_excedente || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "valor_hora_excedente", Number(e.target.value))} className="h-8 text-sm" />
+                            <CurrencyInput value={fe.valor_hora_excedente} onValueChange={(v) => updateEquipItem(fe.equipamento_id, "valor_hora_excedente", v)} className="h-8 text-sm" />
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
