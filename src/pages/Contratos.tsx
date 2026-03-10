@@ -1112,14 +1112,20 @@ const Contratos = () => {
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      // Individual
+      // Individual - respect ajusteCampos selection
+      const ces = getContratoEquipamentos(ajustesContrato);
+      const ce = ces.find(c => c.equipamento_id === ajusteForm.equipamento_id);
+      const origValorHora = ce ? Number(ce.valor_hora) : 0;
+      const origValorExcedente = ce ? Number(ce.valor_hora_excedente) : 0;
+      const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
+      const origHorasContratadas = ce ? Number(ce.horas_contratadas) : 0;
       const payload = {
         contrato_id: ajustesContrato.id,
         equipamento_id: ajusteForm.equipamento_id,
-        valor_hora: Number(ajusteForm.valor_hora),
-        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
-        hora_minima: Number(ajusteForm.hora_minima),
-        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : origValorHora,
+        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : origValorExcedente,
+        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : origHoraMinima,
+        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : origHorasContratadas,
         data_inicio: ajusteForm.data_inicio,
         data_fim: ajusteForm.data_fim,
         motivo: ajusteForm.motivo,
@@ -2052,7 +2058,7 @@ const Contratos = () => {
                 <Switch checked={ajusteTodos} onCheckedChange={setAjusteTodos} />
               </div>
             )}
-            {ajusteTodos && !editingAjuste && (
+            {!editingAjuste && (
               <div className="p-3 rounded-lg border bg-muted/20 space-y-2">
                 <Label className="text-sm font-medium">Quais campos deseja alterar?</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2073,7 +2079,7 @@ const Contratos = () => {
                     Horas Contratadas
                   </label>
                 </div>
-                <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais de cada equipamento</p>
+                <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais do equipamento</p>
               </div>
             )}
             {!ajusteTodos && (
@@ -2151,12 +2157,12 @@ const Contratos = () => {
               );
             })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className={ajusteTodos && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><CurrencyInput value={ajusteForm.valor_hora} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora: v }))} /></div>
-              <div className={ajusteTodos && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><CurrencyInput value={ajusteForm.valor_hora_excedente} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: v }))} /></div>
+              <div className={!editingAjuste && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><CurrencyInput value={ajusteForm.valor_hora} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora: v }))} /></div>
+              <div className={!editingAjuste && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><CurrencyInput value={ajusteForm.valor_hora_excedente} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: v }))} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className={ajusteTodos && !ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
-              <div className={ajusteTodos && !ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
+              <div className={!editingAjuste && !ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
+              <div className={!editingAjuste && !ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
             </div>
             <div><Label>Motivo</Label><Input value={ajusteForm.motivo} onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: Reajuste temporário por demanda extra" /></div>
           </div>
