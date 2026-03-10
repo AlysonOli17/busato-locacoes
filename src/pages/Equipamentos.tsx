@@ -90,8 +90,17 @@ const Equipamentos = () => {
     }
 
     setRentedIds(rented);
+
+    // Buscar equipamentos com sinistro aberto
+    const { data: sinistrosAbertos } = await supabase
+      .from("sinistros")
+      .select("equipamento_id")
+      .eq("status", "Aberto");
+    const sinistroSet = new Set<string>();
+    (sinistrosAbertos || []).forEach((r: any) => sinistroSet.add(r.equipamento_id));
+    setSinistroIds(sinistroSet);
+
     setLoading(false);
-  };
 
   useEffect(() => { fetchData(); }, []);
 
