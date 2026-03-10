@@ -1598,7 +1598,7 @@ const Contratos = () => {
                         <p className="text-xs text-right font-medium text-foreground">{u.percentual.toFixed(1)}%</p>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                         <div className="rounded bg-muted/50 p-2">
                           <p className="text-xs text-muted-foreground">Valor/Hora</p>
                           <p className="text-sm font-semibold text-foreground">{fmt(u.valor_hora)}</p>
