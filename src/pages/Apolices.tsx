@@ -101,6 +101,14 @@ const Apolices = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Sinistro state
+  const [sinistros, setSinistros] = useState<Sinistro[]>([]);
+  const [sinistroDialogOpen, setSinistroDialogOpen] = useState(false);
+  const [editingSinistro, setEditingSinistro] = useState<Sinistro | null>(null);
+  const [sinistroForm, setSinistroForm] = useState(emptySinistroForm);
+  const [sinistroSearch, setSinistroSearch] = useState("");
+  const [sinistroDetailItem, setSinistroDetailItem] = useState<Sinistro | null>(null);
+
   const fetchData = async () => {
     const [apolicesRes, equipRes] = await Promise.all([
       supabase.from("apolices").select("*, apolices_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa))").order("created_at", { ascending: false }),
