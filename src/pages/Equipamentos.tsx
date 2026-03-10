@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Search, Pencil, Trash2, Upload, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Upload, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import ExcelJS from "exceljs";
@@ -43,6 +43,7 @@ const Equipamentos = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [insuredIds, setInsuredIds] = useState<Set<string>>(new Set());
   const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
+  const [sinistroIds, setSinistroIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -89,6 +90,16 @@ const Equipamentos = () => {
     }
 
     setRentedIds(rented);
+
+    // Buscar equipamentos com sinistro aberto
+    const { data: sinistrosAbertos } = await supabase
+      .from("sinistros")
+      .select("equipamento_id")
+      .eq("status", "Aberto");
+    const sinistroSet = new Set<string>();
+    (sinistrosAbertos || []).forEach((r: any) => sinistroSet.add(r.equipamento_id));
+    setSinistroIds(sinistroSet);
+
     setLoading(false);
   };
 
@@ -353,6 +364,7 @@ const Equipamentos = () => {
                   {filtered.map((item) => {
                     const isInsured = insuredIds.has(item.id);
                     const isRented = rentedIds.has(item.id);
+                    const hasSinistro = sinistroIds.has(item.id);
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.tipo}</TableCell>
@@ -380,7 +392,11 @@ const Equipamentos = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="inline-flex">
-                                {isRented ? (
+                                {hasSinistro ? (
+                                  <Badge className="bg-destructive/10 text-destructive border-destructive/30 text-xs gap-1">
+                                    <AlertCircle className="h-3.5 w-3.5" /> Indisponível
+                                  </Badge>
+                                ) : isRented ? (
                                   <Badge className="bg-primary/10 text-primary border-primary/30 text-xs gap-1">
                                     <Truck className="h-3.5 w-3.5" /> Locado
                                   </Badge>
@@ -391,7 +407,7 @@ const Equipamentos = () => {
                                 )}
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent>{isRented ? "Em contrato ativo" : "Disponível para locação"}</TooltipContent>
+                            <TooltipContent>{hasSinistro ? "Em sinistro — equipamento indisponível" : isRented ? "Em contrato ativo" : "Disponível para locação"}</TooltipContent>
                           </Tooltip>
                         </TableCell>
                         <TableCell>
