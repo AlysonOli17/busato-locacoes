@@ -318,7 +318,7 @@ const Empresas = () => {
               </div>
               <div className="h-px bg-border" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>CNPJ <span className="text-destructive">*</span></Label>
                 <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: formatCNPJ(e.target.value) })} placeholder="00.000.000/0001-00" maxLength={18} />
@@ -328,7 +328,7 @@ const Empresas = () => {
                 <Input value={form.razao_social} onChange={(e) => setForm({ ...form, razao_social: e.target.value })} placeholder="Razão Social da empresa" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Nome Fantasia</Label>
                 <Input value={form.nome_fantasia} onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })} placeholder="Nome Fantasia" />
@@ -338,7 +338,7 @@ const Empresas = () => {
                 <Input value={form.atividade_principal} onChange={(e) => setForm({ ...form, atividade_principal: e.target.value })} placeholder="Ex: Locação de equipamentos" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Inscrição Estadual</Label>
                 <Input value={form.inscricao_estadual} onChange={(e) => setForm({ ...form, inscricao_estadual: e.target.value })} placeholder="Inscrição Estadual" />
@@ -354,7 +354,7 @@ const Empresas = () => {
               <p className="text-sm font-semibold text-accent">Endereço</p>
               <div className="h-px bg-border" />
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="col-span-2">
                 <Label>CEP</Label>
                 <Input value={form.endereco_cep} onChange={(e) => setForm({ ...form, endereco_cep: formatCEP(e.target.value) })} placeholder="00000-000" maxLength={9} />
@@ -369,7 +369,7 @@ const Empresas = () => {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
                 <Label>Logradouro</Label>
                 <Input value={form.endereco_logradouro} onChange={(e) => setForm({ ...form, endereco_logradouro: e.target.value })} placeholder="Rua, Av, etc." />
@@ -379,7 +379,7 @@ const Empresas = () => {
                 <Input value={form.endereco_numero} onChange={(e) => setForm({ ...form, endereco_numero: e.target.value })} placeholder="Nº" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>Complemento</Label>
                 <Input value={form.endereco_complemento} onChange={(e) => setForm({ ...form, endereco_complemento: e.target.value })} placeholder="Sala, Andar..." />
@@ -399,7 +399,7 @@ const Empresas = () => {
               <p className="text-sm font-semibold text-accent">Contato</p>
               <div className="h-px bg-border" />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>Responsável</Label>
                 <Input value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} placeholder="Nome do contato" />

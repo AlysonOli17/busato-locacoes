@@ -337,7 +337,7 @@ const Usuarios = () => {
               <Label>{editing ? "Nova Senha (deixe vazio para manter)" : "Senha"}</Label>
               <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editing ? "••••••••" : ""} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Perfil</Label>
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>

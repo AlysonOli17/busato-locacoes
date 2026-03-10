@@ -749,7 +749,7 @@ const Apolices = () => {
               <Label>Seguradora</Label>
               <Input value={form.seguradora} onChange={(e) => setForm({ ...form, seguradora: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Início Vigência</Label><Input type="date" value={form.vigencia_inicio} onChange={(e) => setForm({ ...form, vigencia_inicio: e.target.value })} /></div>
               <div><Label>Fim Vigência</Label><Input type="date" value={form.vigencia_fim} onChange={(e) => setForm({ ...form, vigencia_fim: e.target.value })} /></div>
             </div>
@@ -785,7 +785,7 @@ const Apolices = () => {
               <Switch checked={form.tem_parcelamento} onCheckedChange={(v) => setForm({ ...form, tem_parcelamento: v, numero_parcelas: v ? form.numero_parcelas : 1 })} />
             </div>
             {form.tem_parcelamento && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><Label>Nº de Parcelas</Label><Input type="number" min={1} value={form.numero_parcelas} onChange={(e) => setForm({ ...form, numero_parcelas: Math.max(1, Number(e.target.value)) })} /></div>
                 <div>
                   <Label>Valor por Parcela</Label>
@@ -981,7 +981,7 @@ const Apolices = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Tipo de Sinistro *</Label>
                     <Select value={sinistroForm.tipo_sinistro} onValueChange={(v) => setSinistroForm(p => ({ ...p, tipo_sinistro: v }))}>
@@ -999,7 +999,7 @@ const Apolices = () => {
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Franquia (R$)</Label>
                     <Input type="number" step="0.01" value={sinistroForm.franquia} onChange={e => setSinistroForm(p => ({ ...p, franquia: Number(e.target.value) }))} />
@@ -1009,7 +1009,7 @@ const Apolices = () => {
                     <Input type="date" value={sinistroForm.data_sinistro} onChange={e => setSinistroForm(p => ({ ...p, data_sinistro: e.target.value }))} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Previsão de Retorno</Label>
                     <Input type="date" value={sinistroForm.data_previsao_retorno} onChange={e => setSinistroForm(p => ({ ...p, data_previsao_retorno: e.target.value }))} />

@@ -1598,7 +1598,7 @@ const Contratos = () => {
                         <p className="text-xs text-right font-medium text-foreground">{u.percentual.toFixed(1)}%</p>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                         <div className="rounded bg-muted/50 p-2">
                           <p className="text-xs text-muted-foreground">Valor/Hora</p>
                           <p className="text-sm font-semibold text-foreground">{fmt(u.valor_hora)}</p>
@@ -1695,7 +1695,7 @@ const Contratos = () => {
                             <Input type="number" value={fe.hora_minima || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "hora_minima", Number(e.target.value))} className="h-8 text-sm" placeholder="0 = sem mínimo" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                           <div>
                             <Label className="text-xs text-muted-foreground">Data de Entrega</Label>
                             <Input type="date" value={fe.data_entrega || ""} onChange={(e) => updateEquipItemStr(fe.equipamento_id, "data_entrega", e.target.value)} className="h-8 text-sm" />
@@ -1721,11 +1721,11 @@ const Contratos = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Data Início</Label><Input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} /></div>
               <div><Label>Data Fim</Label><Input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Dia Início Medição</Label>
                 <Select value={String(form.dia_medicao_inicio)} onValueChange={(v) => setForm({ ...form, dia_medicao_inicio: Number(v) })}>
@@ -2005,7 +2005,7 @@ const Contratos = () => {
                           </AlertDialog>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         <div><span className="text-muted-foreground">Vigência:</span> <span className="font-medium">{parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}</span></div>
                         <div><span className="text-muted-foreground">Equipamentos:</span> <span className="font-medium">{eqs.length}</span></div>
                       </div>
@@ -2054,7 +2054,7 @@ const Contratos = () => {
             {ajusteTodos && !editingAjuste && (
               <div className="p-3 rounded-lg border bg-muted/20 space-y-2">
                 <Label className="text-sm font-medium">Quais campos deseja alterar?</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox checked={ajusteCampos.valor_hora} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, valor_hora: !!v }))} />
                     Valor/Hora
@@ -2101,7 +2101,7 @@ const Contratos = () => {
               />
             </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Data Início</Label><Input type="date" value={ajusteForm.data_inicio} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_inicio: e.target.value }))} /></div>
               <div><Label>Data Fim</Label><Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} /></div>
             </div>
@@ -2149,11 +2149,11 @@ const Contratos = () => {
                 </div>
               );
             })()}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={ajusteTodos && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><Input type="number" value={ajusteForm.valor_hora || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora: Number(e.target.value) }))} /></div>
               <div className={ajusteTodos && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><Input type="number" value={ajusteForm.valor_hora_excedente || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: Number(e.target.value) }))} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={ajusteTodos && !ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
               <div className={ajusteTodos && !ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
             </div>
@@ -2181,7 +2181,7 @@ const Contratos = () => {
 
 
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <Label>Nº do Aditivo</Label>
                 <Input type="number" value={aditivoForm.numero} onChange={(e) => setAditivoForm(prev => ({ ...prev, numero: Number(e.target.value) }))} />
@@ -2247,7 +2247,7 @@ const Contratos = () => {
                             <Input type="number" value={fe.hora_minima || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "hora_minima", Number(e.target.value))} className="h-8 text-sm" placeholder="0 = sem mínimo" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <Label className="text-xs text-muted-foreground">Data de Entrega</Label>
                             <Input type="date" value={fe.data_entrega || ""} onChange={(e) => updateAditivoEquipItem(fe.equipamento_id, "data_entrega", e.target.value)} className="h-8 text-sm" />
