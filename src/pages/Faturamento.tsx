@@ -263,6 +263,9 @@ const Faturamento = () => {
       // Effective devolucao: addendum overrides base contract
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
       if (dataDevolucao && dataDevolucao <= inicio) return false;
+      // Exclude equipment not yet delivered by end of period
+      const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
+      if (dataEntrega && dataEntrega > fim) return false;
       return true;
     });
     const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
