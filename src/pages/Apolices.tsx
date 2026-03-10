@@ -573,23 +573,6 @@ const Apolices = () => {
           </CardContent>
         </Card>
       </div>
-        </TabsContent>
-        <TabsContent value="sinistro">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Acionamento de Sinistro</h1>
-              <p className="text-sm text-muted-foreground">Gerencie os acionamentos de sinistro das apólices</p>
-            </div>
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <AlertCircle className="h-12 w-12 mb-4 opacity-40" />
-                <p className="text-lg font-medium">Nenhum sinistro registrado</p>
-                <p className="text-sm mt-1">Os acionamentos de sinistro aparecerão aqui</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
