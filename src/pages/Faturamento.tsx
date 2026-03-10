@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, AlertCircle } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -135,19 +135,6 @@ const Faturamento = () => {
   const [contasDialogOpen, setContasDialogOpen] = useState(false);
   const [formContaBancariaId, setFormContaBancariaId] = useState("");
   const { toast } = useToast();
-
-  // Sinistro alerts state
-  interface SinistroAlert {
-    id: string;
-    equipamento_id: string;
-    tipo_sinistro: string;
-    franquia: number;
-    data_sinistro: string;
-    equipamentos?: { tipo: string; modelo: string; tag_placa: string | null };
-    apolices?: { seguradora: string };
-  }
-  const [sinistroAlerts, setSinistroAlerts] = useState<SinistroAlert[]>([]);
-  const [sinistroAlertShown, setSinistroAlertShown] = useState(false);
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
 
@@ -908,27 +895,13 @@ const Faturamento = () => {
     setDialogOpen(true);
   };
 
-  const handleContratoSelect = async (contratoId: string) => {
+  const handleContratoSelect = (contratoId: string) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
       const dates = calcMedicaoDates(ct);
       setFormContratoId(contratoId);
       setFormMedicaoInicio(dates.inicio);
       setFormMedicaoFim(dates.fim);
-
-      // Check for sinistros on contract equipment
-      const equipIds = ct.contratos_equipamentos?.map(ce => ce.equipamento_id) || [ct.equipamento_id];
-      const { data: sinistros } = await supabase
-        .from("sinistros")
-        .select("id, equipamento_id, tipo_sinistro, franquia, data_sinistro, equipamentos(tipo, modelo, tag_placa), apolices(seguradora)")
-        .in("equipamento_id", equipIds)
-        .eq("status", "Aberto");
-      if (sinistros && sinistros.length > 0) {
-        setSinistroAlerts(sinistros as unknown as SinistroAlert[]);
-        setSinistroAlertShown(true);
-      } else {
-        setSinistroAlerts([]);
-      }
     }
   };
 
@@ -1200,23 +1173,6 @@ const Faturamento = () => {
               </div>
             )}
 
-            {/* Sinistro Alert */}
-            {sinistroAlerts.length > 0 && (
-              <div className="p-3 rounded-lg border border-destructive/50 bg-destructive/5 space-y-2">
-                <div className="flex items-center gap-2 text-destructive font-medium text-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  Atenção: {sinistroAlerts.length} equipamento(s) com sinistro aberto
-                </div>
-                {sinistroAlerts.map(sa => (
-                  <div key={sa.id} className="text-xs text-muted-foreground pl-6">
-                    <strong>{sa.equipamentos?.tipo} {sa.equipamentos?.modelo} {sa.equipamentos?.tag_placa ? `(${sa.equipamentos.tag_placa})` : ""}</strong>
-                    {" — "}{sa.tipo_sinistro} · Franquia: R$ {Number(sa.franquia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    {" · Seguradora: "}{sa.apolices?.seguradora || "—"}
-                    {" · Data: "}{new Date(sa.data_sinistro).toLocaleDateString("pt-BR")}
-                  </div>
-                ))}
-              </div>
-            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Nº Nota / Fatura</Label><Input value={formNumeroNota} onChange={(e) => setFormNumeroNota(e.target.value)} placeholder="Ex: NF-001" /></div>
@@ -1422,32 +1378,6 @@ const Faturamento = () => {
         onRefresh={fetchData}
       />
 
-      {/* Sinistro Alert Pop-up */}
-      <AlertDialog open={sinistroAlertShown} onOpenChange={setSinistroAlertShown}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" /> Sinistro Ativo Detectado
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>Os seguintes equipamentos deste contrato possuem sinistro aberto com franquia a cobrar:</p>
-                {sinistroAlerts.map(sa => (
-                  <div key={sa.id} className="p-2 rounded border border-destructive/20 bg-destructive/5 text-sm">
-                    <p className="font-medium">{sa.equipamentos?.tipo} {sa.equipamentos?.modelo} {sa.equipamentos?.tag_placa ? `(${sa.equipamentos.tag_placa})` : ""}</p>
-                    <p className="text-muted-foreground">{sa.tipo_sinistro} · Franquia: <strong>R$ {Number(sa.franquia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></p>
-                    <p className="text-muted-foreground">Seguradora: {sa.apolices?.seguradora || "—"} · Data: {new Date(sa.data_sinistro).toLocaleDateString("pt-BR")}</p>
-                  </div>
-                ))}
-                <p className="text-xs text-muted-foreground">O valor da franquia pode ser incluído como custo adicional nesta fatura.</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>Entendi</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
     </Layout>
   );
