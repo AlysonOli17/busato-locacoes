@@ -46,7 +46,7 @@ export async function addLetterhead(doc: jsPDF, title: string): Promise<number> 
 
   if (logo) {
     // Logo on the left — 40×14 keeps aspect ratio of the horizontal logo
-    doc.addImage(logo, "PNG", 14, y, 40, 14);
+    doc.addImage(logo, "PNG", 14, y, 48, 12);
   }
 
   // Title on the right side
