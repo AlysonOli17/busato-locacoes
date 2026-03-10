@@ -338,7 +338,7 @@ const Empresas = () => {
                 <Input value={form.atividade_principal} onChange={(e) => setForm({ ...form, atividade_principal: e.target.value })} placeholder="Ex: Locação de equipamentos" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Inscrição Estadual</Label>
                 <Input value={form.inscricao_estadual} onChange={(e) => setForm({ ...form, inscricao_estadual: e.target.value })} placeholder="Inscrição Estadual" />
