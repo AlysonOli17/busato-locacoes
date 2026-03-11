@@ -39,12 +39,10 @@ const Equipamentos = () => {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [insuredIds, setInsuredIds] = useState<Set<string>>(new Set());
   const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
   const [sinistroIds, setSinistroIds] = useState<Set<string>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
