@@ -652,7 +652,7 @@ const Faturamento = () => {
           columnStyles: { 7: { cellWidth: 40, fontStyle: "italic" } },
           theme: "grid",
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
 
       // Despesas deduzidas detalhadas
