@@ -2142,10 +2142,10 @@ const Contratos = () => {
                 }}
                 placeholder="Selecione o equipamento"
                 searchPlaceholder="Pesquisar equipamento..."
-                options={getAllEquipForAjuste(ajustesContrato).map(ce => ({
-                  value: ce.equipamento_id,
-                  label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo} ${ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}`,
-                }))}
+                 options={getAllEquipForAjuste(ajustesContrato).map(ce => ({
+                   value: ce.equipamento_id,
+                   label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`,
+                 }))}
               />
             </div>
             )}
