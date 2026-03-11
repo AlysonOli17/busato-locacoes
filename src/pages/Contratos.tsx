@@ -1154,8 +1154,8 @@ const Contratos = () => {
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
       // Individual - respect ajusteCampos selection
-      const ces = getContratoEquipamentos(ajustesContrato);
-      const ce = ces.find(c => c.equipamento_id === ajusteForm.equipamento_id);
+      const allEquip = getAllEquipForAjuste(ajustesContrato);
+      const ce = allEquip.find(c => c.equipamento_id === ajusteForm.equipamento_id);
       const origValorHora = ce ? Number(ce.valor_hora) : 0;
       const origValorExcedente = ce ? Number(ce.valor_hora_excedente) : 0;
       const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
