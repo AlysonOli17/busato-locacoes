@@ -143,6 +143,23 @@ const Equipamentos = () => {
 
   const handleSave = async () => {
     if (!form.tipo || !form.modelo) return;
+
+    // Verificar duplicatas por numero_serie ou tag_placa
+    if (form.numero_serie) {
+      const existing = items.find(i => i.numero_serie?.toLowerCase() === form.numero_serie.toLowerCase() && i.id !== editing?.id);
+      if (existing) {
+        toast({ title: "Erro", description: `Já existe um equipamento com o número de série "${form.numero_serie}" (${existing.tipo} ${existing.modelo}).`, variant: "destructive" });
+        return;
+      }
+    }
+    if (form.tag_placa) {
+      const existing = items.find(i => i.tag_placa?.toLowerCase() === form.tag_placa.toLowerCase() && i.id !== editing?.id);
+      if (existing) {
+        toast({ title: "Erro", description: `Já existe um equipamento com a tag/placa "${form.tag_placa}" (${existing.tipo} ${existing.modelo}).`, variant: "destructive" });
+        return;
+      }
+    }
+
     const payload = {
       tipo: form.tipo,
       modelo: form.modelo,
