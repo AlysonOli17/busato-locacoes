@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,11 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Search, Pencil, Trash2, Upload, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import ExcelJS from "exceljs";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Equipment {
@@ -40,12 +39,10 @@ const Equipamentos = () => {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [insuredIds, setInsuredIds] = useState<Set<string>>(new Set());
   const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
   const [sinistroIds, setSinistroIds] = useState<Set<string>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -190,80 +187,7 @@ const Equipamentos = () => {
     fetchData();
   };
 
-  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const workbook = new ExcelJS.Workbook();
-      const buffer = await file.arrayBuffer();
-      await workbook.xlsx.load(buffer);
-      const sheet = workbook.worksheets[0];
-      if (!sheet) throw new Error("Planilha vazia");
 
-      const rows: any[] = [];
-      const headerRow = sheet.getRow(1);
-      const headers: string[] = [];
-      headerRow.eachCell((cell, colNumber) => {
-        headers[colNumber] = (cell.value?.toString() || "").trim().toLowerCase();
-      });
-
-      const colMap: Record<string, string> = {};
-      headers.forEach((h, idx) => {
-        const normalized = h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-        if (normalized.includes("tipo") || normalized.includes("veiculo") || normalized.includes("equipamento")) colMap["tipo"] = String(idx);
-        else if (normalized.includes("tag") || normalized.includes("placa")) colMap["tag_placa"] = String(idx);
-        else if (normalized.includes("modelo")) colMap["modelo"] = String(idx);
-        else if (normalized.includes("serie")) colMap["numero_serie"] = String(idx);
-        else if (normalized.includes("ano")) colMap["ano"] = String(idx);
-        else if (normalized.includes("valor")) colMap["valor_bem"] = String(idx);
-      });
-
-      if (!colMap["tipo"] && !colMap["modelo"]) {
-        throw new Error("Não foi possível identificar as colunas obrigatórias (Tipo e Modelo) na planilha.");
-      }
-
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        const getCellVal = (field: string) => {
-          const colIdx = colMap[field];
-          if (!colIdx) return null;
-          const cell = row.getCell(parseInt(colIdx));
-          return cell.value?.toString()?.trim() || null;
-        };
-
-        const tipo = getCellVal("tipo");
-        const modelo = getCellVal("modelo");
-        if (!tipo && !modelo) return;
-
-        const anoStr = getCellVal("ano");
-        const valorStr = getCellVal("valor_bem");
-
-        rows.push({
-          tipo: tipo || "",
-          modelo: modelo || "",
-          numero_serie: getCellVal("numero_serie"),
-          tag_placa: getCellVal("tag_placa"),
-          ano: anoStr ? parseInt(anoStr.replace(/\D/g, "")) || null : null,
-          valor_bem: valorStr ? parseFloat(valorStr.replace(/[^\d.,]/g, "").replace(",", ".")) || null : null,
-          status: "Ativo",
-        });
-      });
-
-      if (rows.length === 0) throw new Error("Nenhum registro encontrado na planilha.");
-
-      const { error } = await supabase.from("equipamentos").insert(rows);
-      if (error) throw error;
-
-      toast({ title: "Importação concluída", description: `${rows.length} equipamento(s) importado(s) com sucesso.` });
-      fetchData();
-    } catch (err: any) {
-      toast({ title: "Erro na importação", description: err.message || "Erro ao processar o arquivo.", variant: "destructive" });
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
 
   const statusColor = (s: string) => {
     if (s === "Ativo") return "bg-success text-success-foreground";
@@ -309,25 +233,11 @@ const Equipamentos = () => {
             <p className="text-sm text-muted-foreground">{items.length} equipamentos cadastrados</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleImportExcel}
-            />
             <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
               <FileText className="h-4 w-4 mr-2" /> PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-            >
-              <Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar Excel"}
             </Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" /> Novo Equipamento
