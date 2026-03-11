@@ -1706,7 +1706,7 @@ const Contratos = () => {
                   placeholder="Adicionar equipamento..."
                   searchPlaceholder="Pesquisar equipamento..."
                   className="flex-1"
-                  options={availableEquipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                  options={availableEquipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}${e.numero_serie ? ` - NS: ${e.numero_serie}` : ""}` }))}
                 />
               </div>
               {formEquipamentos.length > 0 && (
@@ -2142,10 +2142,10 @@ const Contratos = () => {
                 }}
                 placeholder="Selecione o equipamento"
                 searchPlaceholder="Pesquisar equipamento..."
-                options={getAllEquipForAjuste(ajustesContrato).map(ce => ({
-                  value: ce.equipamento_id,
-                  label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo} ${ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}`,
-                }))}
+                 options={getAllEquipForAjuste(ajustesContrato).map(ce => ({
+                   value: ce.equipamento_id,
+                   label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`,
+                 }))}
               />
             </div>
             )}
@@ -2259,7 +2259,7 @@ const Contratos = () => {
                 onValueChange={addAditivoEquipamento}
                 placeholder="Adicionar equipamento..."
                 searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.filter(e => !aditivoForm.equipamentos.some(fe => fe.equipamento_id === e.id)).map(e => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                options={equipamentos.filter(e => !aditivoForm.equipamentos.some(fe => fe.equipamento_id === e.id)).map(e => ({ value: e.id, label: `${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}${e.numero_serie ? ` - NS: ${e.numero_serie}` : ""}` }))}
               />
               {aditivoForm.equipamentos.length > 0 && (
                 <div className="space-y-3 p-3 rounded-lg bg-muted/50">
