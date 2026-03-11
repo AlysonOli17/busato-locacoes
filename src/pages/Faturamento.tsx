@@ -595,7 +595,7 @@ const Faturamento = () => {
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
         theme: "grid",
       });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      y = (doc as any).lastAutoTable.finalY + 14;
 
       // Equipamentos do contrato
       const ceList = ct?.contratos_equipamentos || [];
