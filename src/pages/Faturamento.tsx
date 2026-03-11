@@ -755,6 +755,23 @@ const Faturamento = () => {
       });
       y = (doc as any).lastAutoTable.finalY + 8;
 
+      // Observações do contrato
+      if (ct?.observacoes) {
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text("Observações", 14, y);
+        y += 2;
+        autoTable(doc, {
+          startY: y,
+          body: [[ct.observacoes]],
+          styles: { fontSize: 9, cellPadding: 4 },
+          theme: "plain",
+          columnStyles: { 0: { cellWidth: doc.internal.pageSize.getWidth() - 28 } },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
       // Bank account info
       if (item.conta_bancaria_id) {
         const conta = contasBancarias.find(c => c.id === item.conta_bancaria_id);
