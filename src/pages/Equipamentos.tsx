@@ -233,25 +233,11 @@ const Equipamentos = () => {
             <p className="text-sm text-muted-foreground">{items.length} equipamentos cadastrados</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleImportExcel}
-            />
             <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
               <FileText className="h-4 w-4 mr-2" /> PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-            >
-              <Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar Excel"}
             </Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" /> Novo Equipamento
