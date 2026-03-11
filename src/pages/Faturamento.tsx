@@ -839,7 +839,7 @@ const Faturamento = () => {
           headStyles: { fillColor: [230, 126, 34], textColor: 255 },
           theme: "grid",
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
 
       // Summary
