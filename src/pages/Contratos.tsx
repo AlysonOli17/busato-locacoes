@@ -2157,7 +2157,7 @@ const Contratos = () => {
               const ajInicio = parseLocalDate(ajusteForm.data_inicio);
               const ajFim = parseLocalDate(ajusteForm.data_fim);
               const equipIds = new Set<string>();
-              const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+              const ces = getAllEquipForAjuste(ajustesContrato);
               ces.forEach(ce => {
                 const ent = ce.data_entrega ? parseLocalDate(ce.data_entrega) : null;
                 const dev = ce.data_devolucao ? parseLocalDate(ce.data_devolucao) : null;
