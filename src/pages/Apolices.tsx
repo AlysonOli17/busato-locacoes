@@ -565,7 +565,7 @@ const Apolices = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="flex flex-col">
+          <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Shield className="h-4 w-4" /> Apólices Vigentes
@@ -576,7 +576,7 @@ const Apolices = () => {
               <p className="text-xs text-muted-foreground">de {items.length} cadastradas</p>
             </CardContent>
           </Card>
-          <Card className={`flex flex-col ${vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}`}>
+          <Card className={`h-[160px] flex flex-col ${vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}`}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <AlertTriangle className={`h-4 w-4 ${vencendoEm30.length > 0 ? "text-destructive" : ""}`} /> Vencimento / Renovação
@@ -602,7 +602,7 @@ const Apolices = () => {
               )}
             </CardContent>
           </Card>
-          <Card className="flex flex-col">
+          <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <CalendarClock className="h-4 w-4" /> Custo Mensal
@@ -613,7 +613,7 @@ const Apolices = () => {
               <p className="text-xs text-muted-foreground">Estimativa mensal das vigentes</p>
             </CardContent>
           </Card>
-          <Card className="flex flex-col">
+          <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" /> Total Anual
