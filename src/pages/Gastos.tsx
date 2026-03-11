@@ -158,7 +158,7 @@ const Gastos = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="h-[160px] flex flex-col">
+          <Card className="flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" /> Total de Custos
@@ -169,7 +169,7 @@ const Gastos = () => {
               <p className="text-xs text-muted-foreground">{filtered.length} registros no período</p>
             </CardContent>
           </Card>
-          <Card className="h-[160px] flex flex-col">
+          <Card className="flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <FileCheck className="h-4 w-4" /> Incluídos em Fatura
@@ -180,7 +180,7 @@ const Gastos = () => {
               <p className="text-xs text-muted-foreground">{deduzidos.length} custo(s) incluído(s)</p>
             </CardContent>
           </Card>
-          <Card className="h-[160px] flex flex-col">
+          <Card className="flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4" /> Não Incluídos
@@ -191,7 +191,7 @@ const Gastos = () => {
               <p className="text-xs text-muted-foreground">{naoDeduzidos.length} custo(s) sem fatura</p>
             </CardContent>
           </Card>
-          <Card className="h-[160px] flex flex-col">
+          <Card className="flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <CalendarClock className="h-4 w-4" /> Por Tipo
