@@ -613,7 +613,7 @@ const Apolices = () => {
               <p className="text-xs text-muted-foreground">Estimativa mensal das vigentes</p>
             </CardContent>
           </Card>
-          <Card className="flex flex-col">
+          <Card className="h-[160px] flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" /> Total Anual
