@@ -116,7 +116,10 @@ const Medicoes = () => {
   };
 
   const handleSave = async () => {
-    if (!form.equipamento_id || form.horimetro <= 0) return;
+    if (!form.equipamento_id || form.horimetro <= 0) {
+      toast({ title: "Campos obrigatórios", description: "Selecione um equipamento e informe o horímetro.", variant: "destructive" });
+      return;
+    }
 
     const horasTrabalhadas = Math.max(0, form.horimetro - horimetroAnterior);
 
