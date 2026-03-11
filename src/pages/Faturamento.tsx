@@ -862,7 +862,7 @@ const Faturamento = () => {
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
         theme: "grid",
       });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      y = (doc as any).lastAutoTable.finalY + 14;
 
       // Observações do contrato
       if (ct?.observacoes) {
