@@ -2259,7 +2259,7 @@ const Contratos = () => {
                 onValueChange={addAditivoEquipamento}
                 placeholder="Adicionar equipamento..."
                 searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.filter(e => !aditivoForm.equipamentos.some(fe => fe.equipamento_id === e.id)).map(e => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                options={equipamentos.filter(e => !aditivoForm.equipamentos.some(fe => fe.equipamento_id === e.id)).map(e => ({ value: e.id, label: `${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}${e.numero_serie ? ` - NS: ${e.numero_serie}` : ""}` }))}
               />
               {aditivoForm.equipamentos.length > 0 && (
                 <div className="space-y-3 p-3 rounded-lg bg-muted/50">
