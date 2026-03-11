@@ -730,7 +730,7 @@ const Faturamento = () => {
           headStyles: { fillColor: [192, 57, 43], textColor: 255 },
           theme: "grid",
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
 
       // Aditivos history (before financial summary)
