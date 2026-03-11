@@ -180,7 +180,7 @@ const Gastos = () => {
               <p className="text-xs text-muted-foreground">{deduzidos.length} custo(s) incluído(s)</p>
             </CardContent>
           </Card>
-          <Card className="h-[160px] flex flex-col">
+          <Card className="flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4" /> Não Incluídos
