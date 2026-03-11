@@ -1857,7 +1857,7 @@ const Contratos = () => {
               <div className="space-y-3">
                 {(() => {
                   // Group adjustments: bulk (same motivo+dates+close created_at) vs individual
-                  const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+                  const ces = getAllEquipForAjuste(ajustesContrato);
                   const groups: { key: string; items: AjusteTemporario[]; isBulk: boolean }[] = [];
                   const used = new Set<string>();
                   
