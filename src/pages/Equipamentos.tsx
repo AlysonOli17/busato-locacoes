@@ -14,7 +14,6 @@ import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSqu
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import ExcelJS from "exceljs";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Equipment {
