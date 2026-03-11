@@ -1706,7 +1706,7 @@ const Contratos = () => {
                   placeholder="Adicionar equipamento..."
                   searchPlaceholder="Pesquisar equipamento..."
                   className="flex-1"
-                  options={availableEquipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                  options={availableEquipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}${e.numero_serie ? ` - NS: ${e.numero_serie}` : ""}` }))}
                 />
               </div>
               {formEquipamentos.length > 0 && (
