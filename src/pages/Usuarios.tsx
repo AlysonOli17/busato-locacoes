@@ -106,7 +106,10 @@ const Usuarios = () => {
   };
 
   const handleSave = async () => {
-    if (!form.nome || !form.email) return;
+    if (!form.nome || !form.email) {
+      toast({ title: "Campos obrigatórios", description: "Nome e E-mail são obrigatórios.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {

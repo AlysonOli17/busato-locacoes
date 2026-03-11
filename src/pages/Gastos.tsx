@@ -108,7 +108,10 @@ const Gastos = () => {
   };
 
   const handleSave = async () => {
-    if (!form.equipamento_id || !form.descricao) return;
+    if (!form.equipamento_id || !form.descricao) {
+      toast({ title: "Campos obrigatórios", description: "Equipamento e Descrição são obrigatórios.", variant: "destructive" });
+      return;
+    }
     const payload = { ...form, valor: Number(form.valor) };
     if (editing) {
       const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);

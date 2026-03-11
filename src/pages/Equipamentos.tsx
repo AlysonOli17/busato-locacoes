@@ -142,7 +142,10 @@ const Equipamentos = () => {
   };
 
   const handleSave = async () => {
-    if (!form.tipo || !form.modelo) return;
+    if (!form.tipo || !form.modelo) {
+      toast({ title: "Campos obrigatórios", description: "Tipo e Modelo são obrigatórios.", variant: "destructive" });
+      return;
+    }
 
     // Verificar duplicatas por numero_serie ou tag_placa
     if (form.numero_serie) {
