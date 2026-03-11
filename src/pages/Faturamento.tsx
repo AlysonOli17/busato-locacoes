@@ -595,7 +595,7 @@ const Faturamento = () => {
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
         theme: "grid",
       });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      y = (doc as any).lastAutoTable.finalY + 14;
 
       // Equipamentos do contrato
       const ceList = ct?.contratos_equipamentos || [];
@@ -652,7 +652,7 @@ const Faturamento = () => {
           columnStyles: { 7: { cellWidth: 40, fontStyle: "italic" } },
           theme: "grid",
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
 
       // Despesas deduzidas detalhadas
@@ -690,7 +690,7 @@ const Faturamento = () => {
               headStyles: { fillColor: [192, 57, 43], textColor: 255 },
               theme: "grid",
             });
-            y = (doc as any).lastAutoTable.finalY + 8;
+            y = (doc as any).lastAutoTable.finalY + 14;
           }
         }
       }
@@ -730,7 +730,7 @@ const Faturamento = () => {
           headStyles: { fillColor: [192, 57, 43], textColor: 255 },
           theme: "grid",
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
 
       // Aditivos history (before financial summary)
@@ -839,7 +839,7 @@ const Faturamento = () => {
           headStyles: { fillColor: [230, 126, 34], textColor: 255 },
           theme: "grid",
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
 
       // Summary
@@ -862,7 +862,7 @@ const Faturamento = () => {
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
         theme: "grid",
       });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      y = (doc as any).lastAutoTable.finalY + 14;
 
       // Observações do contrato
       if (ct?.observacoes) {
@@ -878,7 +878,7 @@ const Faturamento = () => {
           theme: "plain",
           columnStyles: { 0: { cellWidth: doc.internal.pageSize.getWidth() - 28 } },
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
     }
 
