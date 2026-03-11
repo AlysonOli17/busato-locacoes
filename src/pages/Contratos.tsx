@@ -986,13 +986,54 @@ const Contratos = () => {
     setAjustes((data || []) as AjusteTemporario[]);
   };
 
+  // Helper: get ALL equipment (base + aditivos) for adjustment context
+  const getAllEquipForAjuste = (contrato: Contrato | null): ContratoEquipamento[] => {
+    if (!contrato) return [];
+    const ces = getContratoEquipamentos(contrato);
+    const contratoAditivos = aditivos.filter(a => a.contrato_id === contrato.id);
+    const equipMap = new Map<string, ContratoEquipamento>();
+    ces.forEach(ce => equipMap.set(ce.equipamento_id, ce));
+    // Aditivos override/add - sorted by numero so latest wins
+    contratoAditivos.sort((a, b) => a.numero - b.numero);
+    contratoAditivos.forEach(ad => {
+      (ad.aditivos_equipamentos || []).forEach(ae => {
+        const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+        if (!eq) return;
+        equipMap.set(ae.equipamento_id, {
+          id: ae.id,
+          equipamento_id: ae.equipamento_id,
+          valor_hora: ae.valor_hora,
+          horas_contratadas: ae.horas_contratadas,
+          valor_hora_excedente: ae.valor_hora_excedente,
+          hora_minima: ae.hora_minima,
+          data_entrega: ae.data_entrega,
+          data_devolucao: ae.data_devolucao,
+          equipamentos: eq,
+        });
+      });
+    });
+    return Array.from(equipMap.values());
+  };
+
+  // Helper: get the max end date from contract or latest aditivo
+  const getMaxDataFim = (contrato: Contrato | null): string => {
+    if (!contrato) return "";
+    let maxDate = contrato.data_fim;
+    const contratoAditivos = aditivos.filter(a => a.contrato_id === contrato.id);
+    contratoAditivos.forEach(ad => {
+      if (ad.data_fim > maxDate) maxDate = ad.data_fim;
+    });
+    return maxDate;
+  };
+
   const openNewAjuste = (equipId?: string) => {
     setEditingAjuste(null);
     setAjusteTodos(false);
     setAjusteCampos({ valor_hora: true, valor_hora_excedente: true, hora_minima: true, horas_contratadas: true });
-    const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
-    const firstEquip = equipId || (ces.length > 0 ? ces[0].equipamento_id : "");
-    const ce = ces.find(c => c.equipamento_id === firstEquip);
+    const allEquip = getAllEquipForAjuste(ajustesContrato);
+    const firstEquip = equipId || (allEquip.length > 0 ? allEquip[0].equipamento_id : "");
+    const ce = allEquip.find(c => c.equipamento_id === firstEquip);
+    const maxDataFim = getMaxDataFim(ajustesContrato);
     setAjusteForm({
       equipamento_id: firstEquip,
       valor_hora: ce ? Number(ce.valor_hora) : 0,
@@ -1000,7 +1041,7 @@ const Contratos = () => {
       hora_minima: ce ? Number(ce.hora_minima) : 0,
       horas_contratadas: ce ? Number(ce.horas_contratadas) : 0,
       data_inicio: "",
-      data_fim: "",
+      data_fim: maxDataFim,
       motivo: "",
     });
     setAjusteFormOpen(true);
