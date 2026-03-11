@@ -878,7 +878,7 @@ const Faturamento = () => {
           theme: "plain",
           columnStyles: { 0: { cellWidth: doc.internal.pageSize.getWidth() - 28 } },
         });
-        y = (doc as any).lastAutoTable.finalY + 8;
+        y = (doc as any).lastAutoTable.finalY + 14;
       }
     }
 
