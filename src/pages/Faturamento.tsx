@@ -733,75 +733,7 @@ const Faturamento = () => {
         y = (doc as any).lastAutoTable.finalY + 8;
       }
 
-      // Summary
-      if (y > 240) { doc.addPage(); y = 20; }
-      const valorBrutoItem = Number(item.horas_normais) * Number(item.valor_hora) + Number(item.horas_excedentes) * Number(item.valor_excedente_hora);
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Resumo Financeiro", 14, y);
-      y += 2;
-      autoTable(doc, {
-        startY: y,
-        head: [["Descrição", "Valor"]],
-        body: [
-          ["Valor Bruto (horas)", fmt(valorBrutoItem)],
-          ["(+) Custos Adicionais", gastosVal > 0 ? `+ ${fmt(gastosVal)}` : "R$ 0,00"],
-          ["(=) Valor Total a Cobrar", fmt(Number(item.valor_total))],
-        ],
-        styles: { fontSize: 10, cellPadding: 4 },
-        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-
-      // Observações do contrato
-      if (ct?.observacoes) {
-        if (y > 250) { doc.addPage(); y = 20; }
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text("Observações", 14, y);
-        y += 2;
-        autoTable(doc, {
-          startY: y,
-          body: [[ct.observacoes]],
-          styles: { fontSize: 9, cellPadding: 4 },
-          theme: "plain",
-          columnStyles: { 0: { cellWidth: doc.internal.pageSize.getWidth() - 28 } },
-        });
-        y = (doc as any).lastAutoTable.finalY + 8;
-      }
-
-      // Bank account info
-      if (item.conta_bancaria_id) {
-        const conta = contasBancarias.find(c => c.id === item.conta_bancaria_id);
-        if (conta) {
-          if (y > 240) { doc.addPage(); y = 20; }
-          doc.setFontSize(12);
-          doc.setTextColor(41, 128, 185);
-          doc.text("Dados Bancários para Pagamento", 14, y);
-          y += 2;
-          const bankRows: string[][] = [
-            ["Banco", conta.banco],
-            ["Agência", conta.agencia],
-            ["Conta", `${conta.conta} (${conta.tipo_conta})`],
-            ["Titular", conta.titular],
-          ];
-          if (conta.cnpj_cpf) bankRows.push(["CNPJ/CPF", conta.cnpj_cpf]);
-          if (conta.pix) bankRows.push(["Chave PIX", conta.pix]);
-          autoTable(doc, {
-            startY: y,
-            head: [["Campo", "Dados"]],
-            body: bankRows,
-            styles: { fontSize: 9, cellPadding: 3 },
-            headStyles: { fillColor: [52, 73, 94], textColor: 255 },
-            columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-            theme: "grid",
-          });
-        }
-      }
-
-      // Aditivos history
+      // Aditivos history (before financial summary)
       const { data: aditivosHist } = await supabase
         .from("contratos_aditivos")
         .select("id, numero, data_inicio, data_fim, motivo, observacoes")
@@ -821,7 +753,6 @@ const Faturamento = () => {
           aeByAditivo.set(ae.aditivo_id, list);
         });
 
-        y = (doc as any).lastAutoTable?.finalY + 8 || y + 8;
         if (y > 220) { doc.addPage(); y = 20; }
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
@@ -872,6 +803,82 @@ const Faturamento = () => {
             y = (doc as any).lastAutoTable.finalY + 4;
           }
         }
+      }
+
+      // Ajustes temporários history
+      const { data: ajustesHist } = await supabase
+        .from("contratos_equipamentos_ajustes")
+        .select("*, equipamentos:equipamento_id(tipo, modelo, tag_placa)")
+        .eq("contrato_id", item.contrato_id)
+        .order("data_inicio", { ascending: true });
+
+      if (ajustesHist && ajustesHist.length > 0) {
+        if (y > 220) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text("Histórico de Ajustes Temporários", 14, y);
+        y += 2;
+
+        const ajusteRows = ajustesHist.map((aj: any) => {
+          const eq = aj.equipamentos;
+          return [
+            eq ? `${eq.tipo} ${eq.modelo}` : "—",
+            eq?.tag_placa || "—",
+            aj.motivo || "—",
+            `${parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}`,
+            fmt(Number(aj.valor_hora)),
+            `${aj.horas_contratadas}h`,
+            `${aj.hora_minima}h`,
+          ];
+        });
+        autoTable(doc, {
+          startY: y,
+          head: [["Equipamento", "Tag", "Motivo", "Período", "V/h", "Horas", "Mínima"]],
+          body: ajusteRows,
+          styles: { fontSize: 7, cellPadding: 2 },
+          headStyles: { fillColor: [230, 126, 34], textColor: 255 },
+          theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      // Summary
+      if (y > 240) { doc.addPage(); y = 20; }
+      const valorBrutoItem = Number(item.horas_normais) * Number(item.valor_hora) + Number(item.horas_excedentes) * Number(item.valor_excedente_hora);
+      doc.setFontSize(12);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Resumo Financeiro", 14, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Descrição", "Valor"]],
+        body: [
+          ["Valor Bruto (horas)", fmt(valorBrutoItem)],
+          ["(+) Custos Adicionais", gastosVal > 0 ? `+ ${fmt(gastosVal)}` : "R$ 0,00"],
+          ["(=) Valor Total a Cobrar", fmt(Number(item.valor_total))],
+        ],
+        styles: { fontSize: 10, cellPadding: 4 },
+        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Observações do contrato
+      if (ct?.observacoes) {
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text("Observações", 14, y);
+        y += 2;
+        autoTable(doc, {
+          startY: y,
+          body: [[ct.observacoes]],
+          styles: { fontSize: 9, cellPadding: 4 },
+          theme: "plain",
+          columnStyles: { 0: { cellWidth: doc.internal.pageSize.getWidth() - 28 } },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
       }
     }
 
