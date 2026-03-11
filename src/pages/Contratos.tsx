@@ -2129,8 +2129,8 @@ const Contratos = () => {
               <SearchableSelect
                 value={ajusteForm.equipamento_id}
                 onValueChange={(v) => {
-                  const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
-                  const ce = ces.find(c => c.equipamento_id === v);
+                  const allEquip = getAllEquipForAjuste(ajustesContrato);
+                  const ce = allEquip.find(c => c.equipamento_id === v);
                   setAjusteForm(prev => ({
                     ...prev,
                     equipamento_id: v,
@@ -2142,7 +2142,7 @@ const Contratos = () => {
                 }}
                 placeholder="Selecione o equipamento"
                 searchPlaceholder="Pesquisar equipamento..."
-                options={(ajustesContrato ? getContratoEquipamentos(ajustesContrato) : []).map(ce => ({
+                options={getAllEquipForAjuste(ajustesContrato).map(ce => ({
                   value: ce.equipamento_id,
                   label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo} ${ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}`,
                 }))}
