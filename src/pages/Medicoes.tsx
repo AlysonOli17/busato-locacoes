@@ -45,7 +45,7 @@ const Medicoes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "" });
+  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0 });
   const [filterEquip, setFilterEquip] = useState("Todos");
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
@@ -103,19 +103,21 @@ const Medicoes = () => {
   const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
   const horasCalculadas = form.horimetro > 0 ?
-  Math.max(0, form.horimetro - horimetroAnterior) :
+  (form.tipo === "Indisponível"
+    ? Math.max(0, form.horimetro - form.horimetro_inicial_indisp)
+    : Math.max(0, form.horimetro - horimetroAnterior)) :
   0;
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "" });
+    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0 });
     setHorimetroAnterior(0);
     setDialogOpen(true);
   };
 
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
-    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "" });
+    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "", horimetro_inicial_indisp: (m.tipo === "Indisponível") ? Number(m.horimetro_inicial) : 0 });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
     // Refresh anterior for this date
@@ -128,13 +130,15 @@ const Medicoes = () => {
       return;
     }
 
-    const horasTrabalhadas = Math.max(0, form.horimetro - horimetroAnterior);
+    const isIndisp = form.tipo === "Indisponível";
+    const hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
+    const horasTrabalhadas = Math.max(0, form.horimetro - hInicial);
 
     if (editingId) {
       const { error } = await supabase.from("medicoes").update({
         equipamento_id: form.equipamento_id,
         data: form.data,
-        horimetro_inicial: horimetroAnterior,
+        horimetro_inicial: hInicial,
         horimetro_final: form.horimetro,
         horas_trabalhadas: horasTrabalhadas,
         tipo: form.tipo,
@@ -145,7 +149,7 @@ const Medicoes = () => {
       const { error } = await supabase.from("medicoes").insert({
         equipamento_id: form.equipamento_id,
         data: form.data,
-        horimetro_inicial: horimetroAnterior,
+        horimetro_inicial: hInicial,
         horimetro_final: form.horimetro,
         horas_trabalhadas: horasTrabalhadas,
         tipo: form.tipo,
@@ -384,7 +388,7 @@ const Medicoes = () => {
               <Label>Data</Label>
               <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
             </div>
-            {form.equipamento_id &&
+            {form.equipamento_id && form.tipo === "Trabalho" &&
             <div className="p-3 rounded-lg bg-muted/50 border">
                 <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {parseLocalDate(form.data).toLocaleDateString("pt-BR")})</p>
                 <p className="text-lg font-bold text-foreground">{horimetroAnterior.toFixed(1)}</p>
@@ -404,27 +408,43 @@ const Medicoes = () => {
               </RadioGroup>
             </div>
             {form.tipo === "Indisponível" && (
+              <>
+                <div>
+                  <Label>Observação (motivo da indisponibilidade)</Label>
+                  <Textarea
+                    value={form.observacoes}
+                    onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                    placeholder="Ex: Manutenção preventiva, quebra mecânica..."
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Horímetro Inicial</Label>
+                    <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => setForm({ ...form, horimetro_inicial_indisp: Number(e.target.value) })} placeholder="Ex: 180.0" />
+                  </div>
+                  <div>
+                    <Label>Horímetro Final</Label>
+                    <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
+                  </div>
+                </div>
+              </>
+            )}
+            {form.tipo === "Trabalho" && (
               <div>
-                <Label>Observação (motivo da indisponibilidade)</Label>
-                <Textarea
-                  value={form.observacoes}
-                  onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-                  placeholder="Ex: Manutenção preventiva, quebra mecânica..."
-                  rows={3}
-                />
+                <Label>Horímetro Atual</Label>
+                <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
               </div>
             )}
-            <div>
-              <Label>Horímetro Atual</Label>
-              <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
-            </div>
             {horasCalculadas > 0 &&
             <div className={cn("p-3 rounded-lg text-center", form.tipo === "Indisponível" ? "bg-destructive/10" : "bg-accent/10")}>
                 <p className="text-sm text-muted-foreground">
                   {form.tipo === "Indisponível" ? "Horas indisponíveis (serão descontadas)" : "Horas trabalhadas (diferença)"}
                 </p>
                 <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{horasCalculadas.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">{horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {form.tipo === "Indisponível" ? form.horimetro_inicial_indisp.toFixed(1) : horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}
+                </p>
               </div>
             }
           </div>
