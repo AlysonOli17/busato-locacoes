@@ -174,8 +174,8 @@ const Medicoes = () => {
     <Layout>
       <Tabs defaultValue="medicoes" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Medições</TabsTrigger>
-          <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Faturamento</TabsTrigger>
+          <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
+          <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>
         </TabsList>
         <TabsContent value="medicoes">
       <div className="space-y-6">
