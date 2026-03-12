@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
+import { FaturamentoTab } from "@/components/FaturamentoTab";
 
 interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;}
 interface Medicao {
