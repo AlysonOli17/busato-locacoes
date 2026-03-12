@@ -85,8 +85,9 @@ const Medicoes = () => {
 
   const filtered = items.filter((i) => {
     if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
-    if (dataInicio) {if (new Date(i.data) < dataInicio) return false;}
-    if (dataFim) {const fim = new Date(dataFim);fim.setHours(23, 59, 59, 999);if (new Date(i.data) > fim) return false;}
+    const itemDate = parseLocalDate(i.data);
+    if (dataInicio) {if (itemDate < dataInicio) return false;}
+    if (dataFim) {const fim = new Date(dataFim);fim.setHours(23, 59, 59, 999);if (itemDate > fim) return false;}
     return true;
   });
 
