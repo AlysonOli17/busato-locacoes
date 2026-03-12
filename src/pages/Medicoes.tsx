@@ -134,7 +134,9 @@ const Medicoes = () => {
         data: form.data,
         horimetro_inicial: horimetroAnterior,
         horimetro_final: form.horimetro,
-        horas_trabalhadas: horasTrabalhadas
+        horas_trabalhadas: horasTrabalhadas,
+        tipo: form.tipo,
+        observacoes: form.observacoes || null,
       }).eq("id", editingId);
       if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     } else {
@@ -143,7 +145,9 @@ const Medicoes = () => {
         data: form.data,
         horimetro_inicial: horimetroAnterior,
         horimetro_final: form.horimetro,
-        horas_trabalhadas: horasTrabalhadas
+        horas_trabalhadas: horasTrabalhadas,
+        tipo: form.tipo,
+        observacoes: form.observacoes || null,
       });
       if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     }
