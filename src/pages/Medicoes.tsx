@@ -130,7 +130,9 @@ const Medicoes = () => {
       return;
     }
 
-    const horasTrabalhadas = Math.max(0, form.horimetro - horimetroAnterior);
+    const isIndisp = form.tipo === "Indisponível";
+    const hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
+    const horasTrabalhadas = Math.max(0, form.horimetro - hInicial);
 
     if (editingId) {
       const { error } = await supabase.from("medicoes").update({
