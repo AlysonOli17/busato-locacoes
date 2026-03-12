@@ -102,11 +102,9 @@ const Medicoes = () => {
 
   const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
-  const horasCalculadas = form.horimetro > 0 ?
-  (form.tipo === "Indisponível"
-    ? Math.max(0, form.horimetro - form.horimetro_inicial_indisp)
-    : Math.max(0, form.horimetro - horimetroAnterior)) :
-  0;
+  const horasCalculadas = form.tipo === "Indisponível"
+    ? form.horas_indisp
+    : (form.horimetro > 0 ? Math.max(0, form.horimetro - horimetroAnterior) : 0);
 
   const openNew = () => {
     setEditingId(null);
