@@ -241,7 +241,7 @@ export const FaturamentoContent = () => {
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao;
       const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
       const fimEfetivo = dataDevolucao && dataDevolucao < fim ? dataDevolucao : fim;
-      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo);
+      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo).order("data", { ascending: true });
     });
     const medResults = await Promise.all(medPromises);
     const medicoesData = medResults.flatMap(r => r.data || []);
@@ -296,9 +296,26 @@ export const FaturamentoContent = () => {
         }
       }
 
-      const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
-      const horasTrabalho = filteredMedicoes.filter(m => (m as any).tipo !== "Indisponível").reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
-      const horasIndisponiveis = filteredMedicoes.filter(m => (m as any).tipo === "Indisponível").reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      // Recalculate hours from horímetro chain to handle retroactive entries
+      const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId).sort((a, b) => ((a as any).data || "").localeCompare((b as any).data || ""));
+      let horasTrabalho = 0;
+      let horasIndisponiveis = 0;
+      let prevHorimetroFinal: number | null = null;
+      for (const m of filteredMedicoes) {
+        const mAny = m as any;
+        if (mAny.tipo === "Indisponível") {
+          horasIndisponiveis += Number(m.horas_trabalhadas);
+        } else {
+          // Recalculate work hours from chain: current final - previous final
+          if (prevHorimetroFinal !== null) {
+            horasTrabalho += Math.max(0, Number(mAny.horimetro_final) - prevHorimetroFinal);
+          } else {
+            // First entry: use stored horas_trabalhadas (horimetro_final - horimetro_inicial)
+            horasTrabalho += Number(m.horas_trabalhadas);
+          }
+        }
+        prevHorimetroFinal = Number(mAny.horimetro_final);
+      }
       const horasMedidas = Math.max(0, horasTrabalho - horasIndisponiveis);
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
