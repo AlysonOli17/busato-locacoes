@@ -965,6 +965,7 @@ export const FaturamentoContent = () => {
     setEditing(item);
     setFormContratoId(item.contrato_id);
     setFormPeriodo(item.periodo);
+    setFormNumeroSequencial(item.numero_sequencial);
     setFormNumeroNota(item.numero_nota || "");
     setFormStatus(item.status);
     setFormContaBancariaId(item.conta_bancaria_id || "");
