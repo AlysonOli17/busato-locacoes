@@ -420,14 +420,33 @@ export const FaturamentoContent = () => {
     setEquipForms(newEquipForms);
 
     // Gastos
-    if (gastosRes.data) {
-      setGastosEquip(gastosRes.data as GastoItem[]);
-      setSelectedGastos(new Set());
-      setTotalGastos(0);
+    const existingGastos = (gastosRes.data || []) as GastoItem[];
+    setGastosEquip(existingGastos);
+    setSelectedGastos(new Set());
+    setTotalGastos(0);
+
+    // Detect Mobilização/Desmobilização events
+    const mobEvents: MobEvent[] = [];
+    for (const ef of newEquipForms) {
+      const hasMobGasto = existingGastos.some(g => g.equipamento_id === ef.equipamento_id && g.tipo === "Mobilização");
+      const hasDesmobGasto = existingGastos.some(g => g.equipamento_id === ef.equipamento_id && g.tipo === "Desmobilização");
+
+      if (ef.data_entrega && ef.data_entrega >= inicio && ef.data_entrega <= fim && !hasMobGasto) {
+        mobEvents.push({ equipamento_id: ef.equipamento_id, tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa, evento: "Mobilização", data: ef.data_entrega });
+      }
+      if (ef.data_devolucao && ef.data_devolucao >= inicio && ef.data_devolucao <= fim && !hasDesmobGasto) {
+        mobEvents.push({ equipamento_id: ef.equipamento_id, tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa, evento: "Desmobilização", data: ef.data_devolucao });
+      }
+    }
+
+    if (mobEvents.length > 0) {
+      setMobAlerts(mobEvents);
+      const defaultValues: Record<string, number> = {};
+      mobEvents.forEach((e, i) => { defaultValues[`${e.equipamento_id}_${e.evento}`] = 0; });
+      setMobValues(defaultValues);
+      setMobDialogOpen(true);
     } else {
-      setGastosEquip([]);
-      setSelectedGastos(new Set());
-      setTotalGastos(0);
+      setMobAlerts([]);
     }
 
     setLoadingMedicoes(false);
