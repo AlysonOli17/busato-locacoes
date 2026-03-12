@@ -488,7 +488,7 @@ export const FaturamentoTab = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
-          <p className="text-sm text-muted-foreground">Gestão de faturas de locação e emissão de documentos</p>
+          <p className="text-sm text-muted-foreground">Faturas emitidas a partir de medições aprovadas</p>
         </div>
       </div>
 
