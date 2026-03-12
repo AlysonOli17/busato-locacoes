@@ -407,8 +407,9 @@ export const FaturamentoTab = () => {
           "",
         ],
       ],
-      styles: { fontSize: 7, cellPadding: 2.5 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", fontSize: 6.5 },
+      theme: "grid",
+      styles: { fontSize: 7, cellPadding: 2.5, lineWidth: 0.2, lineColor: [200, 200, 200] },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", fontSize: 6.5, lineColor: [41, 128, 185] },
       tableWidth: contentW,
       columnStyles: {
         0: { cellWidth: contentW * 0.45 },
@@ -420,7 +421,7 @@ export const FaturamentoTab = () => {
       margin: { left: mLeft, right: mRight },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 2;
+    y = (doc as any).lastAutoTable.finalY;
 
     // Total
     doc.setFillColor(41, 128, 185);
