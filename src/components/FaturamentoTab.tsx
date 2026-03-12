@@ -171,8 +171,11 @@ export const FaturamentoTab = () => {
 
   const getDisplayStatus = (fatura: Fatura) => {
     if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
-    const venc = getVencimento(fatura);
-    if (new Date() > venc) return "Em Atraso";
+    if (fatura.status === "Aprovado") {
+      const venc = getVencimento(fatura);
+      if (new Date() > venc) return "Em Atraso";
+      return "Aprovado";
+    }
     return fatura.status;
   };
 
