@@ -420,12 +420,25 @@ const Medicoes = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Horímetro Inicial</Label>
-                    <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => setForm({ ...form, horimetro_inicial_indisp: Number(e.target.value) })} placeholder="Ex: 180.0" />
+                    <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const diff = Math.max(0, form.horimetro - val);
+                      setForm({ ...form, horimetro_inicial_indisp: val, horas_indisp: diff });
+                    }} placeholder="Ex: 180.0" />
                   </div>
                   <div>
                     <Label>Horímetro Final</Label>
-                    <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
+                    <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const diff = Math.max(0, val - form.horimetro_inicial_indisp);
+                      setForm({ ...form, horimetro: val, horas_indisp: diff });
+                    }} placeholder="Ex: 189.5" />
                   </div>
+                </div>
+                <div>
+                  <Label>Horas Indisponíveis (editável)</Label>
+                  <Input type="number" step="0.1" value={form.horas_indisp || ""} onChange={(e) => setForm({ ...form, horas_indisp: Number(e.target.value) })} placeholder="Ex: 9.5" />
+                  <p className="text-xs text-muted-foreground mt-1">Pré-calculado pela diferença do horímetro. Edite se necessário.</p>
                 </div>
               </>
             )}
