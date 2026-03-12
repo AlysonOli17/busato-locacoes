@@ -567,7 +567,7 @@ export const FaturamentoContent = () => {
       const emp = ct?.empresas;
       const gastosVal = Number(item.total_gastos || 0);
 
-      const tituloFatura = item.numero_nota ? `Nº Nota: ${item.numero_nota}` : `Faturamento Nº ${item.numero_sequencial}`;
+      const tituloFatura = item.numero_nota ? `Nº Nota: ${item.numero_nota}` : `Medição Nº ${item.numero_sequencial}`;
       const startY = await addLetterhead(doc, tituloFatura);
 
       let y = startY;
