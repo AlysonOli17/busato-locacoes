@@ -112,7 +112,7 @@ interface EquipFormItem {
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
-const Faturamento = () => {
+export const FaturamentoContent = () => {
   const [items, setItems] = useState<Fatura[]>([]);
   const [contratos, setContratos] = useState<ContratoRef[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -1043,7 +1043,7 @@ const Faturamento = () => {
   const selectedContrato = contratos.find(c => c.id === formContratoId);
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -1434,8 +1434,14 @@ const Faturamento = () => {
       />
 
 
-    </Layout>
+    </>
   );
 };
+
+const Faturamento = () => (
+  <Layout>
+    <FaturamentoContent />
+  </Layout>
+);
 
 export default Faturamento;
