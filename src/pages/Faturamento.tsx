@@ -1022,6 +1022,7 @@ export const FaturamentoContent = () => {
       periodo_medicao_fim: formMedicaoFim || null,
       total_gastos: totalGastos,
       conta_bancaria_id: formContaBancariaId || null,
+      ...(formNumeroSequencial !== "" ? { numero_sequencial: formNumeroSequencial } : {}),
     } as any;
 
     let faturaId: string;
