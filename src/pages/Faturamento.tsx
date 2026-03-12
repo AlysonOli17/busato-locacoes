@@ -1559,6 +1559,56 @@ export const FaturamentoContent = () => {
         onRefresh={fetchData}
       />
 
+      {/* Mobilização/Desmobilização Alert Dialog */}
+      <Dialog open={mobDialogOpen} onOpenChange={setMobDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-warning" />
+              Mobilização / Desmobilização Detectada
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Os seguintes equipamentos foram mobilizados ou desmobilizados dentro do período de medição. Informe o valor para incluir como custo adicional.
+            </p>
+            {mobAlerts.map((e) => {
+              const key = `${e.equipamento_id}_${e.evento}`;
+              return (
+                <div key={key} className="p-3 rounded-lg border space-y-2 bg-warning/5 border-warning/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</span>
+                    <Badge className={e.evento === "Mobilização" ? "bg-success/15 text-success border-0" : "bg-destructive/15 text-destructive border-0"}>
+                      {e.evento}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Data: {parseLocalDate(e.data).toLocaleDateString("pt-BR")}
+                  </p>
+                  <div>
+                    <Label className="text-xs">Valor (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={mobValues[key] || ""}
+                      onChange={(ev) => setMobValues(prev => ({ ...prev, [key]: Number(ev.target.value) }))}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMobDialogOpen(false)}>Ignorar</Button>
+            <Button onClick={handleCreateMobGastos} disabled={creatingMob} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              {creatingMob ? "Criando..." : "Incluir Custos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </>
   );
