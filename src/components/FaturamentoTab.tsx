@@ -418,7 +418,7 @@ export const FaturamentoTab = () => {
 
     doc.setTextColor(40, 40, 40);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
+    doc.setFontSize(6.5);
 
     // Equipment list with hours info
     if (equips.length > 0) {
@@ -428,16 +428,18 @@ export const FaturamentoTab = () => {
           const totalHoras = Number(fe.horas_normais) + Number(fe.horas_excedentes);
           const horasInfo = `${totalHoras.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h (${Number(fe.horas_normais).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h normal${Number(fe.horas_excedentes) > 0 ? ` + ${Number(fe.horas_excedentes).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h exc.` : ""})`;
           const qtStr = `01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""} — ${horasInfo}`;
-          doc.text(qtStr, mLeft + 2, y);
-          y += 3.5;
+          const wrappedLines = doc.splitTextToSize(qtStr, contentW - 4);
+          wrappedLines.forEach((line: string) => {
+            doc.text(line, mLeft + 2, y);
+            y += 4;
+          });
         }
       });
     } else {
-      // Fallback to contract equipment
       const eq = ct?.equipamentos;
       if (eq) {
         doc.text(`01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 2, y);
-        y += 3.5;
+        y += 4;
       }
     }
 
