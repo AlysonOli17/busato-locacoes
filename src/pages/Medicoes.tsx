@@ -299,15 +299,16 @@ const Medicoes = () => {
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[700px]">
               <TableHeader>
-                <TableRow>
-                  <TableHead>Equipamento</TableHead>
-                  <TableHead>Tag/Placa</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Horímetro Ant.</TableHead>
-                  <TableHead>Horímetro Atual</TableHead>
-                  <TableHead>Horas Trab.</TableHead>
-                  <TableHead className="w-20">Ações</TableHead>
-                </TableRow>
+                 <TableRow>
+                   <TableHead>Equipamento</TableHead>
+                   <TableHead>Tag/Placa</TableHead>
+                   <TableHead>Data</TableHead>
+                   <TableHead>Tipo</TableHead>
+                   <TableHead>Horímetro Ant.</TableHead>
+                   <TableHead>Horímetro Atual</TableHead>
+                   <TableHead>Horas Trab.</TableHead>
+                   <TableHead className="w-20">Ações</TableHead>
+                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((item) =>
