@@ -361,7 +361,7 @@ const Medicoes = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-accent" />
-              {editingId ? "Editar Medição" : "Nova Medição"}
+              {editingId ? "Editar Horímetro" : "Novo Horímetro"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
