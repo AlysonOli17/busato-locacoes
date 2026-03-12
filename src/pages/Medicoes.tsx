@@ -14,7 +14,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign } from "lucide-react";
 import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -176,6 +176,7 @@ const Medicoes = () => {
         <TabsList>
           <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
           <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>
+          <TabsTrigger value="faturamento-novo" className="gap-2"><DollarSign className="h-4 w-4" /> Faturamento</TabsTrigger>
         </TabsList>
         <TabsContent value="medicoes">
       <div className="space-y-6">
@@ -335,6 +336,23 @@ const Medicoes = () => {
         </TabsContent>
         <TabsContent value="faturamento">
           <FaturamentoContent />
+        </TabsContent>
+        <TabsContent value="faturamento-novo">
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
+                <p className="text-sm text-muted-foreground">Gestão de faturamento</p>
+              </div>
+            </div>
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">Em construção</p>
+                <p className="text-sm">Esta funcionalidade será implementada em breve.</p>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
