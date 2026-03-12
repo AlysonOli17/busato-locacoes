@@ -409,6 +409,7 @@ export const FaturamentoTab = () => {
       ],
       styles: { fontSize: 7, cellPadding: 2.5 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", fontSize: 6.5 },
+      tableWidth: contentW,
       columnStyles: {
         0: { cellWidth: contentW * 0.45 },
         1: { halign: "center", cellWidth: contentW * 0.1 },
