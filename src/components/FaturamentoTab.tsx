@@ -377,14 +377,19 @@ export const FaturamentoTab = () => {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
       doc.text("ENDEREÇO DE COBRANÇA:", mLeft + 1.5, y + 3.2);
-      y += 5;
+      y += 7;
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.5);
+      doc.setFontSize(7);
       const lines = doc.splitTextToSize(bankText, contentW - 4);
-      doc.rect(mLeft, y, contentW, lines.length * 3.5 + 2, "S");
-      doc.text(lines, mLeft + 2, y + 3.5);
-      y += lines.length * 3.5 + 5;
+      const boxH = lines.length * 4 + 3;
+      doc.rect(mLeft, y, contentW, boxH, "S");
+      let lineY = y + 4;
+      lines.forEach((line: string) => {
+        doc.text(line, mLeft + 2, lineY);
+        lineY += 4;
+      });
+      y += boxH + 3;
     } else {
       y += 2;
     }
