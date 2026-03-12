@@ -45,7 +45,7 @@ const Medicoes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0 });
+  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0 });
   const [filterEquip, setFilterEquip] = useState("Todos");
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
@@ -102,22 +102,21 @@ const Medicoes = () => {
 
   const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
 
-  const horasCalculadas = form.horimetro > 0 ?
-  (form.tipo === "Indisponível"
-    ? Math.max(0, form.horimetro - form.horimetro_inicial_indisp)
-    : Math.max(0, form.horimetro - horimetroAnterior)) :
-  0;
+  const horasCalculadas = form.tipo === "Indisponível"
+    ? form.horas_indisp
+    : (form.horimetro > 0 ? Math.max(0, form.horimetro - horimetroAnterior) : 0);
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0 });
+    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0 });
     setHorimetroAnterior(0);
     setDialogOpen(true);
   };
 
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
-    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "", horimetro_inicial_indisp: (m.tipo === "Indisponível") ? Number(m.horimetro_inicial) : 0 });
+    const isIndisp = m.tipo === "Indisponível";
+    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "", horimetro_inicial_indisp: isIndisp ? Number(m.horimetro_inicial) : 0, horas_indisp: isIndisp ? Number(m.horas_trabalhadas) : 0 });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
     // Refresh anterior for this date
@@ -132,7 +131,7 @@ const Medicoes = () => {
 
     const isIndisp = form.tipo === "Indisponível";
     const hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
-    const horasTrabalhadas = Math.max(0, form.horimetro - hInicial);
+    const horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
 
     if (editingId) {
       const { error } = await supabase.from("medicoes").update({
@@ -421,12 +420,25 @@ const Medicoes = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Horímetro Inicial</Label>
-                    <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => setForm({ ...form, horimetro_inicial_indisp: Number(e.target.value) })} placeholder="Ex: 180.0" />
+                    <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const diff = Math.max(0, form.horimetro - val);
+                      setForm({ ...form, horimetro_inicial_indisp: val, horas_indisp: diff });
+                    }} placeholder="Ex: 180.0" />
                   </div>
                   <div>
                     <Label>Horímetro Final</Label>
-                    <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
+                    <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const diff = Math.max(0, val - form.horimetro_inicial_indisp);
+                      setForm({ ...form, horimetro: val, horas_indisp: diff });
+                    }} placeholder="Ex: 189.5" />
                   </div>
+                </div>
+                <div>
+                  <Label>Horas Indisponíveis (editável)</Label>
+                  <Input type="number" step="0.1" value={form.horas_indisp || ""} onChange={(e) => setForm({ ...form, horas_indisp: Number(e.target.value) })} placeholder="Ex: 9.5" />
+                  <p className="text-xs text-muted-foreground mt-1">Pré-calculado pela diferença do horímetro. Edite se necessário.</p>
                 </div>
               </>
             )}
