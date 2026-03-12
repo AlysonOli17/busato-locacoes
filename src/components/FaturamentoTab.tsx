@@ -457,7 +457,7 @@ export const FaturamentoTab = () => {
           const wrappedLines = doc.splitTextToSize(qtStr, contentW - 4);
           wrappedLines.forEach((line: string) => {
             doc.text(line, mLeft + 2, y);
-            y += 6;
+            y += 4;
           });
         }
       });
