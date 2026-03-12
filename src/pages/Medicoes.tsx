@@ -315,14 +315,23 @@ const Medicoes = () => {
                 <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
-                    <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
-                    <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-accent/10 text-accent font-semibold border-0">
-                        <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
-                      </Badge>
-                    </TableCell>
+                     <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
+                     <TableCell>
+                       {(item.tipo || "Trabalho") === "Indisponível" ? (
+                         <Badge variant="destructive" className="text-xs gap-1">
+                           <AlertTriangle className="h-3 w-3" /> Indisponível
+                         </Badge>
+                       ) : (
+                         <Badge className="bg-accent/10 text-accent border-0 text-xs">Trabalho</Badge>
+                       )}
+                     </TableCell>
+                     <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
+                     <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
+                     <TableCell>
+                       <Badge className={cn("font-semibold border-0", (item.tipo || "Trabalho") === "Indisponível" ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent")}>
+                         <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
+                       </Badge>
+                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
