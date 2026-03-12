@@ -545,7 +545,7 @@ export const FaturamentoContent = () => {
       Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
       i.status,
     ]);
-    return { title: "Relatório de Faturamento", headers, rows, filename: `faturamento_${new Date().toISOString().slice(0, 10)}` };
+    return { title: "Relatório de Medição", headers, rows, filename: `medicao_${new Date().toISOString().slice(0, 10)}` };
 
   };
 
