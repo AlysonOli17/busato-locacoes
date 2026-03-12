@@ -311,14 +311,22 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours: last horímetro_final - first horímetro_inicial, then subtract Indisponível hours
+      // Calculate hours: deduplicate by day (keep highest horimetro), then max - min, minus Indisponível
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       let horasMedidas = 0;
       if (filteredMedicoes.length > 0) {
-        const sorted = [...filteredMedicoes].sort((a, b) => String(a.data).localeCompare(String(b.data)));
-        const first = sorted[0];
-        const last = sorted[sorted.length - 1];
-        const totalBruto = Math.max(0, Number(last.horimetro_final) - Number(first.horimetro_inicial));
+        const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
+        // Keep only highest horimetro_final per day
+        const byDay = new Map<string, number>();
+        for (const m of trabalho) {
+          const d = String(m.data);
+          const v = Number(m.horimetro_final);
+          if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
+        }
+        const dayValues = Array.from(byDay.values());
+        const totalBruto = dayValues.length >= 2
+          ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues))
+          : 0;
         // Subtract indisponível hours
         const horasIndisponiveis = filteredMedicoes
           .filter(m => m.tipo === 'Indisponível')

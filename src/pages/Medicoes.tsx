@@ -106,12 +106,20 @@ const Medicoes = () => {
     const tag = first.equipamentos?.tag_placa || "";
     // Para Trabalho, usamos horimetro_final (horímetro atual). Pegar menor e maior do período.
     const trabalhoEntries = sorted.filter(e => (e.tipo || "Trabalho") === "Trabalho");
+    // Deduplicate: keep only the highest horimetro_final per day
+    const byDay = new Map<string, number>();
+    for (const e of trabalhoEntries) {
+      const d = String(e.data);
+      const v = Number(e.horimetro_final);
+      if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
+    }
+    const dayValues = Array.from(byDay.values());
     let totalHoras = 0;
-    if (trabalhoEntries.length >= 2) {
-      const menor = Math.min(...trabalhoEntries.map(e => Number(e.horimetro_final)));
-      const maior = Math.max(...trabalhoEntries.map(e => Number(e.horimetro_final)));
+    if (dayValues.length >= 2) {
+      const menor = Math.min(...dayValues);
+      const maior = Math.max(...dayValues);
       totalHoras = Math.max(0, maior - menor);
-    } else if (trabalhoEntries.length === 1) {
+    } else if (dayValues.length === 1) {
       // Com apenas 1 registro não há como calcular diferença
       totalHoras = 0;
     }
