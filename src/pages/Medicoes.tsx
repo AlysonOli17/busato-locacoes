@@ -210,14 +210,14 @@ const Medicoes = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => {
-              const headers = ["Equipamento", "Tag/Placa", "Data", "Horímetro Ant.", "Horímetro Atual", "Horas Trab."];
+              const headers = ["Equipamento", "Tag/Placa", "Data", "Tipo", "Horímetro Atual", "Horas Indisp."];
               const rows = filtered.map((m) => [
               `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
               m.equipamentos?.tag_placa || "—",
               parseLocalDate(m.data).toLocaleDateString("pt-BR"),
-              Number(m.horimetro_inicial).toFixed(1),
+              m.tipo || "Trabalho",
               Number(m.horimetro_final).toFixed(1),
-              Number(m.horas_trabalhadas).toFixed(1)]
+              (m.tipo || "Trabalho") === "Indisponível" ? Number(m.horas_trabalhadas).toFixed(1) : "—"]
               );
               const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
               exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0, 10)}` });
