@@ -388,7 +388,7 @@ const Medicoes = () => {
               <Label>Data</Label>
               <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
             </div>
-            {form.equipamento_id &&
+            {form.equipamento_id && form.tipo === "Trabalho" &&
             <div className="p-3 rounded-lg bg-muted/50 border">
                 <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {parseLocalDate(form.data).toLocaleDateString("pt-BR")})</p>
                 <p className="text-lg font-bold text-foreground">{horimetroAnterior.toFixed(1)}</p>
@@ -408,27 +408,43 @@ const Medicoes = () => {
               </RadioGroup>
             </div>
             {form.tipo === "Indisponível" && (
+              <>
+                <div>
+                  <Label>Observação (motivo da indisponibilidade)</Label>
+                  <Textarea
+                    value={form.observacoes}
+                    onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                    placeholder="Ex: Manutenção preventiva, quebra mecânica..."
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Horímetro Inicial</Label>
+                    <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => setForm({ ...form, horimetro_inicial_indisp: Number(e.target.value) })} placeholder="Ex: 180.0" />
+                  </div>
+                  <div>
+                    <Label>Horímetro Final</Label>
+                    <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
+                  </div>
+                </div>
+              </>
+            )}
+            {form.tipo === "Trabalho" && (
               <div>
-                <Label>Observação (motivo da indisponibilidade)</Label>
-                <Textarea
-                  value={form.observacoes}
-                  onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-                  placeholder="Ex: Manutenção preventiva, quebra mecânica..."
-                  rows={3}
-                />
+                <Label>Horímetro Atual</Label>
+                <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
               </div>
             )}
-            <div>
-              <Label>Horímetro Atual</Label>
-              <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
-            </div>
             {horasCalculadas > 0 &&
             <div className={cn("p-3 rounded-lg text-center", form.tipo === "Indisponível" ? "bg-destructive/10" : "bg-accent/10")}>
                 <p className="text-sm text-muted-foreground">
                   {form.tipo === "Indisponível" ? "Horas indisponíveis (serão descontadas)" : "Horas trabalhadas (diferença)"}
                 </p>
                 <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{horasCalculadas.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">{horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {form.tipo === "Indisponível" ? form.horimetro_inicial_indisp.toFixed(1) : horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}
+                </p>
               </div>
             }
           </div>
