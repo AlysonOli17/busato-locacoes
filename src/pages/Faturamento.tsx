@@ -234,6 +234,7 @@ export const FaturamentoContent = () => {
     const ajustesData = ajustesRes.data || [];
 
     // Fetch measurements per equipment, respecting data_entrega and data_devolucao
+    // Also fetch the BASELINE reading (last horímetro before the cycle) for each equipment
     const medPromises = allEquipIdsWithAditivos.map(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const ae = aditivoEquipMap.get(eqId);
@@ -243,8 +244,25 @@ export const FaturamentoContent = () => {
       const fimEfetivo = dataDevolucao && dataDevolucao < fim ? dataDevolucao : fim;
       return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo).order("data", { ascending: true });
     });
-    const medResults = await Promise.all(medPromises);
+    // Fetch baseline (last reading before cycle start) for each equipment
+    const baselinePromises = allEquipIdsWithAditivos.map(eqId => {
+      const ce = ceList.find(c => c.equipamento_id === eqId);
+      const ae = aditivoEquipMap.get(eqId);
+      const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
+      const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
+      return supabase.from("medicoes").select("equipamento_id, horimetro_final").eq("equipamento_id", eqId).lt("data", inicioEfetivo).order("data", { ascending: false }).limit(1);
+    });
+    const [medResults, baselineResults] = await Promise.all([
+      Promise.all(medPromises),
+      Promise.all(baselinePromises),
+    ]);
     const medicoesData = medResults.flatMap(r => r.data || []);
+    const baselineMap = new Map<string, number>();
+    baselineResults.forEach(r => {
+      if (r.data && r.data.length > 0) {
+        baselineMap.set(r.data[0].equipamento_id, Number(r.data[0].horimetro_final));
+      }
+    });
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
 
     // Final filter: exclude equipment returned before period or not yet delivered
@@ -272,16 +290,12 @@ export const FaturamentoContent = () => {
         : null;
 
       // If no specific ajuste exists, check for LOTE ajustes that cover this period
-      // Equipment added via aditivo after a batch adjustment should still inherit LOTE values
       if (!ajuste) {
         const loteAjustes = ajustesData.filter(a => a.motivo && a.motivo.startsWith("[LOTE]") && a.equipamento_id !== eqId);
         if (loteAjustes.length > 0) {
-          // Get the most recent LOTE ajuste to extract common values (hora_minima, horas_contratadas)
           const latestLote = loteAjustes.sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0];
-          // Check if the equipment's delivery date falls within the LOTE validity period
           const equipEntrega = dataEntrega || inicio;
           if (equipEntrega >= latestLote.data_inicio && equipEntrega <= latestLote.data_fim) {
-            // Create a virtual ajuste using LOTE's hora_minima and horas_contratadas but keeping equipment's own valor_hora
             const bValorHora = aditivo ? Number(aditivo.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
             const bValorExcedente = aditivo ? Number(aditivo.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : bValorHora * 1.25;
             ajuste = {
@@ -296,14 +310,33 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Sum hours directly from stored values - horímetro tab already calculates correctly
-      const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
-      const horasTrabalho = filteredMedicoes
-        .filter(m => (m as any).tipo !== "Indisponível")
-        .reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
-      const horasIndisponiveis = filteredMedicoes
-        .filter(m => (m as any).tipo === "Indisponível")
-        .reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      // Calculate hours from horímetro chain using baseline
+      // Baseline = last horimetro_final BEFORE the cycle start
+      // Chain only through Trabalho entries (Indisponível has independent meter readings)
+      const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId)
+        .sort((a, b) => ((a as any).data || "").localeCompare((b as any).data || ""));
+      
+      const baseline = baselineMap.get(eqId) ?? null;
+      let horasTrabalho = 0;
+      let horasIndisponiveis = 0;
+      let prevTrabalhoFinal = baseline;
+      
+      for (const m of filteredMedicoes) {
+        const mAny = m as any;
+        if (mAny.tipo === "Indisponível") {
+          // Indisponível hours to deduct - use stored horas_trabalhadas (user-editable field)
+          horasIndisponiveis += Number(m.horas_trabalhadas);
+        } else {
+          // Trabalho: calculate from chain, skipping Indisponível meter readings
+          if (prevTrabalhoFinal !== null) {
+            horasTrabalho += Math.max(0, Number(mAny.horimetro_final) - prevTrabalhoFinal);
+          } else {
+            // No baseline: use entry's own horimetro_inicial
+            horasTrabalho += Math.max(0, Number(mAny.horimetro_final) - Number(mAny.horimetro_inicial));
+          }
+          prevTrabalhoFinal = Number(mAny.horimetro_final);
+        }
+      }
       const horasMedidas = Math.max(0, horasTrabalho - horasIndisponiveis);
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
