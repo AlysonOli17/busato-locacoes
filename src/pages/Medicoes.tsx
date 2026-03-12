@@ -332,6 +332,11 @@ const Medicoes = () => {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
+        <TabsContent value="faturamento">
+          <FaturamentoContent />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
