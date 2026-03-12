@@ -233,7 +233,7 @@ export const FaturamentoTab = () => {
     fetchData();
   };
 
-  const generateInvoicePDF = async (fatura: Fatura) => {
+   const generateInvoicePDF = async (fatura: Fatura) => {
     const ct = getContrato(fatura.contrato_id);
     if (!ct) return;
     const empresa = getEmpresa(ct.empresa_id);
@@ -242,6 +242,27 @@ export const FaturamentoTab = () => {
     const vencimento = getVencimento(fatura);
     const equips = faturaEquips.get(fatura.id) || [];
     const logo = await loadLogo();
+
+    // Fetch Busato company data dynamically
+    const { data: busatoData } = await supabase
+      .from("empresas")
+      .select("*")
+      .ilike("nome", "%busato%")
+      .limit(1)
+      .single();
+
+    const busatoNome = busatoData?.razao_social || busatoData?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
+    const busatoEndereco = [
+      busatoData?.endereco_logradouro,
+      busatoData?.endereco_numero,
+      busatoData?.endereco_complemento,
+      busatoData?.endereco_bairro,
+      busatoData?.endereco_cidade,
+      busatoData?.endereco_uf,
+      busatoData?.endereco_cep ? `CEP: ${busatoData.endereco_cep}` : ""
+    ].filter(Boolean).join(", ");
+    const busatoCnpj = busatoData?.cnpj || "";
+    const busatoIE = busatoData?.inscricao_estadual || "";
 
     // ABNT NBR 14724 margins: top 30mm, bottom 20mm, left 30mm, right 20mm
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -263,17 +284,22 @@ export const FaturamentoTab = () => {
     doc.text(`FATURA DE LOCAÇÃO ${String(fatura.numero_sequencial).padStart(3, "0")}`, pageW - mRight, y + 8, { align: "right" });
     y += 18;
 
-    // Busato info
+    // Busato info (dynamic from empresas table)
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(60, 60, 60);
-    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA", mLeft, y);
+    doc.text(busatoNome.toUpperCase(), mLeft, y);
     y += 3.5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.text("PC Getulio Vargas, 35, Sala 1207, Anexo C. Centro, Vitória ES, CEP:29010350", mLeft, y);
-    y += 3;
-    doc.text("CNPJ: 54.167.719/0001-40 - Inscrição Estadual 084.235.88-4", mLeft, y);
+    if (busatoEndereco) {
+      doc.text(busatoEndereco, mLeft, y);
+      y += 3;
+    }
+    const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `Inscrição Estadual: ${busatoIE}` : ""].filter(Boolean).join(" - ");
+    if (cnpjLine) {
+      doc.text(cnpjLine, mLeft, y);
+    }
     y += 5;
 
     // Date + Value header
