@@ -32,7 +32,7 @@ interface Gasto {
   fatura?: FaturaRef | null;
 }
 
-const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Outros"];
+const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Outros"];
 const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", valor: 0, data: new Date().toISOString().split("T")[0] };
 
 const Gastos = () => {
@@ -134,6 +134,8 @@ const Gastos = () => {
     if (t === "Manutenção") return "bg-primary/10 text-primary border-0";
     if (t === "Combustível") return "bg-warning/10 text-warning border-0";
     if (t === "Peças") return "bg-accent/10 text-accent border-0";
+    if (t === "Mobilização") return "bg-success/10 text-success border-0";
+    if (t === "Desmobilização") return "bg-destructive/10 text-destructive border-0";
     return "bg-muted text-muted-foreground";
   };
 

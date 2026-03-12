@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -138,6 +138,13 @@ export const FaturamentoContent = () => {
   const { toast } = useToast();
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
+
+  // Mobilização/Desmobilização alert
+  interface MobEvent { equipamento_id: string; tipo: string; modelo: string; tag_placa: string | null; evento: "Mobilização" | "Desmobilização"; data: string; }
+  const [mobAlerts, setMobAlerts] = useState<MobEvent[]>([]);
+  const [mobDialogOpen, setMobDialogOpen] = useState(false);
+  const [mobValues, setMobValues] = useState<Record<string, number>>({});
+  const [creatingMob, setCreatingMob] = useState(false);
 
   const fetchData = async () => {
     const [fatRes, ctRes, contasRes] = await Promise.all([
@@ -413,18 +420,71 @@ export const FaturamentoContent = () => {
     setEquipForms(newEquipForms);
 
     // Gastos
-    if (gastosRes.data) {
-      setGastosEquip(gastosRes.data as GastoItem[]);
-      setSelectedGastos(new Set());
-      setTotalGastos(0);
+    const existingGastos = (gastosRes.data || []) as GastoItem[];
+    setGastosEquip(existingGastos);
+    setSelectedGastos(new Set());
+    setTotalGastos(0);
+
+    // Detect Mobilização/Desmobilização events
+    const mobEvents: MobEvent[] = [];
+    for (const ef of newEquipForms) {
+      const hasMobGasto = existingGastos.some(g => g.equipamento_id === ef.equipamento_id && g.tipo === "Mobilização");
+      const hasDesmobGasto = existingGastos.some(g => g.equipamento_id === ef.equipamento_id && g.tipo === "Desmobilização");
+
+      if (ef.data_entrega && ef.data_entrega >= inicio && ef.data_entrega <= fim && !hasMobGasto) {
+        mobEvents.push({ equipamento_id: ef.equipamento_id, tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa, evento: "Mobilização", data: ef.data_entrega });
+      }
+      if (ef.data_devolucao && ef.data_devolucao >= inicio && ef.data_devolucao <= fim && !hasDesmobGasto) {
+        mobEvents.push({ equipamento_id: ef.equipamento_id, tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa, evento: "Desmobilização", data: ef.data_devolucao });
+      }
+    }
+
+    if (mobEvents.length > 0) {
+      setMobAlerts(mobEvents);
+      const defaultValues: Record<string, number> = {};
+      mobEvents.forEach((e, i) => { defaultValues[`${e.equipamento_id}_${e.evento}`] = 0; });
+      setMobValues(defaultValues);
+      setMobDialogOpen(true);
     } else {
-      setGastosEquip([]);
-      setSelectedGastos(new Set());
-      setTotalGastos(0);
+      setMobAlerts([]);
     }
 
     setLoadingMedicoes(false);
   }, [contratos]);
+
+  // Create mobilização/desmobilização gastos
+  const handleCreateMobGastos = async () => {
+    setCreatingMob(true);
+    const toCreate = mobAlerts.filter(e => {
+      const key = `${e.equipamento_id}_${e.evento}`;
+      return (mobValues[key] || 0) > 0;
+    });
+    if (toCreate.length === 0) {
+      toast({ title: "Nenhum valor informado", description: "Informe o valor para pelo menos um item.", variant: "destructive" });
+      setCreatingMob(false);
+      return;
+    }
+    const rows = toCreate.map(e => ({
+      equipamento_id: e.equipamento_id,
+      descricao: `${e.evento} — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
+      tipo: e.evento,
+      valor: mobValues[`${e.equipamento_id}_${e.evento}`],
+      data: e.data,
+    }));
+    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id");
+    if (error) {
+      toast({ title: "Erro ao criar custos", description: error.message, variant: "destructive" });
+    } else if (data) {
+      const newGastos = [...gastosEquip, ...(data as GastoItem[])];
+      setGastosEquip(newGastos);
+      const newSelected = new Set(selectedGastos);
+      data.forEach(g => newSelected.add(g.id));
+      setSelectedGastos(newSelected);
+      toast({ title: "Custos criados", description: `${data.length} custo(s) de mobilização/desmobilização adicionado(s) e selecionado(s).` });
+    }
+    setMobDialogOpen(false);
+    setCreatingMob(false);
+  };
 
   // Toggle gasto selection
   const toggleGasto = (gastoId: string) => {
@@ -1499,6 +1559,56 @@ export const FaturamentoContent = () => {
         onRefresh={fetchData}
       />
 
+      {/* Mobilização/Desmobilização Alert Dialog */}
+      <Dialog open={mobDialogOpen} onOpenChange={setMobDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-warning" />
+              Mobilização / Desmobilização Detectada
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Os seguintes equipamentos foram mobilizados ou desmobilizados dentro do período de medição. Informe o valor para incluir como custo adicional.
+            </p>
+            {mobAlerts.map((e) => {
+              const key = `${e.equipamento_id}_${e.evento}`;
+              return (
+                <div key={key} className="p-3 rounded-lg border space-y-2 bg-warning/5 border-warning/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</span>
+                    <Badge className={e.evento === "Mobilização" ? "bg-success/15 text-success border-0" : "bg-destructive/15 text-destructive border-0"}>
+                      {e.evento}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Data: {parseLocalDate(e.data).toLocaleDateString("pt-BR")}
+                  </p>
+                  <div>
+                    <Label className="text-xs">Valor (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={mobValues[key] || ""}
+                      onChange={(ev) => setMobValues(prev => ({ ...prev, [key]: Number(ev.target.value) }))}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMobDialogOpen(false)}>Ignorar</Button>
+            <Button onClick={handleCreateMobGastos} disabled={creatingMob} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              {creatingMob ? "Criando..." : "Incluir Custos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </>
   );
