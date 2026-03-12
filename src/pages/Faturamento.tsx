@@ -1043,7 +1043,7 @@ export const FaturamentoContent = () => {
   const selectedContrato = contratos.find(c => c.id === formContratoId);
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
