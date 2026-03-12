@@ -882,7 +882,7 @@ export const FaturamentoContent = () => {
       }
     }
 
-    doc.save(`faturamento_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`medicao_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   const calcMedicaoDates = (ct: ContratoRef) => {
