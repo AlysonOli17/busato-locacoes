@@ -34,7 +34,7 @@ const App = () => (
             <Route path="/contratos" element={<ProtectedRoute requiredPermission="/contratos"><Contratos /></ProtectedRoute>} />
             <Route path="/propostas" element={<Navigate to="/contratos" replace />} />
             <Route path="/medicoes" element={<ProtectedRoute requiredPermission="/medicoes"><Medicoes /></ProtectedRoute>} />
-            <Route path="/faturamento" element={<ProtectedRoute requiredPermission="/faturamento"><Faturamento /></ProtectedRoute>} />
+            <Route path="/faturamento" element={<Navigate to="/medicoes" replace />} />
             <Route path="/apolices" element={<ProtectedRoute requiredPermission="/apolices"><Apolices /></ProtectedRoute>} />
             <Route path="/gastos" element={<ProtectedRoute requiredPermission="/gastos"><Gastos /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />

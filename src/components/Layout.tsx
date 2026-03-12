@@ -15,8 +15,7 @@ const allNavItems = [
   { to: "/empresas", icon: Building2, label: "Empresas" },
   { to: "/contratos", icon: FileText, label: "Contratos" },
   
-  { to: "/medicoes", icon: Clock, label: "Medições" },
-  { to: "/faturamento", icon: Receipt, label: "Faturamento" },
+  { to: "/medicoes", icon: Clock, label: "Medições / Faturamento" },
   { to: "/apolices", icon: Shield, label: "Apólices" },
   { to: "/gastos", icon: DollarSign, label: "Custos" },
   { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },

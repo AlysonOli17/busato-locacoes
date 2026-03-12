@@ -1434,8 +1434,14 @@ export const FaturamentoContent = () => {
       />
 
 
-    </Layout>
+    </>
   );
 };
+
+const Faturamento = () => (
+  <Layout>
+    <FaturamentoContent />
+  </Layout>
+);
 
 export default Faturamento;
