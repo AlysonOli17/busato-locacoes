@@ -495,7 +495,7 @@ export const FaturamentoContent = () => {
   }, [formContratoId, formMedicaoInicio, formMedicaoFim, fetchMedicoesEGastos]);
 
   const getDisplayStatus = (item: Fatura) => {
-    if (item.status === "Pago" || item.status === "Cancelado") return item.status;
+    if (item.status === "Pago" || item.status === "Cancelado" || item.status === "Aprovado") return item.status;
     const ct = contratos.find(c => c.id === item.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
     const emissaoDate = new Date(item.emissao);
@@ -503,6 +503,13 @@ export const FaturamentoContent = () => {
     vencimento.setDate(vencimento.getDate() + prazo);
     if (new Date() > vencimento) return "Em Atraso";
     return item.status;
+  };
+
+  const handleAprovar = async (id: string) => {
+    const { error } = await supabase.from("faturamento").update({ status: "Aprovado" }).eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Medição aprovada", description: "A fatura foi emitida automaticamente na aba Faturamento." });
+    fetchData();
   };
 
   const getVencimento = (item: Fatura) => {
