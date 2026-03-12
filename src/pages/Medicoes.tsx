@@ -176,6 +176,7 @@ const Medicoes = () => {
         <TabsList>
           <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
           <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>
+          <TabsTrigger value="faturamento-novo" className="gap-2"><DollarSign className="h-4 w-4" /> Faturamento</TabsTrigger>
         </TabsList>
         <TabsContent value="medicoes">
       <div className="space-y-6">
