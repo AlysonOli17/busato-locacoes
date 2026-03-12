@@ -741,6 +741,8 @@ export type Database = {
           horimetro_final: number
           horimetro_inicial: number
           id: string
+          observacoes: string | null
+          tipo: string
         }
         Insert: {
           created_at?: string
@@ -750,6 +752,8 @@ export type Database = {
           horimetro_final?: number
           horimetro_inicial?: number
           id?: string
+          observacoes?: string | null
+          tipo?: string
         }
         Update: {
           created_at?: string
@@ -759,6 +763,8 @@ export type Database = {
           horimetro_final?: number
           horimetro_inicial?: number
           id?: string
+          observacoes?: string | null
+          tipo?: string
         }
         Relationships: [
           {
