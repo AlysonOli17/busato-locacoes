@@ -440,7 +440,7 @@ export const FaturamentoTab = () => {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
     doc.text("Informações complementares:", mLeft + 1.5, y + 3.2);
-    y += 6;
+    y += 9;
 
     doc.setTextColor(40, 40, 40);
     doc.setFont("helvetica", "normal");
