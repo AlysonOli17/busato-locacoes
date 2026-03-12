@@ -115,7 +115,8 @@ const Medicoes = () => {
 
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
-    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "", horimetro_inicial_indisp: (m.tipo === "Indisponível") ? Number(m.horimetro_inicial) : 0 });
+    const isIndisp = m.tipo === "Indisponível";
+    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "", horimetro_inicial_indisp: isIndisp ? Number(m.horimetro_inicial) : 0, horas_indisp: isIndisp ? Number(m.horas_trabalhadas) : 0 });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
     // Refresh anterior for this date
