@@ -182,7 +182,7 @@ const Medicoes = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Medições - Horímetro</h1>
+            <h1 className="text-2xl font-bold text-foreground">Horímetro</h1>
             <p className="text-sm text-muted-foreground">Lançamento diário de horímetro por equipamento</p>
           </div>
           <div className="flex gap-2">
@@ -202,7 +202,7 @@ const Medicoes = () => {
               <FileDown className="h-4 w-4 mr-1" /> PDF Horímetro
             </Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Nova Medição
+              <Plus className="h-4 w-4 mr-2" /> Novo Horímetro
             </Button>
           </div>
         </div>
@@ -326,7 +326,7 @@ const Medicoes = () => {
                   </TableRow>
                 )}
                 {!loading && filtered.length === 0 &&
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum horímetro encontrado</TableCell></TableRow>
                 }
               </TableBody>
             </Table>
@@ -361,7 +361,7 @@ const Medicoes = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-accent" />
-              {editingId ? "Editar Medição" : "Nova Medição"}
+              {editingId ? "Editar Horímetro" : "Novo Horímetro"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -409,7 +409,7 @@ const Medicoes = () => {
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Medição</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Horímetro</AlertDialogTitle>
             <AlertDialogDescription>Tem certeza que deseja excluir este registro de horímetro? Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
