@@ -124,7 +124,7 @@ export const FaturamentoTab = () => {
 
   const fetchData = async () => {
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
-      supabase.from("faturamento").select("*").order("numero_sequencial", { ascending: false }),
+      supabase.from("faturamento").select("*").in("status", ["Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("id, empresa_id, prazo_faturamento, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa)"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal"),
       supabase.from("contas_bancarias").select("*"),
@@ -171,8 +171,11 @@ export const FaturamentoTab = () => {
 
   const getDisplayStatus = (fatura: Fatura) => {
     if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
-    const venc = getVencimento(fatura);
-    if (new Date() > venc) return "Em Atraso";
+    if (fatura.status === "Aprovado") {
+      const venc = getVencimento(fatura);
+      if (new Date() > venc) return "Em Atraso";
+      return "Aprovado";
+    }
     return fatura.status;
   };
 
@@ -485,7 +488,7 @@ export const FaturamentoTab = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
-          <p className="text-sm text-muted-foreground">Gestão de faturas de locação e emissão de documentos</p>
+          <p className="text-sm text-muted-foreground">Faturas emitidas a partir de medições aprovadas</p>
         </div>
       </div>
 
@@ -540,7 +543,7 @@ export const FaturamentoTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="Pendente">Pendente</SelectItem>
+            <SelectItem value="Aprovado">Aprovado</SelectItem>
             <SelectItem value="Pago">Pago</SelectItem>
             <SelectItem value="Em Atraso">Em Atraso</SelectItem>
             <SelectItem value="Cancelado">Cancelado</SelectItem>
@@ -631,9 +634,9 @@ export const FaturamentoTab = () => {
               <Select value={editForm.status} onValueChange={v => setEditForm(p => ({ ...p, status: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Pago">Pago</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
+                    <SelectItem value="Aprovado">Aprovado</SelectItem>
+                    <SelectItem value="Pago">Pago</SelectItem>
+                    <SelectItem value="Cancelado">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -495,7 +495,7 @@ export const FaturamentoContent = () => {
   }, [formContratoId, formMedicaoInicio, formMedicaoFim, fetchMedicoesEGastos]);
 
   const getDisplayStatus = (item: Fatura) => {
-    if (item.status === "Pago" || item.status === "Cancelado") return item.status;
+    if (item.status === "Pago" || item.status === "Cancelado" || item.status === "Aprovado") return item.status;
     const ct = contratos.find(c => c.id === item.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
     const emissaoDate = new Date(item.emissao);
@@ -503,6 +503,13 @@ export const FaturamentoContent = () => {
     vencimento.setDate(vencimento.getDate() + prazo);
     if (new Date() > vencimento) return "Em Atraso";
     return item.status;
+  };
+
+  const handleAprovar = async (id: string) => {
+    const { error } = await supabase.from("faturamento").update({ status: "Aprovado" }).eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Medição aprovada", description: "A fatura foi emitida automaticamente na aba Faturamento." });
+    fetchData();
   };
 
   const getVencimento = (item: Fatura) => {
@@ -1122,6 +1129,7 @@ export const FaturamentoContent = () => {
                           const displayStatus = getDisplayStatus(item);
                           return (
                             <Badge className={
+                              displayStatus === "Aprovado" ? "bg-success text-success-foreground" :
                               displayStatus === "Pago" ? "bg-success text-success-foreground" :
                               displayStatus === "Cancelado" ? "bg-destructive text-destructive-foreground" :
                               displayStatus === "Em Atraso" ? "bg-destructive text-destructive-foreground" :
@@ -1134,6 +1142,23 @@ export const FaturamentoContent = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          {getDisplayStatus(item) === "Pendente" && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" title="Aprovar e emitir fatura"><ShieldCheck className="h-4 w-4 text-success" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Aprovar Medição Nº {item.numero_sequencial}</AlertDialogTitle>
+                                  <AlertDialogDescription>Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Deseja continuar?</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleAprovar(item.id)} className="bg-success text-success-foreground hover:bg-success/90">Aprovar e Emitir Fatura</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
