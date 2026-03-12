@@ -112,7 +112,7 @@ interface EquipFormItem {
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
-const Faturamento = () => {
+export const FaturamentoContent = () => {
   const [items, setItems] = useState<Fatura[]>([]);
   const [contratos, setContratos] = useState<ContratoRef[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
