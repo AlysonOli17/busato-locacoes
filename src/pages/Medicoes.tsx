@@ -202,7 +202,7 @@ const Medicoes = () => {
               <FileDown className="h-4 w-4 mr-1" /> PDF Horímetro
             </Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Nova Medição
+              <Plus className="h-4 w-4 mr-2" /> Novo Horímetro
             </Button>
           </div>
         </div>
