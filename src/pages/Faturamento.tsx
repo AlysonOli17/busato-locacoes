@@ -948,6 +948,7 @@ export const FaturamentoContent = () => {
     setEditing(null);
     setFormContratoId("");
     setFormPeriodo("");
+    setFormNumeroSequencial("");
     setFormNumeroNota("");
     setFormStatus("Pendente");
     setFormMedicaoInicio("");
