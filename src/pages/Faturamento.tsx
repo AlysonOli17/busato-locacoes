@@ -1169,7 +1169,7 @@ export const FaturamentoContent = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-accent" />
-              {editing ? `Editar Fatura Nº ${editing.numero_sequencial}` : "Nova Fatura"}
+              {editing ? `Editar Medição Nº ${editing.numero_sequencial}` : "Nova Medição"}
               {editing && <Badge variant="outline" className="ml-2 font-mono">#{editing.numero_sequencial}</Badge>}
             </DialogTitle>
           </DialogHeader>
