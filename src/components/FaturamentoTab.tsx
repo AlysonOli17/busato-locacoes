@@ -243,41 +243,46 @@ export const FaturamentoTab = () => {
     const equips = faturaEquips.get(fatura.id) || [];
     const logo = await loadLogo();
 
+    // ABNT NBR 14724 margins: top 30mm, bottom 20mm, left 30mm, right 20mm
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    const contentW = pageW - margin * 2;
-    let y = 12;
+    const pageW = doc.internal.pageSize.getWidth(); // 210
+    const pageH = doc.internal.pageSize.getHeight(); // 297
+    const mLeft = 30;
+    const mRight = 20;
+    const mTop = 20;
+    const mBottom = 20;
+    const contentW = pageW - mLeft - mRight;
+    let y = mTop;
 
     // === HEADER ===
-    if (logo) doc.addImage(logo, "PNG", margin, y, 48, 12);
+    if (logo) doc.addImage(logo, "PNG", mLeft, y, 48, 12);
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
-    doc.text(`FATURA DE LOCAÇÃO ${String(fatura.numero_sequencial).padStart(3, "0")}`, pageW - margin, y + 8, { align: "right" });
+    doc.text(`FATURA DE LOCAÇÃO ${String(fatura.numero_sequencial).padStart(3, "0")}`, pageW - mRight, y + 8, { align: "right" });
     y += 18;
 
     // Busato info
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(60, 60, 60);
-    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA", margin, y);
+    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA", mLeft, y);
     y += 3.5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.text("PC Getulio Vargas, 35, Sala 1207, Anexo C. Centro, Vitória ES, CEP:29010350", margin, y);
+    doc.text("PC Getulio Vargas, 35, Sala 1207, Anexo C. Centro, Vitória ES, CEP:29010350", mLeft, y);
     y += 3;
-    doc.text("CNPJ: 54.167.719/0001-40 - Inscrição Estadual 084.235.88-4", margin, y);
+    doc.text("CNPJ: 54.167.719/0001-40 - Inscrição Estadual 084.235.88-4", mLeft, y);
     y += 5;
 
     // Date + Value header
     doc.setDrawColor(41, 128, 185);
     doc.setLineWidth(0.5);
-    doc.line(margin, y, pageW - margin, y);
+    doc.line(mLeft, y, pageW - mRight, y);
     y += 5;
 
-    const colMid = pageW / 2;
+    const colMid = mLeft + contentW / 2;
 
     // Row: Data emissão | Valor da fatura
     const drawLabelValue = (label: string, value: string, x: number, yPos: number, width: number) => {
@@ -295,7 +300,7 @@ export const FaturamentoTab = () => {
       doc.text(value, x + 2, yPos + 9.5);
     };
 
-    drawLabelValue("DATA DA EMISSÃO", parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR"), margin, y, contentW / 2 - 1);
+    drawLabelValue("DATA DA EMISSÃO", parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR"), mLeft, y, contentW / 2 - 1);
     drawLabelValue("VALOR DA FATURA", `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, colMid + 1, y, contentW / 2 - 1);
     y += 15;
 
@@ -314,45 +319,45 @@ export const FaturamentoTab = () => {
       doc.text(value || "", x + 1.5, yPos + 9);
     };
 
-    drawField("NOME / RAZÃO SOCIAL", empresa.razao_social || empresa.nome, margin, y, contentW);
+    drawField("NOME / RAZÃO SOCIAL", empresa.razao_social || empresa.nome, mLeft, y, contentW);
     y += 12;
 
     const endereco = [empresa.endereco_logradouro, empresa.endereco_numero, empresa.endereco_bairro, empresa.endereco_cep ? `CEP ${empresa.endereco_cep}` : ""].filter(Boolean).join(", ");
-    drawField("ENDEREÇO", endereco, margin, y, contentW);
+    drawField("ENDEREÇO", endereco, mLeft, y, contentW);
     y += 12;
 
     const thirdW = contentW / 3 - 1;
-    drawField("MUNICÍPIO", empresa.endereco_cidade || "", margin, y, thirdW);
-    drawField("ESTADO", empresa.endereco_uf || "", margin + thirdW + 1.5, y, thirdW);
-    drawField("CNPJ", empresa.cnpj, margin + (thirdW + 1.5) * 2, y, thirdW);
+    drawField("MUNICÍPIO", empresa.endereco_cidade || "", mLeft, y, thirdW);
+    drawField("ESTADO", empresa.endereco_uf || "", mLeft + thirdW + 1.5, y, thirdW);
+    drawField("CNPJ", empresa.cnpj, mLeft + (thirdW + 1.5) * 2, y, thirdW);
     y += 12;
 
-    drawField("INSCRIÇÃO MUNICIPAL", empresa.inscricao_municipal || "", margin, y, contentW / 2 - 1);
+    drawField("INSCRIÇÃO MUNICIPAL", empresa.inscricao_municipal || "", mLeft, y, contentW / 2 - 1);
     drawField("INSCRIÇÃO ESTADUAL", empresa.inscricao_estadual || "", colMid + 1, y, contentW / 2 - 1);
     y += 12;
 
     // Payment info
-    drawField("CONDIÇÕES PAGAMENTO", "Crédito Bancário", margin, y, thirdW);
-    drawField("DATA DE VENCIMENTO", vencimento.toLocaleDateString("pt-BR"), margin + thirdW + 1.5, y, thirdW);
-    drawField("LOCAL DE PAGAMENTO", conta ? `${empresa.endereco_cidade || "—"} ${empresa.endereco_uf || ""}` : "—", margin + (thirdW + 1.5) * 2, y, thirdW);
+    drawField("CONDIÇÕES PAGAMENTO", "Crédito Bancário", mLeft, y, thirdW);
+    drawField("DATA DE VENCIMENTO", vencimento.toLocaleDateString("pt-BR"), mLeft + thirdW + 1.5, y, thirdW);
+    drawField("LOCAL DE PAGAMENTO", conta ? `${empresa.endereco_cidade || "—"} ${empresa.endereco_uf || ""}` : "—", mLeft + (thirdW + 1.5) * 2, y, thirdW);
     y += 12;
 
     // Bank info
     if (conta) {
       const bankText = `O PAGAMENTO DEVERÁ SER EFETUADO ATRAVÉS DE DEPÓSITO BANCÁRIO PARA BUSATO LOCAÇÕES E SERVIÇOS\nBANCO ${conta.banco}, AGÊNCIA ${conta.agencia}.\nCONTA ${conta.tipo_conta.toUpperCase()} Nº ${conta.conta}${conta.pix ? `\nPIX: ${conta.pix}` : ""}`;
       doc.setFillColor(230, 240, 250);
-      doc.rect(margin, y, contentW, 4.5, "F");
+      doc.rect(mLeft, y, contentW, 4.5, "F");
       doc.setFontSize(5.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
-      doc.text("ENDEREÇO DE COBRANÇA:", margin + 1.5, y + 3.2);
+      doc.text("ENDEREÇO DE COBRANÇA:", mLeft + 1.5, y + 3.2);
       y += 5;
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       const lines = doc.splitTextToSize(bankText, contentW - 4);
-      doc.rect(margin, y, contentW, lines.length * 3.5 + 2, "S");
-      doc.text(lines, margin + 2, y + 3.5);
+      doc.rect(mLeft, y, contentW, lines.length * 3.5 + 2, "S");
+      doc.text(lines, mLeft + 2, y + 3.5);
       y += lines.length * 3.5 + 5;
     } else {
       y += 2;
@@ -380,48 +385,50 @@ export const FaturamentoTab = () => {
         3: { halign: "right", cellWidth: contentW * 0.18 },
         4: { halign: "center", cellWidth: contentW * 0.09 },
       },
-      margin: { left: margin, right: margin },
+      margin: { left: mLeft, right: mRight },
     });
 
     y = (doc as any).lastAutoTable.finalY + 2;
 
     // Total
     doc.setFillColor(41, 128, 185);
-    doc.rect(margin, y, contentW, 6, "F");
+    doc.rect(mLeft, y, contentW, 6, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
-    doc.text("VALOR TOTAL DA FATURA", margin + 2, y + 4.2);
-    doc.text(`R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, pageW - margin - 2, y + 4.2, { align: "right" });
+    doc.text("VALOR TOTAL DA FATURA", mLeft + 2, y + 4.2);
+    doc.text(`R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, pageW - mRight - 2, y + 4.2, { align: "right" });
     y += 8;
 
     // Legal note
     doc.setFontSize(6);
     doc.setTextColor(120, 120, 120);
     doc.setFont("helvetica", "italic");
-    doc.text("AUTORIZADO CONFORME LEI COMPLEMENTAR 116/03", margin, y + 2);
+    doc.text("AUTORIZADO CONFORME LEI COMPLEMENTAR 116/03", mLeft, y + 2);
     y += 8;
 
     // Complementary info
     doc.setFillColor(230, 240, 250);
-    doc.rect(margin, y, contentW, 4.5, "F");
+    doc.rect(mLeft, y, contentW, 4.5, "F");
     doc.setFontSize(6);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
-    doc.text("Informações complementares:", margin + 1.5, y + 3.2);
+    doc.text("Informações complementares:", mLeft + 1.5, y + 3.2);
     y += 6;
 
     doc.setTextColor(40, 40, 40);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
 
-    // Equipment list
+    // Equipment list with hours info
     if (equips.length > 0) {
       equips.forEach(fe => {
         const eq = getEquipamento(fe.equipamento_id);
         if (eq) {
-          const qtStr = `${String(equips.filter(e2 => e2.equipamento_id === fe.equipamento_id).length).padStart(2, "0")} ${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`;
-          doc.text(qtStr, margin + 2, y);
+          const totalHoras = Number(fe.horas_normais) + Number(fe.horas_excedentes);
+          const horasInfo = `${totalHoras.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h (${Number(fe.horas_normais).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h normal${Number(fe.horas_excedentes) > 0 ? ` + ${Number(fe.horas_excedentes).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h exc.` : ""})`;
+          const qtStr = `01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""} — ${horasInfo}`;
+          doc.text(qtStr, mLeft + 2, y);
           y += 3.5;
         }
       });
@@ -429,7 +436,7 @@ export const FaturamentoTab = () => {
       // Fallback to contract equipment
       const eq = ct?.equipamentos;
       if (eq) {
-        doc.text(`01 ${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, margin + 2, y);
+        doc.text(`01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 2, y);
         y += 3.5;
       }
     }
@@ -438,28 +445,24 @@ export const FaturamentoTab = () => {
     if (fatura.periodo_medicao_inicio && fatura.periodo_medicao_fim) {
       doc.text(
         `Período ${parseLocalDate(fatura.periodo_medicao_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(fatura.periodo_medicao_fim).toLocaleDateString("pt-BR")}`,
-        margin + 2, y
+        mLeft + 2, y
       );
       y += 5;
     }
-    y += 8;
 
-    // Signature
+    // === SIGNATURE — positioned near footer ===
+    const sigY = pageH - mBottom - 30; // 30mm above bottom margin
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.text("ATENCIOSAMENTE", pageW / 2, y, { align: "center" });
-    y += 10;
+    doc.text("ATENCIOSAMENTE", pageW / 2, sigY, { align: "center" });
     doc.setLineWidth(0.3);
     doc.setDrawColor(80, 80, 80);
-    doc.line(pageW / 2 - 35, y, pageW / 2 + 35, y);
-    y += 4;
+    doc.line(pageW / 2 - 35, sigY + 10, pageW / 2 + 35, sigY + 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    doc.text("Edno Busato", pageW / 2, y, { align: "center" });
-    y += 3.5;
-    doc.text("CPF - 005.110.117-33", pageW / 2, y, { align: "center" });
-    y += 3.5;
-    doc.text("Busato Locações e Serviços LTDA", pageW / 2, y, { align: "center" });
+    doc.text("Edno Busato", pageW / 2, sigY + 14, { align: "center" });
+    doc.text("CPF - 005.110.117-33", pageW / 2, sigY + 17.5, { align: "center" });
+    doc.text("Busato Locações e Serviços LTDA", pageW / 2, sigY + 21, { align: "center" });
 
     doc.save(`fatura_locacao_${String(fatura.numero_sequencial).padStart(3, "0")}.pdf`);
     toast({ title: "PDF gerado", description: `Fatura ${String(fatura.numero_sequencial).padStart(3, "0")} exportada com sucesso.` });
