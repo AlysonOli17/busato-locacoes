@@ -381,13 +381,39 @@ const Medicoes = () => {
               </div>
             }
             <div>
+              <Label>Tipo de Lançamento</Label>
+              <RadioGroup value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })} className="flex gap-4 mt-2">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Trabalho" id="tipo-trabalho" />
+                  <Label htmlFor="tipo-trabalho" className="cursor-pointer">Trabalho</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Indisponível" id="tipo-indisponivel" />
+                  <Label htmlFor="tipo-indisponivel" className="cursor-pointer">Indisponível</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            {form.tipo === "Indisponível" && (
+              <div>
+                <Label>Observação (motivo da indisponibilidade)</Label>
+                <Textarea
+                  value={form.observacoes}
+                  onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                  placeholder="Ex: Manutenção preventiva, quebra mecânica..."
+                  rows={3}
+                />
+              </div>
+            )}
+            <div>
               <Label>Horímetro Atual</Label>
               <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
             </div>
             {horasCalculadas > 0 &&
-            <div className="p-3 rounded-lg bg-accent/10 text-center">
-                <p className="text-sm text-muted-foreground">Horas trabalhadas (diferença)</p>
-                <p className="text-2xl font-bold text-accent">{horasCalculadas.toFixed(1)}h</p>
+            <div className={cn("p-3 rounded-lg text-center", form.tipo === "Indisponível" ? "bg-destructive/10" : "bg-accent/10")}>
+                <p className="text-sm text-muted-foreground">
+                  {form.tipo === "Indisponível" ? "Horas indisponíveis (serão descontadas)" : "Horas trabalhadas (diferença)"}
+                </p>
+                <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{horasCalculadas.toFixed(1)}h</p>
                 <p className="text-xs text-muted-foreground">{horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
               </div>
             }
