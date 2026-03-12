@@ -244,31 +244,21 @@ const Medicoes = () => {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Inicial</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-48 justify-start text-left font-normal", !dataInicio && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dataInicio ? format(dataInicio, "dd/MM/yyyy") : "Selecionar"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dataInicio} onSelect={setDataInicio} initialFocus className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  type="date"
+                  className="w-48"
+                  value={dataInicio ? format(dataInicio, "yyyy-MM-dd") : ""}
+                  onChange={(e) => setDataInicio(e.target.value ? parseLocalDate(e.target.value) : undefined)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data Final</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-48 justify-start text-left font-normal", !dataFim && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dataFim ? format(dataFim, "dd/MM/yyyy") : "Selecionar"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dataFim} onSelect={setDataFim} initialFocus className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  type="date"
+                  className="w-48"
+                  value={dataFim ? format(dataFim, "yyyy-MM-dd") : ""}
+                  onChange={(e) => setDataFim(e.target.value ? parseLocalDate(e.target.value) : undefined)}
+                />
               </div>
               {hasFilters &&
               <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Limpar filtros</Button>
