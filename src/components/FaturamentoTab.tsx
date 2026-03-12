@@ -243,41 +243,46 @@ export const FaturamentoTab = () => {
     const equips = faturaEquips.get(fatura.id) || [];
     const logo = await loadLogo();
 
+    // ABNT NBR 14724 margins: top 30mm, bottom 20mm, left 30mm, right 20mm
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    const contentW = pageW - margin * 2;
-    let y = 12;
+    const pageW = doc.internal.pageSize.getWidth(); // 210
+    const pageH = doc.internal.pageSize.getHeight(); // 297
+    const mLeft = 30;
+    const mRight = 20;
+    const mTop = 20;
+    const mBottom = 20;
+    const contentW = pageW - mLeft - mRight;
+    let y = mTop;
 
     // === HEADER ===
-    if (logo) doc.addImage(logo, "PNG", margin, y, 48, 12);
+    if (logo) doc.addImage(logo, "PNG", mLeft, y, 48, 12);
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
-    doc.text(`FATURA DE LOCAÇÃO ${String(fatura.numero_sequencial).padStart(3, "0")}`, pageW - margin, y + 8, { align: "right" });
+    doc.text(`FATURA DE LOCAÇÃO ${String(fatura.numero_sequencial).padStart(3, "0")}`, pageW - mRight, y + 8, { align: "right" });
     y += 18;
 
     // Busato info
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(60, 60, 60);
-    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA", margin, y);
+    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA", mLeft, y);
     y += 3.5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.text("PC Getulio Vargas, 35, Sala 1207, Anexo C. Centro, Vitória ES, CEP:29010350", margin, y);
+    doc.text("PC Getulio Vargas, 35, Sala 1207, Anexo C. Centro, Vitória ES, CEP:29010350", mLeft, y);
     y += 3;
-    doc.text("CNPJ: 54.167.719/0001-40 - Inscrição Estadual 084.235.88-4", margin, y);
+    doc.text("CNPJ: 54.167.719/0001-40 - Inscrição Estadual 084.235.88-4", mLeft, y);
     y += 5;
 
     // Date + Value header
     doc.setDrawColor(41, 128, 185);
     doc.setLineWidth(0.5);
-    doc.line(margin, y, pageW - margin, y);
+    doc.line(mLeft, y, pageW - mRight, y);
     y += 5;
 
-    const colMid = pageW / 2;
+    const colMid = mLeft + contentW / 2;
 
     // Row: Data emissão | Valor da fatura
     const drawLabelValue = (label: string, value: string, x: number, yPos: number, width: number) => {
