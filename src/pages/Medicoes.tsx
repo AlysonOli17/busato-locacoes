@@ -30,6 +30,8 @@ interface Medicao {
   horimetro_inicial: number;
   horimetro_final: number;
   horas_trabalhadas: number;
+  tipo: string;
+  observacoes: string | null;
   equipamentos: Equipamento;
 }
 
