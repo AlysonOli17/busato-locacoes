@@ -545,7 +545,7 @@ export const FaturamentoContent = () => {
       Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
       i.status,
     ]);
-    return { title: "Relatório de Faturamento", headers, rows, filename: `faturamento_${new Date().toISOString().slice(0, 10)}` };
+    return { title: "Relatório de Medição", headers, rows, filename: `medicao_${new Date().toISOString().slice(0, 10)}` };
 
   };
 
@@ -567,7 +567,7 @@ export const FaturamentoContent = () => {
       const emp = ct?.empresas;
       const gastosVal = Number(item.total_gastos || 0);
 
-      const tituloFatura = item.numero_nota ? `Nº Nota: ${item.numero_nota}` : `Faturamento Nº ${item.numero_sequencial}`;
+      const tituloFatura = item.numero_nota ? `Nº Nota: ${item.numero_nota}` : `Medição Nº ${item.numero_sequencial}`;
       const startY = await addLetterhead(doc, tituloFatura);
 
       let y = startY;
@@ -882,7 +882,7 @@ export const FaturamentoContent = () => {
       }
     }
 
-    doc.save(`faturamento_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`medicao_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   const calcMedicaoDates = (ct: ContratoRef) => {
@@ -1047,14 +1047,14 @@ export const FaturamentoContent = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
+            <h1 className="text-2xl font-bold text-foreground">Medição</h1>
             <p className="text-sm text-muted-foreground">Total pendente: <span className="text-accent font-semibold">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>{selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setContasDialogOpen(true)}><Landmark className="h-4 w-4 mr-1" /> Contas</Button>
             <Button variant="outline" size="sm" onClick={exportDetailedPDF}><FileDown className="h-4 w-4 mr-1" /> PDF Detalhado</Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Fatura</Button>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
           </div>
         </div>
 
@@ -1141,8 +1141,8 @@ export const FaturamentoContent = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Faturamento Nº {item.numero_sequencial}</AlertDialogTitle>
-                                <AlertDialogDescription>Tem certeza que deseja excluir esta fatura? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                <AlertDialogTitle>Excluir Medição Nº {item.numero_sequencial}</AlertDialogTitle>
+                                <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -1156,7 +1156,7 @@ export const FaturamentoContent = () => {
                   );
                 })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -1169,7 +1169,7 @@ export const FaturamentoContent = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-accent" />
-              {editing ? `Editar Fatura Nº ${editing.numero_sequencial}` : "Nova Fatura"}
+              {editing ? `Editar Medição Nº ${editing.numero_sequencial}` : "Nova Medição"}
               {editing && <Badge variant="outline" className="ml-2 font-mono">#{editing.numero_sequencial}</Badge>}
             </DialogTitle>
           </DialogHeader>
@@ -1421,7 +1421,7 @@ export const FaturamentoContent = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">{editing ? "Salvar" : "Emitir Fatura"}</Button>
+            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">{editing ? "Salvar" : "Emitir Medição"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
