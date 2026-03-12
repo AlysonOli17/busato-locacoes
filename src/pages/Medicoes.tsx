@@ -13,11 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt } from "lucide-react";
 import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FaturamentoContent } from "./Faturamento";
 
 interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;}
 interface Medicao {
