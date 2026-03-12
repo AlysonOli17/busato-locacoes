@@ -139,6 +139,13 @@ export const FaturamentoContent = () => {
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
 
+  // Mobilização/Desmobilização alert
+  interface MobEvent { equipamento_id: string; tipo: string; modelo: string; tag_placa: string | null; evento: "Mobilização" | "Desmobilização"; data: string; }
+  const [mobAlerts, setMobAlerts] = useState<MobEvent[]>([]);
+  const [mobDialogOpen, setMobDialogOpen] = useState(false);
+  const [mobValues, setMobValues] = useState<Record<string, number>>({});
+  const [creatingMob, setCreatingMob] = useState(false);
+
   const fetchData = async () => {
     const [fatRes, ctRes, contasRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
