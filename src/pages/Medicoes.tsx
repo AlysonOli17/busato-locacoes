@@ -108,7 +108,7 @@ const Medicoes = () => {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0 });
+    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0 });
     setHorimetroAnterior(0);
     setDialogOpen(true);
   };
