@@ -310,10 +310,20 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate total hours from all entries (sum horas_trabalhadas directly, no deduction for Indisponível)
+      // Calculate hours: last horímetro_final - first horímetro_inicial, then subtract Indisponível hours
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
-      const horasMedidas = filteredMedicoes
-        .reduce((acc, m) => acc + Math.max(0, Number(m.horas_trabalhadas)), 0);
+      let horasMedidas = 0;
+      if (filteredMedicoes.length > 0) {
+        const sorted = [...filteredMedicoes].sort((a, b) => String(a.data).localeCompare(String(b.data)));
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const totalBruto = Math.max(0, Number(last.horimetro_final) - Number(first.horimetro_inicial));
+        // Subtract indisponível hours
+        const horasIndisponiveis = filteredMedicoes
+          .filter(m => m.tipo === 'Indisponível')
+          .reduce((acc, m) => acc + Math.max(0, Number(m.horas_trabalhadas)), 0);
+        horasMedidas = Math.max(0, totalBruto - horasIndisponiveis);
+      }
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
       // Ajustes now save original values for unchecked fields, so we can use them directly
