@@ -452,6 +452,40 @@ export const FaturamentoContent = () => {
     setLoadingMedicoes(false);
   }, [contratos]);
 
+  // Create mobilização/desmobilização gastos
+  const handleCreateMobGastos = async () => {
+    setCreatingMob(true);
+    const toCreate = mobAlerts.filter(e => {
+      const key = `${e.equipamento_id}_${e.evento}`;
+      return (mobValues[key] || 0) > 0;
+    });
+    if (toCreate.length === 0) {
+      toast({ title: "Nenhum valor informado", description: "Informe o valor para pelo menos um item.", variant: "destructive" });
+      setCreatingMob(false);
+      return;
+    }
+    const rows = toCreate.map(e => ({
+      equipamento_id: e.equipamento_id,
+      descricao: `${e.evento} — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
+      tipo: e.evento,
+      valor: mobValues[`${e.equipamento_id}_${e.evento}`],
+      data: e.data,
+    }));
+    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id");
+    if (error) {
+      toast({ title: "Erro ao criar custos", description: error.message, variant: "destructive" });
+    } else if (data) {
+      const newGastos = [...gastosEquip, ...(data as GastoItem[])];
+      setGastosEquip(newGastos);
+      const newSelected = new Set(selectedGastos);
+      data.forEach(g => newSelected.add(g.id));
+      setSelectedGastos(newSelected);
+      toast({ title: "Custos criados", description: `${data.length} custo(s) de mobilização/desmobilização adicionado(s) e selecionado(s).` });
+    }
+    setMobDialogOpen(false);
+    setCreatingMob(false);
+  };
+
   // Toggle gasto selection
   const toggleGasto = (gastoId: string) => {
     setSelectedGastos(prev => {
