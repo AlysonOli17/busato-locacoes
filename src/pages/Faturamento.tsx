@@ -310,34 +310,10 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours from horímetro chain using baseline
-      // Baseline = last horimetro_final BEFORE the cycle start
-      // Chain only through Trabalho entries (Indisponível has independent meter readings)
-      const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId)
-        .sort((a, b) => ((a as any).data || "").localeCompare((b as any).data || ""));
-      
-      const baseline = baselineMap.get(eqId) ?? null;
-      let horasTrabalho = 0;
-      let horasIndisponiveis = 0;
-      let prevTrabalhoFinal = baseline;
-      
-      for (const m of filteredMedicoes) {
-        const mAny = m as any;
-        if (mAny.tipo === "Indisponível") {
-          // Indisponível hours to deduct - use stored horas_trabalhadas (user-editable field)
-          horasIndisponiveis += Number(m.horas_trabalhadas);
-        } else {
-          // Trabalho: calculate from chain, skipping Indisponível meter readings
-          if (prevTrabalhoFinal !== null) {
-            horasTrabalho += Math.max(0, Number(mAny.horimetro_final) - prevTrabalhoFinal);
-          } else {
-            // No baseline: use entry's own horimetro_inicial
-            horasTrabalho += Math.max(0, Number(mAny.horimetro_final) - Number(mAny.horimetro_inicial));
-          }
-          prevTrabalhoFinal = Number(mAny.horimetro_final);
-        }
-      }
-      const horasMedidas = Math.max(0, horasTrabalho - horasIndisponiveis);
+      // Calculate total hours from all entries (sum horas_trabalhadas directly, no deduction for Indisponível)
+      const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
+      const horasMedidas = filteredMedicoes
+        .reduce((acc, m) => acc + Math.max(0, Number(m.horas_trabalhadas)), 0);
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
       // Ajustes now save original values for unchecked fields, so we can use them directly
