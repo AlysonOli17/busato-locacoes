@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
+import { FaturamentoTab } from "@/components/FaturamentoTab";
 
 interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;}
 interface Medicao {
@@ -338,21 +339,7 @@ const Medicoes = () => {
           <FaturamentoContent />
         </TabsContent>
         <TabsContent value="faturamento-novo">
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
-                <p className="text-sm text-muted-foreground">Gestão de faturamento</p>
-              </div>
-            </div>
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium">Em construção</p>
-                <p className="text-sm">Esta funcionalidade será implementada em breve.</p>
-              </CardContent>
-            </Card>
-          </div>
+          <FaturamentoTab />
         </TabsContent>
       </Tabs>
 
