@@ -172,6 +172,12 @@ const Medicoes = () => {
 
   return (
     <Layout>
+      <Tabs defaultValue="medicoes" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Medições</TabsTrigger>
+          <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Faturamento</TabsTrigger>
+        </TabsList>
+        <TabsContent value="medicoes">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
