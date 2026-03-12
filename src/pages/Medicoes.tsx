@@ -100,14 +100,21 @@ const Medicoes = () => {
     equipEntries.set(m.equipamento_id, arr);
   });
   equipEntries.forEach((entries, eqId) => {
-    // Sort by date ascending
     const sorted = [...entries].sort((a, b) => a.data.localeCompare(b.data));
     const first = sorted[0];
-    const last = sorted[sorted.length - 1];
     const label = `${first.equipamentos?.tipo} ${first.equipamentos?.modelo}`;
     const tag = first.equipamentos?.tag_placa || "";
-    // Total = último horímetro final - primeiro horímetro inicial
-    const totalHoras = Math.max(0, Number(last.horimetro_final) - Number(first.horimetro_inicial));
+    // Para Trabalho, usamos horimetro_final (horímetro atual). Pegar menor e maior do período.
+    const trabalhoEntries = sorted.filter(e => (e.tipo || "Trabalho") === "Trabalho");
+    let totalHoras = 0;
+    if (trabalhoEntries.length >= 2) {
+      const menor = Math.min(...trabalhoEntries.map(e => Number(e.horimetro_final)));
+      const maior = Math.max(...trabalhoEntries.map(e => Number(e.horimetro_final)));
+      totalHoras = Math.max(0, maior - menor);
+    } else if (trabalhoEntries.length === 1) {
+      // Com apenas 1 registro não há como calcular diferença
+      totalHoras = 0;
+    }
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
   });
 
