@@ -106,14 +106,14 @@ const Medicoes = () => {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 });
+    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "" });
     setHorimetroAnterior(0);
     setDialogOpen(true);
   };
 
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
-    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final) });
+    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "" });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
     // Refresh anterior for this date
