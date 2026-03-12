@@ -210,14 +210,14 @@ const Medicoes = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => {
-              const headers = ["Equipamento", "Tag/Placa", "Data", "Horímetro Ant.", "Horímetro Atual", "Horas Trab."];
+              const headers = ["Equipamento", "Tag/Placa", "Data", "Tipo", "Horímetro Atual", "Horas Indisp."];
               const rows = filtered.map((m) => [
               `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
               m.equipamentos?.tag_placa || "—",
               parseLocalDate(m.data).toLocaleDateString("pt-BR"),
-              Number(m.horimetro_inicial).toFixed(1),
+              m.tipo || "Trabalho",
               Number(m.horimetro_final).toFixed(1),
-              Number(m.horas_trabalhadas).toFixed(1)]
+              (m.tipo || "Trabalho") === "Indisponível" ? Number(m.horas_trabalhadas).toFixed(1) : "—"]
               );
               const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
               exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0, 10)}` });
@@ -305,13 +305,12 @@ const Medicoes = () => {
               <TableHeader>
                  <TableRow>
                    <TableHead>Equipamento</TableHead>
-                   <TableHead>Tag/Placa</TableHead>
-                   <TableHead>Data</TableHead>
-                   <TableHead>Tipo</TableHead>
-                   <TableHead>Horímetro Ant.</TableHead>
-                   <TableHead>Horímetro Atual</TableHead>
-                   <TableHead>Horas Trab.</TableHead>
-                   <TableHead className="w-20">Ações</TableHead>
+                    <TableHead>Tag/Placa</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Horímetro Atual</TableHead>
+                    <TableHead>Horas Indisp.</TableHead>
+                    <TableHead className="w-20">Ações</TableHead>
                  </TableRow>
               </TableHeader>
               <TableBody>
@@ -329,13 +328,16 @@ const Medicoes = () => {
                          <Badge className="bg-accent/10 text-accent border-0 text-xs">Trabalho</Badge>
                        )}
                      </TableCell>
-                     <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
                      <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
                      <TableCell>
-                       <Badge className={cn("font-semibold border-0", (item.tipo || "Trabalho") === "Indisponível" ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent")}>
-                         <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
-                       </Badge>
-                     </TableCell>
+                        {(item.tipo || "Trabalho") === "Indisponível" ? (
+                          <Badge className="font-semibold border-0 bg-destructive/10 text-destructive">
+                            <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
@@ -349,7 +351,7 @@ const Medicoes = () => {
                   </TableRow>
                 )}
                 {!loading && filtered.length === 0 &&
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum horímetro encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum horímetro encontrado</TableCell></TableRow>
                 }
               </TableBody>
             </Table>
@@ -388,12 +390,6 @@ const Medicoes = () => {
               <Label>Data</Label>
               <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
             </div>
-            {form.equipamento_id && form.tipo === "Trabalho" &&
-            <div className="p-3 rounded-lg bg-muted/50 border">
-                <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {parseLocalDate(form.data).toLocaleDateString("pt-BR")})</p>
-                <p className="text-lg font-bold text-foreground">{horimetroAnterior.toFixed(1)}</p>
-              </div>
-            }
             <div>
               <Label>Tipo de Lançamento</Label>
               <RadioGroup value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })} className="flex gap-4 mt-2">
