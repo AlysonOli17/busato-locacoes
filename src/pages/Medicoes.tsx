@@ -91,17 +91,27 @@ const Medicoes = () => {
     return true;
   });
 
+  // Group filtered entries by equipment, sorted by date
   const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;}>();
+  const equipEntries = new Map<string, Medicao[]>();
   filtered.forEach((m) => {
-    const label = `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`;
-    const tag = m.equipamentos?.tag_placa || "";
-    const current = summaryMap.get(m.equipamento_id) || { totalHoras: 0, entries: 0, label, tag };
-    current.totalHoras += Number(m.horas_trabalhadas);
-    current.entries += 1;
-    summaryMap.set(m.equipamento_id, current);
+    const arr = equipEntries.get(m.equipamento_id) || [];
+    arr.push(m);
+    equipEntries.set(m.equipamento_id, arr);
+  });
+  equipEntries.forEach((entries, eqId) => {
+    // Sort by date ascending
+    const sorted = [...entries].sort((a, b) => a.data.localeCompare(b.data));
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const label = `${first.equipamentos?.tipo} ${first.equipamentos?.modelo}`;
+    const tag = first.equipamentos?.tag_placa || "";
+    // Total = último horímetro final - primeiro horímetro inicial
+    const totalHoras = Math.max(0, Number(last.horimetro_final) - Number(first.horimetro_inicial));
+    summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
   });
 
-  const totalHorasGeral = filtered.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+  const totalHorasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalHoras, 0);
 
   const horasCalculadas = form.tipo === "Indisponível"
     ? form.horas_indisp
