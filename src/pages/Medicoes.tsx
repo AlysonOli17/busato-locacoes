@@ -260,8 +260,6 @@ const Medicoes = () => {
                   onChange={(e) => setDataFim(e.target.value ? parseLocalDate(e.target.value) : undefined)}
                 />
               </div>
-                </Popover>
-              </div>
               {hasFilters &&
               <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Limpar filtros</Button>
               }
