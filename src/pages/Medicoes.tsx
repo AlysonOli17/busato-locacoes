@@ -390,12 +390,6 @@ const Medicoes = () => {
               <Label>Data</Label>
               <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
             </div>
-            {form.equipamento_id && form.tipo === "Trabalho" &&
-            <div className="p-3 rounded-lg bg-muted/50 border">
-                <p className="text-xs text-muted-foreground">Horímetro anterior (antes de {parseLocalDate(form.data).toLocaleDateString("pt-BR")})</p>
-                <p className="text-lg font-bold text-foreground">{horimetroAnterior.toFixed(1)}</p>
-              </div>
-            }
             <div>
               <Label>Tipo de Lançamento</Label>
               <RadioGroup value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })} className="flex gap-4 mt-2">
