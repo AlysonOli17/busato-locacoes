@@ -1156,7 +1156,7 @@ export const FaturamentoContent = () => {
                   );
                 })}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma medição encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
