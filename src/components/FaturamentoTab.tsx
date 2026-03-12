@@ -418,7 +418,7 @@ export const FaturamentoTab = () => {
 
     doc.setTextColor(40, 40, 40);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
+     doc.setFontSize(7);
 
     // Equipment list with hours info
     if (equips.length > 0) {
@@ -431,7 +431,7 @@ export const FaturamentoTab = () => {
           const wrappedLines = doc.splitTextToSize(qtStr, contentW - 4);
           wrappedLines.forEach((line: string) => {
             doc.text(line, mLeft + 2, y);
-            y += 4;
+            y += 6;
           });
         }
       });
@@ -439,7 +439,7 @@ export const FaturamentoTab = () => {
       const eq = ct?.equipamentos;
       if (eq) {
         doc.text(`01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 2, y);
-        y += 4;
+        y += 6;
       }
     }
 
