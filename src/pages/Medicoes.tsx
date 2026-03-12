@@ -138,7 +138,7 @@ const Medicoes = () => {
       const { error } = await supabase.from("medicoes").update({
         equipamento_id: form.equipamento_id,
         data: form.data,
-        horimetro_inicial: horimetroAnterior,
+        horimetro_inicial: hInicial,
         horimetro_final: form.horimetro,
         horas_trabalhadas: horasTrabalhadas,
         tipo: form.tipo,
