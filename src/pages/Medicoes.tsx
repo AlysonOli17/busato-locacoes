@@ -328,13 +328,16 @@ const Medicoes = () => {
                          <Badge className="bg-accent/10 text-accent border-0 text-xs">Trabalho</Badge>
                        )}
                      </TableCell>
-                     <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
                      <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
                      <TableCell>
-                       <Badge className={cn("font-semibold border-0", (item.tipo || "Trabalho") === "Indisponível" ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent")}>
-                         <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
-                       </Badge>
-                     </TableCell>
+                        {(item.tipo || "Trabalho") === "Indisponível" ? (
+                          <Badge className="font-semibold border-0 bg-destructive/10 text-destructive">
+                            <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
