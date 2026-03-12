@@ -14,7 +14,9 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +32,8 @@ interface Medicao {
   horimetro_inicial: number;
   horimetro_final: number;
   horas_trabalhadas: number;
+  tipo: string;
+  observacoes: string | null;
   equipamentos: Equipamento;
 }
 
@@ -41,7 +45,7 @@ const Medicoes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 });
+  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "" });
   const [filterEquip, setFilterEquip] = useState("Todos");
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
@@ -104,14 +108,14 @@ const Medicoes = () => {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0 });
+    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "" });
     setHorimetroAnterior(0);
     setDialogOpen(true);
   };
 
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
-    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final) });
+    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "" });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
     // Refresh anterior for this date
@@ -132,7 +136,9 @@ const Medicoes = () => {
         data: form.data,
         horimetro_inicial: horimetroAnterior,
         horimetro_final: form.horimetro,
-        horas_trabalhadas: horasTrabalhadas
+        horas_trabalhadas: horasTrabalhadas,
+        tipo: form.tipo,
+        observacoes: form.observacoes || null,
       }).eq("id", editingId);
       if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     } else {
@@ -141,7 +147,9 @@ const Medicoes = () => {
         data: form.data,
         horimetro_inicial: horimetroAnterior,
         horimetro_final: form.horimetro,
-        horas_trabalhadas: horasTrabalhadas
+        horas_trabalhadas: horasTrabalhadas,
+        tipo: form.tipo,
+        observacoes: form.observacoes || null,
       });
       if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     }
@@ -291,29 +299,39 @@ const Medicoes = () => {
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[700px]">
               <TableHeader>
-                <TableRow>
-                  <TableHead>Equipamento</TableHead>
-                  <TableHead>Tag/Placa</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Horímetro Ant.</TableHead>
-                  <TableHead>Horímetro Atual</TableHead>
-                  <TableHead>Horas Trab.</TableHead>
-                  <TableHead className="w-20">Ações</TableHead>
-                </TableRow>
+                 <TableRow>
+                   <TableHead>Equipamento</TableHead>
+                   <TableHead>Tag/Placa</TableHead>
+                   <TableHead>Data</TableHead>
+                   <TableHead>Tipo</TableHead>
+                   <TableHead>Horímetro Ant.</TableHead>
+                   <TableHead>Horímetro Atual</TableHead>
+                   <TableHead>Horas Trab.</TableHead>
+                   <TableHead className="w-20">Ações</TableHead>
+                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((item) =>
                 <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
-                    <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
-                    <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-accent/10 text-accent font-semibold border-0">
-                        <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
-                      </Badge>
-                    </TableCell>
+                     <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
+                     <TableCell>
+                       {(item.tipo || "Trabalho") === "Indisponível" ? (
+                         <Badge variant="destructive" className="text-xs gap-1">
+                           <AlertTriangle className="h-3 w-3" /> Indisponível
+                         </Badge>
+                       ) : (
+                         <Badge className="bg-accent/10 text-accent border-0 text-xs">Trabalho</Badge>
+                       )}
+                     </TableCell>
+                     <TableCell className="text-sm text-muted-foreground">{Number(item.horimetro_inicial).toFixed(1)}</TableCell>
+                     <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
+                     <TableCell>
+                       <Badge className={cn("font-semibold border-0", (item.tipo || "Trabalho") === "Indisponível" ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent")}>
+                         <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
+                       </Badge>
+                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
@@ -327,7 +345,7 @@ const Medicoes = () => {
                   </TableRow>
                 )}
                 {!loading && filtered.length === 0 &&
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum horímetro encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum horímetro encontrado</TableCell></TableRow>
                 }
               </TableBody>
             </Table>
@@ -373,13 +391,39 @@ const Medicoes = () => {
               </div>
             }
             <div>
+              <Label>Tipo de Lançamento</Label>
+              <RadioGroup value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })} className="flex gap-4 mt-2">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Trabalho" id="tipo-trabalho" />
+                  <Label htmlFor="tipo-trabalho" className="cursor-pointer">Trabalho</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Indisponível" id="tipo-indisponivel" />
+                  <Label htmlFor="tipo-indisponivel" className="cursor-pointer">Indisponível</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            {form.tipo === "Indisponível" && (
+              <div>
+                <Label>Observação (motivo da indisponibilidade)</Label>
+                <Textarea
+                  value={form.observacoes}
+                  onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                  placeholder="Ex: Manutenção preventiva, quebra mecânica..."
+                  rows={3}
+                />
+              </div>
+            )}
+            <div>
               <Label>Horímetro Atual</Label>
               <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
             </div>
             {horasCalculadas > 0 &&
-            <div className="p-3 rounded-lg bg-accent/10 text-center">
-                <p className="text-sm text-muted-foreground">Horas trabalhadas (diferença)</p>
-                <p className="text-2xl font-bold text-accent">{horasCalculadas.toFixed(1)}h</p>
+            <div className={cn("p-3 rounded-lg text-center", form.tipo === "Indisponível" ? "bg-destructive/10" : "bg-accent/10")}>
+                <p className="text-sm text-muted-foreground">
+                  {form.tipo === "Indisponível" ? "Horas indisponíveis (serão descontadas)" : "Horas trabalhadas (diferença)"}
+                </p>
+                <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{horasCalculadas.toFixed(1)}h</p>
                 <p className="text-xs text-muted-foreground">{horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}</p>
               </div>
             }

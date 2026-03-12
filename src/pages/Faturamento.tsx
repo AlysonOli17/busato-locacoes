@@ -241,7 +241,7 @@ export const FaturamentoContent = () => {
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao;
       const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
       const fimEfetivo = dataDevolucao && dataDevolucao < fim ? dataDevolucao : fim;
-      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo);
+      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo);
     });
     const medResults = await Promise.all(medPromises);
     const medicoesData = medResults.flatMap(r => r.data || []);
@@ -297,7 +297,9 @@ export const FaturamentoContent = () => {
       }
 
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
-      const horasMedidas = filteredMedicoes.reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      const horasTrabalho = filteredMedicoes.filter(m => (m as any).tipo !== "Indisponível").reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      const horasIndisponiveis = filteredMedicoes.filter(m => (m as any).tipo === "Indisponível").reduce((acc, m) => acc + Number(m.horas_trabalhadas), 0);
+      const horasMedidas = Math.max(0, horasTrabalho - horasIndisponiveis);
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
       // Ajustes now save original values for unchecked fields, so we can use them directly
