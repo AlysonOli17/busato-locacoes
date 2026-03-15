@@ -331,14 +331,9 @@ export const FaturamentoContent = () => {
           if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
         }
         const dayValues = Array.from(byDay.values());
-        const totalBruto = dayValues.length >= 2
+        horasMedidas = dayValues.length >= 2
           ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues))
           : 0;
-        // Subtract indisponível hours
-        const horasIndisponiveis = filteredMedicoes
-          .filter(m => m.tipo === 'Indisponível')
-          .reduce((acc, m) => acc + Math.max(0, Number(m.horas_trabalhadas)), 0);
-        horasMedidas = Math.max(0, totalBruto - horasIndisponiveis);
       }
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
