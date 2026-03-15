@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Progress } from "@/components/ui/progress";
 import {
   TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, Building2,
@@ -234,19 +234,19 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
             </div>
             <div className="flex-1">
               <label className="text-xs text-muted-foreground mb-1 block">Equipamento</label>
-              <Select value={filtroEquipamento} onValueChange={setFiltroEquipamento}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Equipamentos</SelectItem>
-                  {equipamentos.map((eq: any) => (
-                    <SelectItem key={eq.id} value={eq.id}>
-                      {eq.tipo} {eq.modelo} {eq.tag_placa ? `(${eq.tag_placa})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={filtroEquipamento}
+                onValueChange={setFiltroEquipamento}
+                placeholder="Todos os Equipamentos"
+                searchPlaceholder="Pesquisar equipamento..."
+                options={[
+                  { value: "all", label: "Todos os Equipamentos" },
+                  ...equipamentos.map((eq: any) => ({
+                    value: eq.id,
+                    label: `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}${eq.numero_serie ? ` - NS: ${eq.numero_serie}` : ""}`,
+                  })),
+                ]}
+              />
             </div>
           </div>
         </CardContent>
