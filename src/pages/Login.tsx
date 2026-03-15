@@ -24,7 +24,7 @@ const Login = () => {
     if (error) {
       setError(error);
     } else {
-      navigate("/");
+      navigate("/equipamentos");
     }
     setLoading(false);
   };
