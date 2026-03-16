@@ -490,6 +490,29 @@ export const FaturamentoTab = () => {
       }
     }
 
+    // Additional costs (gastos)
+    const gastos = faturaGastos.get(fatura.id) || [];
+    if (gastos.length > 0) {
+      y += 2;
+      doc.setFont("helvetica", "bold");
+      doc.text("Custos Adicionais:", mLeft + 2, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      gastos.forEach(g => {
+        const line = `• ${g.tipo} — ${g.descricao}: R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        const wrapped = doc.splitTextToSize(line, contentW - 4);
+        wrapped.forEach((l: string) => {
+          doc.text(l, mLeft + 2, y);
+          y += 4;
+        });
+      });
+      const totalGastos = gastos.reduce((s, g) => s + g.valor, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Total Custos Adicionais: R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, mLeft + 2, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+    }
+
     // Period
     if (fatura.periodo_medicao_inicio && fatura.periodo_medicao_fim) {
       doc.text(
