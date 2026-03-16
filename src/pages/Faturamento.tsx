@@ -522,10 +522,12 @@ export const FaturamentoContent = () => {
     else setSelectedGastos(new Set(gastosEquip.map(g => g.id)));
   };
 
-  // Recalculate totalGastos when selection changes
+  // Recalculate totalGastos when selection changes (cobrar - reembolsar)
   useEffect(() => {
-    const total = gastosEquip.filter(g => selectedGastos.has(g.id)).reduce((acc, g) => acc + Number(g.valor), 0);
-    setTotalGastos(total);
+    const selectedItems = gastosEquip.filter(g => selectedGastos.has(g.id));
+    const cobrar = selectedItems.filter(g => (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+    const reembolsar = selectedItems.filter(g => g.classificacao === "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+    setTotalGastos(cobrar - reembolsar);
   }, [selectedGastos, gastosEquip]);
 
   // Recalculate hours helper
