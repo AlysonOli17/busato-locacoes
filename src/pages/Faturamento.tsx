@@ -896,7 +896,7 @@ export const FaturamentoContent = () => {
         if (y > 220) { doc.addPage(); y = 20; }
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
-        doc.text("Histórico de Aditivos", 14, y);
+        doc.text("Aditivos do Período", 14, y);
         y += 2;
 
         for (const ad of aditivosHist) {
