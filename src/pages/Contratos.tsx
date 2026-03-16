@@ -78,7 +78,7 @@ interface AjusteTemporario {
 }
 
 interface AjusteForm {
-  equipamento_id: string;
+  equipamento_ids: string[];
   valor_hora: number;
   valor_hora_excedente: number;
   hora_minima: number;
