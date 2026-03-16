@@ -113,6 +113,7 @@ export const FaturamentoTab = () => {
   const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [equipamentos, setEquipamentos] = useState<EquipamentoInfo[]>([]);
   const [faturaEquips, setFaturaEquips] = useState<Map<string, FaturaEquip[]>>(new Map());
+  const [faturaGastos, setFaturaGastos] = useState<Map<string, { descricao: string; valor: number; tipo: string }[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -139,15 +140,28 @@ export const FaturamentoTab = () => {
     // Load faturamento_equipamentos for all faturas
     if (fatRes.data && fatRes.data.length > 0) {
       const ids = fatRes.data.map((f: any) => f.id);
-      const { data: feData } = await supabase.from("faturamento_equipamentos").select("*").in("faturamento_id", ids);
-      if (feData) {
+      const [feRes, fgRes] = await Promise.all([
+        supabase.from("faturamento_equipamentos").select("*").in("faturamento_id", ids),
+        supabase.from("faturamento_gastos").select("*, gastos(descricao, valor, tipo)").in("faturamento_id", ids),
+      ]);
+      if (feRes.data) {
         const map = new Map<string, FaturaEquip[]>();
-        feData.forEach((fe: any) => {
+        feRes.data.forEach((fe: any) => {
           const list = map.get(fe.faturamento_id) || [];
           list.push(fe as FaturaEquip);
           map.set(fe.faturamento_id, list);
         });
         setFaturaEquips(map);
+      }
+      if (fgRes.data) {
+        const map = new Map<string, { descricao: string; valor: number; tipo: string }[]>();
+        fgRes.data.forEach((fg: any) => {
+          if (!fg.gastos) return;
+          const list = map.get(fg.faturamento_id) || [];
+          list.push({ descricao: fg.gastos.descricao, valor: Number(fg.gastos.valor), tipo: fg.gastos.tipo });
+          map.set(fg.faturamento_id, list);
+        });
+        setFaturaGastos(map);
       }
     }
     setLoading(false);
@@ -474,6 +488,29 @@ export const FaturamentoTab = () => {
         doc.text(`01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 2, y);
         y += 6;
       }
+    }
+
+    // Additional costs (gastos)
+    const gastos = faturaGastos.get(fatura.id) || [];
+    if (gastos.length > 0) {
+      y += 2;
+      doc.setFont("helvetica", "bold");
+      doc.text("Custos Adicionais:", mLeft + 2, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      gastos.forEach(g => {
+        const line = `• ${g.tipo} — ${g.descricao}: R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        const wrapped = doc.splitTextToSize(line, contentW - 4);
+        wrapped.forEach((l: string) => {
+          doc.text(l, mLeft + 2, y);
+          y += 4;
+        });
+      });
+      const totalGastos = gastos.reduce((s, g) => s + g.valor, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Total Custos Adicionais: R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, mLeft + 2, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
     }
 
     // Period
