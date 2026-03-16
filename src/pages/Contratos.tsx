@@ -1030,16 +1030,13 @@ const Contratos = () => {
     setEditingAjuste(null);
     setAjusteTodos(false);
     setAjusteCampos({ valor_hora: true, valor_hora_excedente: true, hora_minima: true, horas_contratadas: true });
-    const allEquip = getAllEquipForAjuste(ajustesContrato);
-    const firstEquip = equipId || (allEquip.length > 0 ? allEquip[0].equipamento_id : "");
-    const ce = allEquip.find(c => c.equipamento_id === firstEquip);
     const maxDataFim = getMaxDataFim(ajustesContrato);
     setAjusteForm({
-      equipamento_id: firstEquip,
-      valor_hora: ce ? Number(ce.valor_hora) : 0,
-      valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : 0,
-      hora_minima: ce ? Number(ce.hora_minima) : 0,
-      horas_contratadas: ce ? Number(ce.horas_contratadas) : 0,
+      equipamento_ids: equipId ? [equipId] : [],
+      valor_hora: 0,
+      valor_hora_excedente: 0,
+      hora_minima: 0,
+      horas_contratadas: 0,
       data_inicio: "",
       data_fim: maxDataFim,
       motivo: "",
