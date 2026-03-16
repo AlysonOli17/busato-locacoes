@@ -295,7 +295,8 @@ export const FaturamentoTab = () => {
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
-    doc.text(`FATURA DE LOCAÇÃO ${String(fatura.numero_sequencial).padStart(3, "0")}`, pageW - mRight, y + 8, { align: "right" });
+    const docLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
+    doc.text(`FATURA DE LOCAÇÃO ${docLabel}`, pageW - mRight, y + 8, { align: "right" });
     y += 18;
 
     // Busato info (dynamic from empresas table)
