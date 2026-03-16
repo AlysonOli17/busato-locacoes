@@ -869,11 +869,15 @@ export const FaturamentoContent = () => {
         y = (doc as any).lastAutoTable.finalY + 14;
       }
 
-      // Aditivos history (before financial summary)
+      // Aditivos — only those overlapping the measurement period
+      const periodoInicio = item.periodo_medicao_inicio || "";
+      const periodoFim = item.periodo_medicao_fim || "";
       const { data: aditivosHist } = await supabase
         .from("contratos_aditivos")
         .select("id, numero, data_inicio, data_fim, motivo, observacoes")
         .eq("contrato_id", item.contrato_id)
+        .lte("data_inicio", periodoFim || "9999-12-31")
+        .gte("data_fim", periodoInicio || "0000-01-01")
         .order("numero", { ascending: true });
 
       if (aditivosHist && aditivosHist.length > 0) {
