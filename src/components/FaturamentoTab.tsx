@@ -188,7 +188,7 @@ export const FaturamentoTab = () => {
     if (fatura.status === "Aprovado") {
       const venc = getVencimento(fatura);
       if (new Date() > venc) return "Em Atraso";
-      return "Aprovado";
+      return "Pendente";
     }
     return fatura.status;
   };
@@ -618,7 +618,7 @@ export const FaturamentoTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="Aprovado">Aprovado</SelectItem>
+            <SelectItem value="Pendente">Pendente</SelectItem>
             <SelectItem value="Pago">Pago</SelectItem>
             <SelectItem value="Em Atraso">Em Atraso</SelectItem>
             <SelectItem value="Cancelado">Cancelado</SelectItem>
