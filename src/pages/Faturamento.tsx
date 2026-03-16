@@ -203,6 +203,7 @@ export const FaturamentoContent = () => {
       .from("contratos_aditivos")
       .select("id, numero, data_inicio, data_fim")
       .eq("contrato_id", contratoId)
+      .lte("data_inicio", fim)
       .gte("data_fim", inicio);
 
     let aditivoEquipMap = new Map<string, any>();
