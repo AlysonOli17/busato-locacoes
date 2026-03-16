@@ -188,7 +188,7 @@ export const FaturamentoTab = () => {
     if (fatura.status === "Aprovado") {
       const venc = getVencimento(fatura);
       if (new Date() > venc) return "Em Atraso";
-      return "Aprovado";
+      return "Pendente";
     }
     return fatura.status;
   };
