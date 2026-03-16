@@ -106,6 +106,10 @@ const Usuarios = () => {
       toast({ title: "Campos obrigatórios", description: "Nome e E-mail são obrigatórios.", variant: "destructive" });
       return;
     }
+    if (form.password && form.password.length < 8) {
+      toast({ title: "Senha muito curta", description: "A senha deve ter no mínimo 8 caracteres.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
