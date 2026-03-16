@@ -156,10 +156,11 @@ Deno.serve(async (req) => {
 
     throw new Error("Unknown action");
   } catch (error) {
-    const status = error instanceof z.ZodError ? 400 : 400;
-    const message = error instanceof z.ZodError ? "Invalid input" : error.message;
+    const message = error instanceof z.ZodError
+      ? "Invalid input: " + error.errors.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(", ")
+      : (error as Error).message;
     return new Response(JSON.stringify({ error: message }), {
-      status,
+      status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
