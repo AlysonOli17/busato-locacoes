@@ -613,7 +613,7 @@ export const FaturamentoTab = () => {
                 const status = getDisplayStatus(f);
                 return (
                   <TableRow key={f.id}>
-                    <TableCell className="font-mono font-bold text-sm">{String(f.numero_sequencial).padStart(3, "0")}</TableCell>
+                    <TableCell className="font-mono font-bold text-sm">{f.numero_nota || String(f.numero_sequencial).padStart(3, "0")}</TableCell>
                     <TableCell>
                       <p className="font-medium text-sm">{ct?.empresas?.nome || "—"}</p>
                       <p className="text-xs text-muted-foreground font-mono">{ct?.empresas?.cnpj}</p>
