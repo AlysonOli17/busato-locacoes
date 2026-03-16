@@ -121,7 +121,7 @@ export const FaturamentoContent = () => {
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
   const [formNumeroNota, setFormNumeroNota] = useState("");
-  const [formNumeroSequencial, setFormNumeroSequencial] = useState<number | "">("");
+  
   const [formStatus, setFormStatus] = useState("Pendente");
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
   const [formMedicaoFim, setFormMedicaoFim] = useState("");
@@ -1011,8 +1011,9 @@ export const FaturamentoContent = () => {
     setEditing(null);
     setFormContratoId("");
     setFormPeriodo("");
-    setFormNumeroSequencial("");
-    setFormNumeroNota("");
+    // Auto-generate next numero_nota
+    const maxSeq = items.length > 0 ? Math.max(...items.map(f => f.numero_sequencial)) : 0;
+    setFormNumeroNota(`FAT${String(maxSeq + 1).padStart(3, "0")}`);
     setFormStatus("Pendente");
     setFormMedicaoInicio("");
     setFormMedicaoFim("");
@@ -1028,8 +1029,7 @@ export const FaturamentoContent = () => {
     setEditing(item);
     setFormContratoId(item.contrato_id);
     setFormPeriodo(item.periodo);
-    setFormNumeroSequencial(item.numero_sequencial);
-    setFormNumeroNota(item.numero_nota || "");
+    setFormNumeroNota(item.numero_nota || `FAT${String(item.numero_sequencial).padStart(3, "0")}`);
     setFormStatus(item.status);
     setFormContaBancariaId(item.conta_bancaria_id || "");
     setFormMedicaoInicio(item.periodo_medicao_inicio || "");
@@ -1085,7 +1085,6 @@ export const FaturamentoContent = () => {
       periodo_medicao_fim: formMedicaoFim || null,
       total_gastos: totalGastos,
       conta_bancaria_id: formContaBancariaId || null,
-      ...(formNumeroSequencial !== "" ? { numero_sequencial: formNumeroSequencial } : {}),
     } as any;
 
     let faturaId: string;
@@ -1348,8 +1347,7 @@ export const FaturamentoContent = () => {
 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Nº Medição</Label><Input type="number" value={formNumeroSequencial} onChange={(e) => setFormNumeroSequencial(e.target.value ? Number(e.target.value) : "")} placeholder="Auto" /></div>
-              <div><Label>Nº Nota / Fatura</Label><Input value={formNumeroNota} onChange={(e) => setFormNumeroNota(e.target.value)} placeholder="Ex: NF-001" /></div>
+              <div><Label>Nº Nota / Fatura</Label><Input value={formNumeroNota} onChange={(e) => setFormNumeroNota(e.target.value)} placeholder="Ex: FAT001" /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Período</Label><Input value={formPeriodo} onChange={(e) => setFormPeriodo(e.target.value)} placeholder="Mês/Ano" /></div>
