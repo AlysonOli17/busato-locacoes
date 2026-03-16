@@ -105,7 +105,7 @@ const Gastos = () => {
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Gasto) => {
     setEditing(item);
-    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, valor: item.valor, data: item.data });
+    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, classificacao: item.classificacao || "A Cobrar do Cliente", valor: item.valor, data: item.data });
     setDialogOpen(true);
   };
 
