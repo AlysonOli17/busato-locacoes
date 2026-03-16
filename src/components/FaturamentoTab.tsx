@@ -295,7 +295,8 @@ export const FaturamentoTab = () => {
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
-    doc.text(`FATURA DE LOCAÇÃO ${String(fatura.numero_sequencial).padStart(3, "0")}`, pageW - mRight, y + 8, { align: "right" });
+    const docLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
+    doc.text(`FATURA DE LOCAÇÃO ${docLabel}`, pageW - mRight, y + 8, { align: "right" });
     y += 18;
 
     // Busato info (dynamic from empresas table)
@@ -534,8 +535,9 @@ export const FaturamentoTab = () => {
     doc.text("CPF - 005.110.117-33", pageW / 2, sigY + 17.5, { align: "center" });
     doc.text("Busato Locações e Serviços LTDA", pageW / 2, sigY + 21, { align: "center" });
 
-    doc.save(`fatura_locacao_${String(fatura.numero_sequencial).padStart(3, "0")}.pdf`);
-    toast({ title: "PDF gerado", description: `Fatura ${String(fatura.numero_sequencial).padStart(3, "0")} exportada com sucesso.` });
+    const saveLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
+    doc.save(`fatura_locacao_${saveLabel}.pdf`);
+    toast({ title: "PDF gerado", description: `Fatura ${saveLabel} exportada com sucesso.` });
   };
 
   const statusColor = (status: string) => {
@@ -698,7 +700,7 @@ export const FaturamentoTab = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-accent" />
-              Editar Fatura {editingFatura ? String(editingFatura.numero_sequencial).padStart(3, "0") : ""}
+              Editar Fatura {editingFatura ? (editingFatura.numero_nota || String(editingFatura.numero_sequencial).padStart(3, "0")) : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
