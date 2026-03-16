@@ -618,7 +618,7 @@ export const FaturamentoTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="Aprovado">Aprovado</SelectItem>
+            <SelectItem value="Pendente">Pendente</SelectItem>
             <SelectItem value="Pago">Pago</SelectItem>
             <SelectItem value="Em Atraso">Em Atraso</SelectItem>
             <SelectItem value="Cancelado">Cancelado</SelectItem>
