@@ -299,7 +299,7 @@ const Gastos = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum custo encontrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhum custo encontrado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
