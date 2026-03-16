@@ -738,55 +738,46 @@ export const FaturamentoContent = () => {
       const busatoTel = busatoEmp?.telefone || "";
       const busatoEmail = busatoEmp?.email || "";
 
-      // ── HEADER: Logo + BUSATO text (left) | Doc number (right) ──
-      const headerH = 22;
-      // Logo
-      if (logo) doc.addImage(logo, "PNG", mL, y, 36, 10);
+      // ── HEADER: Logo + BUSATO (left) | Document title (right) ──
+      // Logo icon
+      if (logo) doc.addImage(logo, "PNG", mL, y, 14, 14);
 
-      // "BUSATO" large text next to logo
-      doc.setFontSize(22);
+      // "BUSATO" large text
+      doc.setFontSize(26);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(50, 50, 50);
+      doc.text("BUSATO", mL + 18, y + 10);
+
+      // "BOLETIM DE MEDIÇÃO <num>" right-aligned
+      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
-      doc.text("BUSATO", mL + 40, y + 8);
+      doc.text(`BOLETIM DE MEDIÇÃO ${item.numero_sequencial.toString().padStart(3, "0")}`, pageW - mR, y + 10, { align: "right" });
 
-      // Document number box (right-aligned)
-      const boxW = 50;
-      const boxX = pageW - mR - boxW;
-      doc.setDrawColor(41, 128, 185);
-      doc.setLineWidth(0.5);
-      doc.rect(boxX, y, boxW, headerH);
-      // Inner divider
-      doc.line(boxX, y + headerH / 2, boxX + boxW, y + headerH / 2);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(41, 128, 185);
-      doc.text(numDoc, boxX + boxW / 2, y + 6, { align: "center" });
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(80, 80, 80);
-      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, boxX + boxW / 2, y + headerH / 2 + 5, { align: "center" });
-      doc.text(`Pág. 01`, boxX + boxW / 2, y + headerH / 2 + 10, { align: "center" });
+      y += 18;
 
-      y += headerH + 2;
-
-      // Company info line
+      // Company name (bold, black)
       doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      doc.text(busatoNome.toUpperCase(), mL, y + 4);
-      y += 5;
+      doc.text(busatoNome.toUpperCase(), mL, y);
+      y += 4;
+
+      // Address line
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
       doc.setTextColor(80, 80, 80);
-      const addressLine = [busatoEnd, busatoCep].filter(Boolean).join(" - ");
-      doc.text(addressLine, mL, y + 3);
-      const cnpjTelLine = [`CNPJ: ${busatoCnpj}`, busatoTel ? `Tel: ${busatoTel}` : "", busatoEmail ? `E-mail: ${busatoEmail}` : ""].filter(Boolean).join("    |    ");
-      doc.text(cnpjTelLine, mL, y + 7);
-      y += 10;
+      const addressLine = [busatoEnd, busatoCep].filter(Boolean).join(", ");
+      doc.text(addressLine, mL, y);
+      y += 3.5;
 
-      // Blue separator
+      // CNPJ line
+      doc.text(`CNPJ: ${busatoCnpj}`, mL, y);
+      y += 4;
+
+      // Blue separator line
       doc.setDrawColor(41, 128, 185);
-      doc.setLineWidth(0.8);
+      doc.setLineWidth(1);
       doc.line(mL, y, pageW - mR, y);
       y += 5;
 
