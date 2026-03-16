@@ -61,12 +61,8 @@ const Usuarios = () => {
   const { toast } = useToast();
 
   const callManageUser = async (body: any) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke("manage-user", {
-      body,
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-    });
-    if (res.error) throw new Error(res.error.message);
+    const res = await supabase.functions.invoke("manage-user", { body });
+    if (res.error) throw new Error(res.error.message || "Erro na operação");
     return res.data;
   };
 
