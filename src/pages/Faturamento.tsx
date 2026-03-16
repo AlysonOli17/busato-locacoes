@@ -965,19 +965,14 @@ export const FaturamentoContent = () => {
       });
       y = (doc as any).lastAutoTable.finalY;
 
-      // Total row
-      autoTable(doc, {
-        startY: y,
-        margin: tableMargin,
-        body: [["", "", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
-        styles: { fontSize: 9, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, fontStyle: "bold" },
-        columnStyles: {
-          7: { halign: "right" },
-          8: { halign: "right" },
-        },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      // Medição Total row (clean, no empty cells)
+      y += 2;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Medição Total:", pageW - mR - 55, y);
+      doc.text(fmtBRL(totalMedicao), pageW - mR, y, { align: "right" });
+      y += 10;
 
       // ──────────────── CUSTOS ADICIONAIS ────────────────
       if (gastosVal > 0) {
@@ -1015,47 +1010,44 @@ export const FaturamentoContent = () => {
               },
               theme: "grid",
             });
-            y = (doc as any).lastAutoTable.finalY + 4;
-
-            // Gastos total
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(9);
-            doc.text(`Total Custos Adicionais: ${fmtBRL(gastosVal)}`, pageW - mR, y, { align: "right" });
-            y += 8;
+            y = (doc as any).lastAutoTable.finalY + 6;
           }
         }
       }
 
-      // ──────────────── OBSERVAÇÕES ────────────────
-      if (y > 240) { doc.addPage(); y = 15; }
-      doc.setFillColor(235, 235, 235);
-      doc.rect(mL, y - 3, contentW, 5, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Observações:", mL + 1, y);
-      y += 6;
-      if (ct?.observacoes) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        const obsLines = doc.splitTextToSize(ct.observacoes, contentW - 4);
-        doc.text(obsLines, mL + 2, y);
-        y += obsLines.length * 4 + 2;
-      }
-      y += 4;
-
-      // ──────────────── GRAND TOTAL ────────────────
+      // ──────────────── RESUMO TOTAL ────────────────
       const grandTotal = totalMedicao + gastosVal;
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5);
-      doc.line(mL, y, pageW - mR, y);
-      y += 6;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Valor Total da Medição:", mL, y);
-      doc.text(fmtBRL(grandTotal), pageW - mR, y, { align: "right" });
-      y += 10;
+      if (y > 240) { doc.addPage(); y = 15; }
+
+      autoTable(doc, {
+        startY: y,
+        margin: tableMargin,
+        head: [["Descrição", "Valor"]],
+        body: [
+          ["Medição (Equipamentos)", fmtBRL(totalMedicao)],
+          ...(gastosVal > 0 ? [["Custos Adicionais", fmtBRL(gastosVal)]] : []),
+          ["VALOR TOTAL DA MEDIÇÃO", fmtBRL(grandTotal)],
+        ],
+        styles: { fontSize: 9, cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [240, 246, 252] },
+        columnStyles: {
+          0: { fontStyle: "bold" },
+          1: { halign: "right" },
+        },
+        bodyStyles: {},
+        didParseCell: (data: any) => {
+          // Bold + highlight last row (grand total)
+          if (data.section === "body" && data.row.index === (gastosVal > 0 ? 2 : 1)) {
+            data.cell.styles.fillColor = [41, 128, 185];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fontSize = 10;
+          }
+        },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
 
       // ──────────────── APPROVAL / SIGNATURE BLOCK ────────────────
       const sigY = Math.max(y + 10, pageH - 50);
