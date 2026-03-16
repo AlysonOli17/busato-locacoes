@@ -259,6 +259,7 @@ const Gastos = () => {
                   <TableHead>Tag/Placa</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Classificação</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Fatura</TableHead>
