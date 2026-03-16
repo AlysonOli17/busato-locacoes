@@ -26,6 +26,7 @@ interface Gasto {
   equipamento_id: string;
   descricao: string;
   tipo: string;
+  classificacao: string;
   valor: number;
   data: string;
   equipamentos: Equipamento;
@@ -33,7 +34,8 @@ interface Gasto {
 }
 
 const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Outros"];
-const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", valor: 0, data: new Date().toISOString().split("T")[0] };
+const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente"];
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0] };
 
 const Gastos = () => {
   const [items, setItems] = useState<Gasto[]>([]);
