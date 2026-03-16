@@ -31,6 +31,7 @@ interface ContratoEquip {
 
 interface ContratoRef {
   id: string;
+  empresa_id: string;
   valor_hora: number;
   horas_contratadas: number;
   equipamento_id: string;
