@@ -965,14 +965,14 @@ export const FaturamentoContent = () => {
       });
       y = (doc as any).lastAutoTable.finalY;
 
-      // Medição Total row (clean, no empty cells)
-      y += 2;
+      // Medição Total - right aligned with proper spacing
+      y += 6;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(0, 0, 0);
-      doc.text("Medição Total:", pageW - mR - 55, y);
+      doc.text("Medição Total:", pageW - mR - 40, y, { align: "right" });
       doc.text(fmtBRL(totalMedicao), pageW - mR, y, { align: "right" });
-      y += 10;
+      y += 12;
 
       // ──────────────── CUSTOS ADICIONAIS ────────────────
       if (gastosVal > 0) {
@@ -1010,7 +1010,15 @@ export const FaturamentoContent = () => {
               },
               theme: "grid",
             });
-            y = (doc as any).lastAutoTable.finalY + 6;
+            y = (doc as any).lastAutoTable.finalY + 4;
+
+            // Total Custos Adicionais
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Total Custos Adicionais:", pageW - mR - 40, y, { align: "right" });
+            doc.text(fmtBRL(gastosVal), pageW - mR, y, { align: "right" });
+            y += 10;
           }
         }
       }
