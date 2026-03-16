@@ -2167,9 +2167,9 @@ const Contratos = () => {
                 {!ajusteForm.data_fim && <p className="text-xs text-muted-foreground mt-1">Se vazio, usará a data final do contrato/aditivo ({getMaxDataFim(ajustesContrato) ? parseLocalDate(getMaxDataFim(ajustesContrato)).toLocaleDateString("pt-BR") : "—"})</p>}
               </div>
             </div>
-            {ajusteTodos && ajusteForm.data_inicio && ajusteForm.data_fim && (() => {
+            {ajusteTodos && ajusteForm.data_inicio && (() => {
               const ajInicio = parseLocalDate(ajusteForm.data_inicio);
-              const ajFim = parseLocalDate(ajusteForm.data_fim);
+              const ajFim = parseLocalDate(ajusteForm.data_fim || getMaxDataFim(ajustesContrato));
               const equipIds = new Set<string>();
               const ces = getAllEquipForAjuste(ajustesContrato);
               ces.forEach(ce => {
