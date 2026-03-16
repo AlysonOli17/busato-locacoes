@@ -946,7 +946,7 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Valor Total R$"]],
+        head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Indisponível", "Valor Total R$"]],
         body: eqRows,
         styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
@@ -958,7 +958,8 @@ export const FaturamentoContent = () => {
           4: { halign: "center" },
           5: { halign: "center" },
           6: { halign: "center" },
-          7: { halign: "right" },
+          7: { halign: "center" },
+          8: { halign: "right" },
         },
         theme: "grid",
       });
@@ -968,11 +969,11 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        body: [["", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
+        body: [["", "", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
         styles: { fontSize: 9, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, fontStyle: "bold" },
         columnStyles: {
-          6: { halign: "right" },
           7: { halign: "right" },
+          8: { halign: "right" },
         },
         theme: "grid",
       });
