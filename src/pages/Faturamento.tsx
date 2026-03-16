@@ -933,12 +933,15 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Sinistros section
-      const ceEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct?.equipamento_id].filter(Boolean);
-      const { data: sinistrosData } = await supabase
+      // Sinistros section — only those in the measurement period
+      const sinEquipIds = allPdfEquipIds.length > 0 ? allPdfEquipIds : (ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct?.equipamento_id].filter(Boolean));
+      const sinQuery = supabase
         .from("sinistros")
         .select("*, equipamentos(tipo, modelo, tag_placa), apolices(seguradora)")
-        .in("equipamento_id", ceEquipIds as string[]);
+        .in("equipamento_id", sinEquipIds as string[]);
+      if (inicio) sinQuery.gte("data_sinistro", inicio);
+      if (fim) sinQuery.lte("data_sinistro", fim);
+      const { data: sinistrosData } = await sinQuery;
 
       if (sinistrosData && sinistrosData.length > 0) {
         if (y > 240) { doc.addPage(); y = 20; }
