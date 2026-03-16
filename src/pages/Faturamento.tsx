@@ -636,12 +636,24 @@ export const FaturamentoContent = () => {
     return vencimento;
   };
 
-  const filtered = items.filter((i) =>
-    i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
-    i.periodo.includes(search) ||
-    (i.numero_nota || "").includes(search) ||
-    String(i.numero_sequencial).includes(search)
-  );
+  const filtered = items.filter((i) => {
+    // Text search
+    const matchesSearch = !search ||
+      i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
+      i.periodo.includes(search) ||
+      (i.numero_nota || "").includes(search) ||
+      String(i.numero_sequencial).includes(search);
+    if (!matchesSearch) return false;
+    // Company filter
+    if (filterEmpresa !== "all") {
+      const ct = contratos.find(c => c.id === i.contrato_id);
+      if (ct?.empresa_id !== filterEmpresa) return false;
+    }
+    // Period filter
+    if (filterPeriodoInicio && i.periodo_medicao_fim && i.periodo_medicao_fim < filterPeriodoInicio) return false;
+    if (filterPeriodoFim && i.periodo_medicao_inicio && i.periodo_medicao_inicio > filterPeriodoFim) return false;
+    return true;
+  });
   const totalPendente = items.filter((i) => getDisplayStatus(i) === "Pendente" || getDisplayStatus(i) === "Em Atraso").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
   const toggleSelect = (id: string) => {
