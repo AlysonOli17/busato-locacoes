@@ -26,6 +26,7 @@ interface Gasto {
   equipamento_id: string;
   descricao: string;
   tipo: string;
+  classificacao: string;
   valor: number;
   data: string;
   equipamentos: Equipamento;
@@ -33,7 +34,8 @@ interface Gasto {
 }
 
 const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Outros"];
-const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", valor: 0, data: new Date().toISOString().split("T")[0] };
+const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente"];
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0] };
 
 const Gastos = () => {
   const [items, setItems] = useState<Gasto[]>([]);
@@ -103,7 +105,7 @@ const Gastos = () => {
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Gasto) => {
     setEditing(item);
-    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, valor: item.valor, data: item.data });
+    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, classificacao: item.classificacao || "A Cobrar do Cliente", valor: item.valor, data: item.data });
     setDialogOpen(true);
   };
 
@@ -257,6 +259,7 @@ const Gastos = () => {
                   <TableHead>Tag/Placa</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Classificação</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Fatura</TableHead>
@@ -270,6 +273,11 @@ const Gastos = () => {
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="text-sm">{item.descricao}</TableCell>
                     <TableCell><Badge className={tipoColor(item.tipo)}>{item.tipo}</Badge></TableCell>
+                    <TableCell>
+                      <Badge className={item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0"}>
+                        {item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="font-semibold text-sm">R$ {fmt(item.valor)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(item.data).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
@@ -291,7 +299,7 @@ const Gastos = () => {
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum custo encontrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhum custo encontrado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -314,6 +322,13 @@ const Gastos = () => {
               />
             </div>
             <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
+            <div>
+              <Label>Classificação</Label>
+              <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>Tipo</Label>

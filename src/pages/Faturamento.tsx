@@ -84,6 +84,7 @@ interface GastoItem {
   valor: number;
   data: string;
   equipamento_id: string;
+  classificacao: string;
 }
 
 // Per-equipment form state
@@ -239,7 +240,7 @@ export const FaturamentoContent = () => {
 
     const [equipRes, gastosRes, ajustesRes] = await Promise.all([
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allEquipIdsWithAditivos),
-      supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", allEquipIdsWithAditivos).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
+      supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id, classificacao").in("equipamento_id", allEquipIdsWithAditivos).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
       // FIXED: fetch adjustments for ALL equipment (base + addendum)
       supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", allEquipIdsWithAditivos).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
@@ -471,7 +472,7 @@ export const FaturamentoContent = () => {
       valor: mobValues[`${e.equipamento_id}_${e.evento}`],
       data: e.data,
     }));
-    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id");
+    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id, classificacao");
     if (error) {
       toast({ title: "Erro ao criar custos", description: error.message, variant: "destructive" });
     } else if (data) {
@@ -496,7 +497,7 @@ export const FaturamentoContent = () => {
       valor: 0,
       data: e.data,
     }));
-    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id");
+    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id, classificacao");
     if (error) {
       toast({ title: "Erro ao registrar", description: error.message, variant: "destructive" });
     } else if (data) {
@@ -521,10 +522,12 @@ export const FaturamentoContent = () => {
     else setSelectedGastos(new Set(gastosEquip.map(g => g.id)));
   };
 
-  // Recalculate totalGastos when selection changes
+  // Recalculate totalGastos when selection changes (cobrar - reembolsar)
   useEffect(() => {
-    const total = gastosEquip.filter(g => selectedGastos.has(g.id)).reduce((acc, g) => acc + Number(g.valor), 0);
-    setTotalGastos(total);
+    const selectedItems = gastosEquip.filter(g => selectedGastos.has(g.id));
+    const cobrar = selectedItems.filter(g => (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+    const reembolsar = selectedItems.filter(g => g.classificacao === "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+    setTotalGastos(cobrar - reembolsar);
   }, [selectedGastos, gastosEquip]);
 
   // Recalculate hours helper
@@ -976,68 +979,105 @@ export const FaturamentoContent = () => {
       y += 12;
 
       // ──────────────── CUSTOS ADICIONAIS ────────────────
+      let totalCobrar = 0;
+      let totalReembolsar = 0;
+
       if (gastosVal > 0) {
         const { data: fgData } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
         if (fgData && fgData.length > 0) {
           const gastoIds = fgData.map((fg: any) => fg.gasto_id);
-          const { data: gastosData } = await supabase.from("gastos").select("descricao, tipo, valor, data, equipamento_id").in("id", gastoIds);
+          const { data: gastosData } = await supabase.from("gastos").select("descricao, tipo, valor, data, equipamento_id, classificacao").in("id", gastoIds);
           if (gastosData && gastosData.length > 0) {
-            if (y > 230) { doc.addPage(); y = 15; }
-            doc.setFillColor(235, 235, 235);
-            doc.rect(mL, y - 3, contentW, 5, "F");
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(8);
-            doc.setTextColor(0, 0, 0);
-            doc.text("Custos Adicionais", mL + 1, y);
-            y += 4;
+            const gastosCobrar = gastosData.filter((g: any) => (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
+            const gastosReembolsar = gastosData.filter((g: any) => g.classificacao === "A Reembolsar ao Cliente");
 
-            const gastoRows = gastosData.map((g: any) => [
-              g.tipo,
-              g.descricao,
-              parseLocalDate(g.data).toLocaleDateString("pt-BR"),
-              fmtBRL(Number(g.valor)),
-            ]);
-            autoTable(doc, {
-              startY: y,
-              margin: tableMargin,
-              head: [["Tipo", "Descrição", "Data", "Valor"]],
-              body: gastoRows,
-              styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
-              headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-              alternateRowStyles: { fillColor: [240, 246, 252] },
-              columnStyles: {
-                2: { halign: "center" },
-                3: { halign: "right" },
-              },
-              theme: "grid",
-            });
-            y = (doc as any).lastAutoTable.finalY + 4;
+            totalCobrar = gastosCobrar.reduce((a: number, g: any) => a + Number(g.valor), 0);
+            totalReembolsar = gastosReembolsar.reduce((a: number, g: any) => a + Number(g.valor), 0);
 
-            // Total Custos Adicionais
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            doc.setTextColor(41, 128, 185);
-            doc.text("Total Custos Adicionais:", pageW - mR - 40, y, { align: "right" });
-            doc.text(fmtBRL(gastosVal), pageW - mR, y, { align: "right" });
-            doc.setTextColor(0, 0, 0);
-            y += 10;
+            // Table: Custos a Cobrar do Cliente
+            if (gastosCobrar.length > 0) {
+              if (y > 230) { doc.addPage(); y = 15; }
+              doc.setFillColor(235, 235, 235);
+              doc.rect(mL, y - 3, contentW, 5, "F");
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(8);
+              doc.setTextColor(0, 0, 0);
+              doc.text("Custos Adicionais — A Cobrar do Cliente", mL + 1, y);
+              y += 4;
+
+              autoTable(doc, {
+                startY: y,
+                margin: tableMargin,
+                head: [["Tipo", "Descrição", "Data", "Valor"]],
+                body: gastosCobrar.map((g: any) => [g.tipo, g.descricao, parseLocalDate(g.data).toLocaleDateString("pt-BR"), fmtBRL(Number(g.valor))]),
+                styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                alternateRowStyles: { fillColor: [240, 246, 252] },
+                columnStyles: { 2: { halign: "center" }, 3: { halign: "right" } },
+                theme: "grid",
+              });
+              y = (doc as any).lastAutoTable.finalY + 4;
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(10);
+              doc.setTextColor(41, 128, 185);
+              doc.text("Total a Cobrar:", pageW - mR - 40, y, { align: "right" });
+              doc.text(fmtBRL(totalCobrar), pageW - mR, y, { align: "right" });
+              doc.setTextColor(0, 0, 0);
+              y += 10;
+            }
+
+            // Table: Custos a Reembolsar ao Cliente
+            if (gastosReembolsar.length > 0) {
+              if (y > 230) { doc.addPage(); y = 15; }
+              doc.setFillColor(235, 235, 235);
+              doc.rect(mL, y - 3, contentW, 5, "F");
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(8);
+              doc.setTextColor(0, 0, 0);
+              doc.text("Créditos ao Cliente — A Reembolsar", mL + 1, y);
+              y += 4;
+
+              autoTable(doc, {
+                startY: y,
+                margin: tableMargin,
+                head: [["Tipo", "Descrição", "Data", "Valor"]],
+                body: gastosReembolsar.map((g: any) => [g.tipo, g.descricao, parseLocalDate(g.data).toLocaleDateString("pt-BR"), fmtBRL(Number(g.valor))]),
+                styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
+                headStyles: { fillColor: [192, 57, 43], textColor: 255 },
+                alternateRowStyles: { fillColor: [252, 240, 240] },
+                columnStyles: { 2: { halign: "center" }, 3: { halign: "right" } },
+                theme: "grid",
+              });
+              y = (doc as any).lastAutoTable.finalY + 4;
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(10);
+              doc.setTextColor(192, 57, 43);
+              doc.text("Total a Reembolsar:", pageW - mR - 40, y, { align: "right" });
+              doc.text(`- ${fmtBRL(totalReembolsar)}`, pageW - mR, y, { align: "right" });
+              doc.setTextColor(0, 0, 0);
+              y += 10;
+            }
           }
         }
       }
 
       // ──────────────── RESUMO TOTAL ────────────────
-      const grandTotal = totalMedicao + gastosVal;
+      const grandTotal = totalMedicao + totalCobrar - totalReembolsar;
       if (y > 240) { doc.addPage(); y = 15; }
 
+      const resumoBody: string[][] = [
+        ["Medição (Equipamentos)", fmtBRL(totalMedicao)],
+      ];
+      if (totalCobrar > 0) resumoBody.push(["(+) Custos a Cobrar do Cliente", fmtBRL(totalCobrar)]);
+      if (totalReembolsar > 0) resumoBody.push(["(−) Créditos ao Cliente", `- ${fmtBRL(totalReembolsar)}`]);
+      resumoBody.push(["VALOR TOTAL DA MEDIÇÃO", fmtBRL(grandTotal)]);
+
+      const lastIdx = resumoBody.length - 1;
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
         head: [["Descrição", "Valor"]],
-        body: [
-          ["Medição (Equipamentos)", fmtBRL(totalMedicao)],
-          ...(gastosVal > 0 ? [["Custos Adicionais", fmtBRL(gastosVal)]] : []),
-          ["VALOR TOTAL DA MEDIÇÃO", fmtBRL(grandTotal)],
-        ],
+        body: resumoBody,
         styles: { fontSize: 9, cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
         alternateRowStyles: { fillColor: [240, 246, 252] },
@@ -1047,8 +1087,7 @@ export const FaturamentoContent = () => {
         },
         bodyStyles: {},
         didParseCell: (data: any) => {
-          // Bold + highlight last row (grand total)
-          if (data.section === "body" && data.row.index === (gastosVal > 0 ? 2 : 1)) {
+          if (data.section === "body" && data.row.index === lastIdx) {
             data.cell.styles.fillColor = [41, 128, 185];
             data.cell.styles.textColor = [255, 255, 255];
             data.cell.styles.fontStyle = "bold";
@@ -1625,9 +1664,12 @@ export const FaturamentoContent = () => {
                         <Checkbox checked={selectedGastos.has(g.id)} onCheckedChange={() => toggleGasto(g.id)} className="shrink-0" />
                         <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
                           {parseLocalDate(g.data).toLocaleDateString("pt-BR")} — {eq ? `${eq.tipo} ${eq.modelo}` : ""} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
+                          <Badge className={`text-[10px] ml-1 ${g.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0"}`}>
+                            {g.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                          </Badge>
                         </span>
-                        <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-accent" : "text-muted-foreground"}`}>
-                          + R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        <span className={`font-semibold shrink-0 ${g.classificacao === "A Reembolsar ao Cliente" ? "text-destructive" : selectedGastos.has(g.id) ? "text-accent" : "text-muted-foreground"}`}>
+                          {g.classificacao === "A Reembolsar ao Cliente" ? "−" : "+"} R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     );
@@ -1635,8 +1677,8 @@ export const FaturamentoContent = () => {
                 </div>
                 {selectedGastos.size > 0 && (
                   <div className="flex items-center justify-between pt-2 border-t border-accent/20 font-bold text-sm">
-                    <span>Total Custos Selecionados ({selectedGastos.size}/{gastosEquip.length})</span>
-                    <span className="text-accent">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span>Total Líquido Custos ({selectedGastos.size}/{gastosEquip.length})</span>
+                    <span className={totalGastos >= 0 ? "text-accent" : "text-destructive"}>{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
               </div>
