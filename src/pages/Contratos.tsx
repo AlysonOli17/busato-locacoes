@@ -2132,7 +2132,7 @@ const Contratos = () => {
             <div>
               <Label className="mb-2 block">Equipamentos <Badge variant="secondary" className="ml-2 text-xs">{ajusteForm.equipamento_ids.length} selecionado{ajusteForm.equipamento_ids.length !== 1 ? "s" : ""}</Badge></Label>
               <div className="border rounded-lg max-h-40 overflow-y-auto p-2 space-y-1">
-                {getAllEquipForAjuste(ajustesContrato).map(ce => {
+                {getAllEquipForAjuste(ajustesContrato, true).map(ce => {
                   const eqLabel = `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`;
                   const isChecked = ajusteForm.equipamento_ids.includes(ce.equipamento_id);
                   return (
