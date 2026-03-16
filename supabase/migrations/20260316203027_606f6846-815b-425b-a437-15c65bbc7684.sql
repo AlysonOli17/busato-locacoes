@@ -1,0 +1,1 @@
+ALTER TABLE public.gastos ADD COLUMN classificacao text NOT NULL DEFAULT 'A Cobrar do Cliente';
