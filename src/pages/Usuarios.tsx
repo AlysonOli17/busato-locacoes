@@ -102,14 +102,18 @@ const Usuarios = () => {
   };
 
   const handleSave = async () => {
-    if (!form.nome || !form.email) {
-      toast({ title: "Campos obrigatórios", description: "Nome e E-mail são obrigatórios.", variant: "destructive" });
+    const erros: string[] = [];
+    if (!form.nome.trim()) erros.push("• Nome é obrigatório");
+    if (!form.email.trim()) erros.push("• E-mail é obrigatório");
+    if (!editing && !form.password) erros.push("• Senha é obrigatória");
+    if (form.password && form.password.length < 8) erros.push("• Senha deve ter no mínimo 8 caracteres");
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) erros.push("• E-mail inválido");
+
+    if (erros.length > 0) {
+      toast({ title: "Preencha os campos corretamente", description: erros.join("\n"), variant: "destructive" });
       return;
     }
-    if (form.password && form.password.length < 8) {
-      toast({ title: "Senha muito curta", description: "A senha deve ter no mínimo 8 caracteres.", variant: "destructive" });
-      return;
-    }
+
     setSaving(true);
     try {
       if (editing) {
@@ -121,9 +125,8 @@ const Usuarios = () => {
           status: form.status,
           ...(form.password ? { password: form.password } : {}),
         });
-        toast({ title: "Usuário atualizado" });
+        toast({ title: "Usuário atualizado com sucesso" });
       } else {
-        if (!form.password) { toast({ title: "Senha obrigatória", variant: "destructive" }); setSaving(false); return; }
         await callManageUser({
           action: "create",
           email: form.email,
@@ -131,12 +134,16 @@ const Usuarios = () => {
           nome: form.nome,
           role: form.role,
         });
-        toast({ title: "Usuário criado" });
+        toast({ title: "Usuário criado com sucesso" });
       }
       setDialogOpen(false);
       fetchUsers();
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      const msg = e.message || "Erro desconhecido";
+      const description = msg.includes("already been registered")
+        ? "Este e-mail já está cadastrado no sistema."
+        : msg;
+      toast({ title: "Erro ao salvar usuário", description, variant: "destructive" });
     }
     setSaving(false);
   };
