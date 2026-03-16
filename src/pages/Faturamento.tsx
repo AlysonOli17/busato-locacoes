@@ -481,6 +481,28 @@ export const FaturamentoContent = () => {
     setCreatingMob(false);
   };
 
+  // Insert zero-value gastos to mark as "não cobrado" and prevent future popups
+  const handleNaoCobrarMob = async () => {
+    setCreatingMob(true);
+    const rows = mobAlerts.map(e => ({
+      equipamento_id: e.equipamento_id,
+      descricao: `${e.evento} (não cobrado) — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
+      tipo: e.evento,
+      valor: 0,
+      data: e.data,
+    }));
+    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id");
+    if (error) {
+      toast({ title: "Erro ao registrar", description: error.message, variant: "destructive" });
+    } else if (data) {
+      const newGastos = [...gastosEquip, ...(data as GastoItem[])];
+      setGastosEquip(newGastos);
+      toast({ title: "Registrado", description: "Mobilização/desmobilização marcada como não cobrada." });
+    }
+    setMobDialogOpen(false);
+    setCreatingMob(false);
+  };
+
   // Toggle gasto selection
   const toggleGasto = (gastoId: string) => {
     setSelectedGastos(prev => {
