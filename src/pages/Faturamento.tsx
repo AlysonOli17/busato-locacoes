@@ -733,43 +733,145 @@ export const FaturamentoContent = () => {
       });
       y = (doc as any).lastAutoTable.finalY + 14;
 
-      // Equipamentos do contrato
+      // Equipamentos — fetch live measurements from the period
       const ceList = ct?.contratos_equipamentos || [];
-      if (ceList.length > 0) {
-        // Load equipment details for PDF
-        const { data: eqData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", ceList.map(ce => ce.equipamento_id));
+      const inicio = item.periodo_medicao_inicio || "";
+      const fim = item.periodo_medicao_fim || "";
+
+      // Gather all equipment IDs (contract + addendums in the period)
+      const baseEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct?.equipamento_id].filter(Boolean) as string[];
+      
+      // Fetch addendums overlapping the period
+      const { data: pdfAditivosData } = inicio && fim ? await supabase
+        .from("contratos_aditivos")
+        .select("id, numero, data_inicio, data_fim")
+        .eq("contrato_id", item.contrato_id)
+        .lte("data_inicio", fim)
+        .gte("data_fim", inicio) : { data: null };
+
+      let pdfAditivoEquipMap = new Map<string, any>();
+      let pdfAditivoExtraIds: string[] = [];
+      if (pdfAditivosData && pdfAditivosData.length > 0) {
+        const adIds = pdfAditivosData.map(a => a.id);
+        const { data: aeData } = await supabase.from("aditivos_equipamentos").select("*").in("aditivo_id", adIds);
+        if (aeData) {
+          for (const ae of aeData) {
+            if (ae.data_entrega && ae.data_entrega > fim) continue;
+            const aditivo = pdfAditivosData.find(a => a.id === ae.aditivo_id);
+            const existing = pdfAditivoEquipMap.get(ae.equipamento_id);
+            const existingAd = existing ? pdfAditivosData.find(a => a.id === existing.aditivo_id) : null;
+            if (!existing || (aditivo && existingAd && aditivo.numero > existingAd.numero)) {
+              pdfAditivoEquipMap.set(ae.equipamento_id, ae);
+            }
+          }
+          pdfAditivoExtraIds = [...new Set(aeData.filter(ae => !ae.data_entrega || ae.data_entrega <= fim).map(ae => ae.equipamento_id))]
+            .filter(id => !baseEquipIds.includes(id));
+        }
+      }
+
+      // Filter out equipment returned before period or not delivered yet
+      const allPdfEquipIds = [...baseEquipIds, ...pdfAditivoExtraIds].filter(eqId => {
+        const ce = ceList.find(c => c.equipamento_id === eqId);
+        const ae = pdfAditivoEquipMap.get(eqId);
+        const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+        if (devolucao && devolucao <= inicio) return false;
+        const entrega = ae?.data_entrega || ce?.data_entrega || null;
+        if (entrega && entrega > fim) return false;
+        return true;
+      });
+
+      if (allPdfEquipIds.length > 0 && inicio && fim) {
+        // Fetch equipment info + live measurements
+        const { data: eqData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allPdfEquipIds);
         const eqMap = new Map((eqData || []).map(e => [e.id, e]));
 
-        // Fetch saved per-equipment details
+        // Fetch saved faturamento_equipamentos as fallback
         const { data: fatEquips } = await supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", item.id);
         const fatEquipMap = new Map((fatEquips || []).map((fe: any) => [fe.equipamento_id, fe]));
+
+        // Fetch adjustments for this period
+        const { data: pdfAjustes } = await supabase.from("contratos_equipamentos_ajustes").select("*")
+          .eq("contrato_id", item.contrato_id).in("equipamento_id", allPdfEquipIds)
+          .lte("data_inicio", fim).gte("data_fim", inicio);
+
+        // Fetch live measurements per equipment
+        const medPromises = allPdfEquipIds.map(eqId => {
+          const ce = ceList.find(c => c.equipamento_id === eqId);
+          const ae = pdfAditivoEquipMap.get(eqId);
+          const entrega = ae?.data_entrega || ce?.data_entrega || null;
+          const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+          const iEf = entrega && entrega > inicio ? entrega : inicio;
+          const fEf = devolucao && devolucao < fim ? devolucao : fim;
+          return supabase.from("medicoes").select("equipamento_id, horimetro_final, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
+        });
+        const medResults = await Promise.all(medPromises);
+        const allMedicoes = medResults.flatMap(r => r.data || []);
 
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
         doc.text("Equipamentos e Horas", 14, y);
         y += 2;
 
-        const eqRows = ceList.map(ce => {
-          const eq = eqMap.get(ce.equipamento_id);
-          const fe = fatEquipMap.get(ce.equipamento_id);
-          const hn = fe ? Number(fe.horas_normais) : 0;
-          const he = fe ? Number(fe.horas_excedentes) : 0;
-          const vh = fe ? Number(fe.valor_hora) : Number(ce.valor_hora);
-          const vhe = fe ? Number(fe.valor_hora_excedente) : Number(ce.valor_hora_excedente);
+        const eqRows = allPdfEquipIds.map(eqId => {
+          const eq = eqMap.get(eqId);
+          const ce = ceList.find(c => c.equipamento_id === eqId);
+          const ae = pdfAditivoEquipMap.get(eqId);
+          const fe = fatEquipMap.get(eqId);
 
-          // Build observations for non-standard situations
+          // Calculate hours from live measurements (same logic as fetchMedicoesEGastos)
+          const eqMeds = allMedicoes.filter(m => m.equipamento_id === eqId && (m.tipo || 'Trabalho') === 'Trabalho');
+          const byDay = new Map<string, number>();
+          for (const m of eqMeds) {
+            const d = String(m.data);
+            const v = Number(m.horimetro_final);
+            if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
+          }
+          const dayValues = Array.from(byDay.values());
+          const horasMedidas = dayValues.length >= 2 ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues)) : 0;
+
+          // Get values: ajuste > aditivo > contrato
+          const ajuste = (pdfAjustes || []).filter(a => a.equipamento_id === eqId).sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0] || null;
+          const baseVh = ae ? Number(ae.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
+          const baseVhe = ae ? Number(ae.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : baseVh * 1.25;
+          const baseHc = ae ? Number(ae.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
+          const baseHm = ae ? Number(ae.hora_minima) : ce ? Number(ce.hora_minima) : 0;
+
+          const vh = ajuste ? Number(ajuste.valor_hora) : baseVh;
+          const vhe = ajuste ? Number(ajuste.valor_hora_excedente) : baseVhe;
+          let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
+          let hm = ajuste ? Number(ajuste.hora_minima) : baseHm;
+
+          // Proportional for delivery/return within period
+          const entrega = ae?.data_entrega || ce?.data_entrega || null;
+          const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
           const obs: string[] = [];
-          if (fe?.primeiro_mes) obs.push("1º mês (proporcional entrega)");
-          if (ce.data_devolucao && item.periodo_medicao_inicio && ce.data_devolucao <= (item.periodo_medicao_fim || "")) {
-            obs.push(`Devolvido em ${parseLocalDate(ce.data_devolucao).toLocaleDateString("pt-BR")}`);
+
+          if (entrega && entrega > inicio && entrega <= fim) {
+            const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
+            const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000));
+            hc = Number((hc * diasUsados / diasTotais).toFixed(1));
+            hm = Number((hm * diasUsados / diasTotais).toFixed(1));
+            obs.push("1º mês (proporcional)");
           }
-          if (fe && Number(fe.hora_minima) !== Number(ce.hora_minima)) {
-            obs.push(`Hora mín. ajustada: ${Number(fe.hora_minima)}h`);
+          if (devolucao && devolucao >= inicio && devolucao < fim) {
+            const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
+            const refI = entrega && entrega > inicio ? entrega : inicio;
+            const diasUsados = Math.max(1, Math.round((parseLocalDate(devolucao).getTime() - parseLocalDate(refI).getTime()) / 86400000) + 1);
+            hc = Number((baseHc * diasUsados / diasTotais).toFixed(1));
+            hm = Number((baseHm * diasUsados / diasTotais).toFixed(1));
+            obs.push(`Devolvido ${parseLocalDate(devolucao).toLocaleDateString("pt-BR")}`);
           }
+          if (ajuste) obs.push("Ajuste temporário");
+          if (ae && !ajuste) obs.push(`Aditivo`);
+
+          const horasEfetivas = hm > 0 && horasMedidas < hm ? hm : horasMedidas;
+          const hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
+          const he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
 
           return [
             `${eq?.tipo || ""} ${eq?.modelo || ""}`,
             eq?.tag_placa || "—",
+            `${horasMedidas}h`,
             `${hn}h`,
             `${he}h`,
             fmt(vh),
@@ -781,11 +883,11 @@ export const FaturamentoContent = () => {
 
         autoTable(doc, {
           startY: y,
-          head: [["Equipamento", "Tag", "H. Normais", "H. Exced.", "Valor/h", "Valor Exc/h", "Subtotal", "Observações"]],
+          head: [["Equipamento", "Tag", "Medido", "H. Normais", "H. Exced.", "V/h", "V/h Exc", "Subtotal", "Obs"]],
           body: eqRows,
           styles: { fontSize: 7, cellPadding: 2 },
           headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-          columnStyles: { 7: { cellWidth: 40, fontStyle: "italic" } },
+          columnStyles: { 8: { cellWidth: 35, fontStyle: "italic" } },
           theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 14;
