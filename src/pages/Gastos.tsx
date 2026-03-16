@@ -117,12 +117,16 @@ const Gastos = () => {
     const payload = { ...form, valor: Number(form.valor) };
     if (editing) {
       const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Custo atualizado com sucesso" });
     } else {
-      const { error } = await supabase.from("gastos").insert(payload);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      const { error } = await supabase.from("gastos").insert([payload]);
+      if (error) { toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Custo cadastrado com sucesso" });
     }
     setDialogOpen(false);
+    setEditing(null);
+    setForm(emptyForm);
     fetchData();
   };
 
