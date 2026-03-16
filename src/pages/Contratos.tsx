@@ -987,7 +987,8 @@ const Contratos = () => {
   };
 
   // Helper: get ALL equipment (base + aditivos) for adjustment context
-  const getAllEquipForAjuste = (contrato: Contrato | null): ContratoEquipamento[] => {
+  // If excludeReturned=true, filters out equipment with data_devolucao <= hoje
+  const getAllEquipForAjuste = (contrato: Contrato | null, excludeReturned = false): ContratoEquipamento[] => {
     if (!contrato) return [];
     const ces = getContratoEquipamentos(contrato);
     const contratoAditivos = aditivos.filter(a => a.contrato_id === contrato.id);
@@ -1012,7 +1013,12 @@ const Contratos = () => {
         });
       });
     });
-    return Array.from(equipMap.values());
+    let result = Array.from(equipMap.values());
+    if (excludeReturned) {
+      const hoje = new Date().toISOString().slice(0, 10);
+      result = result.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
+    }
+    return result;
   };
 
   // Helper: get the max end date from contract or latest aditivo
@@ -1211,30 +1217,35 @@ const Contratos = () => {
     const sortedAditivos = [...aditivos].sort((a, b) => b.numero - a.numero);
     const ultimoAditivo = sortedAditivos.length > 0 ? sortedAditivos[0] : null;
 
+    const hoje = new Date().toISOString().slice(0, 10);
     let equipamentosBase: FormEquipItem[];
     if (ultimoAditivo && ultimoAditivo.aditivos_equipamentos && ultimoAditivo.aditivos_equipamentos.length > 0) {
-      // Herdar do último aditivo
-      equipamentosBase = ultimoAditivo.aditivos_equipamentos.map(ae => ({
-        equipamento_id: ae.equipamento_id,
-        valor_hora: Number(ae.valor_hora),
-        horas_contratadas: Number(ae.horas_contratadas),
-        valor_hora_excedente: Number(ae.valor_hora_excedente),
-        hora_minima: Number(ae.hora_minima),
-        data_entrega: ae.data_entrega || "",
-        data_devolucao: ae.data_devolucao || "",
-      }));
+      // Herdar do último aditivo, excluindo devolvidos
+      equipamentosBase = ultimoAditivo.aditivos_equipamentos
+        .filter(ae => !ae.data_devolucao || ae.data_devolucao > hoje)
+        .map(ae => ({
+          equipamento_id: ae.equipamento_id,
+          valor_hora: Number(ae.valor_hora),
+          horas_contratadas: Number(ae.horas_contratadas),
+          valor_hora_excedente: Number(ae.valor_hora_excedente),
+          hora_minima: Number(ae.hora_minima),
+          data_entrega: ae.data_entrega || "",
+          data_devolucao: ae.data_devolucao || "",
+        }));
     } else {
-      // Herdar do contrato original
+      // Herdar do contrato original, excluindo devolvidos
       const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
-      equipamentosBase = ces.map(ce => ({
-        equipamento_id: ce.equipamento_id,
-        valor_hora: Number(ce.valor_hora),
-        horas_contratadas: Number(ce.horas_contratadas),
-        valor_hora_excedente: Number(ce.valor_hora_excedente),
-        hora_minima: Number(ce.hora_minima),
-        data_entrega: ce.data_entrega || "",
-        data_devolucao: ce.data_devolucao || "",
-      }));
+      equipamentosBase = ces
+        .filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje)
+        .map(ce => ({
+          equipamento_id: ce.equipamento_id,
+          valor_hora: Number(ce.valor_hora),
+          horas_contratadas: Number(ce.horas_contratadas),
+          valor_hora_excedente: Number(ce.valor_hora_excedente),
+          hora_minima: Number(ce.hora_minima),
+          data_entrega: ce.data_entrega || "",
+          data_devolucao: ce.data_devolucao || "",
+        }));
     }
 
     setAditivoForm({
@@ -2126,7 +2137,7 @@ const Contratos = () => {
             <div>
               <Label className="mb-2 block">Equipamentos <Badge variant="secondary" className="ml-2 text-xs">{ajusteForm.equipamento_ids.length} selecionado{ajusteForm.equipamento_ids.length !== 1 ? "s" : ""}</Badge></Label>
               <div className="border rounded-lg max-h-40 overflow-y-auto p-2 space-y-1">
-                {getAllEquipForAjuste(ajustesContrato).map(ce => {
+                {getAllEquipForAjuste(ajustesContrato, true).map(ce => {
                   const eqLabel = `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`;
                   const isChecked = ajusteForm.equipamento_ids.includes(ce.equipamento_id);
                   return (
