@@ -1217,30 +1217,35 @@ const Contratos = () => {
     const sortedAditivos = [...aditivos].sort((a, b) => b.numero - a.numero);
     const ultimoAditivo = sortedAditivos.length > 0 ? sortedAditivos[0] : null;
 
+    const hoje = new Date().toISOString().slice(0, 10);
     let equipamentosBase: FormEquipItem[];
     if (ultimoAditivo && ultimoAditivo.aditivos_equipamentos && ultimoAditivo.aditivos_equipamentos.length > 0) {
-      // Herdar do último aditivo
-      equipamentosBase = ultimoAditivo.aditivos_equipamentos.map(ae => ({
-        equipamento_id: ae.equipamento_id,
-        valor_hora: Number(ae.valor_hora),
-        horas_contratadas: Number(ae.horas_contratadas),
-        valor_hora_excedente: Number(ae.valor_hora_excedente),
-        hora_minima: Number(ae.hora_minima),
-        data_entrega: ae.data_entrega || "",
-        data_devolucao: ae.data_devolucao || "",
-      }));
+      // Herdar do último aditivo, excluindo devolvidos
+      equipamentosBase = ultimoAditivo.aditivos_equipamentos
+        .filter(ae => !ae.data_devolucao || ae.data_devolucao > hoje)
+        .map(ae => ({
+          equipamento_id: ae.equipamento_id,
+          valor_hora: Number(ae.valor_hora),
+          horas_contratadas: Number(ae.horas_contratadas),
+          valor_hora_excedente: Number(ae.valor_hora_excedente),
+          hora_minima: Number(ae.hora_minima),
+          data_entrega: ae.data_entrega || "",
+          data_devolucao: ae.data_devolucao || "",
+        }));
     } else {
-      // Herdar do contrato original
+      // Herdar do contrato original, excluindo devolvidos
       const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
-      equipamentosBase = ces.map(ce => ({
-        equipamento_id: ce.equipamento_id,
-        valor_hora: Number(ce.valor_hora),
-        horas_contratadas: Number(ce.horas_contratadas),
-        valor_hora_excedente: Number(ce.valor_hora_excedente),
-        hora_minima: Number(ce.hora_minima),
-        data_entrega: ce.data_entrega || "",
-        data_devolucao: ce.data_devolucao || "",
-      }));
+      equipamentosBase = ces
+        .filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje)
+        .map(ce => ({
+          equipamento_id: ce.equipamento_id,
+          valor_hora: Number(ce.valor_hora),
+          horas_contratadas: Number(ce.horas_contratadas),
+          valor_hora_excedente: Number(ce.valor_hora_excedente),
+          hora_minima: Number(ce.hora_minima),
+          data_entrega: ce.data_entrega || "",
+          data_devolucao: ce.data_devolucao || "",
+        }));
     }
 
     setAditivoForm({
