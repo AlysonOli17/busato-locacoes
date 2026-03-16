@@ -939,8 +939,9 @@ export const FaturamentoContent = () => {
         margin: tableMargin,
         head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Valor Total R$"]],
         body: eqRows,
-        styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
-        headStyles: { fillColor: [50, 50, 50], textColor: 255, fontStyle: "bold", halign: "center" },
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
+        alternateRowStyles: { fillColor: [240, 246, 252] },
         columnStyles: {
           1: { halign: "center" },
           2: { halign: "right" },
