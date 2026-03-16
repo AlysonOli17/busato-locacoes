@@ -984,7 +984,7 @@ export const FaturamentoContent = () => {
       let totalCobrar = 0;
       let totalReembolsar = 0;
 
-      if (gastosVal > 0) {
+      {
         const { data: fgData } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
         if (fgData && fgData.length > 0) {
           const gastoIds = fgData.map((fg: any) => fg.gasto_id);
