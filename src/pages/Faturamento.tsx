@@ -984,17 +984,37 @@ export const FaturamentoContent = () => {
       let totalCobrar = 0;
       let totalReembolsar = 0;
 
-      if (gastosVal > 0) {
+      {
         const { data: fgData } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
         if (fgData && fgData.length > 0) {
           const gastoIds = fgData.map((fg: any) => fg.gasto_id);
           const { data: gastosData } = await supabase.from("gastos").select("descricao, tipo, valor, data, equipamento_id, classificacao").in("id", gastoIds);
           if (gastosData && gastosData.length > 0) {
+            // Fetch equipment names for cost rows
+            const gastoEquipIds = [...new Set(gastosData.map((g: any) => g.equipamento_id).filter(Boolean))];
+            let gastoEqMap = new Map<string, string>();
+            if (gastoEquipIds.length > 0) {
+              const { data: geData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").in("id", gastoEquipIds);
+              if (geData) {
+                for (const e of geData) {
+                  gastoEqMap.set(e.id, `${e.tipo} ${e.modelo}${e.tag_placa ? ` - ${e.tag_placa}` : ""}`);
+                }
+              }
+            }
+
             const gastosCobrar = gastosData.filter((g: any) => (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
             const gastosReembolsar = gastosData.filter((g: any) => g.classificacao === "A Reembolsar ao Cliente");
 
             totalCobrar = gastosCobrar.reduce((a: number, g: any) => a + Number(g.valor), 0);
             totalReembolsar = gastosReembolsar.reduce((a: number, g: any) => a + Number(g.valor), 0);
+
+            const formatGastoRow = (g: any) => [
+              parseLocalDate(g.data).toLocaleDateString("pt-BR"),
+              gastoEqMap.get(g.equipamento_id) || "—",
+              g.descricao,
+              g.tipo,
+              fmtBRL(Number(g.valor)),
+            ];
 
             // Table: Custos a Cobrar do Cliente
             if (gastosCobrar.length > 0) {
@@ -1010,12 +1030,12 @@ export const FaturamentoContent = () => {
               autoTable(doc, {
                 startY: y,
                 margin: tableMargin,
-                head: [["Tipo", "Descrição", "Data", "Valor"]],
-                body: gastosCobrar.map((g: any) => [g.tipo, g.descricao, parseLocalDate(g.data).toLocaleDateString("pt-BR"), fmtBRL(Number(g.valor))]),
+                head: [["Data", "Equipamento", "Descrição", "Tipo", "Valor"]],
+                body: gastosCobrar.map(formatGastoRow),
                 styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
                 headStyles: { fillColor: [41, 128, 185], textColor: 255 },
                 alternateRowStyles: { fillColor: [240, 246, 252] },
-                columnStyles: { 2: { halign: "center" }, 3: { halign: "right" } },
+                columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
                 theme: "grid",
               });
               y = (doc as any).lastAutoTable.finalY + 4;
@@ -1042,12 +1062,12 @@ export const FaturamentoContent = () => {
               autoTable(doc, {
                 startY: y,
                 margin: tableMargin,
-                head: [["Tipo", "Descrição", "Data", "Valor"]],
-                body: gastosReembolsar.map((g: any) => [g.tipo, g.descricao, parseLocalDate(g.data).toLocaleDateString("pt-BR"), fmtBRL(Number(g.valor))]),
+                head: [["Data", "Equipamento", "Descrição", "Tipo", "Valor"]],
+                body: gastosReembolsar.map(formatGastoRow),
                 styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
                 headStyles: { fillColor: [192, 57, 43], textColor: 255 },
                 alternateRowStyles: { fillColor: [252, 240, 240] },
-                columnStyles: { 2: { halign: "center" }, 3: { halign: "right" } },
+                columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
                 theme: "grid",
               });
               y = (doc as any).lastAutoTable.finalY + 4;
