@@ -1012,7 +1012,7 @@ export const FaturamentoContent = () => {
     setFormContratoId("");
     setFormPeriodo("");
     // Auto-generate next numero_nota
-    const maxSeq = faturas.length > 0 ? Math.max(...faturas.map(f => f.numero_sequencial)) : 0;
+    const maxSeq = items.length > 0 ? Math.max(...items.map(f => f.numero_sequencial)) : 0;
     setFormNumeroNota(`FAT${String(maxSeq + 1).padStart(3, "0")}`);
     setFormStatus("Pendente");
     setFormMedicaoInicio("");
