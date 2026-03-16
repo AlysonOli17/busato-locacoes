@@ -700,7 +700,7 @@ export const FaturamentoTab = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-accent" />
-              Editar Fatura {editingFatura ? String(editingFatura.numero_sequencial).padStart(3, "0") : ""}
+              Editar Fatura {editingFatura ? (editingFatura.numero_nota || String(editingFatura.numero_sequencial).padStart(3, "0")) : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
