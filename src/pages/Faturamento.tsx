@@ -1016,9 +1016,10 @@ export const FaturamentoContent = () => {
             // Total Custos Adicionais
             doc.setFont("helvetica", "bold");
             doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
+            doc.setTextColor(41, 128, 185);
             doc.text("Total Custos Adicionais:", pageW - mR - 40, y, { align: "right" });
             doc.text(fmtBRL(gastosVal), pageW - mR, y, { align: "right" });
+            doc.setTextColor(0, 0, 0);
             y += 10;
           }
         }
