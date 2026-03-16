@@ -1062,12 +1062,12 @@ export const FaturamentoContent = () => {
               autoTable(doc, {
                 startY: y,
                 margin: tableMargin,
-                head: [["Tipo", "Descrição", "Data", "Valor"]],
-                body: gastosReembolsar.map((g: any) => [g.tipo, g.descricao, parseLocalDate(g.data).toLocaleDateString("pt-BR"), fmtBRL(Number(g.valor))]),
+                head: [["Data", "Equipamento", "Descrição", "Tipo", "Valor"]],
+                body: gastosReembolsar.map(formatGastoRow),
                 styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
                 headStyles: { fillColor: [192, 57, 43], textColor: 255 },
                 alternateRowStyles: { fillColor: [252, 240, 240] },
-                columnStyles: { 2: { halign: "center" }, 3: { halign: "right" } },
+                columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
                 theme: "grid",
               });
               y = (doc as any).lastAutoTable.finalY + 4;
