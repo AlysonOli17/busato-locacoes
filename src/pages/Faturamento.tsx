@@ -1326,6 +1326,7 @@ export const FaturamentoContent = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" title="Visualizar PDF" onClick={() => { setSelected(new Set([item.id])); exportDetailedPDF(); }}><Eye className="h-4 w-4 text-primary" /></Button>
                           {getDisplayStatus(item) === "Pendente" && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
