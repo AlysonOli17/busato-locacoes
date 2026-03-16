@@ -1047,7 +1047,7 @@ const Contratos = () => {
   const openEditAjuste = (aj: AjusteTemporario) => {
     setEditingAjuste(aj);
     setAjusteForm({
-      equipamento_id: aj.equipamento_id,
+      equipamento_ids: [aj.equipamento_id],
       valor_hora: aj.valor_hora,
       valor_hora_excedente: aj.valor_hora_excedente,
       hora_minima: aj.hora_minima,
