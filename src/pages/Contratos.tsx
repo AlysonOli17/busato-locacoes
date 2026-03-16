@@ -987,7 +987,8 @@ const Contratos = () => {
   };
 
   // Helper: get ALL equipment (base + aditivos) for adjustment context
-  const getAllEquipForAjuste = (contrato: Contrato | null): ContratoEquipamento[] => {
+  // If excludeReturned=true, filters out equipment with data_devolucao <= hoje
+  const getAllEquipForAjuste = (contrato: Contrato | null, excludeReturned = false): ContratoEquipamento[] => {
     if (!contrato) return [];
     const ces = getContratoEquipamentos(contrato);
     const contratoAditivos = aditivos.filter(a => a.contrato_id === contrato.id);
@@ -1012,7 +1013,12 @@ const Contratos = () => {
         });
       });
     });
-    return Array.from(equipMap.values());
+    let result = Array.from(equipMap.values());
+    if (excludeReturned) {
+      const hoje = new Date().toISOString().slice(0, 10);
+      result = result.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
+    }
+    return result;
   };
 
   // Helper: get the max end date from contract or latest aditivo
