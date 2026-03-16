@@ -1049,6 +1049,13 @@ export const FaturamentoContent = () => {
     setDialogOpen(true);
   };
 
+  const derivePeriodo = (dateStr: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr + "T00:00:00");
+    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    return `${meses[d.getMonth()]}/${d.getFullYear()}`;
+  };
+
   const handleContratoSelect = (contratoId: string) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
@@ -1056,6 +1063,7 @@ export const FaturamentoContent = () => {
       setFormContratoId(contratoId);
       setFormMedicaoInicio(dates.inicio);
       setFormMedicaoFim(dates.fim);
+      setFormPeriodo(derivePeriodo(dates.inicio));
     }
   };
 
@@ -1354,7 +1362,7 @@ export const FaturamentoContent = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Medição Início</Label><Input type="date" value={formMedicaoInicio} onChange={(e) => setFormMedicaoInicio(e.target.value)} /></div>
+              <div><Label>Medição Início</Label><Input type="date" value={formMedicaoInicio} onChange={(e) => { setFormMedicaoInicio(e.target.value); if (e.target.value) setFormPeriodo(derivePeriodo(e.target.value)); }} /></div>
               <div><Label>Medição Fim</Label><Input type="date" value={formMedicaoFim} onChange={(e) => setFormMedicaoFim(e.target.value)} /></div>
             </div>
 
