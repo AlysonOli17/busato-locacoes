@@ -1379,7 +1379,7 @@ const Contratos = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportDetailedPDF}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF Detalhado
+              <FileDown className="h-4 w-4 mr-1" /> Movimentação
             </Button>
             <Button variant="outline" size="sm" onClick={exportSimplePDF}>
               <FileDown className="h-4 w-4 mr-1" /> PDF Simples
