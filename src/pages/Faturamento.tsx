@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -685,8 +685,8 @@ export const FaturamentoContent = () => {
 
   };
 
-  const exportDetailedPDF = async () => {
-    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+  const exportDetailedPDF = async (singleItem?: Fatura) => {
+    const data = singleItem ? [singleItem] : filtered.filter(i => selected.size === 0 || selected.has(i.id));
     if (data.length === 0) return;
 
     const { default: jsPDF } = await import("jspdf");
@@ -869,11 +869,15 @@ export const FaturamentoContent = () => {
         y = (doc as any).lastAutoTable.finalY + 14;
       }
 
-      // Aditivos history (before financial summary)
+      // Aditivos — only those overlapping the measurement period
+      const periodoInicio = item.periodo_medicao_inicio || "";
+      const periodoFim = item.periodo_medicao_fim || "";
       const { data: aditivosHist } = await supabase
         .from("contratos_aditivos")
         .select("id, numero, data_inicio, data_fim, motivo, observacoes")
         .eq("contrato_id", item.contrato_id)
+        .lte("data_inicio", periodoFim || "9999-12-31")
+        .gte("data_fim", periodoInicio || "0000-01-01")
         .order("numero", { ascending: true });
 
       if (aditivosHist && aditivosHist.length > 0) {
@@ -892,7 +896,7 @@ export const FaturamentoContent = () => {
         if (y > 220) { doc.addPage(); y = 20; }
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
-        doc.text("Histórico de Aditivos", 14, y);
+        doc.text("Aditivos do Período", 14, y);
         y += 2;
 
         for (const ad of aditivosHist) {
@@ -941,18 +945,20 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Ajustes temporários history
+      // Ajustes temporários — only those overlapping the measurement period
       const { data: ajustesHist } = await supabase
         .from("contratos_equipamentos_ajustes")
         .select("*, equipamentos:equipamento_id(tipo, modelo, tag_placa)")
         .eq("contrato_id", item.contrato_id)
+        .lte("data_inicio", periodoFim || "9999-12-31")
+        .gte("data_fim", periodoInicio || "0000-01-01")
         .order("data_inicio", { ascending: true });
 
       if (ajustesHist && ajustesHist.length > 0) {
         if (y > 220) { doc.addPage(); y = 20; }
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
-        doc.text("Histórico de Ajustes Temporários", 14, y);
+        doc.text("Ajustes Temporários do Período", 14, y);
         y += 2;
 
         const ajusteRows = ajustesHist.map((aj: any) => {
@@ -1198,7 +1204,7 @@ export const FaturamentoContent = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setContasDialogOpen(true)}><Landmark className="h-4 w-4 mr-1" /> Contas</Button>
-            <Button variant="outline" size="sm" onClick={exportDetailedPDF}><FileDown className="h-4 w-4 mr-1" /> PDF Detalhado</Button>
+            <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> PDF Detalhado</Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
           </div>
@@ -1320,6 +1326,7 @@ export const FaturamentoContent = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" title="Visualizar PDF" onClick={() => exportDetailedPDF(item)}><Eye className="h-4 w-4 text-primary" /></Button>
                           {getDisplayStatus(item) === "Pendente" && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
