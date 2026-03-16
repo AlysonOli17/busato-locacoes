@@ -121,7 +121,7 @@ export const FaturamentoContent = () => {
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
   const [formNumeroNota, setFormNumeroNota] = useState("");
-  const [formNumeroSequencial, setFormNumeroSequencial] = useState<number | "">("");
+  
   const [formStatus, setFormStatus] = useState("Pendente");
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
   const [formMedicaoFim, setFormMedicaoFim] = useState("");
