@@ -1449,10 +1449,9 @@ const Contratos = () => {
                                   : null;
                                 
                                 if (ultimoAditivo) {
-                                  return (ultimoAditivo.aditivos_equipamentos || [])
-                                    .filter((ae: any) => !isDevolvido(ae.equipamento_id)).length;
+                                  return (ultimoAditivo.aditivos_equipamentos || []).length;
                                 }
-                                return ces.filter(ce => !isDevolvido(ce.equipamento_id)).length;
+                                return ces.length;
                               })()} equipamento(s)
                               {(aditivosPorContrato[item.id] || []).length > 0 && (
                                 <Badge variant="outline" className="text-[10px]">{(aditivosPorContrato[item.id] || []).length} aditivo(s)</Badge>
