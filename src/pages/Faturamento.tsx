@@ -945,11 +945,13 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Ajustes temporários history
+      // Ajustes temporários — only those overlapping the measurement period
       const { data: ajustesHist } = await supabase
         .from("contratos_equipamentos_ajustes")
         .select("*, equipamentos:equipamento_id(tipo, modelo, tag_placa)")
         .eq("contrato_id", item.contrato_id)
+        .lte("data_inicio", periodoFim || "9999-12-31")
+        .gte("data_fim", periodoInicio || "0000-01-01")
         .order("data_inicio", { ascending: true });
 
       if (ajustesHist && ajustesHist.length > 0) {
