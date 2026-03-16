@@ -692,7 +692,7 @@ export const FaturamentoContent = () => {
     const { default: jsPDF } = await import("jspdf");
     const { default: autoTable } = await import("jspdf-autotable");
 
-    const doc = new jsPDF({ orientation: "portrait" });
+    const doc = new jsPDF({ orientation: "landscape", format: "a4" });
     const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtBRL = (v: number) => `R$ ${fmt(v)}`;
     const pageW = doc.internal.pageSize.getWidth();
