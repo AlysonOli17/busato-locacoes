@@ -78,7 +78,7 @@ interface AjusteTemporario {
 }
 
 interface AjusteForm {
-  equipamento_id: string;
+  equipamento_ids: string[];
   valor_hora: number;
   valor_hora_excedente: number;
   hora_minima: number;
@@ -146,7 +146,7 @@ const Contratos = () => {
   const [ajustes, setAjustes] = useState<AjusteTemporario[]>([]);
   const [ajusteFormOpen, setAjusteFormOpen] = useState(false);
   const [editingAjuste, setEditingAjuste] = useState<AjusteTemporario | null>(null);
-  const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_id: "", valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
+  const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_ids: [], valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
   const [ajusteTodos, setAjusteTodos] = useState(false);
   const [ajusteCampos, setAjusteCampos] = useState({ valor_hora: true, valor_hora_excedente: true, hora_minima: true, horas_contratadas: true });
   // Aditivos
@@ -1030,16 +1030,13 @@ const Contratos = () => {
     setEditingAjuste(null);
     setAjusteTodos(false);
     setAjusteCampos({ valor_hora: true, valor_hora_excedente: true, hora_minima: true, horas_contratadas: true });
-    const allEquip = getAllEquipForAjuste(ajustesContrato);
-    const firstEquip = equipId || (allEquip.length > 0 ? allEquip[0].equipamento_id : "");
-    const ce = allEquip.find(c => c.equipamento_id === firstEquip);
     const maxDataFim = getMaxDataFim(ajustesContrato);
     setAjusteForm({
-      equipamento_id: firstEquip,
-      valor_hora: ce ? Number(ce.valor_hora) : 0,
-      valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : 0,
-      hora_minima: ce ? Number(ce.hora_minima) : 0,
-      horas_contratadas: ce ? Number(ce.horas_contratadas) : 0,
+      equipamento_ids: equipId ? [equipId] : [],
+      valor_hora: 0,
+      valor_hora_excedente: 0,
+      hora_minima: 0,
+      horas_contratadas: 0,
       data_inicio: "",
       data_fim: maxDataFim,
       motivo: "",
@@ -1050,7 +1047,7 @@ const Contratos = () => {
   const openEditAjuste = (aj: AjusteTemporario) => {
     setEditingAjuste(aj);
     setAjusteForm({
-      equipamento_id: aj.equipamento_id,
+      equipamento_ids: [aj.equipamento_id],
       valor_hora: aj.valor_hora,
       valor_hora_excedente: aj.valor_hora_excedente,
       hora_minima: aj.hora_minima,
@@ -1063,12 +1060,18 @@ const Contratos = () => {
   };
 
   const handleSaveAjuste = async () => {
-    if (!ajustesContrato || !ajusteForm.data_inicio || !ajusteForm.data_fim) {
-      toast({ title: "Campos obrigatórios", description: "Preencha as datas de início e fim.", variant: "destructive" });
+    if (!ajustesContrato || !ajusteForm.data_inicio) {
+      toast({ title: "Campos obrigatórios", description: "Preencha a data de início.", variant: "destructive" });
       return;
     }
-    if (!ajusteTodos && !ajusteForm.equipamento_id) {
-      toast({ title: "Campos obrigatórios", description: "Selecione um equipamento.", variant: "destructive" });
+    // Auto-fill data_fim with max contract/addendum date if empty
+    const dataFimFinal = ajusteForm.data_fim || getMaxDataFim(ajustesContrato);
+    if (!dataFimFinal) {
+      toast({ title: "Campos obrigatórios", description: "Não foi possível determinar a data de fim.", variant: "destructive" });
+      return;
+    }
+    if (!ajusteTodos && ajusteForm.equipamento_ids.length === 0) {
+      toast({ title: "Campos obrigatórios", description: "Selecione pelo menos um equipamento.", variant: "destructive" });
       return;
     }
 
@@ -1076,13 +1079,13 @@ const Contratos = () => {
       // Edição: sempre individual
       const payload = {
         contrato_id: ajustesContrato.id,
-        equipamento_id: ajusteForm.equipamento_id,
+        equipamento_id: ajusteForm.equipamento_ids[0],
         valor_hora: Number(ajusteForm.valor_hora),
         valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
         hora_minima: Number(ajusteForm.hora_minima),
         horas_contratadas: Number(ajusteForm.horas_contratadas),
         data_inicio: ajusteForm.data_inicio,
-        data_fim: ajusteForm.data_fim,
+        data_fim: dataFimFinal,
         motivo: ajusteForm.motivo,
       };
       const { error } = await supabase.from("contratos_equipamentos_ajustes").update(payload).eq("id", editingAjuste.id);
@@ -1090,18 +1093,14 @@ const Contratos = () => {
     } else if (ajusteTodos) {
       // Aplicar a todos os equipamentos do contrato (base + aditivos) ativos no período do ajuste
       const ajInicio = parseLocalDate(ajusteForm.data_inicio);
-      const ajFim = parseLocalDate(ajusteForm.data_fim);
+      const ajFim = parseLocalDate(dataFimFinal);
 
-      // Collect all unique equipment with their latest values
       const equipMap = new Map<string, { valor_hora: number; valor_hora_excedente: number; hora_minima: number; horas_contratadas: number }>();
 
-      // Base contract equipment
       const ces = getContratoEquipamentos(ajustesContrato);
       ces.forEach(ce => {
-        // Check if equipment is active within the adjustment period
         const entrega = ce.data_entrega ? parseLocalDate(ce.data_entrega) : null;
         const devolucao = ce.data_devolucao ? parseLocalDate(ce.data_devolucao) : null;
-        // Equipment is active if: entrega <= ajFim AND (no devolucao OR devolucao >= ajInicio)
         if (entrega && entrega > ajFim) return;
         if (devolucao && devolucao < ajInicio) return;
         equipMap.set(ce.equipamento_id, {
@@ -1112,13 +1111,11 @@ const Contratos = () => {
         });
       });
 
-      // Aditivos equipment - override or add new equipment
       const contratoAditivos = aditivos.filter(a => a.contrato_id === ajustesContrato.id);
       contratoAditivos.sort((a, b) => a.numero - b.numero);
       contratoAditivos.forEach(aditivo => {
         const adInicio = parseLocalDate(aditivo.data_inicio);
         const adFim = parseLocalDate(aditivo.data_fim);
-        // Only consider aditivos whose period overlaps with the adjustment period
         if (adInicio > ajFim || adFim < ajInicio) return;
         (aditivo.aditivos_equipamentos || []).forEach(ae => {
           const entrega = ae.data_entrega ? parseLocalDate(ae.data_entrega) : null;
@@ -1147,31 +1144,33 @@ const Contratos = () => {
         hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : vals.hora_minima,
         horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : vals.horas_contratadas,
         data_inicio: ajusteForm.data_inicio,
-        data_fim: ajusteForm.data_fim,
+        data_fim: dataFimFinal,
         motivo: ajusteForm.motivo ? `[LOTE] ${ajusteForm.motivo}` : "[LOTE]",
       }));
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      // Individual - respect ajusteCampos selection
+      // Multi-select individual: one row per selected equipment
       const allEquip = getAllEquipForAjuste(ajustesContrato);
-      const ce = allEquip.find(c => c.equipamento_id === ajusteForm.equipamento_id);
-      const origValorHora = ce ? Number(ce.valor_hora) : 0;
-      const origValorExcedente = ce ? Number(ce.valor_hora_excedente) : 0;
-      const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
-      const origHorasContratadas = ce ? Number(ce.horas_contratadas) : 0;
-      const payload = {
-        contrato_id: ajustesContrato.id,
-        equipamento_id: ajusteForm.equipamento_id,
-        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : origValorHora,
-        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : origValorExcedente,
-        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : origHoraMinima,
-        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : origHorasContratadas,
-        data_inicio: ajusteForm.data_inicio,
-        data_fim: ajusteForm.data_fim,
-        motivo: ajusteForm.motivo,
-      };
-      const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(payload);
+      const rows = ajusteForm.equipamento_ids.map(eqId => {
+        const ce = allEquip.find(c => c.equipamento_id === eqId);
+        const origValorHora = ce ? Number(ce.valor_hora) : 0;
+        const origValorExcedente = ce ? Number(ce.valor_hora_excedente) : 0;
+        const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
+        const origHorasContratadas = ce ? Number(ce.horas_contratadas) : 0;
+        return {
+          contrato_id: ajustesContrato.id,
+          equipamento_id: eqId,
+          valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : origValorHora,
+          valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : origValorExcedente,
+          hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : origHoraMinima,
+          horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : origHorasContratadas,
+          data_inicio: ajusteForm.data_inicio,
+          data_fim: dataFimFinal,
+          motivo: ajusteForm.motivo,
+        };
+      });
+      const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
     setAjusteFormOpen(false);
@@ -2123,39 +2122,54 @@ const Contratos = () => {
                 <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais do equipamento</p>
               </div>
             )}
-            {!ajusteTodos && (
+            {!ajusteTodos && !editingAjuste && (
+            <div>
+              <Label className="mb-2 block">Equipamentos <Badge variant="secondary" className="ml-2 text-xs">{ajusteForm.equipamento_ids.length} selecionado{ajusteForm.equipamento_ids.length !== 1 ? "s" : ""}</Badge></Label>
+              <div className="border rounded-lg max-h-40 overflow-y-auto p-2 space-y-1">
+                {getAllEquipForAjuste(ajustesContrato).map(ce => {
+                  const eqLabel = `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`;
+                  const isChecked = ajusteForm.equipamento_ids.includes(ce.equipamento_id);
+                  return (
+                    <label key={ce.equipamento_id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5">
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={(v) => {
+                          setAjusteForm(prev => ({
+                            ...prev,
+                            equipamento_ids: v
+                              ? [...prev.equipamento_ids, ce.equipamento_id]
+                              : prev.equipamento_ids.filter(id => id !== ce.equipamento_id),
+                          }));
+                        }}
+                      />
+                      <span className="truncate">{eqLabel}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            )}
+            {!ajusteTodos && editingAjuste && (
             <div>
               <Label>Equipamento</Label>
-              <SearchableSelect
-                value={ajusteForm.equipamento_id}
-                onValueChange={(v) => {
-                  const allEquip = getAllEquipForAjuste(ajustesContrato);
-                  const ce = allEquip.find(c => c.equipamento_id === v);
-                  setAjusteForm(prev => ({
-                    ...prev,
-                    equipamento_id: v,
-                    valor_hora: ce ? Number(ce.valor_hora) : prev.valor_hora,
-                    valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : prev.valor_hora_excedente,
-                    hora_minima: ce ? Number(ce.hora_minima) : prev.hora_minima,
-                    horas_contratadas: ce ? Number(ce.horas_contratadas) : prev.horas_contratadas,
-                  }));
-                }}
-                placeholder="Selecione o equipamento"
-                searchPlaceholder="Pesquisar equipamento..."
-                 options={getAllEquipForAjuste(ajustesContrato).map(ce => ({
-                   value: ce.equipamento_id,
-                   label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`,
-                 }))}
-              />
+              <Input disabled value={(() => {
+                const allEquip = getAllEquipForAjuste(ajustesContrato);
+                const ce = allEquip.find(c => c.equipamento_id === ajusteForm.equipamento_ids[0]);
+                return ce ? `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}` : "";
+              })()} />
             </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Data Início</Label><Input type="date" value={ajusteForm.data_inicio} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_inicio: e.target.value }))} /></div>
-              <div><Label>Data Fim</Label><Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} /></div>
+              <div>
+                <Label>Data Fim</Label>
+                <Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} />
+                {!ajusteForm.data_fim && <p className="text-xs text-muted-foreground mt-1">Se vazio, usará a data final do contrato/aditivo ({getMaxDataFim(ajustesContrato) ? parseLocalDate(getMaxDataFim(ajustesContrato)).toLocaleDateString("pt-BR") : "—"})</p>}
+              </div>
             </div>
-            {ajusteTodos && ajusteForm.data_inicio && ajusteForm.data_fim && (() => {
+            {ajusteTodos && ajusteForm.data_inicio && (() => {
               const ajInicio = parseLocalDate(ajusteForm.data_inicio);
-              const ajFim = parseLocalDate(ajusteForm.data_fim);
+              const ajFim = parseLocalDate(ajusteForm.data_fim || getMaxDataFim(ajustesContrato));
               const equipIds = new Set<string>();
               const ces = getAllEquipForAjuste(ajustesContrato);
               ces.forEach(ce => {
