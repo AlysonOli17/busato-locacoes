@@ -958,7 +958,7 @@ export const FaturamentoContent = () => {
         if (y > 220) { doc.addPage(); y = 20; }
         doc.setFontSize(12);
         doc.setTextColor(41, 128, 185);
-        doc.text("Histórico de Ajustes Temporários", 14, y);
+        doc.text("Ajustes Temporários do Período", 14, y);
         y += 2;
 
         const ajusteRows = ajustesHist.map((aj: any) => {
