@@ -1624,8 +1624,11 @@ export const FaturamentoContent = () => {
               );
             })}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setMobDialogOpen(false)}>Ignorar</Button>
+            <Button variant="secondary" onClick={handleNaoCobrarMob} disabled={creatingMob}>
+              Não Cobrar
+            </Button>
             <Button onClick={handleCreateMobGastos} disabled={creatingMob} className="bg-accent text-accent-foreground hover:bg-accent/90">
               {creatingMob ? "Criando..." : "Incluir Custos"}
             </Button>
