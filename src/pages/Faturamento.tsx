@@ -896,9 +896,14 @@ export const FaturamentoContent = () => {
 
         const ajuste = (pdfAjustes || []).filter(a => a.equipamento_id === eqId).sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0] || null;
         const baseVh = ae ? Number(ae.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
+        const baseVhe = ae ? Number(ae.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : baseVh * 1.25;
         const baseHc = ae ? Number(ae.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
+        const baseHm = ae ? Number(ae.hora_minima) : ce ? Number(ce.hora_minima) : 0;
+
         const vh = ajuste ? Number(ajuste.valor_hora) : baseVh;
+        const vhe = ajuste ? Number(ajuste.valor_hora_excedente) : baseVhe;
         let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
+        let hm = ajuste ? Number(ajuste.hora_minima) : baseHm;
 
         // Proportional for delivery/return
         const entrega = ae?.data_entrega || ce?.data_entrega || null;
@@ -907,37 +912,53 @@ export const FaturamentoContent = () => {
           const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
           const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000));
           hc = Number((hc * diasUsados / diasTotais).toFixed(1));
+          hm = Number((hm * diasUsados / diasTotais).toFixed(1));
         }
         if (devolucao && devolucao >= inicio && devolucao < fim) {
           const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
           const refI = entrega && entrega > inicio ? entrega : inicio;
           const diasUsados = Math.max(1, Math.round((parseLocalDate(devolucao).getTime() - parseLocalDate(refI).getTime()) / 86400000) + 1);
           hc = Number((baseHc * diasUsados / diasTotais).toFixed(1));
+          hm = Number((baseHm * diasUsados / diasTotais).toFixed(1));
         }
 
-        const qtdDias = horasMedidas;
-        const valorTotal = qtdDias * vh;
+        const horasEfetivas = hm > 0 && horasMedidas < hm ? hm : horasMedidas;
+        const hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
+        const he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
+        const valorTotal = hn * vh + he * vhe;
         totalMedicao += valorTotal;
 
         const itemDesc = `${(eq?.tipo || "").toUpperCase()} ${(eq?.modelo || "").toUpperCase()}`;
         const tagPlaca = eq?.tag_placa || "—";
 
-        return [itemDesc, tagPlaca, fmt(qtdDias), fmtBRL(vh), fmtBRL(valorTotal)];
+        return [
+          itemDesc,
+          tagPlaca,
+          fmtBRL(vh),
+          fmtBRL(vhe),
+          `${fmt(hc)}h`,
+          `${fmt(hm)}h`,
+          `${fmt(horasMedidas)}h`,
+          fmtBRL(valorTotal),
+        ];
       });
 
-      // Table header with dark background
+      // Table with all contract info columns
       autoTable(doc, {
         startY: y,
-        head: [["Item", "Tag / Placa", "Quantidade (Horas)", "Valor Unitário", "Valor Total R$"]],
+        head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Valor Total R$"]],
         body: eqRows,
-        styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
+        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.2 },
         headStyles: { fillColor: [50, 50, 50], textColor: 255, fontStyle: "bold", halign: "center" },
         columnStyles: {
-          0: { cellWidth: 55 },
-          1: { cellWidth: 30, halign: "center" },
-          2: { halign: "center", cellWidth: 35 },
-          3: { halign: "right", cellWidth: 30 },
-          4: { halign: "right", cellWidth: 32 },
+          0: { cellWidth: 65 },
+          1: { halign: "center", cellWidth: 22 },
+          2: { halign: "right", cellWidth: 24 },
+          3: { halign: "right", cellWidth: 24 },
+          4: { halign: "center", cellWidth: 20 },
+          5: { halign: "center", cellWidth: 20 },
+          6: { halign: "center", cellWidth: 25 },
+          7: { halign: "right", cellWidth: 30 },
         },
         theme: "grid",
       });
@@ -946,14 +967,17 @@ export const FaturamentoContent = () => {
       // Total row
       autoTable(doc, {
         startY: y,
-        body: [["", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
+        body: [["", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
         styles: { fontSize: 9, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2, fontStyle: "bold" },
         columnStyles: {
-          0: { cellWidth: 55 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 35 },
-          3: { halign: "right", cellWidth: 30, fontStyle: "bold" },
-          4: { halign: "right", cellWidth: 32, fontStyle: "bold" },
+          0: { cellWidth: 65 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 24 },
+          3: { cellWidth: 24 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 20 },
+          6: { halign: "right", cellWidth: 25 },
+          7: { halign: "right", cellWidth: 30 },
         },
         theme: "grid",
       });
