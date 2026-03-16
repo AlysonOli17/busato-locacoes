@@ -873,6 +873,7 @@ export const FaturamentoContent = () => {
         const ce = ceList.find(c => c.equipamento_id === eqId);
         const ae = pdfAditivoEquipMap.get(eqId);
 
+        // Hours worked
         const eqMeds = allMedicoes.filter(m => m.equipamento_id === eqId && (m.tipo || 'Trabalho') === 'Trabalho');
         const byDay = new Map<string, number>();
         for (const m of eqMeds) {
@@ -882,6 +883,13 @@ export const FaturamentoContent = () => {
         }
         const dayValues = Array.from(byDay.values());
         const horasMedidas = dayValues.length >= 2 ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues)) : 0;
+
+        // Hours unavailable
+        const eqIndisp = allMedicoes.filter(m => m.equipamento_id === eqId && m.tipo === 'Indisponível');
+        let horasIndisponiveis = 0;
+        for (const m of eqIndisp) {
+          horasIndisponiveis += Number((m as any).horas_trabalhadas || 0);
+        }
 
         const ajuste = (pdfAjustes || []).filter(a => a.equipamento_id === eqId).sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0] || null;
         const baseVh = ae ? Number(ae.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
@@ -928,6 +936,7 @@ export const FaturamentoContent = () => {
           `${fmt(hc)}h`,
           `${fmt(hm)}h`,
           `${fmt(horasMedidas)}h`,
+          `${fmt(horasIndisponiveis)}h`,
           fmtBRL(valorTotal),
         ];
       });
