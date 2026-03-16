@@ -1487,7 +1487,7 @@ const Contratos = () => {
                                 }
 
                                 // No active addendum — show base contract
-                                const activeBase = ces.filter(ce => !isDevolvido2(ce.equipamento_id));
+                                const activeBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
                                 return (
                                   <>
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
