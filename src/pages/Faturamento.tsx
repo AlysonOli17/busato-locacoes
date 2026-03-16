@@ -1333,7 +1333,7 @@ export const FaturamentoContent = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setContasDialogOpen(true)}><Landmark className="h-4 w-4 mr-1" /> Contas</Button>
-            <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> Exportar PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> Exportar Medição</Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
           </div>
