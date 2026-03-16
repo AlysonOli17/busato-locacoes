@@ -410,18 +410,35 @@ export const FaturamentoTab = () => {
     }
 
     // === DESCRIPTION TABLE ===
+    const gastos = faturaGastos.get(fatura.id) || [];
+    const mobGastos = gastos.filter(g => g.tipo === "Mobilização" || g.tipo === "Desmobilização");
+    const outrosGastos = gastos.filter(g => g.tipo !== "Mobilização" && g.tipo !== "Desmobilização");
+    const totalMob = mobGastos.reduce((s, g) => s + g.valor, 0);
+    const valorLocacao = Number(fatura.valor_total) - totalMob;
+
+    const descBody: string[][] = [
+      [
+        "Locação de Equipamento, sem Cessão de Mão de Obra.",
+        "1,00",
+        `R$ ${valorLocacao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+        `R$ ${valorLocacao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+        "",
+      ],
+    ];
+    mobGastos.forEach(g => {
+      descBody.push([
+        `${g.tipo} — ${g.descricao}`,
+        "1,00",
+        `R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+        `R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+        "",
+      ]);
+    });
+
     autoTable(doc, {
       startY: y,
       head: [["DESCRIÇÃO", "QUANT.", "VALOR UNIT.", "TOTAL", "CFOP"]],
-      body: [
-        [
-          "Locação de Equipamento, sem Cessão de Mão de Obra.",
-          "1,00",
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          "",
-        ],
-      ],
+      body: descBody,
       theme: "grid",
       styles: { fontSize: 7, cellPadding: 2.5, lineWidth: 0.2, lineColor: [200, 200, 200] },
       headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", fontSize: 6.5, lineColor: [41, 128, 185] },
