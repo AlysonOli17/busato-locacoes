@@ -140,15 +140,28 @@ export const FaturamentoTab = () => {
     // Load faturamento_equipamentos for all faturas
     if (fatRes.data && fatRes.data.length > 0) {
       const ids = fatRes.data.map((f: any) => f.id);
-      const { data: feData } = await supabase.from("faturamento_equipamentos").select("*").in("faturamento_id", ids);
-      if (feData) {
+      const [feRes, fgRes] = await Promise.all([
+        supabase.from("faturamento_equipamentos").select("*").in("faturamento_id", ids),
+        supabase.from("faturamento_gastos").select("*, gastos(descricao, valor, tipo)").in("faturamento_id", ids),
+      ]);
+      if (feRes.data) {
         const map = new Map<string, FaturaEquip[]>();
-        feData.forEach((fe: any) => {
+        feRes.data.forEach((fe: any) => {
           const list = map.get(fe.faturamento_id) || [];
           list.push(fe as FaturaEquip);
           map.set(fe.faturamento_id, list);
         });
         setFaturaEquips(map);
+      }
+      if (fgRes.data) {
+        const map = new Map<string, { descricao: string; valor: number; tipo: string }[]>();
+        fgRes.data.forEach((fg: any) => {
+          if (!fg.gastos) return;
+          const list = map.get(fg.faturamento_id) || [];
+          list.push({ descricao: fg.gastos.descricao, valor: Number(fg.gastos.valor), tipo: fg.gastos.tipo });
+          map.set(fg.faturamento_id, list);
+        });
+        setFaturaGastos(map);
       }
     }
     setLoading(false);
