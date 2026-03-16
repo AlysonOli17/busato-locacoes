@@ -733,51 +733,40 @@ export const FaturamentoContent = () => {
 
       const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
       const busatoCnpj = busatoEmp?.cnpj || "";
-      const busatoEnd = busatoEmp ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf].filter(Boolean).join(", ") : "";
-      const busatoCep = busatoEmp?.endereco_cep ? `CEP: ${busatoEmp.endereco_cep}` : "";
-      const busatoTel = busatoEmp?.telefone || "";
-      const busatoEmail = busatoEmp?.email || "";
+      const busatoEndereco = busatoEmp ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf, busatoEmp.endereco_cep ? `CEP: ${busatoEmp.endereco_cep}` : ""].filter(Boolean).join(", ") : "";
+      const busatoIE = busatoEmp?.inscricao_estadual || "";
 
-      // ── HEADER: Logo + BUSATO (left) | Document title (right) ──
-      // Logo icon
-      if (logo) doc.addImage(logo, "PNG", mL, y, 14, 14);
+      // === HEADER (same as Fatura) ===
+      if (logo) doc.addImage(logo, "PNG", mL, y, 48, 12);
 
-      // "BUSATO" large text
-      doc.setFontSize(26);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(50, 50, 50);
-      doc.text("BUSATO", mL + 18, y + 10);
-
-      // "BOLETIM DE MEDIÇÃO <num>" right-aligned
-      doc.setFontSize(16);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
-      doc.text(`BOLETIM DE MEDIÇÃO ${item.numero_sequencial.toString().padStart(3, "0")}`, pageW - mR, y + 10, { align: "right" });
-
+      const docLabel = item.numero_nota || String(item.numero_sequencial).padStart(3, "0");
+      doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 8, { align: "right" });
       y += 18;
 
-      // Company name (bold, black)
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 0, 0);
-      doc.text(busatoNome.toUpperCase(), mL, y);
-      y += 4;
-
-      // Address line
-      doc.setFont("helvetica", "normal");
+      // Busato info
       doc.setFontSize(7);
-      doc.setTextColor(80, 80, 80);
-      const addressLine = [busatoEnd, busatoCep].filter(Boolean).join(", ");
-      doc.text(addressLine, mL, y);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(60, 60, 60);
+      doc.text(busatoNome.toUpperCase(), mL, y);
       y += 3.5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      if (busatoEndereco) {
+        doc.text(busatoEndereco, mL, y);
+        y += 3;
+      }
+      const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `Inscrição Estadual: ${busatoIE}` : ""].filter(Boolean).join(" - ");
+      if (cnpjLine) {
+        doc.text(cnpjLine, mL, y);
+      }
+      y += 5;
 
-      // CNPJ line
-      doc.text(`CNPJ: ${busatoCnpj}`, mL, y);
-      y += 4;
-
-      // Blue separator line
+      // Blue separator
       doc.setDrawColor(41, 128, 185);
-      doc.setLineWidth(1);
+      doc.setLineWidth(0.5);
       doc.line(mL, y, pageW - mR, y);
       y += 5;
 
