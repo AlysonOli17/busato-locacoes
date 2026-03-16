@@ -2122,30 +2122,41 @@ const Contratos = () => {
                 <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais do equipamento</p>
               </div>
             )}
-            {!ajusteTodos && (
+            {!ajusteTodos && !editingAjuste && (
+            <div>
+              <Label className="mb-2 block">Equipamentos <Badge variant="secondary" className="ml-2 text-xs">{ajusteForm.equipamento_ids.length} selecionado{ajusteForm.equipamento_ids.length !== 1 ? "s" : ""}</Badge></Label>
+              <div className="border rounded-lg max-h-40 overflow-y-auto p-2 space-y-1">
+                {getAllEquipForAjuste(ajustesContrato).map(ce => {
+                  const eqLabel = `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`;
+                  const isChecked = ajusteForm.equipamento_ids.includes(ce.equipamento_id);
+                  return (
+                    <label key={ce.equipamento_id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5">
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={(v) => {
+                          setAjusteForm(prev => ({
+                            ...prev,
+                            equipamento_ids: v
+                              ? [...prev.equipamento_ids, ce.equipamento_id]
+                              : prev.equipamento_ids.filter(id => id !== ce.equipamento_id),
+                          }));
+                        }}
+                      />
+                      <span className="truncate">{eqLabel}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            )}
+            {!ajusteTodos && editingAjuste && (
             <div>
               <Label>Equipamento</Label>
-              <SearchableSelect
-                value={ajusteForm.equipamento_id}
-                onValueChange={(v) => {
-                  const allEquip = getAllEquipForAjuste(ajustesContrato);
-                  const ce = allEquip.find(c => c.equipamento_id === v);
-                  setAjusteForm(prev => ({
-                    ...prev,
-                    equipamento_id: v,
-                    valor_hora: ce ? Number(ce.valor_hora) : prev.valor_hora,
-                    valor_hora_excedente: ce ? Number(ce.valor_hora_excedente) : prev.valor_hora_excedente,
-                    hora_minima: ce ? Number(ce.hora_minima) : prev.hora_minima,
-                    horas_contratadas: ce ? Number(ce.horas_contratadas) : prev.horas_contratadas,
-                  }));
-                }}
-                placeholder="Selecione o equipamento"
-                searchPlaceholder="Pesquisar equipamento..."
-                 options={getAllEquipForAjuste(ajustesContrato).map(ce => ({
-                   value: ce.equipamento_id,
-                   label: `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}${ce.equipamentos.numero_serie ? ` - NS: ${ce.equipamentos.numero_serie}` : ""}`,
-                 }))}
-              />
+              <Input disabled value={(() => {
+                const allEquip = getAllEquipForAjuste(ajustesContrato);
+                const ce = allEquip.find(c => c.equipamento_id === ajusteForm.equipamento_ids[0]);
+                return ce ? `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}` : "";
+              })()} />
             </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
