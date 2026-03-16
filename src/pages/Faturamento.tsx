@@ -860,7 +860,7 @@ export const FaturamentoContent = () => {
         const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
         const iEf = entrega && entrega > inicio ? entrega : inicio;
         const fEf = devolucao && devolucao < fim ? devolucao : fim;
-        return supabase.from("medicoes").select("equipamento_id, horimetro_final, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
+        return supabase.from("medicoes").select("equipamento_id, horimetro_final, horas_trabalhadas, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
       });
       const medResults = await Promise.all(medPromises);
       const allMedicoes = medResults.flatMap(r => r.data || []);
