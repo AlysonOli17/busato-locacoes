@@ -693,7 +693,16 @@ export const FaturamentoContent = () => {
     const { default: autoTable } = await import("jspdf-autotable");
 
     const doc = new jsPDF({ orientation: "portrait" });
-    const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+    const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtBRL = (v: number) => `R$ ${fmt(v)}`;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const mL = 14; // left margin
+    const mR = 14; // right margin
+    const contentW = pageW - mL - mR;
+
+    // Fetch Busato company data
+    const { data: busatoEmp } = await supabase.from("empresas").select("*").ilike("nome", "%busato%").limit(1).single();
 
     for (let idx = 0; idx < data.length; idx++) {
       const item = data[idx];
@@ -702,45 +711,109 @@ export const FaturamentoContent = () => {
       const ct = item.contratos;
       const emp = ct?.empresas;
       const gastosVal = Number(item.total_gastos || 0);
-
-      const tituloFatura = item.numero_nota ? `Nº Nota: ${item.numero_nota}` : `Medição Nº ${item.numero_sequencial}`;
-      const startY = await addLetterhead(doc, tituloFatura);
-
-      let y = startY;
-
-      // Empresa
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Dados da Empresa", 14, y);
-      y += 2;
-      autoTable(doc, {
-        startY: y,
-        head: [["Campo", "Dados"]],
-        body: [
-          ["Empresa", emp?.nome || "—"],
-          ["CNPJ", emp?.cnpj || "—"],
-          ["Contato", emp?.contato || "—"],
-          ["Telefone", emp?.telefone || "—"],
-          ["Nº Nota", item.numero_nota || "—"],
-          ["Período de Medição", item.periodo_medicao_inicio && item.periodo_medicao_fim
-            ? `${parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-            : "—"],
-        ],
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 14;
-
-      // Equipamentos — fetch live measurements from the period
-      const ceList = ct?.contratos_equipamentos || [];
       const inicio = item.periodo_medicao_inicio || "";
       const fim = item.periodo_medicao_fim || "";
+      const numDoc = item.numero_nota || `MED-${String(item.numero_sequencial).padStart(4, "0")}`;
 
-      // Gather all equipment IDs (contract + addendums in the period)
+      // ──────────────── HEADER BLOCK ────────────────
+      const logo = await (async () => {
+        try {
+          const resp = await fetch("/images/logo-busato-horizontal.png");
+          const blob = await resp.blob();
+          return new Promise<string | null>((resolve) => {
+            const r = new FileReader();
+            r.onloadend = () => resolve(r.result as string);
+            r.onerror = () => resolve(null);
+            r.readAsDataURL(blob);
+          });
+        } catch { return null; }
+      })();
+
+      let y = 10;
+
+      // Logo area (left)
+      if (logo) doc.addImage(logo, "PNG", mL, y, 48, 12);
+
+      // Title area (center)
+      const titleX = pageW / 2;
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("BOLETIM DE MEDIÇÃO", titleX, y + 8, { align: "center" });
+
+      // Document info box (right)
+      const boxW = 58;
+      const boxX = pageW - mR - boxW;
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.4);
+      doc.rect(boxX, y, boxW, 20);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Nº: ${numDoc}`, boxX + 2, y + 5);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Pág.: 01`, boxX + 2, y + 10);
+      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, boxX + 2, y + 15);
+
+      y += 24;
+
+      // Horizontal separator
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.6);
+      doc.line(mL, y, pageW - mR, y);
+      y += 4;
+
+      // ──────────────── COMPANY INFO BLOCK ────────────────
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+
+      const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
+      const busatoCnpj = busatoEmp?.cnpj || "";
+      const busatoEnd = busatoEmp ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf].filter(Boolean).join(", ") : "";
+      const busatoCep = busatoEmp?.endereco_cep || "";
+      const busatoTel = busatoEmp?.telefone || "";
+      const busatoEmail = busatoEmp?.email || "";
+      const busatoResp = busatoEmp?.contato || "";
+
+      const infoLines = [
+        { label: "Empresa:", value: busatoNome },
+        { label: "CNPJ:", value: busatoCnpj },
+        { label: "Endereço:", value: `${busatoEnd}${busatoCep ? `, CEP: ${busatoCep}` : ""}` },
+        { label: "Responsável:", value: busatoResp },
+      ];
+
+      const labelW = 28;
+      for (const line of infoLines) {
+        doc.setFont("helvetica", "bold");
+        doc.text(line.label, mL, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(line.value, mL + labelW, y);
+        // Telefone / Email on same line for Responsável
+        y += 4;
+      }
+      if (busatoTel || busatoEmail) {
+        y -= 4;
+        const telEmailStr = [busatoTel ? `Tel: ${busatoTel}` : "", busatoEmail ? `E-mail: ${busatoEmail}` : ""].filter(Boolean).join("    ");
+        doc.text(telEmailStr, pageW / 2, y, { align: "center" });
+        y += 4;
+      }
+
+      y += 2;
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.3);
+      doc.line(mL, y, pageW - mR, y);
+      y += 4;
+
+      // ──────────────── MEASUREMENT INFO BLOCK ────────────────
+      const periodoStr = inicio && fim
+        ? `${parseLocalDate(inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(fim).toLocaleDateString("pt-BR")}`
+        : "—";
+      const mesRef = item.periodo || "—";
+
+      // Collect equipment types for "Objeto de contrato"
+      const ceList = ct?.contratos_equipamentos || [];
       const baseEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct?.equipamento_id].filter(Boolean) as string[];
-      
+
       // Fetch addendums overlapping the period
       const { data: pdfAditivosData } = inicio && fim ? await supabase
         .from("contratos_aditivos")
@@ -769,7 +842,6 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Filter out equipment returned before period or not delivered yet
       const allPdfEquipIds = [...baseEquipIds, ...pdfAditivoExtraIds].filter(eqId => {
         const ce = ceList.find(c => c.equipamento_id === eqId);
         const ae = pdfAditivoEquipMap.get(eqId);
@@ -780,242 +852,238 @@ export const FaturamentoContent = () => {
         return true;
       });
 
-      if (allPdfEquipIds.length > 0 && inicio && fim) {
-        // Fetch equipment info + live measurements
-        const { data: eqData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allPdfEquipIds);
-        const eqMap = new Map((eqData || []).map(e => [e.id, e]));
+      const { data: eqData } = allPdfEquipIds.length > 0 ? await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allPdfEquipIds) : { data: [] };
+      const eqMap = new Map((eqData || []).map(e => [e.id, e]));
 
-        // Fetch saved faturamento_equipamentos as fallback
-        const { data: fatEquips } = await supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", item.id);
-        const fatEquipMap = new Map((fatEquips || []).map((fe: any) => [fe.equipamento_id, fe]));
+      const equipTypes = [...new Set((eqData || []).map(e => e.tipo))].join(", ") || "—";
 
-        // Fetch adjustments for this period
-        const { data: pdfAjustes } = await supabase.from("contratos_equipamentos_ajustes").select("*")
-          .eq("contrato_id", item.contrato_id).in("equipamento_id", allPdfEquipIds)
-          .lte("data_inicio", fim).gte("data_fim", inicio);
+      const medInfoRows = [
+        { label: "Mês de Referência:", value: mesRef },
+        { label: "Período de Medição:", value: periodoStr },
+        { label: "Empresa Contratante:", value: emp?.nome || "—" },
+        { label: "CNPJ Contratante:", value: emp?.cnpj || "—" },
+        { label: "Objeto de contrato:", value: equipTypes },
+      ];
 
-        // Fetch live measurements per equipment
-        const medPromises = allPdfEquipIds.map(eqId => {
-          const ce = ceList.find(c => c.equipamento_id === eqId);
-          const ae = pdfAditivoEquipMap.get(eqId);
-          const entrega = ae?.data_entrega || ce?.data_entrega || null;
-          const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
-          const iEf = entrega && entrega > inicio ? entrega : inicio;
-          const fEf = devolucao && devolucao < fim ? devolucao : fim;
-          return supabase.from("medicoes").select("equipamento_id, horimetro_final, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
-        });
-        const medResults = await Promise.all(medPromises);
-        const allMedicoes = medResults.flatMap(r => r.data || []);
-
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text("Equipamentos e Horas", 14, y);
-        y += 2;
-
-        const eqRows = allPdfEquipIds.map(eqId => {
-          const eq = eqMap.get(eqId);
-          const ce = ceList.find(c => c.equipamento_id === eqId);
-          const ae = pdfAditivoEquipMap.get(eqId);
-          const fe = fatEquipMap.get(eqId);
-
-          // Calculate hours from live measurements (same logic as fetchMedicoesEGastos)
-          const eqMeds = allMedicoes.filter(m => m.equipamento_id === eqId && (m.tipo || 'Trabalho') === 'Trabalho');
-          const byDay = new Map<string, number>();
-          for (const m of eqMeds) {
-            const d = String(m.data);
-            const v = Number(m.horimetro_final);
-            if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
-          }
-          const dayValues = Array.from(byDay.values());
-          const horasMedidas = dayValues.length >= 2 ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues)) : 0;
-
-          // Get values: ajuste > aditivo > contrato
-          const ajuste = (pdfAjustes || []).filter(a => a.equipamento_id === eqId).sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0] || null;
-          const baseVh = ae ? Number(ae.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
-          const baseVhe = ae ? Number(ae.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : baseVh * 1.25;
-          const baseHc = ae ? Number(ae.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
-          const baseHm = ae ? Number(ae.hora_minima) : ce ? Number(ce.hora_minima) : 0;
-
-          const vh = ajuste ? Number(ajuste.valor_hora) : baseVh;
-          const vhe = ajuste ? Number(ajuste.valor_hora_excedente) : baseVhe;
-          let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
-          let hm = ajuste ? Number(ajuste.hora_minima) : baseHm;
-
-          // Proportional for delivery/return within period
-          const entrega = ae?.data_entrega || ce?.data_entrega || null;
-          const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
-          const obs: string[] = [];
-
-          if (entrega && entrega > inicio && entrega <= fim) {
-            const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
-            const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000));
-            hc = Number((hc * diasUsados / diasTotais).toFixed(1));
-            hm = Number((hm * diasUsados / diasTotais).toFixed(1));
-            obs.push("1º mês (proporcional)");
-          }
-          if (devolucao && devolucao >= inicio && devolucao < fim) {
-            const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
-            const refI = entrega && entrega > inicio ? entrega : inicio;
-            const diasUsados = Math.max(1, Math.round((parseLocalDate(devolucao).getTime() - parseLocalDate(refI).getTime()) / 86400000) + 1);
-            hc = Number((baseHc * diasUsados / diasTotais).toFixed(1));
-            hm = Number((baseHm * diasUsados / diasTotais).toFixed(1));
-            obs.push(`Devolvido ${parseLocalDate(devolucao).toLocaleDateString("pt-BR")}`);
-          }
-          if (ajuste) obs.push("Ajuste temporário");
-          if (ae && !ajuste) obs.push(`Aditivo`);
-
-          const horasEfetivas = hm > 0 && horasMedidas < hm ? hm : horasMedidas;
-          const hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
-          const he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
-
-          return [
-            `${eq?.tipo || ""} ${eq?.modelo || ""}`,
-            eq?.tag_placa || "—",
-            `${horasMedidas}h`,
-            `${hn}h`,
-            `${he}h`,
-            fmt(vh),
-            fmt(vhe),
-            fmt(hn * vh + he * vhe),
-            obs.length > 0 ? obs.join("; ") : "—",
-          ];
-        });
-
-        autoTable(doc, {
-          startY: y,
-          head: [["Equipamento", "Tag", "Medido", "H. Normais", "H. Exced.", "V/h", "V/h Exc", "Subtotal", "Obs"]],
-          body: eqRows,
-          styles: { fontSize: 7, cellPadding: 2 },
-          headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-          columnStyles: { 8: { cellWidth: 35, fontStyle: "italic" } },
-          theme: "grid",
-        });
-        y = (doc as any).lastAutoTable.finalY + 14;
+      // Draw info block with gray background for labels
+      for (const info of medInfoRows) {
+        doc.setFillColor(235, 235, 235);
+        doc.rect(mL, y - 3, 48, 5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text(info.label, mL + 1, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(info.value, mL + 50, y);
+        y += 5.5;
       }
 
-      // Despesas deduzidas detalhadas
+      y += 4;
+
+      // ──────────────── EQUIPMENT TABLE ────────────────
+      // Fetch adjustments & measurements
+      const { data: pdfAjustes } = allPdfEquipIds.length > 0 && inicio && fim
+        ? await supabase.from("contratos_equipamentos_ajustes").select("*")
+            .eq("contrato_id", item.contrato_id).in("equipamento_id", allPdfEquipIds)
+            .lte("data_inicio", fim).gte("data_fim", inicio)
+        : { data: [] };
+
+      const medPromises = allPdfEquipIds.map(eqId => {
+        const ce = ceList.find(c => c.equipamento_id === eqId);
+        const ae = pdfAditivoEquipMap.get(eqId);
+        const entrega = ae?.data_entrega || ce?.data_entrega || null;
+        const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+        const iEf = entrega && entrega > inicio ? entrega : inicio;
+        const fEf = devolucao && devolucao < fim ? devolucao : fim;
+        return supabase.from("medicoes").select("equipamento_id, horimetro_final, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
+      });
+      const medResults = await Promise.all(medPromises);
+      const allMedicoes = medResults.flatMap(r => r.data || []);
+
+      // Calculate total
+      let totalMedicao = 0;
+
+      const eqRows = allPdfEquipIds.map(eqId => {
+        const eq = eqMap.get(eqId);
+        const ce = ceList.find(c => c.equipamento_id === eqId);
+        const ae = pdfAditivoEquipMap.get(eqId);
+
+        const eqMeds = allMedicoes.filter(m => m.equipamento_id === eqId && (m.tipo || 'Trabalho') === 'Trabalho');
+        const byDay = new Map<string, number>();
+        for (const m of eqMeds) {
+          const d = String(m.data);
+          const v = Number(m.horimetro_final);
+          if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
+        }
+        const dayValues = Array.from(byDay.values());
+        const horasMedidas = dayValues.length >= 2 ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues)) : 0;
+
+        const ajuste = (pdfAjustes || []).filter(a => a.equipamento_id === eqId).sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0] || null;
+        const baseVh = ae ? Number(ae.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
+        const baseHc = ae ? Number(ae.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
+        const vh = ajuste ? Number(ajuste.valor_hora) : baseVh;
+        let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
+
+        // Proportional for delivery/return
+        const entrega = ae?.data_entrega || ce?.data_entrega || null;
+        const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+        if (entrega && entrega > inicio && entrega <= fim) {
+          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
+          const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000));
+          hc = Number((hc * diasUsados / diasTotais).toFixed(1));
+        }
+        if (devolucao && devolucao >= inicio && devolucao < fim) {
+          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
+          const refI = entrega && entrega > inicio ? entrega : inicio;
+          const diasUsados = Math.max(1, Math.round((parseLocalDate(devolucao).getTime() - parseLocalDate(refI).getTime()) / 86400000) + 1);
+          hc = Number((baseHc * diasUsados / diasTotais).toFixed(1));
+        }
+
+        const qtdDias = horasMedidas;
+        const valorTotal = qtdDias * vh;
+        totalMedicao += valorTotal;
+
+        const itemDesc = `${(eq?.tipo || "").toUpperCase()} ${(eq?.modelo || "").toUpperCase()}`;
+        const tagPlaca = eq?.tag_placa || "—";
+
+        return [itemDesc, tagPlaca, fmt(qtdDias), fmtBRL(vh), fmtBRL(valorTotal)];
+      });
+
+      // Table header with dark background
+      autoTable(doc, {
+        startY: y,
+        head: [["Item", "Tag / Placa", "Quantidade (Horas)", "Valor Unitário", "Valor Total R$"]],
+        body: eqRows,
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
+        headStyles: { fillColor: [50, 50, 50], textColor: 255, fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 55 },
+          1: { cellWidth: 30, halign: "center" },
+          2: { halign: "center", cellWidth: 35 },
+          3: { halign: "right", cellWidth: 30 },
+          4: { halign: "right", cellWidth: 32 },
+        },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY;
+
+      // Total row
+      autoTable(doc, {
+        startY: y,
+        body: [["", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
+        styles: { fontSize: 9, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2, fontStyle: "bold" },
+        columnStyles: {
+          0: { cellWidth: 55 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 35 },
+          3: { halign: "right", cellWidth: 30, fontStyle: "bold" },
+          4: { halign: "right", cellWidth: 32, fontStyle: "bold" },
+        },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // ──────────────── CUSTOS ADICIONAIS ────────────────
       if (gastosVal > 0) {
         const { data: fgData } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
         if (fgData && fgData.length > 0) {
           const gastoIds = fgData.map((fg: any) => fg.gasto_id);
           const { data: gastosData } = await supabase.from("gastos").select("descricao, tipo, valor, data, equipamento_id").in("id", gastoIds);
           if (gastosData && gastosData.length > 0) {
-            const gEqIds = [...new Set(gastosData.map((g: any) => g.equipamento_id))];
-            const { data: gEqData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").in("id", gEqIds);
-            const gEqMap = new Map((gEqData || []).map((e: any) => [e.id, e]));
+            if (y > 230) { doc.addPage(); y = 15; }
+            doc.setFillColor(235, 235, 235);
+            doc.rect(mL, y - 3, contentW, 5, "F");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Custos Adicionais", mL + 1, y);
+            y += 4;
 
-            if (y > 240) { doc.addPage(); y = 20; }
-            doc.setFontSize(12);
-            doc.setTextColor(41, 128, 185);
-            doc.text("Custos Adicionais", 14, y);
-            y += 2;
-            const gastoRows = gastosData.map((g: any) => {
-              const geq = gEqMap.get(g.equipamento_id);
-              return [
-                geq ? `${geq.tipo} ${geq.modelo}` : "—",
-                geq?.tag_placa || "—",
-                g.tipo,
-                g.descricao,
-                parseLocalDate(g.data).toLocaleDateString("pt-BR"),
-                fmt(Number(g.valor)),
-              ];
-            });
+            const gastoRows = gastosData.map((g: any) => [
+              g.tipo,
+              g.descricao,
+              parseLocalDate(g.data).toLocaleDateString("pt-BR"),
+              fmtBRL(Number(g.valor)),
+            ]);
             autoTable(doc, {
               startY: y,
-              head: [["Equipamento", "Tag", "Tipo", "Descrição", "Data", "Valor"]],
+              head: [["Tipo", "Descrição", "Data", "Valor"]],
               body: gastoRows,
-              styles: { fontSize: 8, cellPadding: 2 },
-              headStyles: { fillColor: [192, 57, 43], textColor: 255 },
+              styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.2 },
+              headStyles: { fillColor: [80, 80, 80], textColor: 255 },
               theme: "grid",
             });
-            y = (doc as any).lastAutoTable.finalY + 14;
+            y = (doc as any).lastAutoTable.finalY + 4;
+
+            // Gastos total
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.text(`Total Custos Adicionais: ${fmtBRL(gastosVal)}`, pageW - mR, y, { align: "right" });
+            y += 8;
           }
         }
       }
 
-      // Sinistros section — only those in the measurement period
-      const sinEquipIds = allPdfEquipIds.length > 0 ? allPdfEquipIds : (ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct?.equipamento_id].filter(Boolean));
-      const sinQuery = supabase
-        .from("sinistros")
-        .select("*, equipamentos(tipo, modelo, tag_placa), apolices(seguradora)")
-        .in("equipamento_id", sinEquipIds as string[]);
-      if (inicio) sinQuery.gte("data_sinistro", inicio);
-      if (fim) sinQuery.lte("data_sinistro", fim);
-      const { data: sinistrosData } = await sinQuery;
-
-      if (sinistrosData && sinistrosData.length > 0) {
-        if (y > 240) { doc.addPage(); y = 20; }
-        doc.setFontSize(12);
-        doc.setTextColor(192, 57, 43);
-        doc.text("Acionamentos de Sinistro", 14, y);
-        y += 2;
-        const sinistroRows = sinistrosData.map((s: any) => {
-          const eq = s.equipamentos;
-          return [
-            eq ? `${eq.tipo} ${eq.modelo}` : "—",
-            eq?.tag_placa || "—",
-            s.tipo_sinistro,
-            new Date(s.data_sinistro).toLocaleDateString("pt-BR"),
-            s.data_previsao_retorno ? new Date(s.data_previsao_retorno).toLocaleDateString("pt-BR") : "—",
-            s.data_retorno ? new Date(s.data_retorno).toLocaleDateString("pt-BR") : "—",
-            fmt(Number(s.franquia)),
-            s.apolices?.seguradora || "—",
-            s.status,
-          ];
-        });
-        autoTable(doc, {
-          startY: y,
-          head: [["Equipamento", "Tag", "Tipo Sinistro", "Data", "Prev. Retorno", "Retorno", "Franquia", "Seguradora", "Status"]],
-          body: sinistroRows,
-          styles: { fontSize: 7, cellPadding: 2 },
-          headStyles: { fillColor: [192, 57, 43], textColor: 255 },
-          theme: "grid",
-        });
-        y = (doc as any).lastAutoTable.finalY + 14;
-      }
-
-
-      // Summary
-      if (y > 240) { doc.addPage(); y = 20; }
-      const valorBrutoItem = Number(item.horas_normais) * Number(item.valor_hora) + Number(item.horas_excedentes) * Number(item.valor_excedente_hora);
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Resumo Financeiro", 14, y);
-      y += 2;
-      autoTable(doc, {
-        startY: y,
-        head: [["Descrição", "Valor"]],
-        body: [
-          ["Valor Bruto (horas)", fmt(valorBrutoItem)],
-          ["(+) Custos Adicionais", gastosVal > 0 ? `+ ${fmt(gastosVal)}` : "R$ 0,00"],
-          ["(=) Valor Total a Cobrar", fmt(Number(item.valor_total))],
-        ],
-        styles: { fontSize: 10, cellPadding: 4 },
-        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 14;
-
-      // Observações do contrato
+      // ──────────────── OBSERVAÇÕES ────────────────
+      if (y > 240) { doc.addPage(); y = 15; }
+      doc.setFillColor(235, 235, 235);
+      doc.rect(mL, y - 3, contentW, 5, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Observações:", mL + 1, y);
+      y += 6;
       if (ct?.observacoes) {
-        if (y > 250) { doc.addPage(); y = 20; }
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text("Observações", 14, y);
-        y += 2;
-        autoTable(doc, {
-          startY: y,
-          body: [[ct.observacoes]],
-          styles: { fontSize: 9, cellPadding: 4 },
-          theme: "plain",
-          columnStyles: { 0: { cellWidth: doc.internal.pageSize.getWidth() - 28 } },
-        });
-        y = (doc as any).lastAutoTable.finalY + 14;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        const obsLines = doc.splitTextToSize(ct.observacoes, contentW - 4);
+        doc.text(obsLines, mL + 2, y);
+        y += obsLines.length * 4 + 2;
       }
+      y += 4;
+
+      // ──────────────── GRAND TOTAL ────────────────
+      const grandTotal = totalMedicao + gastosVal;
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(mL, y, pageW - mR, y);
+      y += 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Valor Total da Medição:", mL, y);
+      doc.text(fmtBRL(grandTotal), pageW - mR, y, { align: "right" });
+      y += 10;
+
+      // ──────────────── APPROVAL / SIGNATURE BLOCK ────────────────
+      const sigY = Math.max(y + 10, pageH - 50);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Aprovação:", mL, sigY);
+
+      const sigLineY = sigY + 16;
+      const halfW = (contentW - 20) / 2;
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.3);
+
+      // Left signature
+      doc.line(mL, sigLineY, mL + halfW, sigLineY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.text(busatoNome, mL + halfW / 2, sigLineY + 4, { align: "center" });
+
+      // Right signature
+      const rightX = mL + halfW + 20;
+      doc.line(rightX, sigLineY, rightX + halfW, sigLineY);
+      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 4, { align: "center" });
+
+      // ──────────────── FOOTER ────────────────
+      doc.setFontSize(6);
+      doc.setTextColor(130, 130, 130);
+      doc.text(`Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}`, pageW / 2, pageH - 8, { align: "center" });
     }
 
-    doc.save(`medicao_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`boletim_medicao_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   const calcMedicaoDates = (ct: ContratoRef) => {
