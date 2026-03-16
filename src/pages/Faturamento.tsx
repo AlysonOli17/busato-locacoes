@@ -31,6 +31,7 @@ interface ContratoEquip {
 
 interface ContratoRef {
   id: string;
+  empresa_id: string;
   valor_hora: number;
   horas_contratadas: number;
   equipamento_id: string;
@@ -118,6 +119,9 @@ export const FaturamentoContent = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Fatura | null>(null);
   const [search, setSearch] = useState("");
+  const [filterPeriodoInicio, setFilterPeriodoInicio] = useState("");
+  const [filterPeriodoFim, setFilterPeriodoFim] = useState("");
+  const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
   const [formNumeroNota, setFormNumeroNota] = useState("");
@@ -148,8 +152,8 @@ export const FaturamentoContent = () => {
 
   const fetchData = async () => {
     const [fatRes, ctRes, contasRes] = await Promise.all([
-      supabase.from("faturamento").select("*, contratos(id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
-      supabase.from("contratos").select("id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, contratos(id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
+      supabase.from("contratos").select("id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
@@ -633,12 +637,24 @@ export const FaturamentoContent = () => {
     return vencimento;
   };
 
-  const filtered = items.filter((i) =>
-    i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
-    i.periodo.includes(search) ||
-    (i.numero_nota || "").includes(search) ||
-    String(i.numero_sequencial).includes(search)
-  );
+  const filtered = items.filter((i) => {
+    // Text search
+    const matchesSearch = !search ||
+      i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
+      i.periodo.includes(search) ||
+      (i.numero_nota || "").includes(search) ||
+      String(i.numero_sequencial).includes(search);
+    if (!matchesSearch) return false;
+    // Company filter
+    if (filterEmpresa !== "all") {
+      const ct = contratos.find(c => c.id === i.contrato_id);
+      if (ct?.empresa_id !== filterEmpresa) return false;
+    }
+    // Period filter
+    if (filterPeriodoInicio && i.periodo_medicao_fim && i.periodo_medicao_fim < filterPeriodoInicio) return false;
+    if (filterPeriodoFim && i.periodo_medicao_inicio && i.periodo_medicao_inicio > filterPeriodoFim) return false;
+    return true;
+  });
   const totalPendente = items.filter((i) => getDisplayStatus(i) === "Pendente" || getDisplayStatus(i) === "Em Atraso").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
   const toggleSelect = (id: string) => {
@@ -1187,10 +1203,49 @@ export const FaturamentoContent = () => {
           </div>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por empresa, nº, período ou nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
+        <Card>
+          <CardContent className="py-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Empresa</Label>
+                <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Todas as Empresas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as Empresas</SelectItem>
+                    {(() => {
+                      const empresaMap = new Map<string, string>();
+                      contratos.forEach(c => { if (c.empresas?.nome) empresaMap.set(c.empresa_id, c.empresas.nome); });
+                      items.forEach(i => { if (i.contratos?.empresas?.nome && i.contratos?.empresa_id) empresaMap.set(i.contratos.empresa_id, i.contratos.empresas.nome); });
+                      return Array.from(empresaMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, nome]) => (
+                        <SelectItem key={id} value={id}>{nome}</SelectItem>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Período Início</Label>
+                <Input type="date" className="w-44" value={filterPeriodoInicio} onChange={(e) => setFilterPeriodoInicio(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Período Fim</Label>
+                <Input type="date" className="w-44" value={filterPeriodoFim} onChange={(e) => setFilterPeriodoFim(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Buscar</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Nº, empresa, nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 w-56" />
+                </div>
+              </div>
+              {(filterEmpresa !== "all" || filterPeriodoInicio || filterPeriodoFim || search) && (
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setFilterEmpresa("all"); setFilterPeriodoInicio(""); setFilterPeriodoFim(""); setSearch(""); }}>Limpar filtros</Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">
