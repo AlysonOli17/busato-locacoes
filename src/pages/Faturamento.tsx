@@ -685,8 +685,8 @@ export const FaturamentoContent = () => {
 
   };
 
-  const exportDetailedPDF = async () => {
-    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+  const exportDetailedPDF = async (singleItem?: Fatura) => {
+    const data = singleItem ? [singleItem] : filtered.filter(i => selected.size === 0 || selected.has(i.id));
     if (data.length === 0) return;
 
     const { default: jsPDF } = await import("jspdf");
