@@ -1049,6 +1049,13 @@ export const FaturamentoContent = () => {
     setDialogOpen(true);
   };
 
+  const derivePeriodo = (dateStr: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr + "T00:00:00");
+    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    return `${meses[d.getMonth()]}/${d.getFullYear()}`;
+  };
+
   const handleContratoSelect = (contratoId: string) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
@@ -1056,6 +1063,7 @@ export const FaturamentoContent = () => {
       setFormContratoId(contratoId);
       setFormMedicaoInicio(dates.inicio);
       setFormMedicaoFim(dates.fim);
+      setFormPeriodo(derivePeriodo(dates.inicio));
     }
   };
 
