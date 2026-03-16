@@ -1029,8 +1029,7 @@ export const FaturamentoContent = () => {
     setEditing(item);
     setFormContratoId(item.contrato_id);
     setFormPeriodo(item.periodo);
-    setFormNumeroSequencial(item.numero_sequencial);
-    setFormNumeroNota(item.numero_nota || "");
+    setFormNumeroNota(item.numero_nota || `FAT${String(item.numero_sequencial).padStart(3, "0")}`);
     setFormStatus(item.status);
     setFormContaBancariaId(item.conta_bancaria_id || "");
     setFormMedicaoInicio(item.periodo_medicao_inicio || "");
