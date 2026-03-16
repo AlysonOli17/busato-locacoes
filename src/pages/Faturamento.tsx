@@ -497,6 +497,7 @@ export const FaturamentoContent = () => {
       tipo: e.evento,
       valor: 0,
       data: e.data,
+      classificacao: "A Cobrar do Cliente",
     }));
     const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id, classificacao");
     if (error) {
