@@ -240,7 +240,7 @@ export const FaturamentoContent = () => {
 
     const [equipRes, gastosRes, ajustesRes] = await Promise.all([
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allEquipIdsWithAditivos),
-      supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id").in("equipamento_id", allEquipIdsWithAditivos).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
+      supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id, classificacao").in("equipamento_id", allEquipIdsWithAditivos).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
       // FIXED: fetch adjustments for ALL equipment (base + addendum)
       supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", allEquipIdsWithAditivos).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
