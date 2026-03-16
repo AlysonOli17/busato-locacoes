@@ -283,7 +283,7 @@ const Gastos = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-semibold text-sm">R$ {fmt(item.valor)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(item.data).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(item.data + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
                       {item.fatura ? (
                         <div className="flex flex-col gap-0.5">
