@@ -1010,7 +1010,15 @@ export const FaturamentoContent = () => {
               },
               theme: "grid",
             });
-            y = (doc as any).lastAutoTable.finalY + 6;
+            y = (doc as any).lastAutoTable.finalY + 4;
+
+            // Total Custos Adicionais
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Total Custos Adicionais:", pageW - mR - 40, y, { align: "right" });
+            doc.text(fmtBRL(gastosVal), pageW - mR, y, { align: "right" });
+            y += 10;
           }
         }
       }
