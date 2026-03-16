@@ -992,10 +992,15 @@ export const FaturamentoContent = () => {
             ]);
             autoTable(doc, {
               startY: y,
+              margin: tableMargin,
               head: [["Tipo", "Descrição", "Data", "Valor"]],
               body: gastoRows,
-              styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.2 },
+              styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
               headStyles: { fillColor: [80, 80, 80], textColor: 255 },
+              columnStyles: {
+                2: { halign: "center" },
+                3: { halign: "right" },
+              },
               theme: "grid",
             });
             y = (doc as any).lastAutoTable.finalY + 4;
