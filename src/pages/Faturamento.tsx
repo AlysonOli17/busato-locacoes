@@ -118,6 +118,9 @@ export const FaturamentoContent = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Fatura | null>(null);
   const [search, setSearch] = useState("");
+  const [filterPeriodoInicio, setFilterPeriodoInicio] = useState("");
+  const [filterPeriodoFim, setFilterPeriodoFim] = useState("");
+  const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
   const [formNumeroNota, setFormNumeroNota] = useState("");
