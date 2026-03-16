@@ -939,8 +939,9 @@ export const FaturamentoContent = () => {
         margin: tableMargin,
         head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Valor Total R$"]],
         body: eqRows,
-        styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
-        headStyles: { fillColor: [50, 50, 50], textColor: 255, fontStyle: "bold", halign: "center" },
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
+        alternateRowStyles: { fillColor: [240, 246, 252] },
         columnStyles: {
           1: { halign: "center" },
           2: { halign: "right" },
@@ -959,7 +960,7 @@ export const FaturamentoContent = () => {
         startY: y,
         margin: tableMargin,
         body: [["", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
-        styles: { fontSize: 9, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2, fontStyle: "bold" },
+        styles: { fontSize: 9, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, fontStyle: "bold" },
         columnStyles: {
           6: { halign: "right" },
           7: { halign: "right" },
@@ -995,8 +996,9 @@ export const FaturamentoContent = () => {
               margin: tableMargin,
               head: [["Tipo", "Descrição", "Data", "Valor"]],
               body: gastoRows,
-              styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
-              headStyles: { fillColor: [80, 80, 80], textColor: 255 },
+              styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
+              headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+              alternateRowStyles: { fillColor: [240, 246, 252] },
               columnStyles: {
                 2: { halign: "center" },
                 3: { halign: "right" },
