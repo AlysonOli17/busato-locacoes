@@ -860,7 +860,7 @@ export const FaturamentoContent = () => {
         const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
         const iEf = entrega && entrega > inicio ? entrega : inicio;
         const fEf = devolucao && devolucao < fim ? devolucao : fim;
-        return supabase.from("medicoes").select("equipamento_id, horimetro_final, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
+        return supabase.from("medicoes").select("equipamento_id, horimetro_final, horas_trabalhadas, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
       });
       const medResults = await Promise.all(medPromises);
       const allMedicoes = medResults.flatMap(r => r.data || []);
@@ -873,6 +873,7 @@ export const FaturamentoContent = () => {
         const ce = ceList.find(c => c.equipamento_id === eqId);
         const ae = pdfAditivoEquipMap.get(eqId);
 
+        // Hours worked
         const eqMeds = allMedicoes.filter(m => m.equipamento_id === eqId && (m.tipo || 'Trabalho') === 'Trabalho');
         const byDay = new Map<string, number>();
         for (const m of eqMeds) {
@@ -882,6 +883,13 @@ export const FaturamentoContent = () => {
         }
         const dayValues = Array.from(byDay.values());
         const horasMedidas = dayValues.length >= 2 ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues)) : 0;
+
+        // Hours unavailable
+        const eqIndisp = allMedicoes.filter(m => m.equipamento_id === eqId && m.tipo === 'Indisponível');
+        let horasIndisponiveis = 0;
+        for (const m of eqIndisp) {
+          horasIndisponiveis += Number((m as any).horas_trabalhadas || 0);
+        }
 
         const ajuste = (pdfAjustes || []).filter(a => a.equipamento_id === eqId).sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0] || null;
         const baseVh = ae ? Number(ae.valor_hora) : ce ? Number(ce.valor_hora) : Number(ct.valor_hora);
@@ -928,6 +936,7 @@ export const FaturamentoContent = () => {
           `${fmt(hc)}h`,
           `${fmt(hm)}h`,
           `${fmt(horasMedidas)}h`,
+          `${fmt(horasIndisponiveis)}h`,
           fmtBRL(valorTotal),
         ];
       });
@@ -937,7 +946,7 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Valor Total R$"]],
+        head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Indisponível", "Valor Total R$"]],
         body: eqRows,
         styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
@@ -949,7 +958,8 @@ export const FaturamentoContent = () => {
           4: { halign: "center" },
           5: { halign: "center" },
           6: { halign: "center" },
-          7: { halign: "right" },
+          7: { halign: "center" },
+          8: { halign: "right" },
         },
         theme: "grid",
       });
@@ -959,11 +969,11 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        body: [["", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
+        body: [["", "", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
         styles: { fontSize: 9, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, fontStyle: "bold" },
         columnStyles: {
-          6: { halign: "right" },
           7: { halign: "right" },
+          8: { halign: "right" },
         },
         theme: "grid",
       });
