@@ -322,6 +322,13 @@ const Gastos = () => {
               />
             </div>
             <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
+            <div>
+              <Label>Classificação</Label>
+              <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>Tipo</Label>
