@@ -113,6 +113,7 @@ export const FaturamentoTab = () => {
   const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [equipamentos, setEquipamentos] = useState<EquipamentoInfo[]>([]);
   const [faturaEquips, setFaturaEquips] = useState<Map<string, FaturaEquip[]>>(new Map());
+  const [faturaGastos, setFaturaGastos] = useState<Map<string, { descricao: string; valor: number; tipo: string }[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
