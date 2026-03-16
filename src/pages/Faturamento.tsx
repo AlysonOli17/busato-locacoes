@@ -324,7 +324,7 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours: deduplicate by day (keep highest horimetro), then max - min, minus Indisponível
+      // Calculate hours: deduplicate by day (keep highest horimetro), then max - baseline
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       let horasMedidas = 0;
       if (filteredMedicoes.length > 0) {
@@ -337,9 +337,13 @@ export const FaturamentoContent = () => {
           if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
         }
         const dayValues = Array.from(byDay.values());
-        horasMedidas = dayValues.length >= 2
-          ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues))
-          : 0;
+        if (dayValues.length > 0) {
+          const maior = Math.max(...dayValues);
+          // Use baseline (last reading before cycle) as the minimum reference
+          const baseline = baselineMap.get(eqId);
+          const menor = baseline !== undefined ? baseline : Math.min(...dayValues);
+          horasMedidas = Math.max(0, maior - menor);
+        }
       }
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
