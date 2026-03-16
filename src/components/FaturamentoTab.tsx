@@ -472,9 +472,7 @@ export const FaturamentoTab = () => {
       equips.forEach(fe => {
         const eq = getEquipamento(fe.equipamento_id);
         if (eq) {
-          const totalHoras = Number(fe.horas_normais) + Number(fe.horas_excedentes);
-          const horasInfo = `${totalHoras.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h (${Number(fe.horas_normais).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h normal${Number(fe.horas_excedentes) > 0 ? ` + ${Number(fe.horas_excedentes).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}h exc.` : ""})`;
-          const qtStr = `01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""} — ${horasInfo}`;
+          const qtStr = `01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`;
           const wrappedLines = doc.splitTextToSize(qtStr, contentW - 4);
           wrappedLines.forEach((line: string) => {
             doc.text(line, mLeft + 2, y);
