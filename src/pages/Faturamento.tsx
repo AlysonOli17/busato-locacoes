@@ -960,7 +960,7 @@ export const FaturamentoContent = () => {
         startY: y,
         margin: tableMargin,
         body: [["", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
-        styles: { fontSize: 9, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2, fontStyle: "bold" },
+        styles: { fontSize: 9, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, fontStyle: "bold" },
         columnStyles: {
           6: { halign: "right" },
           7: { halign: "right" },
