@@ -84,6 +84,7 @@ interface GastoItem {
   valor: number;
   data: string;
   equipamento_id: string;
+  classificacao: string;
 }
 
 // Per-equipment form state
