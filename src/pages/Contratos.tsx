@@ -2082,7 +2082,7 @@ const Contratos = () => {
 
       {/* Ajuste Form Dialog */}
       <Dialog open={ajusteFormOpen} onOpenChange={setAjusteFormOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl w-[95vw]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarRange className="h-5 w-5 text-accent" />
