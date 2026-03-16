@@ -497,7 +497,7 @@ export const FaturamentoContent = () => {
       valor: 0,
       data: e.data,
     }));
-    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id");
+    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id, classificacao");
     if (error) {
       toast({ title: "Erro ao registrar", description: error.message, variant: "destructive" });
     } else if (data) {
