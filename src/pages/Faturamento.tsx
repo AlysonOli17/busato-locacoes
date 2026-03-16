@@ -731,78 +731,64 @@ export const FaturamentoContent = () => {
 
       let y = 10;
 
-      // Logo area (left)
-      if (logo) doc.addImage(logo, "PNG", mL, y, 48, 12);
-
-      // Title area (center)
-      const titleX = pageW / 2;
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 0, 0);
-      doc.text("BOLETIM DE MEDIÇÃO", titleX, y + 8, { align: "center" });
-
-      // Document info box (right)
-      const boxW = 58;
-      const boxX = pageW - mR - boxW;
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.4);
-      doc.rect(boxX, y, boxW, 20);
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Nº: ${numDoc}`, boxX + 2, y + 5);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Pág.: 01`, boxX + 2, y + 10);
-      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, boxX + 2, y + 15);
-
-      y += 24;
-
-      // Horizontal separator
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.6);
-      doc.line(mL, y, pageW - mR, y);
-      y += 4;
-
-      // ──────────────── COMPANY INFO BLOCK ────────────────
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 0, 0);
-
       const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
       const busatoCnpj = busatoEmp?.cnpj || "";
       const busatoEnd = busatoEmp ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf].filter(Boolean).join(", ") : "";
-      const busatoCep = busatoEmp?.endereco_cep || "";
+      const busatoCep = busatoEmp?.endereco_cep ? `CEP: ${busatoEmp.endereco_cep}` : "";
       const busatoTel = busatoEmp?.telefone || "";
       const busatoEmail = busatoEmp?.email || "";
-      const busatoResp = busatoEmp?.contato || "";
 
-      const infoLines = [
-        { label: "Empresa:", value: busatoNome },
-        { label: "CNPJ:", value: busatoCnpj },
-        { label: "Endereço:", value: `${busatoEnd}${busatoCep ? `, CEP: ${busatoCep}` : ""}` },
-        { label: "Responsável:", value: busatoResp },
-      ];
+      // ── HEADER: Logo + BUSATO text (left) | Doc number (right) ──
+      const headerH = 22;
+      // Logo
+      if (logo) doc.addImage(logo, "PNG", mL, y, 36, 10);
 
-      const labelW = 28;
-      for (const line of infoLines) {
-        doc.setFont("helvetica", "bold");
-        doc.text(line.label, mL, y);
-        doc.setFont("helvetica", "normal");
-        doc.text(line.value, mL + labelW, y);
-        // Telefone / Email on same line for Responsável
-        y += 4;
-      }
-      if (busatoTel || busatoEmail) {
-        y -= 4;
-        const telEmailStr = [busatoTel ? `Tel: ${busatoTel}` : "", busatoEmail ? `E-mail: ${busatoEmail}` : ""].filter(Boolean).join("    ");
-        doc.text(telEmailStr, pageW / 2, y, { align: "center" });
-        y += 4;
-      }
+      // "BUSATO" large text next to logo
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(41, 128, 185);
+      doc.text("BUSATO", mL + 40, y + 8);
 
-      y += 2;
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.3);
+      // Document number box (right-aligned)
+      const boxW = 50;
+      const boxX = pageW - mR - boxW;
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.5);
+      doc.rect(boxX, y, boxW, headerH);
+      // Inner divider
+      doc.line(boxX, y + headerH / 2, boxX + boxW, y + headerH / 2);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(41, 128, 185);
+      doc.text(numDoc, boxX + boxW / 2, y + 6, { align: "center" });
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, boxX + boxW / 2, y + headerH / 2 + 5, { align: "center" });
+      doc.text(`Pág. 01`, boxX + boxW / 2, y + headerH / 2 + 10, { align: "center" });
+
+      y += headerH + 2;
+
+      // Company info line
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(busatoNome.toUpperCase(), mL, y + 4);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(80, 80, 80);
+      const addressLine = [busatoEnd, busatoCep].filter(Boolean).join(" - ");
+      doc.text(addressLine, mL, y + 3);
+      const cnpjTelLine = [`CNPJ: ${busatoCnpj}`, busatoTel ? `Tel: ${busatoTel}` : "", busatoEmail ? `E-mail: ${busatoEmail}` : ""].filter(Boolean).join("    |    ");
+      doc.text(cnpjTelLine, mL, y + 7);
+      y += 10;
+
+      // Blue separator
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.8);
       doc.line(mL, y, pageW - mR, y);
-      y += 4;
+      y += 5;
 
       // ──────────────── MEASUREMENT INFO BLOCK ────────────────
       const periodoStr = inicio && fim
