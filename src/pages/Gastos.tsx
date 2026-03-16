@@ -273,6 +273,11 @@ const Gastos = () => {
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                     <TableCell className="text-sm">{item.descricao}</TableCell>
                     <TableCell><Badge className={tipoColor(item.tipo)}>{item.tipo}</Badge></TableCell>
+                    <TableCell>
+                      <Badge className={item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0"}>
+                        {item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="font-semibold text-sm">R$ {fmt(item.valor)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(item.data).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
