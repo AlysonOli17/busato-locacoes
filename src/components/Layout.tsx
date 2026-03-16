@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import {
   Wrench, Building2, FileText, Clock,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
-  PanelLeftClose, PanelLeftOpen
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
