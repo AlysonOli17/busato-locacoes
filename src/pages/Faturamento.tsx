@@ -932,22 +932,23 @@ export const FaturamentoContent = () => {
         ];
       });
 
-      // Table with all contract info columns
+      // Table with all contract info columns — auto-expand to fill page
+      const tableMargin = { left: mL, right: mR };
       autoTable(doc, {
         startY: y,
+        margin: tableMargin,
         head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Valor Total R$"]],
         body: eqRows,
-        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.2 },
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
         headStyles: { fillColor: [50, 50, 50], textColor: 255, fontStyle: "bold", halign: "center" },
         columnStyles: {
-          0: { cellWidth: 65 },
-          1: { halign: "center", cellWidth: 22 },
-          2: { halign: "right", cellWidth: 24 },
-          3: { halign: "right", cellWidth: 24 },
-          4: { halign: "center", cellWidth: 20 },
-          5: { halign: "center", cellWidth: 20 },
-          6: { halign: "center", cellWidth: 25 },
-          7: { halign: "right", cellWidth: 30 },
+          1: { halign: "center" },
+          2: { halign: "right" },
+          3: { halign: "right" },
+          4: { halign: "center" },
+          5: { halign: "center" },
+          6: { halign: "center" },
+          7: { halign: "right" },
         },
         theme: "grid",
       });
@@ -956,17 +957,12 @@ export const FaturamentoContent = () => {
       // Total row
       autoTable(doc, {
         startY: y,
+        margin: tableMargin,
         body: [["", "", "", "", "", "", "Medição Total:", fmtBRL(totalMedicao)]],
         styles: { fontSize: 9, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2, fontStyle: "bold" },
         columnStyles: {
-          0: { cellWidth: 65 },
-          1: { cellWidth: 22 },
-          2: { cellWidth: 24 },
-          3: { cellWidth: 24 },
-          4: { cellWidth: 20 },
-          5: { cellWidth: 20 },
-          6: { halign: "right", cellWidth: 25 },
-          7: { halign: "right", cellWidth: 30 },
+          6: { halign: "right" },
+          7: { halign: "right" },
         },
         theme: "grid",
       });
@@ -996,10 +992,15 @@ export const FaturamentoContent = () => {
             ]);
             autoTable(doc, {
               startY: y,
+              margin: tableMargin,
               head: [["Tipo", "Descrição", "Data", "Valor"]],
               body: gastoRows,
-              styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.2 },
+              styles: { fontSize: 8, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.2 },
               headStyles: { fillColor: [80, 80, 80], textColor: 255 },
+              columnStyles: {
+                2: { halign: "center" },
+                3: { halign: "right" },
+              },
               theme: "grid",
             });
             y = (doc as any).lastAutoTable.finalY + 4;
