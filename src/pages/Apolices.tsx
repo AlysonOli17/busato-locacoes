@@ -514,7 +514,7 @@ const Apolices = () => {
   ];
 
   return (
-    <Layout>
+    <Layout title="Apólices de Seguro" subtitle={`${items.length} apólices cadastradas`}>
       <Tabs defaultValue="apolices" className="space-y-6">
         <TabsList>
           <TabsTrigger value="apolices" className="gap-2"><Shield className="h-4 w-4" /> Apólices</TabsTrigger>
