@@ -55,7 +55,7 @@ const Gastos = () => {
     const [gastosRes, equipRes, fatGastosRes] = await Promise.all([
       supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
-      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id, faturamento(numero_sequencial, status, periodo)"),
+      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id, faturamento(numero_sequencial, numero_nota, status, periodo)"),
     ]);
 
     const fatMap = new Map<string, FaturaRef>();
