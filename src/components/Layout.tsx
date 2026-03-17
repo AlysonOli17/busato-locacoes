@@ -24,7 +24,13 @@ const allNavItems = [
   { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
 ];
 
-export const Layout = ({ children }: { children: React.ReactNode }) => {
+interface LayoutProps {
+  children: React.ReactNode;
+  title?: string;
+  subtitle?: string;
+}
+
+export const Layout = ({ children, title, subtitle }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("sidebar-collapsed") === "true";
