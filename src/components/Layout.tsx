@@ -123,7 +123,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
         {/* Collapse toggle - bottom chevron */}
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            const next = !collapsed;
+            setCollapsed(next);
+            localStorage.setItem("sidebar-collapsed", String(next));
+          }}
           className="hidden lg:flex items-center justify-center py-2 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors"
           title={collapsed ? "Expandir menu" : "Recolher menu"}
         >
