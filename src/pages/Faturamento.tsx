@@ -1775,7 +1775,7 @@ export const FaturamentoContent = () => {
                 ))}
                 <div className="flex items-center justify-between text-sm pt-1 border-t border-accent/20">
                   <span className="text-muted-foreground">Valor Bruto ({totalHorasNormais.toFixed(1)}h + {totalHorasExcedentes.toFixed(1)}h exc.)</span>
-                  <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 {totalGastos > 0 && (
                   <div className="flex items-center justify-between text-sm text-accent">
