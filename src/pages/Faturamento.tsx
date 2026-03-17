@@ -1212,9 +1212,29 @@ export const FaturamentoContent = () => {
     setEditing(null);
     setFormContratoId("");
     setFormPeriodo("");
-    // Auto-generate next numero_nota
-    const maxSeq = items.length > 0 ? Math.max(...items.map(f => f.numero_sequencial)) : 0;
-    setFormNumeroNota(`FAT${String(maxSeq + 1).padStart(3, "0")}`);
+    // Auto-generate next numero_nota based on last used nota
+    const notasExistentes = items
+      .map(f => f.numero_nota || "")
+      .filter(n => n.length > 0)
+      .sort((a, b) => {
+        const numA = parseInt((a.match(/\d+$/) || ["0"])[0], 10);
+        const numB = parseInt((b.match(/\d+$/) || ["0"])[0], 10);
+        return numA - numB;
+      });
+    const ultimaNota = notasExistentes.length > 0 ? notasExistentes[notasExistentes.length - 1] : "";
+    if (ultimaNota) {
+      const match = ultimaNota.match(/^(.*?)(\d+)$/);
+      if (match) {
+        const prefix = match[1];
+        const num = parseInt(match[2], 10) + 1;
+        const pad = match[2].length;
+        setFormNumeroNota(`${prefix}${String(num).padStart(pad, "0")}`);
+      } else {
+        setFormNumeroNota("");
+      }
+    } else {
+      setFormNumeroNota("FAT001");
+    }
     setFormStatus("Pendente");
     setFormMedicaoInicio("");
     setFormMedicaoFim("");
