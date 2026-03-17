@@ -1649,7 +1649,7 @@ export const FaturamentoContent = () => {
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>V/h: R$ {ef.valor_hora.toFixed(2)} | V/h exc: R$ {ef.valor_hora_excedente.toFixed(2)}{ef.hora_minima > 0 ? ` | Mín: ${ef.hora_minima}h` : ""}</span>
-                      <span className="font-semibold text-foreground">R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      <span className="font-semibold text-foreground">R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                       {ef.hora_minima > 0 && (
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
