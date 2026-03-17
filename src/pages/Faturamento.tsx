@@ -1492,7 +1492,7 @@ export const FaturamentoContent = () => {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Aprovar Medição Nº {item.numero_sequencial}</AlertDialogTitle>
+                                  <AlertDialogTitle>Aprovar Medição {item.numero_nota || `#${item.numero_sequencial}`}</AlertDialogTitle>
                                   <AlertDialogDescription>Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Deseja continuar?</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
