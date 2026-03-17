@@ -1864,7 +1864,7 @@ export const FaturamentoContent = () => {
 };
 
 const Faturamento = () => (
-  <Layout>
+  <Layout title="Medição">
     <FaturamentoContent />
   </Layout>
 );
