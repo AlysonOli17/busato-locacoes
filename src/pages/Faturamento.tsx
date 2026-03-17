@@ -1770,7 +1770,7 @@ export const FaturamentoContent = () => {
                 {equipForms.map(ef => (
                   <div key={ef.equipamento_id} className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{ef.tipo} {ef.modelo}</span>
-                    <span>R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span>R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between text-sm pt-1 border-t border-accent/20">
