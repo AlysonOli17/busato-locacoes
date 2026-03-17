@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import logoBusato from "@/assets/logo-busato.png";
+import globoBusato from "@/assets/globo-busato.png";
 
 const allNavItems = [
   { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
