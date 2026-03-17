@@ -355,6 +355,7 @@ const Acompanhamento = () => {
                               <p className="text-xs text-muted-foreground font-mono">{f.contratos?.empresas?.cnpj}</p>
                             </div>
                           </TableCell>
+                          <TableCell className="font-mono text-sm">{f.numero_nota || "—"}</TableCell>
                           <TableCell className="text-sm">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {f.periodo_medicao_inicio && f.periodo_medicao_fim
