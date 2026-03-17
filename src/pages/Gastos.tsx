@@ -65,6 +65,7 @@ const Gastos = () => {
           fatMap.set(fg.gasto_id, {
             faturamento_id: fg.faturamento_id,
             numero_sequencial: fg.faturamento.numero_sequencial,
+            numero_nota: fg.faturamento.numero_nota || null,
             status: fg.faturamento.status,
             periodo: fg.faturamento.periodo,
           });
