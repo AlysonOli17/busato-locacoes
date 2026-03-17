@@ -97,12 +97,18 @@ const Gastos = () => {
 
   const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
-  // Summary calcs
-  const totalGastos = filtered.reduce((acc, i) => acc + Number(i.valor), 0);
-  const deduzidos = filtered.filter(i => i.fatura);
+  // Summary calcs - separate mobilização as revenue
+  const mobTypes = ["Mobilização", "Desmobilização"];
+  const gastosSemMob = filtered.filter(i => !mobTypes.includes(i.tipo));
+  const gastosMob = filtered.filter(i => mobTypes.includes(i.tipo));
+  const totalGastos = gastosSemMob.reduce((acc, i) => acc + Number(i.valor), 0);
+  const totalMobilizacao = gastosMob.reduce((acc, i) => acc + Number(i.valor), 0);
+  const deduzidos = gastosSemMob.filter(i => i.fatura);
   const totalDeduzido = deduzidos.reduce((acc, i) => acc + Number(i.valor), 0);
-  const naoDeduzidos = filtered.filter(i => !i.fatura);
+  const naoDeduzidos = gastosSemMob.filter(i => !i.fatura);
   const totalNaoDeduzido = naoDeduzidos.reduce((acc, i) => acc + Number(i.valor), 0);
+  const mobDeduzidos = gastosMob.filter(i => i.fatura);
+  const mobNaoDeduzidos = gastosMob.filter(i => !i.fatura);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Gasto) => {
@@ -167,7 +173,7 @@ const Gastos = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="flex flex-col">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -176,7 +182,18 @@ const Gastos = () => {
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
               <p className="text-2xl font-bold text-foreground">R$ {fmt(totalGastos)}</p>
-              <p className="text-xs text-muted-foreground">{filtered.length} registros no período</p>
+              <p className="text-xs text-muted-foreground">{gastosSemMob.length} registros (sem mob.)</p>
+            </CardContent>
+          </Card>
+          <Card className="flex flex-col border-accent/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-accent flex items-center gap-2">
+                <TrendingDown className="h-4 w-4" /> Receita Mobilização
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
+              <p className="text-2xl font-bold text-accent">R$ {fmt(totalMobilizacao)}</p>
+              <p className="text-xs text-muted-foreground">{gastosMob.length} mob/desmob · {mobDeduzidos.length} faturado(s)</p>
             </CardContent>
           </Card>
           <Card className="flex flex-col">
