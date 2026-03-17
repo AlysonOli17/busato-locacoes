@@ -18,6 +18,7 @@ interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: str
 interface FaturaRef {
   faturamento_id: string;
   numero_sequencial: number;
+  numero_nota: string | null;
   status: string;
   periodo: string;
 }
@@ -54,7 +55,7 @@ const Gastos = () => {
     const [gastosRes, equipRes, fatGastosRes] = await Promise.all([
       supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
-      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id, faturamento(numero_sequencial, status, periodo)"),
+      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id, faturamento(numero_sequencial, numero_nota, status, periodo)"),
     ]);
 
     const fatMap = new Map<string, FaturaRef>();
@@ -64,6 +65,7 @@ const Gastos = () => {
           fatMap.set(fg.gasto_id, {
             faturamento_id: fg.faturamento_id,
             numero_sequencial: fg.faturamento.numero_sequencial,
+            numero_nota: fg.faturamento.numero_nota || null,
             status: fg.faturamento.status,
             periodo: fg.faturamento.periodo,
           });
@@ -287,7 +289,7 @@ const Gastos = () => {
                     <TableCell>
                       {item.fatura ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-medium text-foreground">Fatura #{item.fatura.numero_sequencial}</span>
+                          <span className="text-xs font-medium text-foreground">Fatura {item.fatura.numero_nota || `#${item.fatura.numero_sequencial}`}</span>
                           <Badge className={`text-[10px] ${faturaStatusColor(item.fatura.status)}`}>{item.fatura.status}</Badge>
                         </div>
                       ) : (
