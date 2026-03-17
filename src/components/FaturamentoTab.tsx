@@ -342,7 +342,7 @@ export const FaturamentoTab = () => {
     };
 
     drawLabelValue("DATA DA EMISSÃO", parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR"), mLeft, y, contentW / 2 - 1);
-    drawLabelValue("VALOR DA FATURA", `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, colMid + 1, y, contentW / 2 - 1);
+    drawLabelValue("VALOR DA FATURA", `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colMid + 1, y, contentW / 2 - 1);
     y += 15;
 
     // === CLIENT INFO ===
@@ -417,8 +417,8 @@ export const FaturamentoTab = () => {
         [
           "Locação de Equipamento, sem Cessão de Mão de Obra.",
           "1,00",
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           "",
         ],
       ],
@@ -445,7 +445,7 @@ export const FaturamentoTab = () => {
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text("VALOR TOTAL DA FATURA", mLeft + 2, y + 4.2);
-    doc.text(`R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, pageW - mRight - 2, y + 4.2, { align: "right" });
+    doc.text(`R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - mRight - 2, y + 4.2, { align: "right" });
     y += 8;
 
     // Legal note
@@ -498,7 +498,7 @@ export const FaturamentoTab = () => {
       y += 4;
       doc.setFont("helvetica", "normal");
       allGastos.forEach(g => {
-        const line = `• ${g.tipo} — ${g.descricao}: R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        const line = `• ${g.tipo} — ${g.descricao}: R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         const wrapped = doc.splitTextToSize(line, contentW - 4);
         wrapped.forEach((l: string) => {
           doc.text(l, mLeft + 2, y);
@@ -507,7 +507,7 @@ export const FaturamentoTab = () => {
       });
       const totalGastos = allGastos.reduce((s, g) => s + g.valor, 0);
       doc.setFont("helvetica", "bold");
-      doc.text(`Total Custos Adicionais: R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, mLeft + 2, y);
+      doc.text(`Total Custos Adicionais: R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, mLeft + 2, y);
       y += 5;
       doc.setFont("helvetica", "normal");
     }
@@ -574,7 +574,7 @@ export const FaturamentoTab = () => {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">R$ {totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold text-success">R$ {totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </CardContent>
         </Card>
         <Card>
@@ -583,7 +583,7 @@ export const FaturamentoTab = () => {
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold text-warning">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </CardContent>
         </Card>
         <Card>
@@ -592,7 +592,7 @@ export const FaturamentoTab = () => {
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">R$ {totalAtraso.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold text-destructive">R$ {totalAtraso.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </CardContent>
         </Card>
       </div>
@@ -662,7 +662,7 @@ export const FaturamentoTab = () => {
                     </TableCell>
                     <TableCell className="text-sm">{parseLocalDate(f.emissao).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-sm">{getVencimento(f).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-sm font-mono">{f.numero_nota || "—"}</TableCell>
                     <TableCell>
                       <Badge className={statusColor(status)}>{status}</Badge>

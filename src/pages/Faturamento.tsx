@@ -711,8 +711,8 @@ export const FaturamentoContent = () => {
       i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${parseLocalDate(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
       String(i.horas_normais),
       String(i.horas_excedentes),
-      Number(i.total_gastos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
-      Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+      Number(i.total_gastos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       i.status,
     ]);
     return { title: "Relatório de Medição", headers, rows, filename: `medicao_${new Date().toISOString().slice(0, 10)}` };
@@ -1460,10 +1460,10 @@ export const FaturamentoContent = () => {
                       </TableCell>
                       <TableCell className="text-sm">
                         {itemGastos > 0
-                          ? <span className="text-accent font-semibold">+ R$ {itemGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          ? <span className="text-accent font-semibold">+ R$ {itemGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           : "—"}
                       </TableCell>
-                      <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>
                         {(() => {
                           const displayStatus = getDisplayStatus(item);
@@ -1649,7 +1649,7 @@ export const FaturamentoContent = () => {
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>V/h: R$ {ef.valor_hora.toFixed(2)} | V/h exc: R$ {ef.valor_hora_excedente.toFixed(2)}{ef.hora_minima > 0 ? ` | Mín: ${ef.hora_minima}h` : ""}</span>
-                      <span className="font-semibold text-foreground">R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      <span className="font-semibold text-foreground">R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                       {ef.hora_minima > 0 && (
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
@@ -1722,7 +1722,7 @@ export const FaturamentoContent = () => {
                           </Badge>
                         </span>
                         <span className={`font-semibold shrink-0 ${g.classificacao === "A Reembolsar ao Cliente" ? "text-destructive" : selectedGastos.has(g.id) ? "text-accent" : "text-muted-foreground"}`}>
-                          {g.classificacao === "A Reembolsar ao Cliente" ? "−" : "+"} R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          {g.classificacao === "A Reembolsar ao Cliente" ? "−" : "+"} R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                     );
@@ -1731,7 +1731,7 @@ export const FaturamentoContent = () => {
                 {selectedGastos.size > 0 && (
                   <div className="flex items-center justify-between pt-2 border-t border-accent/20 font-bold text-sm">
                     <span>Total Líquido Custos ({selectedGastos.size}/{gastosEquip.length})</span>
-                    <span className={totalGastos >= 0 ? "text-accent" : "text-destructive"}>{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span className={totalGastos >= 0 ? "text-accent" : "text-destructive"}>{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
               </div>
@@ -1770,22 +1770,22 @@ export const FaturamentoContent = () => {
                 {equipForms.map(ef => (
                   <div key={ef.equipamento_id} className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{ef.tipo} {ef.modelo}</span>
-                    <span>R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span>R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between text-sm pt-1 border-t border-accent/20">
                   <span className="text-muted-foreground">Valor Bruto ({totalHorasNormais.toFixed(1)}h + {totalHorasExcedentes.toFixed(1)}h exc.)</span>
-                  <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 {totalGastos > 0 && (
                   <div className="flex items-center justify-between text-sm text-accent">
                     <span>Custos Adicionais</span>
-                    <span className="font-semibold">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span className="font-semibold">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-accent/20">
                   <span className="text-sm font-medium">Valor Total a Cobrar</span>
-                  <span className="text-2xl font-bold text-accent">R$ {valorLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <span className="text-2xl font-bold text-accent">R$ {valorLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             )}
