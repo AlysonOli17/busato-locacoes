@@ -294,21 +294,21 @@ const Medicoes = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-accent/30 bg-accent/5">
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle></CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-sidebar">{totalHorasGeral.toFixed(1)}h</div>
-              <p className="text-xs text-muted-foreground">{filtered.length} registros{hasFilters ? " (filtrado)" : ""}</p>
+            <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-xs font-medium text-muted-foreground">Total Geral</CardTitle></CardHeader>
+            <CardContent className="px-3 pb-3 pt-0">
+              <div className="text-lg font-bold text-sidebar">{totalHorasGeral.toFixed(1)}h</div>
+              <p className="text-[10px] text-muted-foreground">{filtered.length} registros{hasFilters ? " (filtrado)" : ""}</p>
             </CardContent>
           </Card>
           {Array.from(summaryMap.entries()).map(([id, data]) =>
           <Card key={id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{data.label}</CardTitle>
-                {data.tag && <p className="text-xs font-mono text-muted-foreground">{data.tag}</p>}
+              <CardHeader className="pb-1 pt-3 px-3">
+                <CardTitle className="text-xs font-medium text-muted-foreground">{data.label}</CardTitle>
+                {data.tag && <p className="text-[10px] font-mono text-muted-foreground">{data.tag}</p>}
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-accent">{data.totalHoras.toFixed(1)}h</div>
-                <p className="text-xs text-muted-foreground">{data.entries} registros</p>
+              <CardContent className="px-3 pb-3 pt-0">
+                <div className="text-lg font-bold text-accent">{data.totalHoras.toFixed(1)}h</div>
+                <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
               </CardContent>
             </Card>
           )}

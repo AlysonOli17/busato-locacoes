@@ -561,34 +561,34 @@ const Apolices = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="h-[160px] flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4" /> Apólices Vigentes
+          <Card className="flex flex-col">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5" /> Apólices Vigentes
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className="text-2xl font-bold text-foreground">{vigentes.length}</p>
-              <p className="text-xs text-muted-foreground">de {items.length} cadastradas</p>
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0">
+              <p className="text-lg font-bold text-foreground">{vigentes.length}</p>
+              <p className="text-[10px] text-muted-foreground">de {items.length} cadastradas</p>
             </CardContent>
           </Card>
-          <Card className={`h-[160px] flex flex-col ${vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}`}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <AlertTriangle className={`h-4 w-4 ${vencendoEm30.length > 0 ? "text-destructive" : ""}`} /> Vencimento / Renovação
+          <Card className={`flex flex-col ${vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}`}>
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <AlertTriangle className={`h-3.5 w-3.5 ${vencendoEm30.length > 0 ? "text-destructive" : ""}`} /> Venc. / Renovação
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className={`text-2xl font-bold ${vencendoEm30.length > 0 ? "text-destructive" : "text-foreground"}`}>{vencendoEm30.length}</p>
-              <p className="text-xs text-muted-foreground">vencem nos próximos 30 dias</p>
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0">
+              <p className={`text-lg font-bold ${vencendoEm30.length > 0 ? "text-destructive" : "text-foreground"}`}>{vencendoEm30.length}</p>
+              <p className="text-[10px] text-muted-foreground">próximos 30 dias</p>
               {vencendoEm30.length > 0 && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-1 space-y-0.5">
                   {vencendoEm30.map(a => (
-                    <div key={a.id} className="text-xs flex justify-between items-center">
-                      <span className="font-medium text-foreground truncate mr-2">{getEquipLabels(a)}</span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {a.renovacao_automatica && <RefreshCw className="h-3 w-3 text-success" />}
-                        <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                    <div key={a.id} className="text-[10px] flex justify-between items-center">
+                      <span className="font-medium text-foreground truncate mr-1">{getEquipLabels(a)}</span>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {a.renovacao_automatica && <RefreshCw className="h-2.5 w-2.5 text-success" />}
+                        <Badge variant="outline" className="text-destructive border-destructive/30 text-[9px] px-1 py-0">
                           {new Date(a.vigencia_fim).toLocaleDateString("pt-BR")}
                         </Badge>
                       </div>
@@ -598,26 +598,26 @@ const Apolices = () => {
               )}
             </CardContent>
           </Card>
-          <Card className="h-[160px] flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <CalendarClock className="h-4 w-4" /> Custo Mensal
+          <Card className="flex flex-col">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <CalendarClock className="h-3.5 w-3.5" /> Custo Mensal
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className="text-2xl font-bold text-foreground">R$ {fmt(totalMensal)}</p>
-              <p className="text-xs text-muted-foreground">Estimativa mensal das vigentes</p>
+            <CardContent className="px-3 pb-3 pt-0">
+              <p className="text-lg font-bold text-foreground">R$ {fmt(totalMensal)}</p>
+              <p className="text-[10px] text-muted-foreground">Estimativa mensal das vigentes</p>
             </CardContent>
           </Card>
-          <Card className="h-[160px] flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4" /> Total Anual
+          <Card className="flex flex-col">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5" /> Total Anual
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className="text-2xl font-bold text-foreground">R$ {fmt(totalAnual)}</p>
-              <p className="text-xs text-muted-foreground">Soma das apólices vigentes</p>
+            <CardContent className="px-3 pb-3 pt-0">
+              <p className="text-lg font-bold text-foreground">R$ {fmt(totalAnual)}</p>
+              <p className="text-[10px] text-muted-foreground">Soma das apólices vigentes</p>
             </CardContent>
           </Card>
         </div>
