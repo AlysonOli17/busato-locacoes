@@ -289,7 +289,7 @@ const Gastos = () => {
                     <TableCell>
                       {item.fatura ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-medium text-foreground">Fatura #{item.fatura.numero_sequencial}</span>
+                          <span className="text-xs font-medium text-foreground">Fatura {item.fatura.numero_nota || `#${item.fatura.numero_sequencial}`}</span>
                           <Badge className={`text-[10px] ${faturaStatusColor(item.fatura.status)}`}>{item.fatura.status}</Badge>
                         </div>
                       ) : (
