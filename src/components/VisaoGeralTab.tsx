@@ -100,7 +100,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
       ...item,
       mesLabel: parseLocalDate(item.mes + "-01").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
     }));
-  }, [faturasFiltered, gastosFiltered]);
+  }, [faturasFiltered, gastosSemMob]);
 
   // ============ SETOR CONTRATOS ============
   const contratosAtivos = contratos.filter(c => c.status === "Ativo").length;
