@@ -1364,7 +1364,7 @@ const Contratos = () => {
   };
 
   return (
-    <Layout>
+    <Layout title="Contratos" subtitle={`${items.length} contratos cadastrados`}>
       <Tabs defaultValue="contratos" className="space-y-6">
         <TabsList>
           <TabsTrigger value="contratos" className="gap-2"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
