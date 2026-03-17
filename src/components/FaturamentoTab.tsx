@@ -507,7 +507,7 @@ export const FaturamentoTab = () => {
       });
       const totalGastos = allGastos.reduce((s, g) => s + g.valor, 0);
       doc.setFont("helvetica", "bold");
-      doc.text(`Total Custos Adicionais: R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, mLeft + 2, y);
+      doc.text(`Total Custos Adicionais: R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, mLeft + 2, y);
       y += 5;
       doc.setFont("helvetica", "normal");
     }
