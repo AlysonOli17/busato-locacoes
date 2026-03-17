@@ -342,7 +342,7 @@ export const FaturamentoTab = () => {
     };
 
     drawLabelValue("DATA DA EMISSÃO", parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR"), mLeft, y, contentW / 2 - 1);
-    drawLabelValue("VALOR DA FATURA", `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, colMid + 1, y, contentW / 2 - 1);
+    drawLabelValue("VALOR DA FATURA", `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colMid + 1, y, contentW / 2 - 1);
     y += 15;
 
     // === CLIENT INFO ===
