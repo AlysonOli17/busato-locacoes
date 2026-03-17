@@ -1457,7 +1457,7 @@ export const FaturamentoContent = () => {
                       </TableCell>
                       <TableCell className="text-sm">
                         <div className="flex items-center gap-1">
-                          {item.horas_normais}h{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{item.horas_excedentes}h</span>}
+                          {Number(item.horas_normais).toFixed(1)}h{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{Number(item.horas_excedentes).toFixed(1)}h</span>}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
