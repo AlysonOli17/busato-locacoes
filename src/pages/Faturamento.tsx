@@ -1492,7 +1492,7 @@ export const FaturamentoContent = () => {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Aprovar Medição Nº {item.numero_sequencial}</AlertDialogTitle>
+                                  <AlertDialogTitle>Aprovar Medição {item.numero_nota || `#${item.numero_sequencial}`}</AlertDialogTitle>
                                   <AlertDialogDescription>Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Deseja continuar?</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -1509,7 +1509,7 @@ export const FaturamentoContent = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Medição Nº {item.numero_sequencial}</AlertDialogTitle>
+                                <AlertDialogTitle>Excluir Medição {item.numero_nota || `#${item.numero_sequencial}`}</AlertDialogTitle>
                                 <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -1537,8 +1537,7 @@ export const FaturamentoContent = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-accent" />
-              {editing ? `Editar Medição Nº ${editing.numero_sequencial}` : "Nova Medição"}
-              {editing && <Badge variant="outline" className="ml-2 font-mono">#{editing.numero_sequencial}</Badge>}
+              {editing ? `Editar Medição ${editing.numero_nota || ""}` : "Nova Medição"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
