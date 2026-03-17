@@ -1731,7 +1731,7 @@ export const FaturamentoContent = () => {
                 {selectedGastos.size > 0 && (
                   <div className="flex items-center justify-between pt-2 border-t border-accent/20 font-bold text-sm">
                     <span>Total Líquido Custos ({selectedGastos.size}/{gastosEquip.length})</span>
-                    <span className={totalGastos >= 0 ? "text-accent" : "text-destructive"}>{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span className={totalGastos >= 0 ? "text-accent" : "text-destructive"}>{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
               </div>
