@@ -578,7 +578,7 @@ const Apolices = () => {
                 <AlertTriangle className={`h-3.5 w-3.5 ${vencendoEm30.length > 0 ? "text-destructive" : ""}`} /> Venc. / Renovação
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0">
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0 max-h-[72px]">
               <p className={`text-lg font-bold ${vencendoEm30.length > 0 ? "text-destructive" : "text-foreground"}`}>{vencendoEm30.length}</p>
               <p className="text-[10px] text-muted-foreground">próximos 30 dias</p>
               {vencendoEm30.length > 0 && (

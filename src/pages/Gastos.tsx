@@ -215,18 +215,18 @@ const Gastos = () => {
             </CardContent>
           </Card>
           <Card className="flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <CalendarClock className="h-4 w-4" /> Por Tipo
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <CalendarClock className="h-3.5 w-3.5" /> Por Tipo
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <div className="space-y-1">
+            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0 max-h-[72px]">
+              <div className="space-y-0.5">
                 {tiposGasto.map(t => {
                   const total = filtered.filter(i => i.tipo === t).reduce((a, i) => a + Number(i.valor), 0);
                   if (total === 0) return null;
                   return (
-                    <div key={t} className="flex justify-between text-xs">
+                    <div key={t} className="flex justify-between text-[10px]">
                       <span className="text-muted-foreground">{t}</span>
                       <span className="font-medium text-foreground">R$ {fmt(total)}</span>
                     </div>
