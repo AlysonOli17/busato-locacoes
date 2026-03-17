@@ -445,7 +445,7 @@ export const FaturamentoTab = () => {
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text("VALOR TOTAL DA FATURA", mLeft + 2, y + 4.2);
-    doc.text(`R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, pageW - mRight - 2, y + 4.2, { align: "right" });
+    doc.text(`R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - mRight - 2, y + 4.2, { align: "right" });
     y += 8;
 
     // Legal note
