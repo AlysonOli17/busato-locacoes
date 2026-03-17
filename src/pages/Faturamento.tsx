@@ -1780,7 +1780,7 @@ export const FaturamentoContent = () => {
                 {totalGastos > 0 && (
                   <div className="flex items-center justify-between text-sm text-accent">
                     <span>Custos Adicionais</span>
-                    <span className="font-semibold">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span className="font-semibold">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-accent/20">
