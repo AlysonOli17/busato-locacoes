@@ -91,7 +91,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
       if (!map[mes]) map[mes] = { mes, faturado: 0, gastos: 0 };
       if (f.status === "Pago") map[mes].faturado += Number(f.valor_total);
     });
-    gastosFiltered.forEach(g => {
+    gastosSemMob.forEach(g => {
       const mes = g.data.slice(0, 7);
       if (!map[mes]) map[mes] = { mes, faturado: 0, gastos: 0 };
       map[mes].gastos += Number(g.valor);
