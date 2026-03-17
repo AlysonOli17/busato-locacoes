@@ -57,7 +57,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           collapsed ? "justify-center px-2 py-4" : "justify-center px-5 py-5"
         )}>
           {collapsed ? (
-            <img src={logoBusato} alt="Busato" className="h-8 w-8 object-contain" />
+            <img src={globoBusato} alt="Busato" className="h-9 w-9 object-contain" />
           ) : (
             <div className="flex flex-col items-center gap-1">
               <img src={logoBusato} alt="Busato" className="h-9" />
