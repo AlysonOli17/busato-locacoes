@@ -255,8 +255,9 @@ export const FaturamentoContent = () => {
       const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao;
       const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
-      const fimEfetivo = dataDevolucao && dataDevolucao < fim ? dataDevolucao : fim;
-      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fimEfetivo).order("data", { ascending: true });
+      // Don't limit by dataDevolucao — horímetro readings may be registered after the return date
+      // The proportional billing handles the return date separately
+      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fim).order("data", { ascending: true });
     });
     // Fetch baseline (last reading before cycle start) for each equipment
     const baselinePromises = allEquipIdsWithAditivos.map(eqId => {
