@@ -97,12 +97,18 @@ const Gastos = () => {
 
   const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
-  // Summary calcs
-  const totalGastos = filtered.reduce((acc, i) => acc + Number(i.valor), 0);
-  const deduzidos = filtered.filter(i => i.fatura);
+  // Summary calcs - separate mobilização as revenue
+  const mobTypes = ["Mobilização", "Desmobilização"];
+  const gastosSemMob = filtered.filter(i => !mobTypes.includes(i.tipo));
+  const gastosMob = filtered.filter(i => mobTypes.includes(i.tipo));
+  const totalGastos = gastosSemMob.reduce((acc, i) => acc + Number(i.valor), 0);
+  const totalMobilizacao = gastosMob.reduce((acc, i) => acc + Number(i.valor), 0);
+  const deduzidos = gastosSemMob.filter(i => i.fatura);
   const totalDeduzido = deduzidos.reduce((acc, i) => acc + Number(i.valor), 0);
-  const naoDeduzidos = filtered.filter(i => !i.fatura);
+  const naoDeduzidos = gastosSemMob.filter(i => !i.fatura);
   const totalNaoDeduzido = naoDeduzidos.reduce((acc, i) => acc + Number(i.valor), 0);
+  const mobDeduzidos = gastosMob.filter(i => i.fatura);
+  const mobNaoDeduzidos = gastosMob.filter(i => !i.fatura);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Gasto) => {
