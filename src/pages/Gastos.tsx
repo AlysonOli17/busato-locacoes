@@ -18,6 +18,7 @@ interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: str
 interface FaturaRef {
   faturamento_id: string;
   numero_sequencial: number;
+  numero_nota: string | null;
   status: string;
   periodo: string;
 }
