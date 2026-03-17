@@ -67,6 +67,10 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
   }, [medicoes, dataInicio, dataFim, filtroEquipamento]);
 
   // ============ SETOR FINANCEIRO ============
+  const mobTypes = ["Mobilização", "Desmobilização"];
+  const gastosSemMob = gastosFiltered.filter(g => !mobTypes.includes(g.tipo));
+  const gastosMob = gastosFiltered.filter(g => mobTypes.includes(g.tipo));
+  const totalMobilizacao = gastosMob.reduce((s: number, g: any) => s + Number(g.valor), 0);
   const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s: number, f: any) => s + Number(f.valor_total), 0);
   const totalPendente = faturasFiltered.filter(f => f.status === "Pendente" || f.status === "Aprovado").reduce((s: number, f: any) => s + Number(f.valor_total), 0);
   const totalAtraso = faturasFiltered.filter(f => {
@@ -76,8 +80,8 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
     venc.setDate(venc.getDate() + prazo);
     return new Date() > venc;
   }).reduce((s: number, f: any) => s + Number(f.valor_total), 0);
-  const totalGastos = gastosFiltered.reduce((s: number, g: any) => s + Number(g.valor), 0);
-  const receitaLiquida = totalFaturado - totalGastos;
+  const totalGastos = gastosSemMob.reduce((s: number, g: any) => s + Number(g.valor), 0);
+  const receitaLiquida = totalFaturado + totalMobilizacao - totalGastos;
 
   // Faturamento por mês (chart)
   const faturamentoPorMes = useMemo(() => {
