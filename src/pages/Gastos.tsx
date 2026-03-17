@@ -171,47 +171,47 @@ const Gastos = () => {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4" /> Total de Custos
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5" /> Total de Custos
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className="text-2xl font-bold text-foreground">R$ {fmt(totalGastos)}</p>
-              <p className="text-xs text-muted-foreground">{gastosSemMob.length} registros (sem mob.)</p>
+            <CardContent className="px-3 pb-3 pt-0">
+              <p className="text-lg font-bold text-foreground">R$ {fmt(totalGastos)}</p>
+              <p className="text-[10px] text-muted-foreground">{gastosSemMob.length} registros (sem mob.)</p>
             </CardContent>
           </Card>
           <Card className="flex flex-col border-accent/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-accent flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" /> Receita Mobilização
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-accent flex items-center gap-1.5">
+                <TrendingDown className="h-3.5 w-3.5" /> Receita Mobilização
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className="text-2xl font-bold text-accent">R$ {fmt(totalMobilizacao)}</p>
-              <p className="text-xs text-muted-foreground">{gastosMob.length} mob/desmob · {mobDeduzidos.length} faturado(s)</p>
+            <CardContent className="px-3 pb-3 pt-0">
+              <p className="text-lg font-bold text-accent">R$ {fmt(totalMobilizacao)}</p>
+              <p className="text-[10px] text-muted-foreground">{gastosMob.length} mob/desmob · {mobDeduzidos.length} faturado(s)</p>
             </CardContent>
           </Card>
           <Card className="flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <FileCheck className="h-4 w-4" /> Incluídos em Fatura
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <FileCheck className="h-3.5 w-3.5" /> Incluídos em Fatura
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className="text-2xl font-bold text-success">R$ {fmt(totalDeduzido)}</p>
-              <p className="text-xs text-muted-foreground">{deduzidos.length} custo(s) incluído(s)</p>
+            <CardContent className="px-3 pb-3 pt-0">
+              <p className="text-lg font-bold text-success">R$ {fmt(totalDeduzido)}</p>
+              <p className="text-[10px] text-muted-foreground">{deduzidos.length} custo(s) incluído(s)</p>
             </CardContent>
           </Card>
           <Card className="flex flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" /> Não Incluídos
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <TrendingDown className="h-3.5 w-3.5" /> Não Incluídos
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin">
-              <p className="text-2xl font-bold text-destructive">R$ {fmt(totalNaoDeduzido)}</p>
-              <p className="text-xs text-muted-foreground">{naoDeduzidos.length} custo(s) sem fatura</p>
+            <CardContent className="px-3 pb-3 pt-0">
+              <p className="text-lg font-bold text-destructive">R$ {fmt(totalNaoDeduzido)}</p>
+              <p className="text-[10px] text-muted-foreground">{naoDeduzidos.length} custo(s) sem fatura</p>
             </CardContent>
           </Card>
           <Card className="flex flex-col">
