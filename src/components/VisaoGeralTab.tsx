@@ -67,6 +67,10 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
   }, [medicoes, dataInicio, dataFim, filtroEquipamento]);
 
   // ============ SETOR FINANCEIRO ============
+  const mobTypes = ["Mobilização", "Desmobilização"];
+  const gastosSemMob = gastosFiltered.filter(g => !mobTypes.includes(g.tipo));
+  const gastosMob = gastosFiltered.filter(g => mobTypes.includes(g.tipo));
+  const totalMobilizacao = gastosMob.reduce((s: number, g: any) => s + Number(g.valor), 0);
   const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s: number, f: any) => s + Number(f.valor_total), 0);
   const totalPendente = faturasFiltered.filter(f => f.status === "Pendente" || f.status === "Aprovado").reduce((s: number, f: any) => s + Number(f.valor_total), 0);
   const totalAtraso = faturasFiltered.filter(f => {
@@ -76,8 +80,8 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
     venc.setDate(venc.getDate() + prazo);
     return new Date() > venc;
   }).reduce((s: number, f: any) => s + Number(f.valor_total), 0);
-  const totalGastos = gastosFiltered.reduce((s: number, g: any) => s + Number(g.valor), 0);
-  const receitaLiquida = totalFaturado - totalGastos;
+  const totalGastos = gastosSemMob.reduce((s: number, g: any) => s + Number(g.valor), 0);
+  const receitaLiquida = totalFaturado + totalMobilizacao - totalGastos;
 
   // Faturamento por mês (chart)
   const faturamentoPorMes = useMemo(() => {
@@ -258,7 +262,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
           <DollarSign className="h-5 w-5 text-success" />
           Financeiro
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground">Receita Total</CardTitle>
@@ -286,6 +290,16 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
               <p className="text-xl font-bold text-destructive">R$ {fmt(totalAtraso)}</p>
             </CardContent>
           </Card>
+          <Card className="border-accent/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-accent">Receita Mobilização</CardTitle>
+              <TrendingUp className="h-4 w-4 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-xl font-bold text-accent">R$ {fmt(totalMobilizacao)}</p>
+              <p className="text-[10px] text-muted-foreground">{gastosMob.length} mob/desmob</p>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground">Total Gastos</CardTitle>
@@ -293,6 +307,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
             </CardHeader>
             <CardContent>
               <p className="text-xl font-bold text-destructive">R$ {fmt(totalGastos)}</p>
+              <p className="text-[10px] text-muted-foreground">Sem mobilização</p>
             </CardContent>
           </Card>
           <Card>
