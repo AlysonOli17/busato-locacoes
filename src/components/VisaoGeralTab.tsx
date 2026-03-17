@@ -262,7 +262,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
           <DollarSign className="h-5 w-5 text-success" />
           Financeiro
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground">Receita Total</CardTitle>
@@ -290,6 +290,16 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
               <p className="text-xl font-bold text-destructive">R$ {fmt(totalAtraso)}</p>
             </CardContent>
           </Card>
+          <Card className="border-accent/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-accent">Receita Mobilização</CardTitle>
+              <TrendingUp className="h-4 w-4 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-xl font-bold text-accent">R$ {fmt(totalMobilizacao)}</p>
+              <p className="text-[10px] text-muted-foreground">{gastosMob.length} mob/desmob</p>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground">Total Gastos</CardTitle>
@@ -297,6 +307,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
             </CardHeader>
             <CardContent>
               <p className="text-xl font-bold text-destructive">R$ {fmt(totalGastos)}</p>
+              <p className="text-[10px] text-muted-foreground">Sem mobilização</p>
             </CardContent>
           </Card>
           <Card>
