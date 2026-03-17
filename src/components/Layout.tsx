@@ -160,7 +160,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
           <NotificationsDropdown />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin">
+        <main className="flex-1 overflow-y-auto p-3 md:p-4 scrollbar-thin">
           <div className="animate-fade-in">{children}</div>
         </main>
       </div>
