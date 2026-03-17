@@ -188,7 +188,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
       })
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 5);
-  }, [gastosFiltered, equipamentos]);
+  }, [gastosSemMob, equipamentos]);
 
   // Faturamento por empresa
   const faturamentoPorEmpresa = useMemo(() => {
