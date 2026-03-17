@@ -1051,7 +1051,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     </>
   );
 
-  return embedded ? content : <Layout>{content}</Layout>;
+  return embedded ? content : <Layout title="Propostas Comerciais" subtitle={`${items.length} propostas cadastradas`}>{content}</Layout>;
 };
 
 export const PropostasContent = () => <Propostas embedded />;
