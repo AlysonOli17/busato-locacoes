@@ -335,6 +335,7 @@ const Acompanhamento = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Empresa</TableHead>
+                      <TableHead>Nº Nota</TableHead>
                       <TableHead>Equipamento</TableHead>
                       <TableHead>Período Medição</TableHead>
                       <TableHead>Emissão</TableHead>
