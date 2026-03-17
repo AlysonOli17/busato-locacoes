@@ -718,10 +718,6 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Propostas Comerciais</h1>
-            <p className="text-sm text-muted-foreground">{items.length} propostas cadastradas</p>
-          </div>
           <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" /> Nova Proposta
           </Button>
@@ -1051,7 +1047,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     </>
   );
 
-  return embedded ? content : <Layout>{content}</Layout>;
+  return embedded ? content : <Layout title="Propostas Comerciais" subtitle={`${items.length} propostas cadastradas`}>{content}</Layout>;
 };
 
 export const PropostasContent = () => <Propostas embedded />;

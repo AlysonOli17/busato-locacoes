@@ -1364,7 +1364,7 @@ const Contratos = () => {
   };
 
   return (
-    <Layout>
+    <Layout title="Contratos" subtitle={`${items.length} contratos cadastrados`}>
       <Tabs defaultValue="contratos" className="space-y-6">
         <TabsList>
           <TabsTrigger value="contratos" className="gap-2"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
@@ -1373,10 +1373,6 @@ const Contratos = () => {
         <TabsContent value="contratos">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Contratos</h1>
-            <p className="text-sm text-muted-foreground">{items.length} contratos cadastrados{selected.size > 0 && ` · ${selected.size} selecionado(s)`}</p>
-          </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportDetailedPDF}>
               <FileDown className="h-4 w-4 mr-1" /> Movimentação

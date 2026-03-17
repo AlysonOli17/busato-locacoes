@@ -209,7 +209,7 @@ const Medicoes = () => {
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
   return (
-    <Layout>
+    <Layout title="Medições / Faturamento">
       <Tabs defaultValue="medicoes" className="space-y-6">
         <TabsList>
           <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
