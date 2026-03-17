@@ -150,6 +150,12 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
             <Menu className="h-5 w-5" />
           </button>
           <div className="lg:hidden font-semibold text-sm text-foreground">Busato Locações</div>
+          {title && (
+            <div className="hidden lg:block min-w-0">
+              <h1 className="text-lg font-bold text-foreground leading-tight truncate">{title}</h1>
+              {subtitle && <p className="text-xs text-muted-foreground leading-tight truncate">{subtitle}</p>}
+            </div>
+          )}
           <div className="flex-1" />
           <NotificationsDropdown />
         </header>
