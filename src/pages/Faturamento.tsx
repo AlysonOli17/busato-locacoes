@@ -1533,14 +1533,14 @@ export const FaturamentoContent = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-accent" />
               {editing ? `Editar Medição ${editing.numero_nota || ""}` : "Nova Medição"}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div className="grid gap-4 py-4 pr-2">
             <div>
               <Label>Contrato</Label>
               <SearchableSelect
