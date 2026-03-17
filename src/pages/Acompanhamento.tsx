@@ -405,36 +405,48 @@ const Acompanhamento = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {empresas
-                      .filter(e => filtroEmpresa === "all" || e.id === filtroEmpresa)
-                      .map(emp => {
-                        const empContratos = contratos.filter(c => c.empresa_id === emp.id);
-                        const empFaturas = faturas.filter(f => {
-                          const ct = contratos.find(c => c.id === f.contrato_id);
-                          return ct?.empresa_id === emp.id;
-                        });
-                        const pagas = empFaturas.filter(f => f.status === "Pago").length;
-                        const pendentes = empFaturas.filter(f => getDisplayStatus(f) === "Pendente").length;
-                        const atraso = empFaturas.filter(f => getDisplayStatus(f) === "Em Atraso").length;
-                        const total = empFaturas.reduce((s, f) => s + Number(f.valor_total), 0);
-                        if (empContratos.length === 0 && empFaturas.length === 0) return null;
-                        return (
-                          <TableRow key={emp.id}>
+                    {(() => {
+                      const empresasFiltradas = empresas.filter(e => filtroEmpresa === "all" || e.id === filtroEmpresa);
+                      // Group by nome
+                      const grouped: Record<string, { ids: string[]; cnpjs: string[] }> = {};
+                      empresasFiltradas.forEach(emp => {
+                        if (!grouped[emp.nome]) grouped[emp.nome] = { ids: [], cnpjs: [] };
+                        grouped[emp.nome].ids.push(emp.id);
+                        if (!grouped[emp.nome].cnpjs.includes(emp.cnpj)) grouped[emp.nome].cnpjs.push(emp.cnpj);
+                      });
+                      return Object.entries(grouped)
+                        .map(([nome, { ids, cnpjs }]) => {
+                          const empContratos = contratos.filter(c => ids.includes(c.empresa_id));
+                          const empFaturas = faturas.filter(f => {
+                            const ct = contratos.find(c => c.id === f.contrato_id);
+                            return ct && ids.includes(ct.empresa_id);
+                          });
+                          const pagas = empFaturas.filter(f => f.status === "Pago").length;
+                          const pendentes = empFaturas.filter(f => getDisplayStatus(f) === "Pendente").length;
+                          const atraso = empFaturas.filter(f => getDisplayStatus(f) === "Em Atraso").length;
+                          const total = empFaturas.reduce((s, f) => s + Number(f.valor_total), 0);
+                          if (empContratos.length === 0 && empFaturas.length === 0) return null;
+                          return { nome, cnpjs, empContratos: empContratos.length, empFaturas: empFaturas.length, pagas, pendentes, atraso, total };
+                        })
+                        .filter(Boolean)
+                        .sort((a, b) => b!.empContratos - a!.empContratos)
+                        .map((row) => (
+                          <TableRow key={row!.nome}>
                             <TableCell>
                               <div>
-                                <p className="font-medium text-sm">{emp.nome}</p>
-                                <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
+                                <p className="font-medium text-sm">{row!.nome}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{row!.cnpjs.join(", ")}</p>
                               </div>
                             </TableCell>
-                            <TableCell className="text-sm">{empContratos.length}</TableCell>
-                            <TableCell className="text-sm">{empFaturas.length}</TableCell>
-                            <TableCell className="text-sm text-success font-semibold">{pagas}</TableCell>
-                            <TableCell className="text-sm text-warning font-semibold">{pendentes}</TableCell>
-                            <TableCell className="text-sm text-destructive font-semibold">{atraso}</TableCell>
-                            <TableCell className="font-bold text-sm">R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-sm">{row!.empContratos}</TableCell>
+                            <TableCell className="text-sm">{row!.empFaturas}</TableCell>
+                            <TableCell className="text-sm text-success font-semibold">{row!.pagas}</TableCell>
+                            <TableCell className="text-sm text-warning font-semibold">{row!.pendentes}</TableCell>
+                            <TableCell className="text-sm text-destructive font-semibold">{row!.atraso}</TableCell>
+                            <TableCell className="font-bold text-sm">R$ {row!.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                           </TableRow>
-                        );
-                      }).filter(Boolean)}
+                        ));
+                    })()}
                   </TableBody>
                 </Table>
               </CardContent>
