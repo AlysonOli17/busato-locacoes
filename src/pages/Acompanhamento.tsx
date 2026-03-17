@@ -38,6 +38,7 @@ interface Fatura {
   id: string;
   contrato_id: string;
   emissao: string;
+  numero_nota: string | null;
   status: string;
   valor_total: number;
   horas_normais: number;
