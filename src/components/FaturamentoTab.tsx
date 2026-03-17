@@ -417,8 +417,8 @@ export const FaturamentoTab = () => {
         [
           "Locação de Equipamento, sem Cessão de Mão de Obra.",
           "1,00",
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           "",
         ],
       ],
