@@ -1509,7 +1509,7 @@ export const FaturamentoContent = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Medição Nº {item.numero_sequencial}</AlertDialogTitle>
+                                <AlertDialogTitle>Excluir Medição {item.numero_nota || `#${item.numero_sequencial}`}</AlertDialogTitle>
                                 <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
