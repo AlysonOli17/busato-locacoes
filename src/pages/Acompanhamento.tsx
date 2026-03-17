@@ -38,6 +38,7 @@ interface Fatura {
   id: string;
   contrato_id: string;
   emissao: string;
+  numero_nota: string | null;
   status: string;
   valor_total: number;
   horas_normais: number;
@@ -334,6 +335,7 @@ const Acompanhamento = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Empresa</TableHead>
+                      <TableHead>Nº Nota</TableHead>
                       <TableHead>Equipamento</TableHead>
                       <TableHead>Período Medição</TableHead>
                       <TableHead>Emissão</TableHead>
@@ -353,6 +355,7 @@ const Acompanhamento = () => {
                               <p className="text-xs text-muted-foreground font-mono">{f.contratos?.empresas?.cnpj}</p>
                             </div>
                           </TableCell>
+                          <TableCell className="font-mono text-sm">{f.numero_nota || "—"}</TableCell>
                           <TableCell className="text-sm">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {f.periodo_medicao_inicio && f.periodo_medicao_fim
