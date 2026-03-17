@@ -1785,7 +1785,7 @@ export const FaturamentoContent = () => {
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-accent/20">
                   <span className="text-sm font-medium">Valor Total a Cobrar</span>
-                  <span className="text-2xl font-bold text-accent">R$ {valorLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <span className="text-2xl font-bold text-accent">R$ {valorLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             )}
