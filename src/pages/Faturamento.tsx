@@ -1460,10 +1460,10 @@ export const FaturamentoContent = () => {
                       </TableCell>
                       <TableCell className="text-sm">
                         {itemGastos > 0
-                          ? <span className="text-accent font-semibold">+ R$ {itemGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          ? <span className="text-accent font-semibold">+ R$ {itemGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           : "—"}
                       </TableCell>
-                      <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>
                         {(() => {
                           const displayStatus = getDisplayStatus(item);
