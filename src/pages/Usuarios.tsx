@@ -207,13 +207,9 @@ const Usuarios = () => {
   };
 
   return (
-    <Layout>
+    <Layout title="Usuários & Permissões" subtitle={`${users.length} usuários cadastrados`}>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Usuários & Permissões</h1>
-            <p className="text-sm text-muted-foreground">{users.length} usuários cadastrados</p>
-          </div>
           <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" /> Novo Usuário
           </Button>

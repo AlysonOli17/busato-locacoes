@@ -182,14 +182,8 @@ const Acompanhamento = () => {
   };
 
   return (
-    <Layout>
+    <Layout title="Acompanhamento Geral" subtitle="Visão completa de faturamento, vencimentos e alertas">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Acompanhamento Geral</h1>
-            <p className="text-sm text-muted-foreground">Visão completa de faturamento, vencimentos e alertas</p>
-          </div>
-        </div>
 
         <Tabs defaultValue="visao-geral" className="w-full">
           <TabsList>
