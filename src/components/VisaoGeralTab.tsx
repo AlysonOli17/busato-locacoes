@@ -91,7 +91,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
       if (!map[mes]) map[mes] = { mes, faturado: 0, gastos: 0 };
       if (f.status === "Pago") map[mes].faturado += Number(f.valor_total);
     });
-    gastosFiltered.forEach(g => {
+    gastosSemMob.forEach(g => {
       const mes = g.data.slice(0, 7);
       if (!map[mes]) map[mes] = { mes, faturado: 0, gastos: 0 };
       map[mes].gastos += Number(g.valor);
@@ -100,7 +100,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
       ...item,
       mesLabel: parseLocalDate(item.mes + "-01").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
     }));
-  }, [faturasFiltered, gastosFiltered]);
+  }, [faturasFiltered, gastosSemMob]);
 
   // ============ SETOR CONTRATOS ============
   const contratosAtivos = contratos.filter(c => c.status === "Ativo").length;
@@ -178,7 +178,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
   // Top 5 equipamentos por gastos
   const topEquipGastos = useMemo(() => {
     const map: Record<string, number> = {};
-    gastosFiltered.forEach(g => {
+    gastosSemMob.forEach(g => {
       map[g.equipamento_id] = (map[g.equipamento_id] || 0) + Number(g.valor);
     });
     return Object.entries(map)
@@ -188,7 +188,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
       })
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 5);
-  }, [gastosFiltered, equipamentos]);
+  }, [gastosSemMob, equipamentos]);
 
   // Faturamento por empresa
   const faturamentoPorEmpresa = useMemo(() => {
