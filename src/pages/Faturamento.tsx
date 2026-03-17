@@ -1540,7 +1540,7 @@ export const FaturamentoContent = () => {
               {editing ? `Editar Medição ${editing.numero_nota || ""}` : "Nova Medição"}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div className="grid gap-4 py-4 pr-2">
             <div>
               <Label>Contrato</Label>
               <SearchableSelect
