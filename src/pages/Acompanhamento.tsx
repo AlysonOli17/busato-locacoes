@@ -102,7 +102,7 @@ const Acompanhamento = () => {
     if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
     const venc = getVencimento(fatura);
     if (new Date() > venc) return "Em Atraso";
-    return fatura.status;
+    return "Pendente";
   };
 
   const calcCurrentPeriod = (ct: Contrato) => {
