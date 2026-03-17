@@ -427,26 +427,42 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
                 <PieChart className="h-4 w-4 text-primary" /> Faturas por Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex justify-center">
+            <CardContent>
               {faturasPorStatus.length > 0 ? (
-                <div className="h-[280px] w-full max-w-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPie>
-                      <Pie
-                        data={faturasPorStatus}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {faturasPorStatus.map((entry) => (
-                          <Cell key={entry.name} fill={PIE_COLORS[entry.name] || "hsl(var(--muted))"} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => [value, "Qtd"]} />
-                    </RechartsPie>
-                  </ResponsiveContainer>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="h-[220px] w-full max-w-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPie>
+                        <Pie
+                          data={faturasPorStatus}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={90}
+                          dataKey="value"
+                          paddingAngle={2}
+                        >
+                          {faturasPorStatus.map((entry) => (
+                            <Cell key={entry.name} fill={PIE_COLORS[entry.name] || "hsl(var(--muted))"} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => [value, "Qtd"]} />
+                      </RechartsPie>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {faturasPorStatus.map((entry) => {
+                      const total = faturasPorStatus.reduce((s, e) => s + e.value, 0);
+                      const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+                      return (
+                        <div key={entry.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: PIE_COLORS[entry.name] || "hsl(var(--muted))" }} />
+                          <span className="text-muted-foreground">{entry.name}</span>
+                          <span className="font-semibold text-foreground">{entry.value} ({pct}%)</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-12">Sem dados</p>
