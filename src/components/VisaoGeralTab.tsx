@@ -178,7 +178,7 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
   // Top 5 equipamentos por gastos
   const topEquipGastos = useMemo(() => {
     const map: Record<string, number> = {};
-    gastosFiltered.forEach(g => {
+    gastosSemMob.forEach(g => {
       map[g.equipamento_id] = (map[g.equipamento_id] || 0) + Number(g.valor);
     });
     return Object.entries(map)
