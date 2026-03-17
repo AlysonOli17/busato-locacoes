@@ -406,7 +406,8 @@ export const FaturamentoContent = () => {
         const inicioDate = parseLocalDate(refInicio);
         const fimDate = parseLocalDate(fim);
         const devolucaoDate = parseLocalDate(dataDevolucao);
-        const diasTotais = Math.max(1, Math.round((fimDate.getTime() - parseLocalDate(inicio).getTime()) / (1000 * 60 * 60 * 24)));
+        // Use full month days (fim - inicio + 1) for total days calculation
+        const diasTotais = Math.max(1, Math.round((fimDate.getTime() - parseLocalDate(inicio).getTime()) / (1000 * 60 * 60 * 24)) + 1);
         const diasUsados = Math.max(1, Math.round((devolucaoDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
         const fatorProporcional = diasUsados / diasTotais;
         horasContratadas = Number((baseHoras * fatorProporcional).toFixed(1));
