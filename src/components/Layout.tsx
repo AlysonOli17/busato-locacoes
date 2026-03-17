@@ -26,7 +26,9 @@ const allNavItems = [
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
   const { role, permissions, signOut, profile } = useAuth();
 
   const navItems = allNavItems.filter(item => {
