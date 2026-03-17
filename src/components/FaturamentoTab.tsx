@@ -498,7 +498,7 @@ export const FaturamentoTab = () => {
       y += 4;
       doc.setFont("helvetica", "normal");
       allGastos.forEach(g => {
-        const line = `• ${g.tipo} — ${g.descricao}: R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        const line = `• ${g.tipo} — ${g.descricao}: R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         const wrapped = doc.splitTextToSize(line, contentW - 4);
         wrapped.forEach((l: string) => {
           doc.text(l, mLeft + 2, y);
