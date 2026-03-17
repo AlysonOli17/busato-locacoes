@@ -340,10 +340,34 @@ export const FaturamentoContent = () => {
         const dayValues = Array.from(byDay.values());
         if (dayValues.length > 0) {
           const maior = Math.max(...dayValues);
-          // Use baseline (last reading before cycle) as the minimum reference
           const baseline = baselineMap.get(eqId);
           const menor = baseline !== undefined ? baseline : Math.min(...dayValues);
-          horasMedidas = Math.max(0, maior - menor);
+          const horasTotaisPeriodo = Math.max(0, maior - menor);
+
+          // Handle return date mid-period: use actual hours if reading exists on return date,
+          // otherwise proportionally distribute measured hours
+          if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
+            const temLeituraNaDevolucao = byDay.has(dataDevolucao);
+            if (temLeituraNaDevolucao) {
+              // Reading exists on return date — use actual hours up to that date
+              const daysUpToReturn = [...byDay.entries()].filter(([d]) => d <= dataDevolucao);
+              if (daysUpToReturn.length > 0) {
+                const maiorAteDevol = Math.max(...daysUpToReturn.map(([, v]) => v));
+                horasMedidas = Math.max(0, maiorAteDevol - menor);
+              }
+            } else {
+              // No reading on return date — proportionally distribute hours
+              const refInicio = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
+              const refInicioDate = parseLocalDate(refInicio);
+              const fimDate = parseLocalDate(fim);
+              const devolucaoDate = parseLocalDate(dataDevolucao);
+              const diasTotais = Math.max(1, Math.round((fimDate.getTime() - refInicioDate.getTime()) / (1000 * 60 * 60 * 24)));
+              const diasAteDevol = Math.max(1, Math.round((devolucaoDate.getTime() - refInicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+              horasMedidas = Number((horasTotaisPeriodo * diasAteDevol / diasTotais).toFixed(1));
+            }
+          } else {
+            horasMedidas = horasTotaisPeriodo;
+          }
         }
       }
 
