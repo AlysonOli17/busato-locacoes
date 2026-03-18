@@ -147,9 +147,8 @@ const Medicoes = () => {
     let totalHoras = 0;
     if (dayValues.length > 0) {
       const maior = Math.max(...dayValues);
-      // Use baseline (last reading before period) if available, otherwise use min of period values
-      const baseline = baselines.get(eqId);
-      const menor = baseline !== undefined ? baseline : (dayValues.length >= 2 ? Math.min(...dayValues) : maior);
+      // Use min of values within filtered period (max - min of horimetro_final)
+      const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
       totalHoras = Math.max(0, maior - menor);
     }
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
