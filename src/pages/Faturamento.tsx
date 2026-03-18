@@ -1582,11 +1582,43 @@ export const FaturamentoContent = () => {
             </div>
 
             {selectedContrato && (
-              <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
-                <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome} ({selectedContrato.empresas?.cnpj})</p>
-                <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30}</p>
-                <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
-                <p><strong>Equipamentos no contrato:</strong> {selectedContrato.contratos_equipamentos?.length || 1}</p>
+              <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                  <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome}</p>
+                  <p><strong>CNPJ:</strong> {selectedContrato.empresas?.cnpj}</p>
+                  <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30}</p>
+                  <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
+                  <p><strong>Vigência:</strong> {parseLocalDate(selectedContrato.data_inicio).toLocaleDateString("pt-BR")} a {parseLocalDate(selectedContrato.data_fim).toLocaleDateString("pt-BR")}</p>
+                  <p><strong>Contato:</strong> {selectedContrato.empresas?.contato || "—"} {selectedContrato.empresas?.telefone ? `/ ${selectedContrato.empresas.telefone}` : ""}</p>
+                </div>
+
+                {/* Equipment details from contract + addendums + adjustments */}
+                {equipForms.length > 0 && (
+                  <div className="border-t border-border/50 pt-2 space-y-1.5">
+                    <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Equipamentos ({equipForms.length})</p>
+                    <div className="space-y-1">
+                      {equipForms.map(ef => (
+                        <div key={ef.equipamento_id} className="flex items-center justify-between text-xs p-1.5 rounded bg-background/60">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
+                            {ef.ajuste && <Badge variant="outline" className="text-[10px] h-4 border-accent text-accent px-1">Ajuste</Badge>}
+                            {ef.aditivo && <Badge variant="outline" className="text-[10px] h-4 border-primary text-primary px-1">Aditivo {ef.aditivo_numero ? `#${ef.aditivo_numero}` : ""}</Badge>}
+                            {ef.primeiro_mes && <Badge variant="outline" className="text-[10px] h-4 border-success text-success px-1">1º Mês</Badge>}
+                            {ef.data_devolucao && <Badge variant="outline" className="text-[10px] h-4 border-warning text-warning px-1">Devolução</Badge>}
+                          </div>
+                          <div className="flex items-center gap-3 text-muted-foreground">
+                            <span>R$ {ef.valor_hora.toFixed(2)}/h</span>
+                            <span>{ef.horas_contratadas}h contrat.</span>
+                            {ef.hora_minima > 0 && <span>Mín: {ef.hora_minima}h</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {equipForms.length === 0 && !loadingMedicoes && formMedicaoInicio && formMedicaoFim && (
+                  <p className="text-xs text-muted-foreground border-t border-border/50 pt-2">Nenhum equipamento ativo no período selecionado.</p>
+                )}
               </div>
             )}
 
