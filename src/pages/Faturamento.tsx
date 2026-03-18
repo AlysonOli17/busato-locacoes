@@ -301,7 +301,7 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours: deduplicate by day (keep highest horimetro), then max - baseline
+      // Calculate hours with the same Horímetro rule: highest - lowest horimetro within filtered period
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       let horasMedidas = 0;
       if (filteredMedicoes.length > 0) {
@@ -316,8 +316,7 @@ export const FaturamentoContent = () => {
         const dayValues = Array.from(byDay.values());
         if (dayValues.length > 0) {
           const maior = Math.max(...dayValues);
-          const baseline = baselineMap.get(eqId);
-          const menor = baseline !== undefined ? baseline : (dayValues.length >= 2 ? Math.min(...dayValues) : maior);
+          const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
           const horasTotaisPeriodo = Math.max(0, maior - menor);
 
           // Handle return date mid-period: use actual hours if reading exists on return date,
