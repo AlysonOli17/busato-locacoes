@@ -247,26 +247,13 @@ export const FaturamentoContent = () => {
 
     const ajustesData = ajustesRes.data || [];
 
-    // Fetch measurements per equipment — always use full period (inicio to fim) to match Horímetro tab
+    // Fetch measurements per equipment using the exact filtered period used in Horímetro
     // Delivery/return date adjustments are handled separately in proportional billing
     const medPromises = allEquipIdsWithAditivos.map(eqId => {
       return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicio).lte("data", fim).order("data", { ascending: true });
     });
-    // Fetch baseline (last reading before period start) for each equipment — matches Horímetro tab logic
-    const baselinePromises = allEquipIdsWithAditivos.map(eqId => {
-      return supabase.from("medicoes").select("equipamento_id, horimetro_final").eq("equipamento_id", eqId).lt("data", inicio).order("data", { ascending: false }).limit(1);
-    });
-    const [medResults, baselineResults] = await Promise.all([
-      Promise.all(medPromises),
-      Promise.all(baselinePromises),
-    ]);
+    const medResults = await Promise.all(medPromises);
     const medicoesData = medResults.flatMap(r => r.data || []);
-    const baselineMap = new Map<string, number>();
-    baselineResults.forEach(r => {
-      if (r.data && r.data.length > 0) {
-        baselineMap.set(r.data[0].equipamento_id, Number(r.data[0].horimetro_final));
-      }
-    });
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
 
     // Final filter: exclude equipment returned before period or not yet delivered
@@ -314,7 +301,7 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours: deduplicate by day (keep highest horimetro), then max - baseline
+      // Calculate hours with the same Horímetro rule: highest - lowest horimetro within filtered period
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       let horasMedidas = 0;
       if (filteredMedicoes.length > 0) {
@@ -329,8 +316,7 @@ export const FaturamentoContent = () => {
         const dayValues = Array.from(byDay.values());
         if (dayValues.length > 0) {
           const maior = Math.max(...dayValues);
-          const baseline = baselineMap.get(eqId);
-          const menor = baseline !== undefined ? baseline : (dayValues.length >= 2 ? Math.min(...dayValues) : maior);
+          const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
           const horasTotaisPeriodo = Math.max(0, maior - menor);
 
           // Handle return date mid-period: use actual hours if reading exists on return date,
