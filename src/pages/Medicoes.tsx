@@ -51,6 +51,7 @@ const Medicoes = () => {
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [horimetroAnterior, setHorimetroAnterior] = useState<number>(0);
+  const [baselines, setBaselines] = useState<Map<string, number>>(new Map());
   const { toast } = useToast();
 
   const fetchData = async () => {
