@@ -330,7 +330,7 @@ export const FaturamentoContent = () => {
         if (dayValues.length > 0) {
           const maior = Math.max(...dayValues);
           const baseline = baselineMap.get(eqId);
-          const menor = baseline !== undefined ? baseline : Math.min(...dayValues);
+          const menor = baseline !== undefined ? baseline : (dayValues.length >= 2 ? Math.min(...dayValues) : maior);
           const horasTotaisPeriodo = Math.max(0, maior - menor);
 
           // Handle return date mid-period: use actual hours if reading exists on return date,
