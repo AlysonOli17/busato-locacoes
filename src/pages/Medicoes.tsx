@@ -92,6 +92,35 @@ const Medicoes = () => {
     return true;
   });
 
+  // Fetch baselines when filters change
+  const fetchBaselines = useCallback(async () => {
+    if (!dataInicio) {
+      setBaselines(new Map());
+      return;
+    }
+    const inicioStr = dataInicio.toISOString().split("T")[0];
+    const uniqueEquipIds = [...new Set(filtered.map(m => m.equipamento_id))];
+    if (uniqueEquipIds.length === 0) {
+      setBaselines(new Map());
+      return;
+    }
+    const promises = uniqueEquipIds.map(eqId =>
+      supabase.from("medicoes").select("equipamento_id, horimetro_final")
+        .eq("equipamento_id", eqId).lt("data", inicioStr)
+        .order("data", { ascending: false }).limit(1)
+    );
+    const results = await Promise.all(promises);
+    const map = new Map<string, number>();
+    results.forEach(r => {
+      if (r.data && r.data.length > 0) {
+        map.set(r.data[0].equipamento_id, Number(r.data[0].horimetro_final));
+      }
+    });
+    setBaselines(map);
+  }, [filtered.length, dataInicio, filterEquip]);
+
+  useEffect(() => { fetchBaselines(); }, [fetchBaselines]);
+
   // Group filtered entries by equipment, sorted by date
   const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;}>();
   const equipEntries = new Map<string, Medicao[]>();
@@ -116,13 +145,12 @@ const Medicoes = () => {
     }
     const dayValues = Array.from(byDay.values());
     let totalHoras = 0;
-    if (dayValues.length >= 2) {
-      const menor = Math.min(...dayValues);
+    if (dayValues.length > 0) {
       const maior = Math.max(...dayValues);
+      // Use baseline (last reading before period) if available, otherwise use min of period values
+      const baseline = baselines.get(eqId);
+      const menor = baseline !== undefined ? baseline : (dayValues.length >= 2 ? Math.min(...dayValues) : maior);
       totalHoras = Math.max(0, maior - menor);
-    } else if (dayValues.length === 1) {
-      // Com apenas 1 registro não há como calcular diferença
-      totalHoras = 0;
     }
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
   });
