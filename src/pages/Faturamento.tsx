@@ -247,25 +247,14 @@ export const FaturamentoContent = () => {
 
     const ajustesData = ajustesRes.data || [];
 
-    // Fetch measurements per equipment, respecting data_entrega and data_devolucao
-    // Also fetch the BASELINE reading (last horímetro before the cycle) for each equipment
+    // Fetch measurements per equipment — always use full period (inicio to fim) to match Horímetro tab
+    // Delivery/return date adjustments are handled separately in proportional billing
     const medPromises = allEquipIdsWithAditivos.map(eqId => {
-      const ce = ceList.find(c => c.equipamento_id === eqId);
-      const ae = aditivoEquipMap.get(eqId);
-      const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
-      const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao;
-      const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
-      // Don't limit by dataDevolucao — horímetro readings may be registered after the return date
-      // The proportional billing handles the return date separately
-      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicioEfetivo).lte("data", fim).order("data", { ascending: true });
+      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicio).lte("data", fim).order("data", { ascending: true });
     });
-    // Fetch baseline (last reading before cycle start) for each equipment
+    // Fetch baseline (last reading before period start) for each equipment — matches Horímetro tab logic
     const baselinePromises = allEquipIdsWithAditivos.map(eqId => {
-      const ce = ceList.find(c => c.equipamento_id === eqId);
-      const ae = aditivoEquipMap.get(eqId);
-      const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
-      const inicioEfetivo = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
-      return supabase.from("medicoes").select("equipamento_id, horimetro_final").eq("equipamento_id", eqId).lt("data", inicioEfetivo).order("data", { ascending: false }).limit(1);
+      return supabase.from("medicoes").select("equipamento_id, horimetro_final").eq("equipamento_id", eqId).lt("data", inicio).order("data", { ascending: false }).limit(1);
     });
     const [medResults, baselineResults] = await Promise.all([
       Promise.all(medPromises),
