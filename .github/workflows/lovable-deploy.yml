@@ -1,0 +1,53 @@
+name: "Build e Deploy para stable-website"
+
+on:
+  # Aciona o workflow em pushes para a branch 'main'
+  push:
+    branches:
+      - main
+  # Permite que você rode este workflow manualmente pela aba Actions
+  workflow_dispatch:
+
+# Define permissoes para o GITHUB_TOKEN
+# A permissao 'write' e necessaria para fazer push para a branch
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Faz o checkout do codigo do seu repositorio
+      - name: "Checkout do Repositorio"
+        uses: actions/checkout@v4
+      
+      # 2. Configura o ambiente Node.js
+      # (Esta e a forma moderna de usar "npm" no GitHub Actions)
+      - name: "Configurar Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      
+      # 3. Instala as dependencias
+      # (Usar 'npm ci' e mais rapido e seguro para CI)
+      - name: "Instalar Dependencias"
+        run: npm ci
+      
+      # 4. Roda o script de build (que deve gerar a pasta 'dist')
+      - name: "Rodar Build"
+        run: npm run build
+      
+      # 5. Faz o deploy da pasta 'dist' para a branch 'stable-website'
+      - name: "Deploy para a Branch stable-website"
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          # O token e injetado automaticamente pelo GitHub
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # A branch para onde o deploy sera feito
+          branch: stable-website
+          # O diretorio que sera enviado para a branch
+          folder: dist
+          # Opcao para limpar arquivos antigos da branch 'stable-website'
+          clean: true
