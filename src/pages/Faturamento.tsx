@@ -1417,7 +1417,6 @@ export const FaturamentoContent = () => {
                           <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">{item.numero_nota || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
                           ? `${parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
