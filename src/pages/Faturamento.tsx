@@ -682,12 +682,11 @@ export const FaturamentoContent = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Nº", "Empresa", "CNPJ", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Custos Adicionais (R$)", "Valor Total (R$)", "Status"];
+    const headers = ["Nº", "Empresa", "CNPJ", "Período Medição", "Horas Normais", "Horas Excedentes", "Custos Adicionais (R$)", "Valor Total (R$)", "Status"];
     const rows = data.map(i => [
       String(i.numero_sequencial),
       i.contratos?.empresas?.nome || "",
       i.contratos?.empresas?.cnpj || "",
-      i.numero_nota || "—",
       i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${parseLocalDate(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
       String(i.horas_normais),
       String(i.horas_excedentes),
