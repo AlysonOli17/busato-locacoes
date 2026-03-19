@@ -655,11 +655,9 @@ export const FaturamentoContent = () => {
   };
 
   const filtered = items.filter((i) => {
-    // Text search
     const matchesSearch = !search ||
       i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
       i.periodo.includes(search) ||
-      (i.numero_nota || "").includes(search) ||
       String(i.numero_sequencial).includes(search);
     if (!matchesSearch) return false;
     // Company filter
