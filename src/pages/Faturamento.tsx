@@ -635,10 +635,13 @@ export const FaturamentoContent = () => {
     return item.status;
   };
 
-  const handleAprovar = async (id: string) => {
-    const { error } = await supabase.from("faturamento").update({ status: "Aprovado" }).eq("id", id);
+  const handleAprovar = async (id: string, numeroNota: string) => {
+    const { error } = await supabase.from("faturamento").update({ status: "Aprovado", numero_nota: numeroNota || null }).eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Medição aprovada", description: "A fatura foi emitida automaticamente na aba Faturamento." });
+    setApprovalDialogOpen(false);
+    setApprovalItemId(null);
+    setApprovalNumeroNota("");
     fetchData();
   };
 
