@@ -1264,7 +1264,7 @@ export const FaturamentoContent = () => {
       valor_excedente_hora: avgValorExcedente,
       valor_total: valorLiquido,
       status: formStatus,
-      numero_nota: formNumeroNota || null,
+      numero_nota: editing?.numero_nota || null,
       periodo_medicao_inicio: formMedicaoInicio || null,
       periodo_medicao_fim: formMedicaoFim || null,
       total_gastos: totalGastos,
