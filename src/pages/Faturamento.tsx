@@ -726,7 +726,8 @@ export const FaturamentoContent = () => {
       const gastosVal = Number(item.total_gastos || 0);
       const inicio = item.periodo_medicao_inicio || "";
       const fim = item.periodo_medicao_fim || "";
-      const numDoc = item.numero_nota || `MED-${String(item.numero_sequencial).padStart(4, "0")}`;
+      const inicioFmt = inicio ? parseLocalDate(inicio).toLocaleDateString("pt-BR") : "";
+      const fimFmt = fim ? parseLocalDate(fim).toLocaleDateString("pt-BR") : "";
 
       // ──────────────── HEADER BLOCK ────────────────
       const logo = await (async () => {
