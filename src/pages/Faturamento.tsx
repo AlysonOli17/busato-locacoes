@@ -1395,7 +1395,6 @@ export const FaturamentoContent = () => {
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                   
                   <TableHead>Empresa</TableHead>
-                  <TableHead>Nº Nota</TableHead>
                   <TableHead>Período Medição</TableHead>
                   <TableHead>Prazo</TableHead>
                   <TableHead>Vencimento</TableHead>
