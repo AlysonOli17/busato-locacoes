@@ -1461,21 +1461,11 @@ export const FaturamentoContent = () => {
                         <div className="flex gap-1">
                           
                           {getDisplayStatus(item) === "Pendente" && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Aprovar e emitir fatura"><ShieldCheck className="h-4 w-4 text-success" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Aprovar Medição {item.numero_nota || `#${item.numero_sequencial}`}</AlertDialogTitle>
-                                  <AlertDialogDescription>Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Deseja continuar?</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleAprovar(item.id)} className="bg-success text-success-foreground hover:bg-success/90">Aprovar e Emitir Fatura</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button variant="ghost" size="icon" title="Aprovar e emitir fatura" onClick={() => {
+                              setApprovalItemId(item.id);
+                              setApprovalNumeroNota("");
+                              setApprovalDialogOpen(true);
+                            }}><ShieldCheck className="h-4 w-4 text-success" /></Button>
                           )}
                           <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
                           <AlertDialog>
