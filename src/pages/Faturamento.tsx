@@ -125,7 +125,9 @@ export const FaturamentoContent = () => {
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
-  const [formNumeroNota, setFormNumeroNota] = useState("");
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [approvalItemId, setApprovalItemId] = useState<string | null>(null);
+  const [approvalNumeroNota, setApprovalNumeroNota] = useState("");
   
   const [formStatus, setFormStatus] = useState("Pendente");
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
