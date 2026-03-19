@@ -1853,6 +1853,29 @@ export const FaturamentoContent = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Approval Dialog - ask for invoice number */}
+      <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-success" />
+              Aprovar Medição
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Informe o número da fatura:</p>
+          <div>
+            <Label>Nº Fatura</Label>
+            <Input value={approvalNumeroNota} onChange={(e) => setApprovalNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApprovalDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => approvalItemId && handleAprovar(approvalItemId, approvalNumeroNota)} className="bg-success text-success-foreground hover:bg-success/90">
+              Aprovar e Emitir Fatura
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </>
   );
 };
