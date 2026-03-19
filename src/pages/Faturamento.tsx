@@ -756,7 +756,7 @@ export const FaturamentoContent = () => {
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
-      const docLabel = item.numero_nota || String(item.numero_sequencial).padStart(3, "0");
+      const docLabel = inicioFmt && fimFmt ? `${inicioFmt} - ${fimFmt}` : String(item.numero_sequencial).padStart(3, "0");
       doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 8, { align: "right" });
       y += 18;
 
