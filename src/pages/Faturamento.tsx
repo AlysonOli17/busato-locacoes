@@ -125,7 +125,9 @@ export const FaturamentoContent = () => {
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
-  const [formNumeroNota, setFormNumeroNota] = useState("");
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [approvalItemId, setApprovalItemId] = useState<string | null>(null);
+  const [approvalNumeroNota, setApprovalNumeroNota] = useState("");
   
   const [formStatus, setFormStatus] = useState("Pendente");
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
@@ -633,10 +635,13 @@ export const FaturamentoContent = () => {
     return item.status;
   };
 
-  const handleAprovar = async (id: string) => {
-    const { error } = await supabase.from("faturamento").update({ status: "Aprovado" }).eq("id", id);
+  const handleAprovar = async (id: string, numeroNota: string) => {
+    const { error } = await supabase.from("faturamento").update({ status: "Aprovado", numero_nota: numeroNota || null }).eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Medição aprovada", description: "A fatura foi emitida automaticamente na aba Faturamento." });
+    setApprovalDialogOpen(false);
+    setApprovalItemId(null);
+    setApprovalNumeroNota("");
     fetchData();
   };
 
@@ -650,11 +655,9 @@ export const FaturamentoContent = () => {
   };
 
   const filtered = items.filter((i) => {
-    // Text search
     const matchesSearch = !search ||
       i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
       i.periodo.includes(search) ||
-      (i.numero_nota || "").includes(search) ||
       String(i.numero_sequencial).includes(search);
     if (!matchesSearch) return false;
     // Company filter
@@ -679,12 +682,11 @@ export const FaturamentoContent = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Nº", "Empresa", "CNPJ", "Nº Nota", "Período Medição", "Horas Normais", "Horas Excedentes", "Custos Adicionais (R$)", "Valor Total (R$)", "Status"];
+    const headers = ["Nº", "Empresa", "CNPJ", "Período Medição", "Horas Normais", "Horas Excedentes", "Custos Adicionais (R$)", "Valor Total (R$)", "Status"];
     const rows = data.map(i => [
       String(i.numero_sequencial),
       i.contratos?.empresas?.nome || "",
       i.contratos?.empresas?.cnpj || "",
-      i.numero_nota || "—",
       i.periodo_medicao_inicio && i.periodo_medicao_fim ? `${parseLocalDate(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
       String(i.horas_normais),
       String(i.horas_excedentes),
@@ -724,7 +726,8 @@ export const FaturamentoContent = () => {
       const gastosVal = Number(item.total_gastos || 0);
       const inicio = item.periodo_medicao_inicio || "";
       const fim = item.periodo_medicao_fim || "";
-      const numDoc = item.numero_nota || `MED-${String(item.numero_sequencial).padStart(4, "0")}`;
+      const inicioFmt = inicio ? parseLocalDate(inicio).toLocaleDateString("pt-BR") : "";
+      const fimFmt = fim ? parseLocalDate(fim).toLocaleDateString("pt-BR") : "";
 
       // ──────────────── HEADER BLOCK ────────────────
       const logo = await (async () => {
@@ -753,7 +756,7 @@ export const FaturamentoContent = () => {
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
-      const docLabel = item.numero_nota || String(item.numero_sequencial).padStart(3, "0");
+      const docLabel = inicioFmt && fimFmt ? `${inicioFmt} - ${fimFmt}` : String(item.numero_sequencial).padStart(3, "0");
       doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 8, { align: "right" });
       y += 18;
 
@@ -1187,29 +1190,6 @@ export const FaturamentoContent = () => {
     setEditing(null);
     setFormContratoId("");
     setFormPeriodo("");
-    // Auto-generate next numero_nota based on last used nota
-    const notasExistentes = items
-      .map(f => f.numero_nota || "")
-      .filter(n => n.length > 0)
-      .sort((a, b) => {
-        const numA = parseInt((a.match(/\d+$/) || ["0"])[0], 10);
-        const numB = parseInt((b.match(/\d+$/) || ["0"])[0], 10);
-        return numA - numB;
-      });
-    const ultimaNota = notasExistentes.length > 0 ? notasExistentes[notasExistentes.length - 1] : "";
-    if (ultimaNota) {
-      const match = ultimaNota.match(/^(.*?)(\d+)$/);
-      if (match) {
-        const prefix = match[1];
-        const num = parseInt(match[2], 10) + 1;
-        const pad = match[2].length;
-        setFormNumeroNota(`${prefix}${String(num).padStart(pad, "0")}`);
-      } else {
-        setFormNumeroNota("");
-      }
-    } else {
-      setFormNumeroNota("FAT001");
-    }
     setFormStatus("Pendente");
     setFormMedicaoInicio("");
     setFormMedicaoFim("");
@@ -1225,7 +1205,7 @@ export const FaturamentoContent = () => {
     setEditing(item);
     setFormContratoId(item.contrato_id);
     setFormPeriodo(item.periodo);
-    setFormNumeroNota(item.numero_nota || `FAT${String(item.numero_sequencial).padStart(3, "0")}`);
+    
     setFormStatus(item.status);
     setFormContaBancariaId(item.conta_bancaria_id || "");
     setFormMedicaoInicio(item.periodo_medicao_inicio || "");
@@ -1284,7 +1264,7 @@ export const FaturamentoContent = () => {
       valor_excedente_hora: avgValorExcedente,
       valor_total: valorLiquido,
       status: formStatus,
-      numero_nota: formNumeroNota || null,
+      numero_nota: editing?.numero_nota || null,
       periodo_medicao_inicio: formMedicaoInicio || null,
       periodo_medicao_fim: formMedicaoFim || null,
       total_gastos: totalGastos,
@@ -1415,7 +1395,6 @@ export const FaturamentoContent = () => {
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                   
                   <TableHead>Empresa</TableHead>
-                  <TableHead>Nº Nota</TableHead>
                   <TableHead>Período Medição</TableHead>
                   <TableHead>Prazo</TableHead>
                   <TableHead>Vencimento</TableHead>
@@ -1438,7 +1417,6 @@ export const FaturamentoContent = () => {
                           <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">{item.numero_nota || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
                           ? `${parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
@@ -1481,21 +1459,11 @@ export const FaturamentoContent = () => {
                         <div className="flex gap-1">
                           
                           {getDisplayStatus(item) === "Pendente" && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Aprovar e emitir fatura"><ShieldCheck className="h-4 w-4 text-success" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Aprovar Medição {item.numero_nota || `#${item.numero_sequencial}`}</AlertDialogTitle>
-                                  <AlertDialogDescription>Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Deseja continuar?</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleAprovar(item.id)} className="bg-success text-success-foreground hover:bg-success/90">Aprovar e Emitir Fatura</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button variant="ghost" size="icon" title="Aprovar e emitir fatura" onClick={() => {
+                              setApprovalItemId(item.id);
+                              setApprovalNumeroNota("");
+                              setApprovalDialogOpen(true);
+                            }}><ShieldCheck className="h-4 w-4 text-success" /></Button>
                           )}
                           <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
                           <AlertDialog>
@@ -1504,7 +1472,7 @@ export const FaturamentoContent = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Medição {item.numero_nota || `#${item.numero_sequencial}`}</AlertDialogTitle>
+                                <AlertDialogTitle>Excluir Medição #{item.numero_sequencial}</AlertDialogTitle>
                                 <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -1532,7 +1500,7 @@ export const FaturamentoContent = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-accent" />
-              {editing ? `Editar Medição ${editing.numero_nota || ""}` : "Nova Medição"}
+              {editing ? `Editar Medição #${editing.numero_sequencial}` : "Nova Medição"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4 pr-2">
@@ -1623,9 +1591,8 @@ export const FaturamentoContent = () => {
             )}
 
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Nº Nota / Fatura</Label><Input value={formNumeroNota} onChange={(e) => setFormNumeroNota(e.target.value)} placeholder="Ex: FAT001" /></div>
-            </div>
+
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Período</Label><Input value={formPeriodo} onChange={(e) => setFormPeriodo(e.target.value)} placeholder="Mês/Ano" /></div>
             </div>
@@ -1881,6 +1848,29 @@ export const FaturamentoContent = () => {
             </Button>
             <Button onClick={handleCreateMobGastos} disabled={creatingMob} className="bg-accent text-accent-foreground hover:bg-accent/90">
               {creatingMob ? "Criando..." : "Incluir Custos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog - ask for invoice number */}
+      <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-success" />
+              Aprovar Medição
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Informe o número da fatura:</p>
+          <div>
+            <Label>Nº Fatura</Label>
+            <Input value={approvalNumeroNota} onChange={(e) => setApprovalNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApprovalDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => approvalItemId && handleAprovar(approvalItemId, approvalNumeroNota)} className="bg-success text-success-foreground hover:bg-success/90">
+              Aprovar e Emitir Fatura
             </Button>
           </DialogFooter>
         </DialogContent>
