@@ -89,10 +89,11 @@ Deno.serve(async (req) => {
       JSON.stringify({ message: "Admin created", email: validated.email }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    const message = error instanceof z.ZodError ? "Invalid input" : error.message;
+  } catch (error: unknown) {
+    const isZodError = error instanceof z.ZodError;
+    const message = isZodError ? "Invalid input" : (error instanceof Error ? error.message : "Unknown error");
     return new Response(JSON.stringify({ error: message }), {
-      status: error instanceof z.ZodError ? 400 : 500,
+      status: isZodError ? 400 : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
