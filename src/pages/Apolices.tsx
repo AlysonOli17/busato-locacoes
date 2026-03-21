@@ -133,7 +133,7 @@ const Apolices = () => {
   useEffect(() => { fetchData(); fetchSinistros(); }, []);
 
   const getEquipLabelFromEquip = (eq: Equipamento | undefined) =>
-    eq ? `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}` : "—";
+    eq ? getEquipLabel(eq) : "—";
 
   const equipamentosAssegurados = (apoliceId?: string) => {
     const apolice = items.find(a => a.id === apoliceId);
