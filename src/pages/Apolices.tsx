@@ -727,7 +727,7 @@ const Apolices = () => {
                 {equipamentos
                   .filter((e) => {
                     const q = equipSearch.toLowerCase();
-                    return !q || `${e.tipo} ${e.modelo} ${e.tag_placa || ""}`.toLowerCase().includes(q);
+                    return !q || getEquipLabel(e).toLowerCase().includes(q);
                   })
                   .map((e) => (
                   <label key={e.id} className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-muted/50 text-sm">
