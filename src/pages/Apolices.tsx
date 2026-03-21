@@ -223,7 +223,7 @@ const Apolices = () => {
     getEquipLabel(ae.equipamentos);
 
   const getEquipLabels = (item: Apolice) =>
-    item.apolices_equipamentos?.map(getEquipLabel).join(", ") || "—";
+    item.apolices_equipamentos?.map(getEquipLabelApolice).join(", ") || "—";
 
   // Summary calculations
   const hoje = new Date();
