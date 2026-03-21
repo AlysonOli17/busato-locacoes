@@ -291,7 +291,7 @@ const Medicoes = () => {
                   className="w-64"
                   options={[
                     { value: "Todos", label: "Todos os Equipamentos" },
-                    ...equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` })),
+                    ...equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) })),
                   ]}
                 />
               </div>
