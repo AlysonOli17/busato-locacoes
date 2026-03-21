@@ -125,7 +125,7 @@ const Apolices = () => {
   const fetchSinistros = async () => {
     const { data } = await supabase
       .from("sinistros")
-      .select("*, apolices(seguradora), equipamentos(id, tipo, modelo, tag_placa)")
+      .select("*, apolices(seguradora), equipamentos(id, tipo, modelo, tag_placa, numero_serie)")
       .order("created_at", { ascending: false });
     if (data) setSinistros(data as unknown as Sinistro[]);
   };
