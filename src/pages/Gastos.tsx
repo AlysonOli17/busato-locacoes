@@ -338,7 +338,7 @@ const Gastos = () => {
                 onValueChange={(v) => setForm({ ...form, equipamento_id: v })}
                 placeholder="Selecione o equipamento"
                 searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
               />
             </div>
             <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>

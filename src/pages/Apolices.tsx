@@ -735,7 +735,7 @@ const Apolices = () => {
                       checked={form.equipamento_ids.includes(e.id)}
                       onCheckedChange={() => toggleEquipamento(e.id)}
                     />
-                    <span>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</span>
+                    <span>{getEquipLabel(e)}</span>
                     {equipamentosComApoliceVigente.has(e.id) && <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted-foreground/30 ml-auto">Vigente</Badge>}
                   </label>
                 ))}
