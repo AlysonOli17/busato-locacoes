@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getEquipLabel } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
