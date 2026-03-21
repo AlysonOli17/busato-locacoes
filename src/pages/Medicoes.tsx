@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
 import { FaturamentoTab } from "@/components/FaturamentoTab";
 
-interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;}
+interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;numero_serie: string | null;}
 interface Medicao {
   id: string;
   equipamento_id: string;
