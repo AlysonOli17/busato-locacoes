@@ -654,7 +654,7 @@ export const FaturamentoTab = () => {
                       <p className="font-medium text-sm">{ct?.empresas?.nome || "—"}</p>
                       <p className="text-xs text-muted-foreground font-mono">{ct?.empresas?.cnpj}</p>
                     </TableCell>
-                    <TableCell className="text-sm">{ct?.equipamentos?.tipo} {ct?.equipamentos?.modelo}</TableCell>
+                    <TableCell className="text-sm">{getEquipLabel(ct?.equipamentos)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {f.periodo_medicao_inicio && f.periodo_medicao_fim
                         ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
