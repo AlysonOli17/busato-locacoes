@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { getEquipLabel } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,7 +67,7 @@ interface ContratoRef {
   empresa_id: string;
   prazo_faturamento: number;
   empresas: { nome: string; cnpj: string };
-  equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
+  equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
 }
 
 interface FaturaEquip {
@@ -126,10 +127,10 @@ export const FaturamentoTab = () => {
   const fetchData = async () => {
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
       supabase.from("faturamento").select("*").in("status", ["Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
-      supabase.from("contratos").select("id, empresa_id, prazo_faturamento, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa)"),
+      supabase.from("contratos").select("id, empresa_id, prazo_faturamento, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa, numero_serie)"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal"),
       supabase.from("contas_bancarias").select("*"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
     ]);
     if (fatRes.data) setFaturas(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
@@ -654,7 +655,7 @@ export const FaturamentoTab = () => {
                       <p className="font-medium text-sm">{ct?.empresas?.nome || "—"}</p>
                       <p className="text-xs text-muted-foreground font-mono">{ct?.empresas?.cnpj}</p>
                     </TableCell>
-                    <TableCell className="text-sm">{ct?.equipamentos?.tipo} {ct?.equipamentos?.modelo}</TableCell>
+                    <TableCell className="text-sm">{getEquipLabel(ct?.equipamentos)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {f.periodo_medicao_inicio && f.periodo_medicao_fim
                         ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`

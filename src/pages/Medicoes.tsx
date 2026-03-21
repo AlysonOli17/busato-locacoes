@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
+import { getEquipLabel } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
 import { FaturamentoTab } from "@/components/FaturamentoTab";
 
-interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;}
+interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;numero_serie: string | null;}
 interface Medicao {
   id: string;
   equipamento_id: string;
@@ -56,8 +57,8 @@ const Medicoes = () => {
 
   const fetchData = async () => {
     const [medRes, equipRes] = await Promise.all([
-    supabase.from("medicoes").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
-    supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo")]
+    supabase.from("medicoes").select("*, equipamentos(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
+    supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo")]
     );
     if (medRes.data) setItems(medRes.data as unknown as Medicao[]);
     if (equipRes.data) setEquipamentos(equipRes.data);
@@ -291,7 +292,7 @@ const Medicoes = () => {
                   className="w-64"
                   options={[
                     { value: "Todos", label: "Todos os Equipamentos" },
-                    ...equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` })),
+                    ...equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) })),
                   ]}
                 />
               </div>
@@ -426,7 +427,7 @@ const Medicoes = () => {
                 onValueChange={onEquipChange}
                 placeholder="Selecione o equipamento"
                 searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
               />
             </div>
             <div>

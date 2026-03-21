@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getEquipLabel } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import ExcelJS from "exceljs";
 
-interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
 
 interface ApoliceEquipamento {
   id: string;
@@ -113,8 +114,8 @@ const Apolices = () => {
 
   const fetchData = async () => {
     const [apolicesRes, equipRes] = await Promise.all([
-      supabase.from("apolices").select("*, apolices_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa))").order("created_at", { ascending: false }),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+      supabase.from("apolices").select("*, apolices_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
     if (apolicesRes.data) setItems(apolicesRes.data as unknown as Apolice[]);
     if (equipRes.data) setEquipamentos(equipRes.data);
@@ -124,7 +125,7 @@ const Apolices = () => {
   const fetchSinistros = async () => {
     const { data } = await supabase
       .from("sinistros")
-      .select("*, apolices(seguradora), equipamentos(id, tipo, modelo, tag_placa)")
+      .select("*, apolices(seguradora), equipamentos(id, tipo, modelo, tag_placa, numero_serie)")
       .order("created_at", { ascending: false });
     if (data) setSinistros(data as unknown as Sinistro[]);
   };
@@ -132,7 +133,7 @@ const Apolices = () => {
   useEffect(() => { fetchData(); fetchSinistros(); }, []);
 
   const getEquipLabelFromEquip = (eq: Equipamento | undefined) =>
-    eq ? `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}` : "—";
+    eq ? getEquipLabel(eq) : "—";
 
   const equipamentosAssegurados = (apoliceId?: string) => {
     const apolice = items.find(a => a.id === apoliceId);
@@ -218,11 +219,11 @@ const Apolices = () => {
     return eqLabel.toLowerCase().includes(q) || s.tipo_sinistro.toLowerCase().includes(q) || (s.apolices?.seguradora || "").toLowerCase().includes(q);
   });
 
-  const getEquipLabel = (ae: ApoliceEquipamento) =>
-    `${ae.equipamentos?.tipo} ${ae.equipamentos?.modelo}${ae.equipamentos?.tag_placa ? ` (${ae.equipamentos.tag_placa})` : ""}`;
+  const getEquipLabelApolice = (ae: ApoliceEquipamento) =>
+    getEquipLabel(ae.equipamentos);
 
   const getEquipLabels = (item: Apolice) =>
-    item.apolices_equipamentos?.map(getEquipLabel).join(", ") || "—";
+    item.apolices_equipamentos?.map(getEquipLabelApolice).join(", ") || "—";
 
   // Summary calculations
   const hoje = new Date();
@@ -726,7 +727,7 @@ const Apolices = () => {
                 {equipamentos
                   .filter((e) => {
                     const q = equipSearch.toLowerCase();
-                    return !q || `${e.tipo} ${e.modelo} ${e.tag_placa || ""}`.toLowerCase().includes(q);
+                    return !q || getEquipLabel(e).toLowerCase().includes(q);
                   })
                   .map((e) => (
                   <label key={e.id} className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-muted/50 text-sm">
@@ -734,7 +735,7 @@ const Apolices = () => {
                       checked={form.equipamento_ids.includes(e.id)}
                       onCheckedChange={() => toggleEquipamento(e.id)}
                     />
-                    <span>{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</span>
+                    <span>{getEquipLabel(e)}</span>
                     {equipamentosComApoliceVigente.has(e.id) && <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted-foreground/30 ml-auto">Vigente</Badge>}
                   </label>
                 ))}

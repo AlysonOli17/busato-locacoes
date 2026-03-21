@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getEquipLabel } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import { Plus, Search, Pencil, Trash2, DollarSign, TrendingDown, CalendarClock, 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
 interface FaturaRef {
   faturamento_id: string;
   numero_sequencial: number;
@@ -53,8 +54,8 @@ const Gastos = () => {
 
   const fetchData = async () => {
     const [gastosRes, equipRes, fatGastosRes] = await Promise.all([
-      supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+      supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("faturamento_gastos").select("gasto_id, faturamento_id, faturamento(numero_sequencial, numero_nota, status, periodo)"),
     ]);
 
@@ -337,7 +338,7 @@ const Gastos = () => {
                 onValueChange={(v) => setForm({ ...form, equipamento_id: v })}
                 placeholder="Selecione o equipamento"
                 searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
               />
             </div>
             <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>

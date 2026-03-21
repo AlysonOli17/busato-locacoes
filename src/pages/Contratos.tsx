@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getEquipLabel } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -2143,7 +2144,7 @@ const Contratos = () => {
               <Input disabled value={(() => {
                 const allEquip = getAllEquipForAjuste(ajustesContrato);
                 const ce = allEquip.find(c => c.equipamento_id === ajusteForm.equipamento_ids[0]);
-                return ce ? `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}${ce.equipamentos.tag_placa ? ` (${ce.equipamentos.tag_placa})` : ""}` : "";
+                return ce ? getEquipLabel(ce.equipamentos) : "";
               })()} />
             </div>
             )}
