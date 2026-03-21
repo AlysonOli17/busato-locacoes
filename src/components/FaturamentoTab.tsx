@@ -67,7 +67,7 @@ interface ContratoRef {
   empresa_id: string;
   prazo_faturamento: number;
   empresas: { nome: string; cnpj: string };
-  equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
+  equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
 }
 
 interface FaturaEquip {
