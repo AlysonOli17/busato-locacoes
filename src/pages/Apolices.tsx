@@ -219,8 +219,8 @@ const Apolices = () => {
     return eqLabel.toLowerCase().includes(q) || s.tipo_sinistro.toLowerCase().includes(q) || (s.apolices?.seguradora || "").toLowerCase().includes(q);
   });
 
-  const getEquipLabel = (ae: ApoliceEquipamento) =>
-    `${ae.equipamentos?.tipo} ${ae.equipamentos?.modelo}${ae.equipamentos?.tag_placa ? ` (${ae.equipamentos.tag_placa})` : ""}`;
+  const getEquipLabelApolice = (ae: ApoliceEquipamento) =>
+    getEquipLabel(ae.equipamentos);
 
   const getEquipLabels = (item: Apolice) =>
     item.apolices_equipamentos?.map(getEquipLabel).join(", ") || "—";
