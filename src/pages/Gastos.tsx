@@ -15,7 +15,7 @@ import { Plus, Search, Pencil, Trash2, DollarSign, TrendingDown, CalendarClock, 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
 interface FaturaRef {
   faturamento_id: string;
   numero_sequencial: number;

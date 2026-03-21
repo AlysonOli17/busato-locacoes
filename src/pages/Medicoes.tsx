@@ -57,8 +57,8 @@ const Medicoes = () => {
 
   const fetchData = async () => {
     const [medRes, equipRes] = await Promise.all([
-    supabase.from("medicoes").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
-    supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo")]
+    supabase.from("medicoes").select("*, equipamentos(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
+    supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo")]
     );
     if (medRes.data) setItems(medRes.data as unknown as Medicao[]);
     if (equipRes.data) setEquipamentos(equipRes.data);

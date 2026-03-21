@@ -130,7 +130,7 @@ export const FaturamentoTab = () => {
       supabase.from("contratos").select("id, empresa_id, prazo_faturamento, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa, numero_serie)"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal"),
       supabase.from("contas_bancarias").select("*"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
     ]);
     if (fatRes.data) setFaturas(fatRes.data as unknown as Fatura[]);
     if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);

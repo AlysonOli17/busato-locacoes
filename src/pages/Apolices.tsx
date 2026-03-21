@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import ExcelJS from "exceljs";
 
-interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
 
 interface ApoliceEquipamento {
   id: string;
