@@ -426,7 +426,7 @@ const Medicoes = () => {
                 onValueChange={onEquipChange}
                 placeholder="Selecione o equipamento"
                 searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.map((e) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ""}` }))}
+                options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
               />
             </div>
             <div>
