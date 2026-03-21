@@ -114,8 +114,8 @@ const Apolices = () => {
 
   const fetchData = async () => {
     const [apolicesRes, equipRes] = await Promise.all([
-      supabase.from("apolices").select("*, apolices_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa))").order("created_at", { ascending: false }),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+      supabase.from("apolices").select("*, apolices_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
     if (apolicesRes.data) setItems(apolicesRes.data as unknown as Apolice[]);
     if (equipRes.data) setEquipamentos(equipRes.data);

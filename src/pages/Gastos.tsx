@@ -54,8 +54,8 @@ const Gastos = () => {
 
   const fetchData = async () => {
     const [gastosRes, equipRes, fatGastosRes] = await Promise.all([
-      supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("data", { ascending: false }),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
+      supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("faturamento_gastos").select("gasto_id, faturamento_id, faturamento(numero_sequencial, numero_nota, status, periodo)"),
     ]);
 
