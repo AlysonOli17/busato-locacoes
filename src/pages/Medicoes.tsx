@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
-import { getEquipLabel } from "@/lib/utils";
+import { getEquipLabel, calcularHorasInterpoladas } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +52,7 @@ const Medicoes = () => {
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [horimetroAnterior, setHorimetroAnterior] = useState<number>(0);
-  const [baselines, setBaselines] = useState<Map<string, number>>(new Map());
+  const [baselines, setBaselines] = useState<Map<string, { horim: number; data: string }>>(new Map());
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -106,15 +106,15 @@ const Medicoes = () => {
       return;
     }
     const promises = uniqueEquipIds.map(eqId =>
-      supabase.from("medicoes").select("equipamento_id, horimetro_final")
-        .eq("equipamento_id", eqId).lt("data", inicioStr)
+      supabase.from("medicoes").select("equipamento_id, horimetro_final, data")
+        .eq("equipamento_id", eqId).eq("tipo", "Trabalho").lt("data", inicioStr)
         .order("data", { ascending: false }).limit(1)
     );
     const results = await Promise.all(promises);
-    const map = new Map<string, number>();
+    const map = new Map<string, { horim: number; data: string }>();
     results.forEach(r => {
       if (r.data && r.data.length > 0) {
-        map.set(r.data[0].equipamento_id, Number(r.data[0].horimetro_final));
+        map.set(r.data[0].equipamento_id, { horim: Number(r.data[0].horimetro_final), data: r.data[0].data });
       }
     });
     setBaselines(map);
@@ -123,7 +123,7 @@ const Medicoes = () => {
   useEffect(() => { fetchBaselines(); }, [fetchBaselines]);
 
   // Group filtered entries by equipment, sorted by date
-  const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;}>();
+  const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;mediaHorasDia: number;}>();
   const equipEntries = new Map<string, Medicao[]>();
   filtered.forEach((m) => {
     const arr = equipEntries.get(m.equipamento_id) || [];
@@ -135,24 +135,43 @@ const Medicoes = () => {
     const first = sorted[0];
     const label = `${first.equipamentos?.tipo} ${first.equipamentos?.modelo}`;
     const tag = first.equipamentos?.tag_placa || "";
-    // Para Trabalho, usamos horimetro_final (horímetro atual). Pegar menor e maior do período.
     const trabalhoEntries = sorted.filter(e => (e.tipo || "Trabalho") === "Trabalho");
-    // Deduplicate: keep only the highest horimetro_final per day
-    const byDay = new Map<string, number>();
-    for (const e of trabalhoEntries) {
-      const d = String(e.data);
-      const v = Number(e.horimetro_final);
-      if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
-    }
-    const dayValues = Array.from(byDay.values());
+
     let totalHoras = 0;
-    if (dayValues.length > 0) {
-      const maior = Math.max(...dayValues);
-      // Use min of values within filtered period (max - min of horimetro_final)
-      const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
-      totalHoras = Math.max(0, maior - menor);
+    let mediaHorasDia = 0;
+
+    if (dataInicio && dataFim) {
+      // Use interpolation when period filters are active
+      const inicioStr = format(dataInicio, "yyyy-MM-dd");
+      const fimStr = format(dataFim, "yyyy-MM-dd");
+      // Build readings array: baseline + in-period readings
+      const allReadings: { data: string; horimetro_final: number }[] = [];
+      const baseline = baselines.get(eqId);
+      if (baseline) {
+        allReadings.push({ data: baseline.data, horimetro_final: baseline.horim });
+      }
+      for (const e of trabalhoEntries) {
+        allReadings.push({ data: e.data, horimetro_final: Number(e.horimetro_final) });
+      }
+      const result = calcularHorasInterpoladas(allReadings, inicioStr, fimStr);
+      totalHoras = result.totalHoras;
+      mediaHorasDia = result.mediaHorasDia;
+    } else {
+      // No period filter: use simple max - min
+      const byDay = new Map<string, number>();
+      for (const e of trabalhoEntries) {
+        const d = String(e.data);
+        const v = Number(e.horimetro_final);
+        if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
+      }
+      const dayValues = Array.from(byDay.values());
+      if (dayValues.length > 0) {
+        const maior = Math.max(...dayValues);
+        const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
+        totalHoras = Math.max(0, maior - menor);
+      }
     }
-    summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
+    summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag, mediaHorasDia });
   });
 
   const totalHorasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalHoras, 0);
@@ -338,6 +357,9 @@ const Medicoes = () => {
               <CardContent className="px-3 pb-3 pt-0">
                 <div className="text-lg font-bold text-accent">{data.totalHoras.toFixed(1)}h</div>
                 <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
+                {data.mediaHorasDia > 0 && (
+                  <p className="text-[10px] text-accent/70 font-medium">Média: {data.mediaHorasDia.toFixed(2)} h/dia</p>
+                )}
               </CardContent>
             </Card>
           )}
