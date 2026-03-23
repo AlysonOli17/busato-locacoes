@@ -804,7 +804,7 @@ const Apolices = () => {
 
       {/* Detail Dialog */}
       <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-accent" />Detalhes da Apólice</DialogTitle></DialogHeader>
           {detailItem && (() => {
             const valorParcela = detailItem.tem_parcelamento && detailItem.numero_parcelas > 0 ? detailItem.valor / detailItem.numero_parcelas : detailItem.valor;
