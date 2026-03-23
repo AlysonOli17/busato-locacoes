@@ -859,6 +859,7 @@ export const FaturamentoContent = () => {
             .lte("data_inicio", fim).gte("data_fim", inicio)
         : { data: [] };
 
+      // Fetch readings within period + baseline before period for interpolation
       const medPromises = allPdfEquipIds.map(eqId => {
         const ce = ceList.find(c => c.equipamento_id === eqId);
         const ae = pdfAditivoEquipMap.get(eqId);
@@ -868,8 +869,22 @@ export const FaturamentoContent = () => {
         const fEf = devolucao && devolucao < fim ? devolucao : fim;
         return supabase.from("medicoes").select("equipamento_id, horimetro_final, horas_trabalhadas, data, tipo").eq("equipamento_id", eqId).gte("data", iEf).lte("data", fEf);
       });
-      const medResults = await Promise.all(medPromises);
+      // Fetch baseline readings (last reading before period start for each equipment)
+      const baselinePromises = allPdfEquipIds.map(eqId => {
+        const ce = ceList.find(c => c.equipamento_id === eqId);
+        const ae = pdfAditivoEquipMap.get(eqId);
+        const entrega = ae?.data_entrega || ce?.data_entrega || null;
+        const iEf = entrega && entrega > inicio ? entrega : inicio;
+        return supabase.from("medicoes").select("equipamento_id, horimetro_final, data, tipo")
+          .eq("equipamento_id", eqId).eq("tipo", "Trabalho").lt("data", iEf)
+          .order("data", { ascending: false }).limit(1);
+      });
+      const [medResults, baselineResults] = await Promise.all([
+        Promise.all(medPromises),
+        Promise.all(baselinePromises),
+      ]);
       const allMedicoes = medResults.flatMap(r => r.data || []);
+      const allBaselines = baselineResults.flatMap(r => r.data || []);
 
       // Calculate total
       let totalMedicao = 0;
@@ -879,16 +894,15 @@ export const FaturamentoContent = () => {
         const ce = ceList.find(c => c.equipamento_id === eqId);
         const ae = pdfAditivoEquipMap.get(eqId);
 
-        // Hours worked
+        // Hours worked using interpolation
         const eqMeds = allMedicoes.filter(m => m.equipamento_id === eqId && (m.tipo || 'Trabalho') === 'Trabalho');
-        const byDay = new Map<string, number>();
-        for (const m of eqMeds) {
-          const d = String(m.data);
-          const v = Number(m.horimetro_final);
-          if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
-        }
-        const dayValues = Array.from(byDay.values());
-        const horasMedidas = dayValues.length >= 2 ? Math.max(0, Math.max(...dayValues) - Math.min(...dayValues)) : 0;
+        const eqBaseline = allBaselines.filter(m => m.equipamento_id === eqId);
+        const allReadings = [...eqBaseline, ...eqMeds].map(m => ({ data: String(m.data), horimetro_final: Number(m.horimetro_final) }));
+        const entregaEq = ae?.data_entrega || ce?.data_entrega || null;
+        const devolucaoEq = ae?.data_devolucao || ce?.data_devolucao || null;
+        const iEf = entregaEq && entregaEq > inicio ? entregaEq : inicio;
+        const fEf = devolucaoEq && devolucaoEq < fim ? devolucaoEq : fim;
+        const { totalHoras: horasMedidas } = calcularHorasInterpoladas(allReadings, iEf, fEf);
 
         // Hours unavailable
         const eqIndisp = allMedicoes.filter(m => m.equipamento_id === eqId && m.tipo === 'Indisponível');
