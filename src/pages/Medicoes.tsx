@@ -106,15 +106,15 @@ const Medicoes = () => {
       return;
     }
     const promises = uniqueEquipIds.map(eqId =>
-      supabase.from("medicoes").select("equipamento_id, horimetro_final")
-        .eq("equipamento_id", eqId).lt("data", inicioStr)
+      supabase.from("medicoes").select("equipamento_id, horimetro_final, data")
+        .eq("equipamento_id", eqId).eq("tipo", "Trabalho").lt("data", inicioStr)
         .order("data", { ascending: false }).limit(1)
     );
     const results = await Promise.all(promises);
-    const map = new Map<string, number>();
+    const map = new Map<string, { horim: number; data: string }>();
     results.forEach(r => {
       if (r.data && r.data.length > 0) {
-        map.set(r.data[0].equipamento_id, Number(r.data[0].horimetro_final));
+        map.set(r.data[0].equipamento_id, { horim: Number(r.data[0].horimetro_final), data: r.data[0].data });
       }
     });
     setBaselines(map);
