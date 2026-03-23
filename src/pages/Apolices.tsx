@@ -1047,7 +1047,7 @@ const Apolices = () => {
 
           {/* Sinistro Detail Dialog */}
           <Dialog open={!!sinistroDetailItem} onOpenChange={() => setSinistroDetailItem(null)}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Detalhes do Sinistro</DialogTitle>
               </DialogHeader>
