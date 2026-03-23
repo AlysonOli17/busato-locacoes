@@ -947,13 +947,14 @@ export const FaturamentoContent = () => {
 
         const itemDesc = `${(eq?.tipo || "").toUpperCase()} ${(eq?.modelo || "").toUpperCase()}`;
         const tagPlaca = eq?.tag_placa || "—";
+        const numSerie = eq?.numero_serie || "—";
 
         return [
           itemDesc,
           tagPlaca,
+          numSerie,
           fmtBRL(vh),
           fmtBRL(vhe),
-          `${fmt(hc)}h`,
           `${fmt(hm)}h`,
           `${fmt(horasMedidas)}h`,
           `${fmt(horasIndisponiveis)}h`,
@@ -966,16 +967,16 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Equipamento", "Tag", "V/h", "V/h Exc", "Horas", "Mínima", "Qtd (Horas)", "Indisponível", "Valor Total R$"]],
+        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
         body: eqRows,
         styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
         alternateRowStyles: { fillColor: [240, 246, 252] },
         columnStyles: {
           1: { halign: "center" },
-          2: { halign: "right" },
+          2: { halign: "center" },
           3: { halign: "right" },
-          4: { halign: "center" },
+          4: { halign: "right" },
           5: { halign: "center" },
           6: { halign: "center" },
           7: { halign: "center" },
