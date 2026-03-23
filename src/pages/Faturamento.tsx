@@ -250,13 +250,26 @@ export const FaturamentoContent = () => {
 
     const ajustesData = ajustesRes.data || [];
 
-    // Fetch measurements per equipment using the exact filtered period used in Horímetro
-    // Delivery/return date adjustments are handled separately in proportional billing
+    // Fetch measurements per equipment: in-period + baseline (last reading before period)
     const medPromises = allEquipIdsWithAditivos.map(eqId => {
-      return supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data").eq("equipamento_id", eqId).gte("data", inicio).lte("data", fim).order("data", { ascending: true });
+      return Promise.all([
+        supabase.from("medicoes").select("equipamento_id, tipo, horimetro_final, data")
+          .eq("equipamento_id", eqId).eq("tipo", "Trabalho")
+          .lt("data", inicio).order("data", { ascending: false }).limit(1),
+        supabase.from("medicoes").select("equipamento_id, horas_trabalhadas, tipo, horimetro_inicial, horimetro_final, data")
+          .eq("equipamento_id", eqId).gte("data", inicio).lte("data", fim).order("data", { ascending: true }),
+      ]);
     });
     const medResults = await Promise.all(medPromises);
-    const medicoesData = medResults.flatMap(r => r.data || []);
+    const baselineMap = new Map<string, { data: string; horimetro_final: number }>();
+    const medicoesData: any[] = [];
+    medResults.forEach(([baselineRes, periodRes]) => {
+      if (baselineRes.data && baselineRes.data.length > 0) {
+        const b = baselineRes.data[0];
+        baselineMap.set(b.equipamento_id, { data: b.data, horimetro_final: Number(b.horimetro_final) });
+      }
+      if (periodRes.data) medicoesData.push(...periodRes.data);
+    });
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
 
     // Final filter: exclude equipment returned before period or not yet delivered
