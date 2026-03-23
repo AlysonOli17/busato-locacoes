@@ -844,7 +844,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
       {/* Dialog de criação/edição */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar Proposta" : "Nova Proposta Comercial"}</DialogTitle>
             <DialogDescription>Preencha os dados da proposta</DialogDescription>

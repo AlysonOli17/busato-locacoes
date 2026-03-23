@@ -1496,7 +1496,7 @@ export const FaturamentoContent = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[95vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-accent" />
@@ -1801,7 +1801,7 @@ export const FaturamentoContent = () => {
 
       {/* Mobilização/Desmobilização Alert Dialog */}
       <Dialog open={mobDialogOpen} onOpenChange={setMobDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-warning" />
@@ -1855,7 +1855,7 @@ export const FaturamentoContent = () => {
 
       {/* Approval Dialog - ask for invoice number */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-success" />

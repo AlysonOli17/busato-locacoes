@@ -328,7 +328,7 @@ const Gastos = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-accent" />{editing ? "Editar Custo" : "Novo Custo"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div>

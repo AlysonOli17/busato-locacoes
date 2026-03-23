@@ -357,7 +357,7 @@ const Equipamentos = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar Equipamento" : "Novo Equipamento"}</DialogTitle>
           </DialogHeader>

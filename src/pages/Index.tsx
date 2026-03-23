@@ -330,7 +330,7 @@ const Index = () => {
 
       {/* Dialog com todos os vencimentos */}
       <Dialog open={vencimentosDialogOpen} onOpenChange={setVencimentosDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-warning" />

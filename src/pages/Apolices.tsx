@@ -708,7 +708,7 @@ const Apolices = () => {
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-accent" />{editing ? "Editar Apólice" : "Nova Apólice"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
@@ -804,7 +804,7 @@ const Apolices = () => {
 
       {/* Detail Dialog */}
       <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-accent" />Detalhes da Apólice</DialogTitle></DialogHeader>
           {detailItem && (() => {
             const valorParcela = detailItem.tem_parcelamento && detailItem.numero_parcelas > 0 ? detailItem.valor / detailItem.numero_parcelas : detailItem.valor;
@@ -949,7 +949,7 @@ const Apolices = () => {
 
           {/* Sinistro Form Dialog */}
           <Dialog open={sinistroDialogOpen} onOpenChange={setSinistroDialogOpen}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingSinistro ? "Editar Sinistro" : "Novo Sinistro"}</DialogTitle>
               </DialogHeader>
@@ -1047,7 +1047,7 @@ const Apolices = () => {
 
           {/* Sinistro Detail Dialog */}
           <Dialog open={!!sinistroDetailItem} onOpenChange={() => setSinistroDetailItem(null)}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Detalhes do Sinistro</DialogTitle>
               </DialogHeader>

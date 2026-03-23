@@ -1537,7 +1537,7 @@ const Contratos = () => {
 
       {/* Dashboard Dialog */}
       <Dialog open={dashboardOpen} onOpenChange={setDashboardOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-accent" />
@@ -1666,7 +1666,7 @@ const Contratos = () => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-accent" />{editing ? "Editar Contrato" : "Novo Contrato"}</DialogTitle>
           </DialogHeader>
@@ -1815,7 +1815,7 @@ const Contratos = () => {
 
       {/* Ajustes e Aditivos Dialog */}
       <Dialog open={ajustesOpen} onOpenChange={setAjustesOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-accent" />
