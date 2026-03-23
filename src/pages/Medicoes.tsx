@@ -123,7 +123,7 @@ const Medicoes = () => {
   useEffect(() => { fetchBaselines(); }, [fetchBaselines]);
 
   // Group filtered entries by equipment, sorted by date
-  const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;}>();
+  const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;mediaHorasDia: number;}>();
   const equipEntries = new Map<string, Medicao[]>();
   filtered.forEach((m) => {
     const arr = equipEntries.get(m.equipamento_id) || [];
@@ -135,24 +135,43 @@ const Medicoes = () => {
     const first = sorted[0];
     const label = `${first.equipamentos?.tipo} ${first.equipamentos?.modelo}`;
     const tag = first.equipamentos?.tag_placa || "";
-    // Para Trabalho, usamos horimetro_final (horímetro atual). Pegar menor e maior do período.
     const trabalhoEntries = sorted.filter(e => (e.tipo || "Trabalho") === "Trabalho");
-    // Deduplicate: keep only the highest horimetro_final per day
-    const byDay = new Map<string, number>();
-    for (const e of trabalhoEntries) {
-      const d = String(e.data);
-      const v = Number(e.horimetro_final);
-      if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
-    }
-    const dayValues = Array.from(byDay.values());
+
     let totalHoras = 0;
-    if (dayValues.length > 0) {
-      const maior = Math.max(...dayValues);
-      // Use min of values within filtered period (max - min of horimetro_final)
-      const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
-      totalHoras = Math.max(0, maior - menor);
+    let mediaHorasDia = 0;
+
+    if (dataInicio && dataFim) {
+      // Use interpolation when period filters are active
+      const inicioStr = format(dataInicio, "yyyy-MM-dd");
+      const fimStr = format(dataFim, "yyyy-MM-dd");
+      // Build readings array: baseline + in-period readings
+      const allReadings: { data: string; horimetro_final: number }[] = [];
+      const baseline = baselines.get(eqId);
+      if (baseline) {
+        allReadings.push({ data: baseline.data, horimetro_final: baseline.horim });
+      }
+      for (const e of trabalhoEntries) {
+        allReadings.push({ data: e.data, horimetro_final: Number(e.horimetro_final) });
+      }
+      const result = calcularHorasInterpoladas(allReadings, inicioStr, fimStr);
+      totalHoras = result.totalHoras;
+      mediaHorasDia = result.mediaHorasDia;
+    } else {
+      // No period filter: use simple max - min
+      const byDay = new Map<string, number>();
+      for (const e of trabalhoEntries) {
+        const d = String(e.data);
+        const v = Number(e.horimetro_final);
+        if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
+      }
+      const dayValues = Array.from(byDay.values());
+      if (dayValues.length > 0) {
+        const maior = Math.max(...dayValues);
+        const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
+        totalHoras = Math.max(0, maior - menor);
+      }
     }
-    summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
+    summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag, mediaHorasDia });
   });
 
   const totalHorasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalHoras, 0);
