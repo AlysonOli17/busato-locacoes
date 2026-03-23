@@ -317,48 +317,26 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours with the same Horímetro rule: highest - lowest horimetro within filtered period
+      // Calculate hours using interpolation (average daily hours between readings)
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       let horasMedidas = 0;
-      if (filteredMedicoes.length > 0) {
+      if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
-        // Keep only highest horimetro_final per day
-        const byDay = new Map<string, number>();
+        // Build readings array: baseline + in-period readings
+        const allReadings: { data: string; horimetro_final: number }[] = [];
+        const baseline = baselineMap.get(eqId);
+        if (baseline) allReadings.push(baseline);
         for (const m of trabalho) {
-          const d = String(m.data);
-          const v = Number(m.horimetro_final);
-          if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
+          allReadings.push({ data: String(m.data), horimetro_final: Number(m.horimetro_final) });
         }
-        const dayValues = Array.from(byDay.values());
-        if (dayValues.length > 0) {
-          const maior = Math.max(...dayValues);
-          const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
-          const horasTotaisPeriodo = Math.max(0, maior - menor);
 
-          // Handle return date mid-period: use actual hours if reading exists on return date,
-          // otherwise proportionally distribute measured hours
-          if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
-            const temLeituraNaDevolucao = byDay.has(dataDevolucao);
-            if (temLeituraNaDevolucao) {
-              // Reading exists on return date — use actual hours up to that date
-              const daysUpToReturn = [...byDay.entries()].filter(([d]) => d <= dataDevolucao);
-              if (daysUpToReturn.length > 0) {
-                const maiorAteDevol = Math.max(...daysUpToReturn.map(([, v]) => v));
-                horasMedidas = Math.max(0, maiorAteDevol - menor);
-              }
-            } else {
-              // No reading on return date — proportionally distribute hours
-              const refInicio = dataEntrega && dataEntrega > inicio ? dataEntrega : inicio;
-              const refInicioDate = parseLocalDate(refInicio);
-              const fimDate = parseLocalDate(fim);
-              const devolucaoDate = parseLocalDate(dataDevolucao);
-              const diasTotais = Math.max(1, Math.round((fimDate.getTime() - refInicioDate.getTime()) / (1000 * 60 * 60 * 24)));
-              const diasAteDevol = Math.max(1, Math.round((devolucaoDate.getTime() - refInicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-              horasMedidas = Number((horasTotaisPeriodo * diasAteDevol / diasTotais).toFixed(1));
-            }
-          } else {
-            horasMedidas = horasTotaisPeriodo;
-          }
+        if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
+          // Equipment returned mid-period: calculate hours up to return date
+          const result = calcularHorasInterpoladas(allReadings, inicio, dataDevolucao);
+          horasMedidas = result.totalHoras;
+        } else {
+          const result = calcularHorasInterpoladas(allReadings, inicio, fim);
+          horasMedidas = result.totalHoras;
         }
       }
 
