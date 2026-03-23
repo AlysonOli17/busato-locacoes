@@ -1801,7 +1801,7 @@ export const FaturamentoContent = () => {
 
       {/* Mobilização/Desmobilização Alert Dialog */}
       <Dialog open={mobDialogOpen} onOpenChange={setMobDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-warning" />
