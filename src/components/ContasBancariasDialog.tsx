@@ -66,7 +66,7 @@ export const ContasBancariasDialog = ({ open, onOpenChange, contas, onRefresh }:
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Landmark className="h-5 w-5 text-accent" /> Contas Bancárias
