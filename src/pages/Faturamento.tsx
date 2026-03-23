@@ -14,6 +14,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, MessageCircle } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { calcularHorasInterpoladas } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
 import { ContasBancariasDialog, type ContaBancaria } from "@/components/ContasBancariasDialog";
