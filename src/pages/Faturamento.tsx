@@ -947,13 +947,14 @@ export const FaturamentoContent = () => {
 
         const itemDesc = `${(eq?.tipo || "").toUpperCase()} ${(eq?.modelo || "").toUpperCase()}`;
         const tagPlaca = eq?.tag_placa || "—";
+        const numSerie = eq?.numero_serie || "—";
 
         return [
           itemDesc,
           tagPlaca,
+          numSerie,
           fmtBRL(vh),
           fmtBRL(vhe),
-          `${fmt(hc)}h`,
           `${fmt(hm)}h`,
           `${fmt(horasMedidas)}h`,
           `${fmt(horasIndisponiveis)}h`,
