@@ -357,6 +357,9 @@ const Medicoes = () => {
               <CardContent className="px-3 pb-3 pt-0">
                 <div className="text-lg font-bold text-accent">{data.totalHoras.toFixed(1)}h</div>
                 <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
+                {data.mediaHorasDia > 0 && (
+                  <p className="text-[10px] text-accent/70 font-medium">Média: {data.mediaHorasDia.toFixed(2)} h/dia</p>
+                )}
               </CardContent>
             </Card>
           )}
