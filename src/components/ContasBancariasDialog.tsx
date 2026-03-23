@@ -117,7 +117,7 @@ export const ContasBancariasDialog = ({ open, onOpenChange, contas, onRefresh }:
       </Dialog>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar Conta" : "Nova Conta Bancária"}</DialogTitle>
           </DialogHeader>

@@ -1815,7 +1815,7 @@ const Contratos = () => {
 
       {/* Ajustes e Aditivos Dialog */}
       <Dialog open={ajustesOpen} onOpenChange={setAjustesOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-accent" />
