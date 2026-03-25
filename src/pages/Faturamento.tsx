@@ -735,7 +735,7 @@ export const FaturamentoContent = () => {
         } catch { return null; }
       })();
 
-      let y = 10;
+      let y = 8;
 
       const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
       const busatoCnpj = busatoEmp?.cnpj || "";
@@ -743,38 +743,34 @@ export const FaturamentoContent = () => {
       const busatoIE = busatoEmp?.inscricao_estadual || "";
 
       // === HEADER (same as Fatura) ===
-      if (logo) doc.addImage(logo, "PNG", mL, y, 48, 12);
+      if (logo) doc.addImage(logo, "PNG", mL, y, 40, 10);
 
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
       const docLabel = inicioFmt && fimFmt ? `${inicioFmt} - ${fimFmt}` : String(item.numero_sequencial).padStart(3, "0");
-      doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 8, { align: "right" });
-      y += 18;
+      doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 7, { align: "right" });
+      y += 14;
 
-      // Busato info
-      doc.setFontSize(7);
+      // Busato info - single line
+      doc.setFontSize(6);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(60, 60, 60);
-      doc.text(busatoNome.toUpperCase(), mL, y);
-      y += 3.5;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.5);
+      const busatoInfoLine = [busatoNome.toUpperCase(), busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `IE: ${busatoIE}` : ""].filter(Boolean).join("  |  ");
+      doc.text(busatoInfoLine, mL, y);
+      y += 3;
       if (busatoEndereco) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.5);
         doc.text(busatoEndereco, mL, y);
         y += 3;
       }
-      const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `Inscrição Estadual: ${busatoIE}` : ""].filter(Boolean).join(" - ");
-      if (cnpjLine) {
-        doc.text(cnpjLine, mL, y);
-      }
-      y += 5;
 
       // Blue separator
       doc.setDrawColor(41, 128, 185);
-      doc.setLineWidth(0.5);
+      doc.setLineWidth(0.4);
       doc.line(mL, y, pageW - mR, y);
-      y += 5;
+      y += 3;
 
       // ──────────────── MEASUREMENT INFO BLOCK ────────────────
       const periodoStr = inicio && fim
