@@ -1171,7 +1171,7 @@ export const FaturamentoContent = () => {
         margin: tableMargin,
         head: [["Descrição", "Valor"]],
         body: resumoBody,
-        styles: { fontSize: 9, cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        styles: { fontSize: 8, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
         alternateRowStyles: { fillColor: [240, 246, 252] },
         columnStyles: {
