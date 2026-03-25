@@ -1173,27 +1173,33 @@ export const FaturamentoContent = () => {
       y = (doc as any).lastAutoTable.finalY + 8;
 
       // ──────────────── APPROVAL / SIGNATURE BLOCK ────────────────
-      const sigY = Math.max(y + 10, pageH - 50);
+      // Ensure enough space for signature block (~40mm needed)
+      if (y + 40 > pageH - 25) {
+        doc.addPage();
+        y = 20;
+      }
+
+      const sigY = Math.max(y + 14, pageH - 55);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
+      doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
       doc.text("Aprovação:", mL, sigY);
 
-      const sigLineY = sigY + 16;
-      const halfW = (contentW - 20) / 2;
+      const sigLineY = sigY + 20;
+      const halfW = (contentW - 30) / 2;
       doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.3);
+      doc.setLineWidth(0.4);
 
       // Left signature
       doc.line(mL, sigLineY, mL + halfW, sigLineY);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
-      doc.text(busatoNome, mL + halfW / 2, sigLineY + 4, { align: "center" });
+      doc.text(busatoNome, mL + halfW / 2, sigLineY + 5, { align: "center" });
 
       // Right signature
-      const rightX = mL + halfW + 20;
+      const rightX = mL + halfW + 30;
       doc.line(rightX, sigLineY, rightX + halfW, sigLineY);
-      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 4, { align: "center" });
+      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 5, { align: "center" });
 
       // ──────────────── FOOTER ────────────────
       doc.setFontSize(6);
