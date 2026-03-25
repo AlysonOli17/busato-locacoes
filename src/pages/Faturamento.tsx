@@ -735,7 +735,7 @@ export const FaturamentoContent = () => {
         } catch { return null; }
       })();
 
-      let y = 8;
+      let y = 10;
 
       const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
       const busatoCnpj = busatoEmp?.cnpj || "";
@@ -743,34 +743,38 @@ export const FaturamentoContent = () => {
       const busatoIE = busatoEmp?.inscricao_estadual || "";
 
       // === HEADER (same as Fatura) ===
-      if (logo) doc.addImage(logo, "PNG", mL, y, 40, 10);
+      if (logo) doc.addImage(logo, "PNG", mL, y, 48, 12);
 
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
       const docLabel = inicioFmt && fimFmt ? `${inicioFmt} - ${fimFmt}` : String(item.numero_sequencial).padStart(3, "0");
-      doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 7, { align: "right" });
-      y += 14;
+      doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 8, { align: "right" });
+      y += 18;
 
-      // Busato info - single line
-      doc.setFontSize(6);
+      // Busato info
+      doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(60, 60, 60);
-      const busatoInfoLine = [busatoNome.toUpperCase(), busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `IE: ${busatoIE}` : ""].filter(Boolean).join("  |  ");
-      doc.text(busatoInfoLine, mL, y);
-      y += 3;
+      doc.text(busatoNome.toUpperCase(), mL, y);
+      y += 3.5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
       if (busatoEndereco) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(5.5);
         doc.text(busatoEndereco, mL, y);
         y += 3;
       }
+      const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `Inscrição Estadual: ${busatoIE}` : ""].filter(Boolean).join(" - ");
+      if (cnpjLine) {
+        doc.text(cnpjLine, mL, y);
+      }
+      y += 5;
 
       // Blue separator
       doc.setDrawColor(41, 128, 185);
-      doc.setLineWidth(0.4);
+      doc.setLineWidth(0.5);
       doc.line(mL, y, pageW - mR, y);
-      y += 3;
+      y += 5;
 
       // ──────────────── MEASUREMENT INFO BLOCK ────────────────
       const periodoStr = inicio && fim
@@ -825,43 +829,27 @@ export const FaturamentoContent = () => {
 
       const equipTypes = [...new Set((eqData || []).map(e => e.tipo))].join(", ") || "—";
 
-      // Draw info block in 2 columns to save vertical space
-      const infoLeft = [
-        { label: "Mês Ref:", value: mesRef },
-        { label: "Período:", value: periodoStr },
-        { label: "Objeto:", value: equipTypes },
-      ];
-      const infoRight = [
-        { label: "Contratante:", value: emp?.nome || "—" },
-        { label: "CNPJ:", value: emp?.cnpj || "—" },
+      const medInfoRows = [
+        { label: "Mês de Referência:", value: mesRef },
+        { label: "Período de Medição:", value: periodoStr },
+        { label: "Empresa Contratante:", value: emp?.nome || "—" },
+        { label: "CNPJ Contratante:", value: emp?.cnpj || "—" },
+        { label: "Objeto de contrato:", value: equipTypes },
       ];
 
-      const colMid = mL + contentW / 2 + 5;
-      const infoFontSize = 7;
-      const infoRowH = 4.5;
-      doc.setFontSize(infoFontSize);
-      const maxInfoRows = Math.max(infoLeft.length, infoRight.length);
-      for (let ri = 0; ri < maxInfoRows; ri++) {
-        if (ri < infoLeft.length) {
-          doc.setFillColor(235, 235, 235);
-          doc.rect(mL, y - 2.8, 32, 4.2, "F");
-          doc.setFont("helvetica", "bold");
-          doc.text(infoLeft[ri].label, mL + 1, y);
-          doc.setFont("helvetica", "normal");
-          doc.text(infoLeft[ri].value, mL + 33, y);
-        }
-        if (ri < infoRight.length) {
-          doc.setFillColor(235, 235, 235);
-          doc.rect(colMid, y - 2.8, 32, 4.2, "F");
-          doc.setFont("helvetica", "bold");
-          doc.text(infoRight[ri].label, colMid + 1, y);
-          doc.setFont("helvetica", "normal");
-          doc.text(infoRight[ri].value, colMid + 33, y);
-        }
-        y += infoRowH;
+      // Draw info block with gray background for labels
+      for (const info of medInfoRows) {
+        doc.setFillColor(235, 235, 235);
+        doc.rect(mL, y - 3, 48, 5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text(info.label, mL + 1, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(info.value, mL + 50, y);
+        y += 5.5;
       }
 
-      y += 2;
+      y += 4;
 
       // ──────────────── EQUIPMENT TABLE ────────────────
       // Fetch adjustments & measurements
@@ -1005,16 +993,9 @@ export const FaturamentoContent = () => {
 
       // Build body rows: each equipment gets a main row + a sub-row spanning all columns
       const tableBody: any[][] = [];
-      // Adaptive sizing: more rows → smaller font/padding to fit on one page
-      const numEquip = eqRows.length;
-      const tblFontSize = numEquip <= 4 ? 7 : numEquip <= 6 ? 6.5 : 6;
-      const tblPadding = numEquip <= 4 ? 2 : numEquip <= 6 ? 1.5 : 1.2;
-      const subFontSize = numEquip <= 4 ? 5.5 : numEquip <= 6 ? 5 : 4.5;
-      const subPadV = numEquip <= 6 ? 0.8 : 0.5;
-
       for (const { mainRow, subLineText } of eqRows) {
         tableBody.push(mainRow);
-        tableBody.push([{ content: subLineText, colSpan: 9, styles: { fontSize: subFontSize, fontStyle: "italic", textColor: [100, 100, 100], fillColor: [250, 250, 250], cellPadding: { top: subPadV, bottom: subPadV, left: 4, right: 2 } } }]);
+        tableBody.push([{ content: subLineText, colSpan: 9, styles: { fontSize: 6, fontStyle: "italic", textColor: [100, 100, 100], fillColor: [250, 250, 250], cellPadding: { top: 1, bottom: 1, left: 4, right: 2 } } }]);
       }
 
       // Table with all contract info columns — auto-expand to fill page
@@ -1022,10 +1003,10 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trab.", "Indisp.", "Valor Total R$"]],
+        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
         body: tableBody,
-        styles: { fontSize: tblFontSize, cellPadding: tblPadding, lineColor: [200, 200, 200], lineWidth: 0.2 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center", cellPadding: 1.5 },
+        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
         alternateRowStyles: {},
         columnStyles: {
           1: { halign: "center" },
@@ -1042,14 +1023,14 @@ export const FaturamentoContent = () => {
       y = (doc as any).lastAutoTable.finalY;
 
       // Medição Total - right aligned with proper spacing
-      y += 4;
+      y += 6;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setTextColor(41, 128, 185);
       doc.text("Medição Total:", pageW - mR - 40, y, { align: "right" });
       doc.text(fmtBRL(totalMedicao), pageW - mR, y, { align: "right" });
       doc.setTextColor(0, 0, 0);
-      y += 8;
+      y += 12;
 
       // ──────────────── CUSTOS ADICIONAIS ────────────────
       let totalCobrar = 0;
@@ -1171,7 +1152,7 @@ export const FaturamentoContent = () => {
         margin: tableMargin,
         head: [["Descrição", "Valor"]],
         body: resumoBody,
-        styles: { fontSize: 8, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        styles: { fontSize: 9, cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
         alternateRowStyles: { fillColor: [240, 246, 252] },
         columnStyles: {
@@ -1189,41 +1170,45 @@ export const FaturamentoContent = () => {
         },
         theme: "grid",
       });
-      y = (doc as any).lastAutoTable.finalY + 5;
+      y = (doc as any).lastAutoTable.finalY + 8;
 
       // ──────────────── APPROVAL / SIGNATURE BLOCK ────────────────
-      // Ensure enough space for signature block (~30mm needed)
-      if (y + 30 > pageH - 15) {
+      // Ensure enough space for signature block (~40mm needed)
+      if (y + 40 > pageH - 25) {
         doc.addPage();
-        y = 15;
+        y = 20;
       }
 
-      const sigY = Math.max(y + 8, pageH - 40);
+      const sigY = Math.max(y + 14, pageH - 55);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
+      doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
       doc.text("Aprovação:", mL, sigY);
 
-      const sigLineY = sigY + 14;
+      const sigLineY = sigY + 20;
       const halfW = (contentW - 30) / 2;
       doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.3);
+      doc.setLineWidth(0.4);
 
       // Left signature
       doc.line(mL, sigLineY, mL + halfW, sigLineY);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(6);
-      doc.text(busatoNome, mL + halfW / 2, sigLineY + 4, { align: "center" });
+      doc.setFontSize(7);
+      doc.text(busatoNome, mL + halfW / 2, sigLineY + 5, { align: "center" });
 
       // Right signature
       const rightX = mL + halfW + 30;
       doc.line(rightX, sigLineY, rightX + halfW, sigLineY);
-      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 4, { align: "center" });
+      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 5, { align: "center" });
 
       // ──────────────── FOOTER ────────────────
-      doc.setFontSize(6);
-      doc.setTextColor(130, 130, 130);
-      doc.text(`Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}`, pageW / 2, pageH - 8, { align: "center" });
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFontSize(6);
+        doc.setTextColor(130, 130, 130);
+        doc.text(`Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}  —  Página ${p} de ${totalPages}`, pageW / 2, pageH - 8, { align: "center" });
+      }
     }
 
     doc.save(`boletim_medicao_${new Date().toISOString().slice(0, 10)}.pdf`);
