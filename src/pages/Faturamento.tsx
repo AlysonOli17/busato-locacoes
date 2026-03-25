@@ -735,7 +735,7 @@ export const FaturamentoContent = () => {
         } catch { return null; }
       })();
 
-      let y = 8;
+      let y = 10;
 
       const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
       const busatoCnpj = busatoEmp?.cnpj || "";
@@ -743,34 +743,38 @@ export const FaturamentoContent = () => {
       const busatoIE = busatoEmp?.inscricao_estadual || "";
 
       // === HEADER (same as Fatura) ===
-      if (logo) doc.addImage(logo, "PNG", mL, y, 40, 10);
+      if (logo) doc.addImage(logo, "PNG", mL, y, 48, 12);
 
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(41, 128, 185);
       const docLabel = inicioFmt && fimFmt ? `${inicioFmt} - ${fimFmt}` : String(item.numero_sequencial).padStart(3, "0");
-      doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 7, { align: "right" });
-      y += 14;
+      doc.text(`BOLETIM DE MEDIÇÃO ${docLabel}`, pageW - mR, y + 8, { align: "right" });
+      y += 18;
 
-      // Busato info - single line
-      doc.setFontSize(6);
+      // Busato info
+      doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(60, 60, 60);
-      const busatoInfoLine = [busatoNome.toUpperCase(), busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `IE: ${busatoIE}` : ""].filter(Boolean).join("  |  ");
-      doc.text(busatoInfoLine, mL, y);
-      y += 3;
+      doc.text(busatoNome.toUpperCase(), mL, y);
+      y += 3.5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
       if (busatoEndereco) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(5.5);
         doc.text(busatoEndereco, mL, y);
         y += 3;
       }
+      const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `Inscrição Estadual: ${busatoIE}` : ""].filter(Boolean).join(" - ");
+      if (cnpjLine) {
+        doc.text(cnpjLine, mL, y);
+      }
+      y += 5;
 
       // Blue separator
       doc.setDrawColor(41, 128, 185);
-      doc.setLineWidth(0.4);
+      doc.setLineWidth(0.5);
       doc.line(mL, y, pageW - mR, y);
-      y += 3;
+      y += 5;
 
       // ──────────────── MEASUREMENT INFO BLOCK ────────────────
       const periodoStr = inicio && fim
@@ -825,43 +829,27 @@ export const FaturamentoContent = () => {
 
       const equipTypes = [...new Set((eqData || []).map(e => e.tipo))].join(", ") || "—";
 
-      // Draw info block in 2 columns to save vertical space
-      const infoLeft = [
-        { label: "Mês Ref:", value: mesRef },
-        { label: "Período:", value: periodoStr },
-        { label: "Objeto:", value: equipTypes },
-      ];
-      const infoRight = [
-        { label: "Contratante:", value: emp?.nome || "—" },
-        { label: "CNPJ:", value: emp?.cnpj || "—" },
+      const medInfoRows = [
+        { label: "Mês de Referência:", value: mesRef },
+        { label: "Período de Medição:", value: periodoStr },
+        { label: "Empresa Contratante:", value: emp?.nome || "—" },
+        { label: "CNPJ Contratante:", value: emp?.cnpj || "—" },
+        { label: "Objeto de contrato:", value: equipTypes },
       ];
 
-      const colMid = mL + contentW / 2 + 5;
-      const infoFontSize = 7;
-      const infoRowH = 4.5;
-      doc.setFontSize(infoFontSize);
-      const maxInfoRows = Math.max(infoLeft.length, infoRight.length);
-      for (let ri = 0; ri < maxInfoRows; ri++) {
-        if (ri < infoLeft.length) {
-          doc.setFillColor(235, 235, 235);
-          doc.rect(mL, y - 2.8, 32, 4.2, "F");
-          doc.setFont("helvetica", "bold");
-          doc.text(infoLeft[ri].label, mL + 1, y);
-          doc.setFont("helvetica", "normal");
-          doc.text(infoLeft[ri].value, mL + 33, y);
-        }
-        if (ri < infoRight.length) {
-          doc.setFillColor(235, 235, 235);
-          doc.rect(colMid, y - 2.8, 32, 4.2, "F");
-          doc.setFont("helvetica", "bold");
-          doc.text(infoRight[ri].label, colMid + 1, y);
-          doc.setFont("helvetica", "normal");
-          doc.text(infoRight[ri].value, colMid + 33, y);
-        }
-        y += infoRowH;
+      // Draw info block with gray background for labels
+      for (const info of medInfoRows) {
+        doc.setFillColor(235, 235, 235);
+        doc.rect(mL, y - 3, 48, 5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text(info.label, mL + 1, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(info.value, mL + 50, y);
+        y += 5.5;
       }
 
-      y += 2;
+      y += 4;
 
       // ──────────────── EQUIPMENT TABLE ────────────────
       // Fetch adjustments & measurements
