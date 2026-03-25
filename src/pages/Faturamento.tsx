@@ -1152,7 +1152,7 @@ export const FaturamentoContent = () => {
         margin: tableMargin,
         head: [["Descrição", "Valor"]],
         body: resumoBody,
-        styles: { fontSize: 8, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        styles: { fontSize: 9, cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
         alternateRowStyles: { fillColor: [240, 246, 252] },
         columnStyles: {
@@ -1170,41 +1170,45 @@ export const FaturamentoContent = () => {
         },
         theme: "grid",
       });
-      y = (doc as any).lastAutoTable.finalY + 5;
+      y = (doc as any).lastAutoTable.finalY + 8;
 
       // ──────────────── APPROVAL / SIGNATURE BLOCK ────────────────
-      // Ensure enough space for signature block (~30mm needed)
-      if (y + 30 > pageH - 15) {
+      // Ensure enough space for signature block (~40mm needed)
+      if (y + 40 > pageH - 25) {
         doc.addPage();
-        y = 15;
+        y = 20;
       }
 
-      const sigY = Math.max(y + 8, pageH - 40);
+      const sigY = Math.max(y + 14, pageH - 55);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
+      doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
       doc.text("Aprovação:", mL, sigY);
 
-      const sigLineY = sigY + 14;
+      const sigLineY = sigY + 20;
       const halfW = (contentW - 30) / 2;
       doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.3);
+      doc.setLineWidth(0.4);
 
       // Left signature
       doc.line(mL, sigLineY, mL + halfW, sigLineY);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(6);
-      doc.text(busatoNome, mL + halfW / 2, sigLineY + 4, { align: "center" });
+      doc.setFontSize(7);
+      doc.text(busatoNome, mL + halfW / 2, sigLineY + 5, { align: "center" });
 
       // Right signature
       const rightX = mL + halfW + 30;
       doc.line(rightX, sigLineY, rightX + halfW, sigLineY);
-      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 4, { align: "center" });
+      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 5, { align: "center" });
 
       // ──────────────── FOOTER ────────────────
-      doc.setFontSize(6);
-      doc.setTextColor(130, 130, 130);
-      doc.text(`Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}`, pageW / 2, pageH - 8, { align: "center" });
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFontSize(6);
+        doc.setTextColor(130, 130, 130);
+        doc.text(`Documento gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}  —  Página ${p} de ${totalPages}`, pageW / 2, pageH - 8, { align: "center" });
+      }
     }
 
     doc.save(`boletim_medicao_${new Date().toISOString().slice(0, 10)}.pdf`);
