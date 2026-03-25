@@ -949,10 +949,40 @@ export const FaturamentoContent = () => {
         const tagPlaca = eq?.tag_placa || "—";
         const numSerie = eq?.numero_serie || "—";
 
+        // Determine type label (Mobilização, Desmobilização, Proporcional, etc.)
+        const tipoLabels: string[] = [];
+        const entregaDate = ae?.data_entrega || ce?.data_entrega || null;
+        const devolucaoDate = ae?.data_devolucao || ce?.data_devolucao || null;
+        if (entregaDate && entregaDate > inicio && entregaDate <= fim) {
+          tipoLabels.push("Mobilização (Proporcional)");
+        }
+        if (devolucaoDate && devolucaoDate >= inicio && devolucaoDate < fim) {
+          tipoLabels.push("Desmobilização (Proporcional)");
+        }
+        if (ajuste) {
+          tipoLabels.push(`Ajuste: ${ajuste.motivo || "S/ descrição"}`);
+        }
+        if (tipoLabels.length === 0) tipoLabels.push("Normal");
+        const tipoStr = tipoLabels.join(" / ");
+
+        // Period measured for this specific equipment
+        const periodoEqInicio = parseLocalDate(iEf).toLocaleDateString("pt-BR");
+        const periodoEqFim = parseLocalDate(fEf).toLocaleDateString("pt-BR");
+        const periodoEqStr = `${periodoEqInicio} a ${periodoEqFim}`;
+
+        // Horimeter initial and final from readings
+        const workReadings = [...eqBaseline, ...eqMeds].sort((a, b) => String(a.data).localeCompare(String(b.data)));
+        const horInicial = workReadings.length > 0 ? fmt(Number(workReadings[0].horimetro_final)) : "—";
+        const horFinal = workReadings.length > 0 ? fmt(Number(workReadings[workReadings.length - 1].horimetro_final)) : "—";
+
         return [
           itemDesc,
           tagPlaca,
           numSerie,
+          tipoStr,
+          periodoEqStr,
+          horInicial,
+          horFinal,
           fmtBRL(vh),
           fmtBRL(vhe),
           `${fmt(hm)}h`,
