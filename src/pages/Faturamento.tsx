@@ -1049,7 +1049,7 @@ export const FaturamentoContent = () => {
       doc.text("Medição Total:", pageW - mR - 40, y, { align: "right" });
       doc.text(fmtBRL(totalMedicao), pageW - mR, y, { align: "right" });
       doc.setTextColor(0, 0, 0);
-      y += 12;
+      y += 8;
 
       // ──────────────── CUSTOS ADICIONAIS ────────────────
       let totalCobrar = 0;
