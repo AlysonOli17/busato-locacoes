@@ -949,10 +949,40 @@ export const FaturamentoContent = () => {
         const tagPlaca = eq?.tag_placa || "—";
         const numSerie = eq?.numero_serie || "—";
 
+        // Determine type label (Mobilização, Desmobilização, Proporcional, etc.)
+        const tipoLabels: string[] = [];
+        const entregaDate = ae?.data_entrega || ce?.data_entrega || null;
+        const devolucaoDate = ae?.data_devolucao || ce?.data_devolucao || null;
+        if (entregaDate && entregaDate > inicio && entregaDate <= fim) {
+          tipoLabels.push("Mobilização (Proporcional)");
+        }
+        if (devolucaoDate && devolucaoDate >= inicio && devolucaoDate < fim) {
+          tipoLabels.push("Desmobilização (Proporcional)");
+        }
+        if (ajuste) {
+          tipoLabels.push(`Ajuste: ${ajuste.motivo || "S/ descrição"}`);
+        }
+        if (tipoLabels.length === 0) tipoLabels.push("Normal");
+        const tipoStr = tipoLabels.join(" / ");
+
+        // Period measured for this specific equipment
+        const periodoEqInicio = parseLocalDate(iEf).toLocaleDateString("pt-BR");
+        const periodoEqFim = parseLocalDate(fEf).toLocaleDateString("pt-BR");
+        const periodoEqStr = `${periodoEqInicio} a ${periodoEqFim}`;
+
+        // Horimeter initial and final from readings
+        const workReadings = [...eqBaseline, ...eqMeds].sort((a, b) => String(a.data).localeCompare(String(b.data)));
+        const horInicial = workReadings.length > 0 ? fmt(Number(workReadings[0].horimetro_final)) : "—";
+        const horFinal = workReadings.length > 0 ? fmt(Number(workReadings[workReadings.length - 1].horimetro_final)) : "—";
+
         return [
           itemDesc,
           tagPlaca,
           numSerie,
+          tipoStr,
+          periodoEqStr,
+          horInicial,
+          horFinal,
           fmtBRL(vh),
           fmtBRL(vhe),
           `${fmt(hm)}h`,
@@ -967,20 +997,25 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
+        head: [["Equipamento", "Tag", "Nº Série", "Tipo", "Período Medido", "Hor. Inicial", "Hor. Final", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
         body: eqRows,
-        styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
+        styles: { fontSize: 6.5, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center", fontSize: 6.5 },
         alternateRowStyles: { fillColor: [240, 246, 252] },
         columnStyles: {
+          0: { cellWidth: 'auto' },
           1: { halign: "center" },
           2: { halign: "center" },
-          3: { halign: "right" },
-          4: { halign: "right" },
-          5: { halign: "center" },
-          6: { halign: "center" },
-          7: { halign: "center" },
+          3: { halign: "left", fontStyle: "italic", cellWidth: 'auto' },
+          4: { halign: "center" },
+          5: { halign: "right" },
+          6: { halign: "right" },
+          7: { halign: "right" },
           8: { halign: "right" },
+          9: { halign: "center" },
+          10: { halign: "center" },
+          11: { halign: "center" },
+          12: { halign: "right" },
         },
         theme: "grid",
       });
