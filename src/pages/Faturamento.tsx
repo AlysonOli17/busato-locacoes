@@ -962,60 +962,61 @@ export const FaturamentoContent = () => {
         if (ajuste) {
           tipoLabels.push(`Ajuste: ${ajuste.motivo || "S/ descrição"}`);
         }
-        if (tipoLabels.length === 0) tipoLabels.push("Normal");
-        const tipoStr = tipoLabels.join(" / ");
+        const tipoStr = tipoLabels.length > 0 ? tipoLabels.join(" / ") : "";
 
         // Period measured for this specific equipment
         const periodoEqInicio = parseLocalDate(iEf).toLocaleDateString("pt-BR");
         const periodoEqFim = parseLocalDate(fEf).toLocaleDateString("pt-BR");
         const periodoEqStr = `${periodoEqInicio} a ${periodoEqFim}`;
 
-        // Horimeter initial and final from readings
-        const workReadings = [...eqBaseline, ...eqMeds].sort((a, b) => String(a.data).localeCompare(String(b.data)));
-        const horInicial = workReadings.length > 0 ? fmt(Number(workReadings[0].horimetro_final)) : "—";
-        const horFinal = workReadings.length > 0 ? fmt(Number(workReadings[workReadings.length - 1].horimetro_final)) : "—";
+        // Build sub-line text (Tipo + Período) to show below equipment
+        const subParts: string[] = [];
+        if (tipoStr) subParts.push(tipoStr);
+        subParts.push(`Período: ${periodoEqStr}`);
+        const subLineText = subParts.join("  •  ");
 
-        return [
-          itemDesc,
-          tagPlaca,
-          numSerie,
-          tipoStr,
-          periodoEqStr,
-          horInicial,
-          horFinal,
-          fmtBRL(vh),
-          fmtBRL(vhe),
-          `${fmt(hm)}h`,
-          `${fmt(horasMedidas)}h`,
-          `${fmt(horasIndisponiveis)}h`,
-          fmtBRL(valorTotal),
-        ];
+        return {
+          mainRow: [
+            itemDesc,
+            tagPlaca,
+            numSerie,
+            fmtBRL(vh),
+            fmtBRL(vhe),
+            `${fmt(hm)}h`,
+            `${fmt(horasMedidas)}h`,
+            `${fmt(horasIndisponiveis)}h`,
+            fmtBRL(valorTotal),
+          ],
+          subLineText,
+        };
       });
+
+      // Build body rows: each equipment gets a main row + a sub-row spanning all columns
+      const tableBody: any[][] = [];
+      for (const { mainRow, subLineText } of eqRows) {
+        tableBody.push(mainRow);
+        tableBody.push([{ content: subLineText, colSpan: 9, styles: { fontSize: 6, fontStyle: "italic", textColor: [100, 100, 100], fillColor: [250, 250, 250], cellPadding: { top: 1, bottom: 1, left: 4, right: 2 } } }]);
+      }
 
       // Table with all contract info columns — auto-expand to fill page
       const tableMargin = { left: mL, right: mR };
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Equipamento", "Tag", "Nº Série", "Tipo", "Período Medido", "Hor. Inicial", "Hor. Final", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
-        body: eqRows,
-        styles: { fontSize: 6.5, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.2 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center", fontSize: 6.5 },
-        alternateRowStyles: { fillColor: [240, 246, 252] },
+        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
+        body: tableBody,
+        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
+        alternateRowStyles: {},
         columnStyles: {
-          0: { cellWidth: 'auto' },
           1: { halign: "center" },
           2: { halign: "center" },
-          3: { halign: "left", fontStyle: "italic", cellWidth: 'auto' },
-          4: { halign: "center" },
-          5: { halign: "right" },
-          6: { halign: "right" },
-          7: { halign: "right" },
+          3: { halign: "right" },
+          4: { halign: "right" },
+          5: { halign: "center" },
+          6: { halign: "center" },
+          7: { halign: "center" },
           8: { halign: "right" },
-          9: { halign: "center" },
-          10: { halign: "center" },
-          11: { halign: "center" },
-          12: { halign: "right" },
         },
         theme: "grid",
       });
