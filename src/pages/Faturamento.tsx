@@ -1005,9 +1005,16 @@ export const FaturamentoContent = () => {
 
       // Build body rows: each equipment gets a main row + a sub-row spanning all columns
       const tableBody: any[][] = [];
+      // Adaptive sizing: more rows → smaller font/padding to fit on one page
+      const numEquip = eqRows.length;
+      const tblFontSize = numEquip <= 4 ? 7 : numEquip <= 6 ? 6.5 : 6;
+      const tblPadding = numEquip <= 4 ? 2 : numEquip <= 6 ? 1.5 : 1.2;
+      const subFontSize = numEquip <= 4 ? 5.5 : numEquip <= 6 ? 5 : 4.5;
+      const subPadV = numEquip <= 6 ? 0.8 : 0.5;
+
       for (const { mainRow, subLineText } of eqRows) {
         tableBody.push(mainRow);
-        tableBody.push([{ content: subLineText, colSpan: 9, styles: { fontSize: 6, fontStyle: "italic", textColor: [100, 100, 100], fillColor: [250, 250, 250], cellPadding: { top: 1, bottom: 1, left: 4, right: 2 } } }]);
+        tableBody.push([{ content: subLineText, colSpan: 9, styles: { fontSize: subFontSize, fontStyle: "italic", textColor: [100, 100, 100], fillColor: [250, 250, 250], cellPadding: { top: subPadV, bottom: subPadV, left: 4, right: 2 } } }]);
       }
 
       // Table with all contract info columns — auto-expand to fill page
@@ -1015,10 +1022,10 @@ export const FaturamentoContent = () => {
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
+        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trab.", "Indisp.", "Valor Total R$"]],
         body: tableBody,
-        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
+        styles: { fontSize: tblFontSize, cellPadding: tblPadding, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center", cellPadding: 1.5 },
         alternateRowStyles: {},
         columnStyles: {
           1: { halign: "center" },
@@ -1035,9 +1042,9 @@ export const FaturamentoContent = () => {
       y = (doc as any).lastAutoTable.finalY;
 
       // Medição Total - right aligned with proper spacing
-      y += 6;
+      y += 4;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(41, 128, 185);
       doc.text("Medição Total:", pageW - mR - 40, y, { align: "right" });
       doc.text(fmtBRL(totalMedicao), pageW - mR, y, { align: "right" });
