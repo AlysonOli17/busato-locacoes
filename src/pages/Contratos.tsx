@@ -1210,18 +1210,30 @@ const Contratos = () => {
     fetchAditivos(item.id);
   };
 
-  const openNewAditivo = () => {
+  const openNewAditivo = async () => {
+    if (!ajustesContrato) return;
     setEditingAditivo(null);
-    const nextNumero = aditivos.length > 0 ? Math.max(...aditivos.map(a => a.numero)) + 1 : 1;
 
-    // Se existem aditivos anteriores, herdar equipamentos do último aditivo
-    const sortedAditivos = [...aditivos].sort((a, b) => b.numero - a.numero);
+    // Buscar aditivos frescos do banco para garantir dados atualizados
+    const { data: freshAditivos } = await supabase
+      .from("contratos_aditivos")
+      .select("*, aditivos_equipamentos(*)")
+      .eq("contrato_id", ajustesContrato.id)
+      .order("numero", { ascending: true });
+
+    const aditivosAtuais = (freshAditivos || []) as unknown as Aditivo[];
+    setAditivos(aditivosAtuais);
+
+    const nextNumero = aditivosAtuais.length > 0 ? Math.max(...aditivosAtuais.map(a => a.numero)) + 1 : 1;
+
+    // Herdar do aditivo com maior número (o mais recente na sequência)
+    const sortedAditivos = [...aditivosAtuais].sort((a, b) => b.numero - a.numero);
     const ultimoAditivo = sortedAditivos.length > 0 ? sortedAditivos[0] : null;
 
     const hoje = new Date().toISOString().slice(0, 10);
     let equipamentosBase: FormEquipItem[];
     if (ultimoAditivo && ultimoAditivo.aditivos_equipamentos && ultimoAditivo.aditivos_equipamentos.length > 0) {
-      // Herdar do último aditivo, excluindo devolvidos
+      // Herdar do último aditivo (maior número), excluindo devolvidos
       equipamentosBase = ultimoAditivo.aditivos_equipamentos
         .filter(ae => !ae.data_devolucao || ae.data_devolucao > hoje)
         .map(ae => ({
@@ -1235,7 +1247,7 @@ const Contratos = () => {
         }));
     } else {
       // Herdar do contrato original, excluindo devolvidos
-      const ces = ajustesContrato ? getContratoEquipamentos(ajustesContrato) : [];
+      const ces = getContratoEquipamentos(ajustesContrato);
       equipamentosBase = ces
         .filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje)
         .map(ce => ({
