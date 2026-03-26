@@ -210,6 +210,59 @@ const Contratos = () => {
     return [];
   };
 
+  const getEquipamentosConsolidados = (
+    contrato: Contrato | null,
+    contratoAditivos: Aditivo[] = [],
+    options?: { excludeReturned?: boolean; referenceDate?: string }
+  ): ContratoEquipamento[] => {
+    if (!contrato) return [];
+
+    const equipMap = new Map<string, ContratoEquipamento>();
+    const baseEquipamentos = getContratoEquipamentos(contrato);
+
+    baseEquipamentos.forEach(ce => {
+      equipMap.set(ce.equipamento_id, {
+        ...ce,
+        valor_hora: Number(ce.valor_hora),
+        horas_contratadas: Number(ce.horas_contratadas),
+        valor_hora_excedente: Number(ce.valor_hora_excedente),
+        hora_minima: Number(ce.hora_minima),
+      });
+    });
+
+    [...contratoAditivos]
+      .sort((a, b) => a.numero - b.numero)
+      .forEach(aditivo => {
+        (aditivo.aditivos_equipamentos || []).forEach(ae => {
+          const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+          const fallback = equipMap.get(ae.equipamento_id);
+          const equipamento = eq || fallback?.equipamentos;
+          if (!equipamento) return;
+
+          equipMap.set(ae.equipamento_id, {
+            id: ae.id,
+            equipamento_id: ae.equipamento_id,
+            valor_hora: Number(ae.valor_hora),
+            horas_contratadas: Number(ae.horas_contratadas),
+            valor_hora_excedente: Number(ae.valor_hora_excedente),
+            hora_minima: Number(ae.hora_minima),
+            data_entrega: ae.data_entrega,
+            data_devolucao: ae.data_devolucao,
+            equipamentos: equipamento,
+          });
+        });
+      });
+
+    let result = Array.from(equipMap.values());
+
+    if (options?.excludeReturned) {
+      const referenceDate = options.referenceDate || new Date().toISOString().slice(0, 10);
+      result = result.filter(ce => !ce.data_devolucao || ce.data_devolucao > referenceDate);
+    }
+
+    return result;
+  };
+
   const getEquipamentosList = (item: Contrato): Equipamento[] => {
     return getContratoEquipamentos(item).map(ce => ce.equipamentos);
   };
@@ -991,35 +1044,11 @@ const Contratos = () => {
   // If excludeReturned=true, filters out equipment with data_devolucao <= hoje
   const getAllEquipForAjuste = (contrato: Contrato | null, excludeReturned = false): ContratoEquipamento[] => {
     if (!contrato) return [];
-    const ces = getContratoEquipamentos(contrato);
     const contratoAditivos = aditivos.filter(a => a.contrato_id === contrato.id);
-    const equipMap = new Map<string, ContratoEquipamento>();
-    ces.forEach(ce => equipMap.set(ce.equipamento_id, ce));
-    // Aditivos override/add - sorted by numero so latest wins
-    contratoAditivos.sort((a, b) => a.numero - b.numero);
-    contratoAditivos.forEach(ad => {
-      (ad.aditivos_equipamentos || []).forEach(ae => {
-        const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-        if (!eq) return;
-        equipMap.set(ae.equipamento_id, {
-          id: ae.id,
-          equipamento_id: ae.equipamento_id,
-          valor_hora: ae.valor_hora,
-          horas_contratadas: ae.horas_contratadas,
-          valor_hora_excedente: ae.valor_hora_excedente,
-          hora_minima: ae.hora_minima,
-          data_entrega: ae.data_entrega,
-          data_devolucao: ae.data_devolucao,
-          equipamentos: eq,
-        });
-      });
+    return getEquipamentosConsolidados(contrato, contratoAditivos, {
+      excludeReturned,
+      referenceDate: new Date().toISOString().slice(0, 10),
     });
-    let result = Array.from(equipMap.values());
-    if (excludeReturned) {
-      const hoje = new Date().toISOString().slice(0, 10);
-      result = result.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
-    }
-    return result;
   };
 
   // Helper: get the max end date from contract or latest aditivo
@@ -1214,7 +1243,6 @@ const Contratos = () => {
     if (!ajustesContrato) return;
     setEditingAditivo(null);
 
-    // Buscar aditivos frescos do banco para garantir dados atualizados
     const { data: freshAditivos } = await supabase
       .from("contratos_aditivos")
       .select("*, aditivos_equipamentos(*)")
@@ -1225,46 +1253,24 @@ const Contratos = () => {
     setAditivos(aditivosAtuais);
 
     const nextNumero = aditivosAtuais.length > 0 ? Math.max(...aditivosAtuais.map(a => a.numero)) + 1 : 1;
-
-    // Herdar do aditivo com maior número (o mais recente na sequência)
-    const sortedAditivos = [...aditivosAtuais].sort((a, b) => b.numero - a.numero);
-    const ultimoAditivo = sortedAditivos.length > 0 ? sortedAditivos[0] : null;
-
     const hoje = new Date().toISOString().slice(0, 10);
-    let equipamentosBase: FormEquipItem[];
-    if (ultimoAditivo && ultimoAditivo.aditivos_equipamentos && ultimoAditivo.aditivos_equipamentos.length > 0) {
-      // Herdar do último aditivo (maior número), excluindo devolvidos
-      equipamentosBase = ultimoAditivo.aditivos_equipamentos
-        .filter(ae => !ae.data_devolucao || ae.data_devolucao > hoje)
-        .map(ae => ({
-          equipamento_id: ae.equipamento_id,
-          valor_hora: Number(ae.valor_hora),
-          horas_contratadas: Number(ae.horas_contratadas),
-          valor_hora_excedente: Number(ae.valor_hora_excedente),
-          hora_minima: Number(ae.hora_minima),
-          data_entrega: ae.data_entrega || "",
-          data_devolucao: ae.data_devolucao || "",
-        }));
-    } else {
-      // Herdar do contrato original, excluindo devolvidos
-      const ces = getContratoEquipamentos(ajustesContrato);
-      equipamentosBase = ces
-        .filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje)
-        .map(ce => ({
-          equipamento_id: ce.equipamento_id,
-          valor_hora: Number(ce.valor_hora),
-          horas_contratadas: Number(ce.horas_contratadas),
-          valor_hora_excedente: Number(ce.valor_hora_excedente),
-          hora_minima: Number(ce.hora_minima),
-          data_entrega: ce.data_entrega || "",
-          data_devolucao: ce.data_devolucao || "",
-        }));
-    }
+    const equipamentosBase = getEquipamentosConsolidados(ajustesContrato, aditivosAtuais, {
+      excludeReturned: true,
+      referenceDate: hoje,
+    }).map(ce => ({
+      equipamento_id: ce.equipamento_id,
+      valor_hora: Number(ce.valor_hora),
+      horas_contratadas: Number(ce.horas_contratadas),
+      valor_hora_excedente: Number(ce.valor_hora_excedente),
+      hora_minima: Number(ce.hora_minima),
+      data_entrega: ce.data_entrega || "",
+      data_devolucao: ce.data_devolucao || "",
+    }));
 
     setAditivoForm({
       numero: nextNumero,
       data_inicio: "",
-      data_fim: ajustesContrato?.data_fim || "",
+      data_fim: ajustesContrato.data_fim || "",
       motivo: "",
       observacoes: "",
       equipamentos: equipamentosBase,
