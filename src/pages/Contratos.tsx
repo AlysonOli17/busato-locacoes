@@ -1044,35 +1044,11 @@ const Contratos = () => {
   // If excludeReturned=true, filters out equipment with data_devolucao <= hoje
   const getAllEquipForAjuste = (contrato: Contrato | null, excludeReturned = false): ContratoEquipamento[] => {
     if (!contrato) return [];
-    const ces = getContratoEquipamentos(contrato);
     const contratoAditivos = aditivos.filter(a => a.contrato_id === contrato.id);
-    const equipMap = new Map<string, ContratoEquipamento>();
-    ces.forEach(ce => equipMap.set(ce.equipamento_id, ce));
-    // Aditivos override/add - sorted by numero so latest wins
-    contratoAditivos.sort((a, b) => a.numero - b.numero);
-    contratoAditivos.forEach(ad => {
-      (ad.aditivos_equipamentos || []).forEach(ae => {
-        const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-        if (!eq) return;
-        equipMap.set(ae.equipamento_id, {
-          id: ae.id,
-          equipamento_id: ae.equipamento_id,
-          valor_hora: ae.valor_hora,
-          horas_contratadas: ae.horas_contratadas,
-          valor_hora_excedente: ae.valor_hora_excedente,
-          hora_minima: ae.hora_minima,
-          data_entrega: ae.data_entrega,
-          data_devolucao: ae.data_devolucao,
-          equipamentos: eq,
-        });
-      });
+    return getEquipamentosConsolidados(contrato, contratoAditivos, {
+      excludeReturned,
+      referenceDate: new Date().toISOString().slice(0, 10),
     });
-    let result = Array.from(equipMap.values());
-    if (excludeReturned) {
-      const hoje = new Date().toISOString().slice(0, 10);
-      result = result.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
-    }
-    return result;
   };
 
   // Helper: get the max end date from contract or latest aditivo
