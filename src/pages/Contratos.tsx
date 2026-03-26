@@ -210,6 +210,59 @@ const Contratos = () => {
     return [];
   };
 
+  const getEquipamentosConsolidados = (
+    contrato: Contrato | null,
+    contratoAditivos: Aditivo[] = [],
+    options?: { excludeReturned?: boolean; referenceDate?: string }
+  ): ContratoEquipamento[] => {
+    if (!contrato) return [];
+
+    const equipMap = new Map<string, ContratoEquipamento>();
+    const baseEquipamentos = getContratoEquipamentos(contrato);
+
+    baseEquipamentos.forEach(ce => {
+      equipMap.set(ce.equipamento_id, {
+        ...ce,
+        valor_hora: Number(ce.valor_hora),
+        horas_contratadas: Number(ce.horas_contratadas),
+        valor_hora_excedente: Number(ce.valor_hora_excedente),
+        hora_minima: Number(ce.hora_minima),
+      });
+    });
+
+    [...contratoAditivos]
+      .sort((a, b) => a.numero - b.numero)
+      .forEach(aditivo => {
+        (aditivo.aditivos_equipamentos || []).forEach(ae => {
+          const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+          const fallback = equipMap.get(ae.equipamento_id);
+          const equipamento = eq || fallback?.equipamentos;
+          if (!equipamento) return;
+
+          equipMap.set(ae.equipamento_id, {
+            id: ae.id,
+            equipamento_id: ae.equipamento_id,
+            valor_hora: Number(ae.valor_hora),
+            horas_contratadas: Number(ae.horas_contratadas),
+            valor_hora_excedente: Number(ae.valor_hora_excedente),
+            hora_minima: Number(ae.hora_minima),
+            data_entrega: ae.data_entrega,
+            data_devolucao: ae.data_devolucao,
+            equipamentos: equipamento,
+          });
+        });
+      });
+
+    let result = Array.from(equipMap.values());
+
+    if (options?.excludeReturned) {
+      const referenceDate = options.referenceDate || new Date().toISOString().slice(0, 10);
+      result = result.filter(ce => !ce.data_devolucao || ce.data_devolucao > referenceDate);
+    }
+
+    return result;
+  };
+
   const getEquipamentosList = (item: Contrato): Equipamento[] => {
     return getContratoEquipamentos(item).map(ce => ce.equipamentos);
   };
