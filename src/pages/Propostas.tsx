@@ -639,20 +639,23 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     if (item.valor_mobilizacao > 0 || item.valor_mobilizacao_texto) {
       y = subItem("3.1.", "Transporte do Equipamento", item.valor_mobilizacao_texto || formatMobilizacaoTexto(Number(item.valor_mobilizacao)), y);
     }
-    if (item.franquia_horas_texto) {
+    if (!isDiarias && item.franquia_horas_texto) {
       y = subItem("3.2.", "Franquia de Horas", item.franquia_horas_texto, y);
     }
-    if (item.horas_excedentes_texto) {
+    if (!isDiarias && item.horas_excedentes_texto) {
       y = subItem("3.3.", "Horas Excedentes", item.horas_excedentes_texto, y);
     }
     if (item.disponibilidade_texto) {
-      y = subItem("3.4.", "Disponibilidade", item.disponibilidade_texto, y);
+      const num = isDiarias ? "3.2." : "3.4.";
+      y = subItem(num, "Disponibilidade", item.disponibilidade_texto, y);
     }
     if (item.analise_cadastral_texto) {
-      y = subItem("3.5.", "Análise Cadastral", item.analise_cadastral_texto, y);
+      const num = isDiarias ? "3.3." : "3.5.";
+      y = subItem(num, "Análise Cadastral", item.analise_cadastral_texto, y);
     }
     if (item.seguro_texto) {
-      y = subItem("3.6.", "Seguro", item.seguro_texto, y);
+      const num = isDiarias ? "3.4." : "3.6.";
+      y = subItem(num, "Seguro", item.seguro_texto, y);
     }
 
     // Check if we need a new page for payment section
