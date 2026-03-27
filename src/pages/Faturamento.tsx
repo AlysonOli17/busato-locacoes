@@ -1747,6 +1747,39 @@ export const FaturamentoContent = () => {
                         ⚡ Hora mínima: {ef.horas_medidas.toFixed(1)}h → cobrando {ef.hora_minima}h
                       </div>
                     )}
+                    {/* Observações sobre ajustes aplicados */}
+                    {(() => {
+                      const obs: string[] = [];
+                      if (ef.ajuste) {
+                        const aj = ef.ajuste;
+                        const descontoPerc = Number(aj.desconto_percentual || 0);
+                        if (descontoPerc > 0) {
+                          obs.push(`📉 Desconto de ${descontoPerc}% aplicado sobre V/h e V/h excedente`);
+                        }
+                        if (aj.motivo) {
+                          obs.push(`📝 Motivo: ${aj.motivo.replace("[LOTE] ", "")}`);
+                        }
+                        obs.push(`📅 Vigência do ajuste: ${parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}`);
+                      }
+                      if (ef.aditivo) {
+                        obs.push(`📄 Valores do Aditivo #${ef.aditivo_numero || "?"} aplicados`);
+                      }
+                      if (ef.primeiro_mes) {
+                        obs.push(`🆕 Primeiro mês — horas contratadas e mínima proporcionais à entrega`);
+                      }
+                      if (ef.proporcional_devolucao) {
+                        obs.push(`🔄 Proporcional à devolução — horas contratadas e mínima reduzidas`);
+                      }
+                      if (obs.length === 0) return null;
+                      return (
+                        <div className="mt-1 p-2 rounded border border-muted bg-muted/30 space-y-0.5">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Observações</p>
+                          {obs.map((o, i) => (
+                            <p key={i} className="text-xs text-muted-foreground">{o}</p>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center justify-between pt-1.5 border-t border-border/40 text-xs text-muted-foreground">
                       <span>📦 Entrega: {ef.data_entrega ? parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR") : "Não informada"}</span>
                       {ef.data_devolucao && <span>🔙 Devolução: {parseLocalDate(ef.data_devolucao).toLocaleDateString("pt-BR")}</span>}
