@@ -1094,6 +1094,7 @@ const Contratos = () => {
       data_inicio: aj.data_inicio,
       data_fim: aj.data_fim,
       motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]", ""),
+      desconto_percentual: Number(aj.desconto_percentual) || 0,
     });
     setAjusteFormOpen(true);
   };
