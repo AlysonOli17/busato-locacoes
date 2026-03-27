@@ -927,8 +927,10 @@ export const FaturamentoContent = () => {
         const baseHc = ae ? Number(ae.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
         const baseHm = ae ? Number(ae.hora_minima) : ce ? Number(ce.hora_minima) : 0;
 
-        const vh = ajuste ? Number(ajuste.valor_hora) : baseVh;
-        const vhe = ajuste ? Number(ajuste.valor_hora_excedente) : baseVhe;
+        const descontoPerc = ajuste ? Number((ajuste as any).desconto_percentual || 0) : 0;
+        const fatorDesconto = descontoPerc > 0 ? (1 - descontoPerc / 100) : 1;
+        const vh = (ajuste ? Number(ajuste.valor_hora) : baseVh) * fatorDesconto;
+        const vhe = (ajuste ? Number(ajuste.valor_hora_excedente) : baseVhe) * fatorDesconto;
         let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
         let hm = ajuste ? Number(ajuste.hora_minima) : baseHm;
 
