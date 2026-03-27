@@ -1078,6 +1078,7 @@ const Contratos = () => {
       data_inicio: "",
       data_fim: maxDataFim,
       motivo: "",
+      desconto_percentual: 0,
     });
     setAjusteFormOpen(true);
   };
