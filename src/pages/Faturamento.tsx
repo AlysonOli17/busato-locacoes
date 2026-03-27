@@ -972,7 +972,12 @@ export const FaturamentoContent = () => {
           tipoLabels.push("Desmobilização (Proporcional)");
         }
         if (ajuste) {
-          tipoLabels.push(`Ajuste: ${ajuste.motivo || "S/ descrição"}`);
+          const ajusteDesc = ajuste.motivo || "S/ descrição";
+          if (descontoPerc > 0) {
+            tipoLabels.push(`Ajuste: ${ajusteDesc} (Desconto ${descontoPerc}%)`);
+          } else {
+            tipoLabels.push(`Ajuste: ${ajusteDesc}`);
+          }
         }
         const tipoStr = tipoLabels.length > 0 ? tipoLabels.join(" / ") : "";
 
