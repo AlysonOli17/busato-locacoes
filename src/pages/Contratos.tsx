@@ -1821,6 +1821,7 @@ const Contratos = () => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">{form.tipo_medicao === "diarias" ? "Medição será feita contando dias trabalhados" : "Medição será feita por leitura de horímetro"}</p>
+            </div>
             <div>
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
