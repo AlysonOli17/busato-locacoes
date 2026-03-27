@@ -556,6 +556,9 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     });
     y += 4;
 
+    const isDiarias = (item as any).tipo_medicao === "diarias";
+    const unitLabel = isDiarias ? "Diária" : "Hora";
+
     // 2. PRAZO
     y = sectionTitle("2. PRAZO", y);
     doc.setFontSize(9);
@@ -569,8 +572,6 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     y += prazoLines.length * 4.5 + 6;
 
     // 3. PREÇO E CONDIÇÕES
-    const isDiarias = (item as any).tipo_medicao === "diarias";
-    const unitLabel = isDiarias ? "Diária" : "Hora";
     y = sectionTitle("3. PREÇO E CONDIÇÕES", y);
     if (isDiarias) {
       autoTable(doc, {
