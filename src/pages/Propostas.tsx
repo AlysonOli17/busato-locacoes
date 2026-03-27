@@ -561,7 +561,10 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...medGray);
-    const prazoLines = doc.splitTextToSize("A locação será contratada por período mensal, podendo ser prorrogada mediante solicitação e acordo das partes.", contentW - 8);
+    const prazoText = isDiarias
+      ? "Mediante solicitação e acordo das partes."
+      : "A locação será contratada por período mensal, podendo ser prorrogada mediante solicitação e acordo das partes.";
+    const prazoLines = doc.splitTextToSize(prazoText, contentW - 8);
     doc.text(prazoLines, margin + 4, y);
     y += prazoLines.length * 4.5 + 6;
 
