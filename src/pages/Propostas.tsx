@@ -103,6 +103,53 @@ const emptyForm = {
 
 const parseLocalDate = (d: string) => new Date(d + "T00:00:00");
 
+const numberToWords = (value: number): string => {
+  if (value === 0) return "zero reais";
+  const units = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const teens = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const tens = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const hundreds = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+  const convertGroup = (n: number): string => {
+    if (n === 0) return "";
+    if (n === 100) return "cem";
+    const parts: string[] = [];
+    if (n >= 100) { parts.push(hundreds[Math.floor(n / 100)]); n %= 100; }
+    if (n >= 20) { parts.push(tens[Math.floor(n / 10)]); n %= 10; }
+    if (n >= 10) { parts.push(teens[n - 10]); n = 0; }
+    if (n > 0) parts.push(units[n]);
+    return parts.join(" e ");
+  };
+
+  const intPart = Math.floor(value);
+  const centsPart = Math.round((value - intPart) * 100);
+  const groups: string[] = [];
+
+  if (intPart >= 1000000) {
+    const m = Math.floor(intPart / 1000000);
+    groups.push(convertGroup(m) + (m === 1 ? " milhão" : " milhões"));
+  }
+  const rem = intPart % 1000000;
+  if (rem >= 1000) {
+    const t = Math.floor(rem / 1000);
+    groups.push(convertGroup(t) + " mil");
+  }
+  const u = rem % 1000;
+  if (u > 0) groups.push(convertGroup(u));
+
+  let result = groups.join(", ") + (intPart === 1 ? " real" : " reais");
+  if (centsPart > 0) {
+    result += " e " + convertGroup(centsPart) + (centsPart === 1 ? " centavo" : " centavos");
+  }
+  return result;
+};
+
+const formatMobilizacaoTexto = (valor: number): string => {
+  if (valor <= 0) return "";
+  const formatted = valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `R$ ${formatted} (${numberToWords(valor)}) para transporte do equipamento.`;
+};
+
 const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const [items, setItems] = useState<Proposta[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
