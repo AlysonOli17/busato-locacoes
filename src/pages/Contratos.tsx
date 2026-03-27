@@ -980,7 +980,7 @@ const Contratos = () => {
       return;
     }
     const mainEquipId = formEquipamentos[0].equipamento_id;
-    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(formEquipamentos[0].valor_hora), horas_contratadas: Number(formEquipamentos[0].horas_contratadas), dia_medicao_inicio: Number(form.dia_medicao_inicio), dia_medicao_fim: Number(form.dia_medicao_fim), prazo_faturamento: Number(form.prazo_faturamento) };
+    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(formEquipamentos[0].valor_hora), horas_contratadas: Number(formEquipamentos[0].horas_contratadas), dia_medicao_inicio: Number(form.dia_medicao_inicio), dia_medicao_fim: Number(form.dia_medicao_fim), prazo_faturamento: Number(form.prazo_faturamento), tipo_medicao: form.tipo_medicao };
 
     let contratoId: string;
 
