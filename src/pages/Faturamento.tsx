@@ -619,11 +619,7 @@ export const FaturamentoContent = () => {
 
   const getDisplayStatus = (item: Fatura) => {
     if (item.status === "Pago" || item.status === "Cancelado" || item.status === "Aprovado") return item.status;
-    const ct = contratos.find(c => c.id === item.contrato_id);
-    const prazo = ct?.prazo_faturamento || 30;
-    const emissaoDate = new Date(item.emissao);
-    const vencimento = new Date(emissaoDate);
-    vencimento.setDate(vencimento.getDate() + prazo);
+    const vencimento = getVencimento(item);
     if (new Date() > vencimento) return "Em Atraso";
     return item.status;
   };
