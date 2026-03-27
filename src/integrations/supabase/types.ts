@@ -208,6 +208,7 @@ export type Database = {
           observacoes: string | null
           prazo_faturamento: number
           status: string
+          tipo_medicao: string
           updated_at: string
           valor_hora: number
         }
@@ -224,6 +225,7 @@ export type Database = {
           observacoes?: string | null
           prazo_faturamento?: number
           status?: string
+          tipo_medicao?: string
           updated_at?: string
           valor_hora?: number
         }
@@ -240,6 +242,7 @@ export type Database = {
           observacoes?: string | null
           prazo_faturamento?: number
           status?: string
+          tipo_medicao?: string
           updated_at?: string
           valor_hora?: number
         }
@@ -361,6 +364,7 @@ export type Database = {
           created_at: string
           data_fim: string
           data_inicio: string
+          desconto_percentual: number
           equipamento_id: string
           hora_minima: number
           horas_contratadas: number
@@ -374,6 +378,7 @@ export type Database = {
           created_at?: string
           data_fim: string
           data_inicio: string
+          desconto_percentual?: number
           equipamento_id: string
           hora_minima?: number
           horas_contratadas?: number
@@ -387,6 +392,7 @@ export type Database = {
           created_at?: string
           data_fim?: string
           data_inicio?: string
+          desconto_percentual?: number
           equipamento_id?: string
           hora_minima?: number
           horas_contratadas?: number
@@ -531,6 +537,7 @@ export type Database = {
           conta_bancaria_id: string | null
           contrato_id: string
           created_at: string
+          data_aprovacao: string | null
           emissao: string
           horas_excedentes: number
           horas_normais: number
@@ -550,6 +557,7 @@ export type Database = {
           conta_bancaria_id?: string | null
           contrato_id: string
           created_at?: string
+          data_aprovacao?: string | null
           emissao?: string
           horas_excedentes?: number
           horas_normais?: number
@@ -569,6 +577,7 @@ export type Database = {
           conta_bancaria_id?: string | null
           contrato_id?: string
           created_at?: string
+          data_aprovacao?: string | null
           emissao?: string
           horas_excedentes?: number
           horas_normais?: number
