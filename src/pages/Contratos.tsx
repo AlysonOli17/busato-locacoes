@@ -1127,6 +1127,7 @@ const Contratos = () => {
         data_inicio: ajusteForm.data_inicio,
         data_fim: dataFimFinal,
         motivo: ajusteForm.motivo,
+        desconto_percentual: Number(ajusteForm.desconto_percentual) || 0,
       };
       const { error } = await supabase.from("contratos_equipamentos_ajustes").update(payload).eq("id", editingAjuste.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
