@@ -1625,6 +1625,7 @@ export const FaturamentoContent = () => {
                   <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30}</p>
                   <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
                   <p><strong>Vigência:</strong> {parseLocalDate(selectedContrato.data_inicio).toLocaleDateString("pt-BR")} a {parseLocalDate(selectedContrato.data_fim).toLocaleDateString("pt-BR")}</p>
+                  <p><strong>Tipo Medição:</strong> {selectedContrato.tipo_medicao === "diarias" ? "Por Diárias" : "Por Horas (Horímetro)"}</p>
                   <p><strong>Contato:</strong> {selectedContrato.empresas?.contato || "—"} {selectedContrato.empresas?.telefone ? `/ ${selectedContrato.empresas.telefone}` : ""}</p>
                 </div>
 
