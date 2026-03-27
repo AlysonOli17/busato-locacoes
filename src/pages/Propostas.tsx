@@ -576,12 +576,11 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       autoTable(doc, {
         startY: y,
         margin: { left: margin, right: margin },
-        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, "Total Mensal"]],
+        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`]],
         body: (eqs || []).map(eq => [
           String(eq.quantidade).padStart(2, "0"),
           eq.equipamento_tipo,
           fmt(Number(eq.valor_hora)),
-          fmt(Number(eq.valor_hora) * Number(eq.quantidade) * 30),
         ]),
         styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
         headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
