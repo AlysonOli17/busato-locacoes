@@ -518,11 +518,14 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     y += prazoLines.length * 4.5 + 6;
 
     // 3. PREÇO E CONDIÇÕES
+    const isDiarias = (item as any).tipo_medicao === "diarias";
+    const unitLabel = isDiarias ? "Diária" : "Hora";
+    const franquiaLabel = isDiarias ? "Franquia (d)" : "Franquia (h)";
     y = sectionTitle("3. PREÇO E CONDIÇÕES", y);
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [["Qtd.", "Equipamento", "Valor/Hora", "Franquia (h)", "Total Mensal"]],
+      head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, franquiaLabel, "Total Mensal"]],
       body: (eqs || []).map(eq => [
         String(eq.quantidade).padStart(2, "0"),
         eq.equipamento_tipo,
