@@ -1490,9 +1490,16 @@ export const FaturamentoContent = () => {
                         {getVencimento(item).toLocaleDateString("pt-BR")}
                       </TableCell>
                       <TableCell className="text-sm">
-                        <div className="flex items-center gap-1">
-                          {Number(item.horas_normais).toFixed(1)}h{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{Number(item.horas_excedentes).toFixed(1)}h</span>}
-                        </div>
+                        {(() => {
+                          const ct = item.contratos;
+                          const isDiarias = ct?.tipo_medicao === "diarias";
+                          const unit = isDiarias ? "d" : "h";
+                          return (
+                            <div className="flex items-center gap-1">
+                              {Number(item.horas_normais).toFixed(1)}{unit}{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{Number(item.horas_excedentes).toFixed(1)}{unit}</span>}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-sm">
                         {itemGastos > 0
