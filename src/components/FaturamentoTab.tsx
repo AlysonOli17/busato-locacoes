@@ -178,8 +178,10 @@ export const FaturamentoTab = () => {
   const getVencimento = (fatura: Fatura) => {
     const ct = getContrato(fatura.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
-    const emissao = parseLocalDate(fatura.emissao);
-    const venc = new Date(emissao);
+    const baseDate = (fatura as any).data_aprovacao
+      ? parseLocalDate((fatura as any).data_aprovacao)
+      : parseLocalDate(fatura.emissao);
+    const venc = new Date(baseDate);
     venc.setDate(venc.getDate() + prazo);
     return venc;
   };
