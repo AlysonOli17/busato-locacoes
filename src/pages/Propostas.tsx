@@ -241,6 +241,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       disponibilidade_texto: form.disponibilidade_texto,
       analise_cadastral_texto: form.analise_cadastral_texto,
       seguro_texto: form.seguro_texto,
+      tipo_medicao: form.tipo_medicao,
     };
 
     if (isNew && user) {
