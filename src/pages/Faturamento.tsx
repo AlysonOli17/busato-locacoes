@@ -1459,7 +1459,7 @@ export const FaturamentoContent = () => {
                   <TableHead>Período Medição</TableHead>
                   <TableHead>Prazo</TableHead>
                   <TableHead>Vencimento</TableHead>
-                  <TableHead>Horas</TableHead>
+                  <TableHead>Horas/Diárias</TableHead>
                   <TableHead>Custos Adicionais</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
