@@ -42,6 +42,7 @@ interface ContratoRef {
   dia_medicao_inicio: number;
   dia_medicao_fim: number;
   prazo_faturamento: number;
+  tipo_medicao: string;
   empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
   contratos_equipamentos: ContratoEquip[];
