@@ -98,6 +98,7 @@ const emptyForm = {
   disponibilidade_texto: "Equipamentos sujeitos à disponibilidade no momento da contratação.",
   analise_cadastral_texto: "Sujeito a verificação cadastral conforme normas vigentes.",
   seguro_texto: "Em caso de acionamento do seguro a franquia é de responsabilidade do cliente.",
+  tipo_medicao: "horas",
 };
 
 const parseLocalDate = (d: string) => new Date(d + "T00:00:00");
@@ -178,6 +179,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       disponibilidade_texto: item.disponibilidade_texto || "",
       analise_cadastral_texto: item.analise_cadastral_texto || "",
       seguro_texto: item.seguro_texto || "",
+      tipo_medicao: (item as any).tipo_medicao || "horas",
     });
 
     // Load related data from database
@@ -239,6 +241,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       disponibilidade_texto: form.disponibilidade_texto,
       analise_cadastral_texto: form.analise_cadastral_texto,
       seguro_texto: form.seguro_texto,
+      tipo_medicao: form.tipo_medicao,
     };
 
     if (isNew && user) {
@@ -333,6 +336,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       disponibilidade_texto: item.disponibilidade_texto,
       analise_cadastral_texto: item.analise_cadastral_texto,
       seguro_texto: item.seguro_texto,
+      tipo_medicao: (item as any).tipo_medicao || "horas",
     };
 
     const { data: newProp, error } = await supabase.from("propostas").insert(payload).select("id").single();
@@ -515,11 +519,14 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     y += prazoLines.length * 4.5 + 6;
 
     // 3. PREÇO E CONDIÇÕES
+    const isDiarias = (item as any).tipo_medicao === "diarias";
+    const unitLabel = isDiarias ? "Diária" : "Hora";
+    const franquiaLabel = isDiarias ? "Franquia (d)" : "Franquia (h)";
     y = sectionTitle("3. PREÇO E CONDIÇÕES", y);
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [["Qtd.", "Equipamento", "Valor/Hora", "Franquia (h)", "Total Mensal"]],
+      head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, franquiaLabel, "Total Mensal"]],
       body: (eqs || []).map(eq => [
         String(eq.quantidade).padStart(2, "0"),
         eq.equipamento_tipo,
@@ -910,9 +917,23 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-sm">Equipamentos</h3>
-                <Button variant="outline" size="sm" onClick={() => setEquipamentos(prev => [...prev, { equipamento_tipo: "", quantidade: 1, valor_hora: 0, franquia_mensal: 0 }])}>
-                  <Plus className="h-3 w-3 mr-1" /> Adicionar
-                </Button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Tipo Medição:</Label>
+                    <Select value={form.tipo_medicao} onValueChange={v => setForm(f => ({ ...f, tipo_medicao: v }))}>
+                      <SelectTrigger className="w-40 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="horas">Por Horas</SelectItem>
+                        <SelectItem value="diarias">Por Diárias</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setEquipamentos(prev => [...prev, { equipamento_tipo: "", quantidade: 1, valor_hora: 0, franquia_mensal: 0 }])}>
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar
+                  </Button>
+                </div>
               </div>
               {equipamentos.map((eq, idx) => (
                 <div key={idx} className="grid grid-cols-[1fr_80px_100px_100px_40px] gap-2 mb-2 items-end">
@@ -941,11 +962,11 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                     <Input type="number" value={eq.quantidade} onChange={e => { const n = [...equipamentos]; n[idx].quantidade = Number(e.target.value); setEquipamentos(n); }} />
                   </div>
                   <div>
-                    {idx === 0 && <Label className="text-xs">Valor/Hora</Label>}
+                    {idx === 0 && <Label className="text-xs">{form.tipo_medicao === "diarias" ? "Valor/Diária" : "Valor/Hora"}</Label>}
                     <CurrencyInput value={eq.valor_hora} onValueChange={v => { const n = [...equipamentos]; n[idx].valor_hora = v; setEquipamentos(n); }} />
                   </div>
                   <div>
-                    {idx === 0 && <Label className="text-xs">Franquia (h)</Label>}
+                    {idx === 0 && <Label className="text-xs">{form.tipo_medicao === "diarias" ? "Franquia (d)" : "Franquia (h)"}</Label>}
                     <Input type="number" value={eq.franquia_mensal} onChange={e => { const n = [...equipamentos]; n[idx].franquia_mensal = Number(e.target.value); setEquipamentos(n); }} />
                   </div>
                   <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setEquipamentos(prev => prev.filter((_, i) => i !== idx))}>

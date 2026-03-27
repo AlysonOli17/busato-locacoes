@@ -877,6 +877,7 @@ export type Database = {
           prazo_pagamento: number
           seguro_texto: string | null
           status: string
+          tipo_medicao: string
           updated_at: string
           validade_dias: number
           valor_mobilizacao: number
@@ -904,6 +905,7 @@ export type Database = {
           prazo_pagamento?: number
           seguro_texto?: string | null
           status?: string
+          tipo_medicao?: string
           updated_at?: string
           validade_dias?: number
           valor_mobilizacao?: number
@@ -931,6 +933,7 @@ export type Database = {
           prazo_pagamento?: number
           seguro_texto?: string | null
           status?: string
+          tipo_medicao?: string
           updated_at?: string
           validade_dias?: number
           valor_mobilizacao?: number
