@@ -103,6 +103,53 @@ const emptyForm = {
 
 const parseLocalDate = (d: string) => new Date(d + "T00:00:00");
 
+const numberToWords = (value: number): string => {
+  if (value === 0) return "zero reais";
+  const units = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const teens = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const tens = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const hundreds = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+  const convertGroup = (n: number): string => {
+    if (n === 0) return "";
+    if (n === 100) return "cem";
+    const parts: string[] = [];
+    if (n >= 100) { parts.push(hundreds[Math.floor(n / 100)]); n %= 100; }
+    if (n >= 20) { parts.push(tens[Math.floor(n / 10)]); n %= 10; }
+    if (n >= 10) { parts.push(teens[n - 10]); n = 0; }
+    if (n > 0) parts.push(units[n]);
+    return parts.join(" e ");
+  };
+
+  const intPart = Math.floor(value);
+  const centsPart = Math.round((value - intPart) * 100);
+  const groups: string[] = [];
+
+  if (intPart >= 1000000) {
+    const m = Math.floor(intPart / 1000000);
+    groups.push(convertGroup(m) + (m === 1 ? " milhão" : " milhões"));
+  }
+  const rem = intPart % 1000000;
+  if (rem >= 1000) {
+    const t = Math.floor(rem / 1000);
+    groups.push(convertGroup(t) + " mil");
+  }
+  const u = rem % 1000;
+  if (u > 0) groups.push(convertGroup(u));
+
+  let result = groups.join(", ") + (intPart === 1 ? " real" : " reais");
+  if (centsPart > 0) {
+    result += " e " + convertGroup(centsPart) + (centsPart === 1 ? " centavo" : " centavos");
+  }
+  return result;
+};
+
+const formatMobilizacaoTexto = (valor: number): string => {
+  if (valor <= 0) return "";
+  const formatted = valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `R$ ${formatted} (${numberToWords(valor)}) para transporte do equipamento.`;
+};
+
 const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const [items, setItems] = useState<Proposta[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -521,24 +568,41 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     // 3. PREÇO E CONDIÇÕES
     const isDiarias = (item as any).tipo_medicao === "diarias";
     const unitLabel = isDiarias ? "Diária" : "Hora";
-    const franquiaLabel = isDiarias ? "Franquia (d)" : "Franquia (h)";
     y = sectionTitle("3. PREÇO E CONDIÇÕES", y);
-    autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
-      head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, franquiaLabel, "Total Mensal"]],
-      body: (eqs || []).map(eq => [
-        String(eq.quantidade).padStart(2, "0"),
-        eq.equipamento_tipo,
-        fmt(Number(eq.valor_hora)),
-        String(eq.franquia_mensal),
-        fmt(Number(eq.valor_hora) * Number(eq.franquia_mensal) * Number(eq.quantidade)),
-      ]),
-      styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
-      headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      alternateRowStyles: { fillColor: [245, 248, 252] },
-      theme: "striped",
-    });
+    if (isDiarias) {
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, "Total Mensal"]],
+        body: (eqs || []).map(eq => [
+          String(eq.quantidade).padStart(2, "0"),
+          eq.equipamento_tipo,
+          fmt(Number(eq.valor_hora)),
+          fmt(Number(eq.valor_hora) * Number(eq.quantidade) * 30),
+        ]),
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        theme: "striped",
+      });
+    } else {
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, "Franquia (h)", "Total Mensal"]],
+        body: (eqs || []).map(eq => [
+          String(eq.quantidade).padStart(2, "0"),
+          eq.equipamento_tipo,
+          fmt(Number(eq.valor_hora)),
+          String(eq.franquia_mensal),
+          fmt(Number(eq.valor_hora) * Number(eq.franquia_mensal) * Number(eq.quantidade)),
+        ]),
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        theme: "striped",
+      });
+    }
     y = (doc as any).lastAutoTable.finalY + 8;
 
     // Bottom margin – content must not go below this Y to avoid overlapping the footer
@@ -571,7 +635,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     };
 
     if (item.valor_mobilizacao > 0 || item.valor_mobilizacao_texto) {
-      y = subItem("3.1.", "Mobilização / Desmobilização", item.valor_mobilizacao_texto || fmt(Number(item.valor_mobilizacao)) + " para transporte do equipamento.", y);
+      y = subItem("3.1.", "Transporte do Equipamento", item.valor_mobilizacao_texto || formatMobilizacaoTexto(Number(item.valor_mobilizacao)), y);
     }
     if (item.franquia_horas_texto) {
       y = subItem("3.2.", "Franquia de Horas", item.franquia_horas_texto, y);
@@ -965,10 +1029,12 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                     {idx === 0 && <Label className="text-xs">{form.tipo_medicao === "diarias" ? "Valor/Diária" : "Valor/Hora"}</Label>}
                     <CurrencyInput value={eq.valor_hora} onValueChange={v => { const n = [...equipamentos]; n[idx].valor_hora = v; setEquipamentos(n); }} />
                   </div>
-                  <div>
-                    {idx === 0 && <Label className="text-xs">{form.tipo_medicao === "diarias" ? "Franquia (d)" : "Franquia (h)"}</Label>}
-                    <Input type="number" value={eq.franquia_mensal} onChange={e => { const n = [...equipamentos]; n[idx].franquia_mensal = Number(e.target.value); setEquipamentos(n); }} />
-                  </div>
+                  {form.tipo_medicao !== "diarias" && (
+                    <div>
+                      {idx === 0 && <Label className="text-xs">Franquia (h)</Label>}
+                      <Input type="number" value={eq.franquia_mensal} onChange={e => { const n = [...equipamentos]; n[idx].franquia_mensal = Number(e.target.value); setEquipamentos(n); }} />
+                    </div>
+                  )}
                   <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setEquipamentos(prev => prev.filter((_, i) => i !== idx))}>
                     <X className="h-4 w-4 text-destructive" />
                   </Button>
@@ -977,15 +1043,19 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
             </div>
 
             {/* Mobilização e condições */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Valor Mobilização (R$)</Label>
-                <CurrencyInput value={form.valor_mobilizacao} onValueChange={v => setForm(f => ({ ...f, valor_mobilizacao: v }))} />
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Valor Mobilização (R$)</Label>
+                  <CurrencyInput value={form.valor_mobilizacao} onValueChange={v => {
+                    const texto = formatMobilizacaoTexto(v);
+                    setForm(f => ({ ...f, valor_mobilizacao: v, valor_mobilizacao_texto: texto }));
+                  }} />
+                </div>
               </div>
-              <div>
-                <Label>Texto Mobilização</Label>
-                <Input value={form.valor_mobilizacao_texto} onChange={e => setForm(f => ({ ...f, valor_mobilizacao_texto: e.target.value }))} placeholder="Ex: R$1000,00 (mil reais) transporte do equipamento." />
-              </div>
+              {form.valor_mobilizacao > 0 && (
+                <p className="text-sm text-muted-foreground italic px-1">{form.valor_mobilizacao_texto}</p>
+              )}
             </div>
 
             <div className="space-y-3">
