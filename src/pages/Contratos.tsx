@@ -149,7 +149,7 @@ const Contratos = () => {
   const [ajustes, setAjustes] = useState<AjusteTemporario[]>([]);
   const [ajusteFormOpen, setAjusteFormOpen] = useState(false);
   const [editingAjuste, setEditingAjuste] = useState<AjusteTemporario | null>(null);
-  const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_ids: [], valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
+  const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_ids: [], valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "", desconto_percentual: 0 });
   const [ajusteTodos, setAjusteTodos] = useState(false);
   const [ajusteCampos, setAjusteCampos] = useState({ valor_hora: true, valor_hora_excedente: true, hora_minima: true, horas_contratadas: true });
   // Aditivos
