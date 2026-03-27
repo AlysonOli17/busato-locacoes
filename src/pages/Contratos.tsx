@@ -953,7 +953,7 @@ const Contratos = () => {
     setEditing(item);
     const ces = getContratoEquipamentos(item);
     setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas), valor_hora_excedente: Number(ce.valor_hora_excedente || 0), hora_minima: Number(ce.hora_minima || 0), data_entrega: ce.data_entrega || "", data_devolucao: ce.data_devolucao || "" })));
-    setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, dia_medicao_inicio: (item as any).dia_medicao_inicio || 1, dia_medicao_fim: (item as any).dia_medicao_fim || 30, prazo_faturamento: (item as any).prazo_faturamento || 30 });
+    setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, dia_medicao_inicio: (item as any).dia_medicao_inicio || 1, dia_medicao_fim: (item as any).dia_medicao_fim || 30, prazo_faturamento: (item as any).prazo_faturamento || 30, tipo_medicao: (item as any).tipo_medicao || "horas" });
     setDialogOpen(true);
   };
 
