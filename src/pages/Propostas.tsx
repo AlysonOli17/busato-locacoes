@@ -1012,10 +1012,12 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                     {idx === 0 && <Label className="text-xs">{form.tipo_medicao === "diarias" ? "Valor/Diária" : "Valor/Hora"}</Label>}
                     <CurrencyInput value={eq.valor_hora} onValueChange={v => { const n = [...equipamentos]; n[idx].valor_hora = v; setEquipamentos(n); }} />
                   </div>
-                  <div>
-                    {idx === 0 && <Label className="text-xs">{form.tipo_medicao === "diarias" ? "Franquia (d)" : "Franquia (h)"}</Label>}
-                    <Input type="number" value={eq.franquia_mensal} onChange={e => { const n = [...equipamentos]; n[idx].franquia_mensal = Number(e.target.value); setEquipamentos(n); }} />
-                  </div>
+                  {form.tipo_medicao !== "diarias" && (
+                    <div>
+                      {idx === 0 && <Label className="text-xs">Franquia (h)</Label>}
+                      <Input type="number" value={eq.franquia_mensal} onChange={e => { const n = [...equipamentos]; n[idx].franquia_mensal = Number(e.target.value); setEquipamentos(n); }} />
+                    </div>
+                  )}
                   <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setEquipamentos(prev => prev.filter((_, i) => i !== idx))}>
                     <X className="h-4 w-4 text-destructive" />
                   </Button>
