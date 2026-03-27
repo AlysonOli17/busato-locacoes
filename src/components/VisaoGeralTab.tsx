@@ -124,7 +124,8 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
         f.status === "Cancelado" ? "Cancelado" :
         (() => {
           const prazo = f.contratos?.prazo_faturamento || 30;
-          const venc = new Date(f.emissao);
+          const baseDate = (f as any).data_aprovacao ? new Date((f as any).data_aprovacao + "T00:00:00") : new Date(f.emissao);
+          const venc = new Date(baseDate);
           venc.setDate(venc.getDate() + prazo);
           return new Date() > venc ? "Em Atraso" : f.status;
         })();
