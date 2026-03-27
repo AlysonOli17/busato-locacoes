@@ -42,6 +42,7 @@ interface ContratoRef {
   dia_medicao_inicio: number;
   dia_medicao_fim: number;
   prazo_faturamento: number;
+  tipo_medicao: string;
   empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
   contratos_equipamentos: ContratoEquip[];
@@ -76,6 +77,7 @@ interface Fatura {
   total_gastos: number;
   contratos: ContratoRef;
   conta_bancaria_id: string | null;
+  data_aprovacao: string | null;
 }
 
 interface GastoItem {
@@ -156,8 +158,8 @@ export const FaturamentoContent = () => {
 
   const fetchData = async () => {
     const [fatRes, ctRes, contasRes] = await Promise.all([
-      supabase.from("faturamento").select("*, contratos(id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
-      supabase.from("contratos").select("id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, contratos(id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
+      supabase.from("contratos").select("id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
@@ -317,10 +319,17 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours using interpolation (average daily hours between readings)
+      // Calculate measured value: hours (horímetro) or days (diárias)
+      const isDiarias = ct.tipo_medicao === "diarias";
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       let horasMedidas = 0;
-      if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
+
+      if (isDiarias) {
+        // For diárias: count distinct work days with measurements in the period
+        const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
+        const uniqueDays = new Set(trabalho.map(m => String(m.data)));
+        horasMedidas = uniqueDays.size;
+      } else if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
         // Build readings array: baseline + in-period readings
         const allReadings: { data: string; horimetro_final: number }[] = [];
@@ -331,7 +340,6 @@ export const FaturamentoContent = () => {
         }
 
         if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
-          // Equipment returned mid-period: calculate hours up to return date
           const result = calcularHorasInterpoladas(allReadings, inicio, dataDevolucao);
           horasMedidas = result.totalHoras;
         } else {
@@ -347,8 +355,10 @@ export const FaturamentoContent = () => {
       const baseHorasContratadas = aditivo ? Number(aditivo.horas_contratadas) : ce ? Number(ce.horas_contratadas) : Number(ct.horas_contratadas);
       const baseHoraMinima = aditivo ? Number(aditivo.hora_minima) : ce ? Number(ce.hora_minima) : 0;
 
-      const valorHora = ajuste ? Number(ajuste.valor_hora) : baseValorHora;
-      const valorExcedente = ajuste ? Number(ajuste.valor_hora_excedente) : baseValorExcedente;
+      const descontoPerc = ajuste ? Number((ajuste as any).desconto_percentual || 0) : 0;
+      const fatorDesconto = descontoPerc > 0 ? (1 - descontoPerc / 100) : 1;
+      const valorHora = (ajuste ? Number(ajuste.valor_hora) : baseValorHora) * fatorDesconto;
+      const valorExcedente = (ajuste ? Number(ajuste.valor_hora_excedente) : baseValorExcedente) * fatorDesconto;
       let horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : baseHorasContratadas;
       let horaMinima = ajuste ? Number(ajuste.hora_minima) : baseHoraMinima;
       const horasContratadasOriginal = horasContratadas;
@@ -618,17 +628,14 @@ export const FaturamentoContent = () => {
 
   const getDisplayStatus = (item: Fatura) => {
     if (item.status === "Pago" || item.status === "Cancelado" || item.status === "Aprovado") return item.status;
-    const ct = contratos.find(c => c.id === item.contrato_id);
-    const prazo = ct?.prazo_faturamento || 30;
-    const emissaoDate = new Date(item.emissao);
-    const vencimento = new Date(emissaoDate);
-    vencimento.setDate(vencimento.getDate() + prazo);
+    const vencimento = getVencimento(item);
     if (new Date() > vencimento) return "Em Atraso";
     return item.status;
   };
 
   const handleAprovar = async (id: string, numeroNota: string) => {
-    const { error } = await supabase.from("faturamento").update({ status: "Aprovado", numero_nota: numeroNota || null }).eq("id", id);
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from("faturamento").update({ status: "Aprovado", numero_nota: numeroNota || null, data_aprovacao: hoje } as any).eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Medição aprovada", description: "A fatura foi emitida automaticamente na aba Faturamento." });
     setApprovalDialogOpen(false);
@@ -640,8 +647,11 @@ export const FaturamentoContent = () => {
   const getVencimento = (item: Fatura) => {
     const ct = contratos.find(c => c.id === item.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
-    const emissaoDate = new Date(item.emissao);
-    const vencimento = new Date(emissaoDate);
+    // Vencimento é contado a partir da data de aprovação, se existir
+    const baseDate = (item as any).data_aprovacao
+      ? parseLocalDate((item as any).data_aprovacao)
+      : parseLocalDate(item.emissao);
+    const vencimento = new Date(baseDate);
     vencimento.setDate(vencimento.getDate() + prazo);
     return vencimento;
   };
@@ -1451,7 +1461,7 @@ export const FaturamentoContent = () => {
                   <TableHead>Período Medição</TableHead>
                   <TableHead>Prazo</TableHead>
                   <TableHead>Vencimento</TableHead>
-                  <TableHead>Horas</TableHead>
+                  <TableHead>Horas/Diárias</TableHead>
                   <TableHead>Custos Adicionais</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
@@ -1482,9 +1492,16 @@ export const FaturamentoContent = () => {
                         {getVencimento(item).toLocaleDateString("pt-BR")}
                       </TableCell>
                       <TableCell className="text-sm">
-                        <div className="flex items-center gap-1">
-                          {Number(item.horas_normais).toFixed(1)}h{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{Number(item.horas_excedentes).toFixed(1)}h</span>}
-                        </div>
+                        {(() => {
+                          const ct = item.contratos;
+                          const isDiarias = ct?.tipo_medicao === "diarias";
+                          const unit = isDiarias ? "d" : "h";
+                          return (
+                            <div className="flex items-center gap-1">
+                              {Number(item.horas_normais).toFixed(1)}{unit}{Number(item.horas_excedentes) > 0 && <span className="text-warning"> +{Number(item.horas_excedentes).toFixed(1)}{unit}</span>}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-sm">
                         {itemGastos > 0
@@ -1610,6 +1627,7 @@ export const FaturamentoContent = () => {
                   <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30}</p>
                   <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
                   <p><strong>Vigência:</strong> {parseLocalDate(selectedContrato.data_inicio).toLocaleDateString("pt-BR")} a {parseLocalDate(selectedContrato.data_fim).toLocaleDateString("pt-BR")}</p>
+                  <p><strong>Tipo Medição:</strong> {selectedContrato.tipo_medicao === "diarias" ? "Por Diárias" : "Por Horas (Horímetro)"}</p>
                   <p><strong>Contato:</strong> {selectedContrato.empresas?.contato || "—"} {selectedContrato.empresas?.telefone ? `/ ${selectedContrato.empresas.telefone}` : ""}</p>
                 </div>
 

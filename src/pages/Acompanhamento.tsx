@@ -93,8 +93,10 @@ const Acompanhamento = () => {
 
   const getVencimento = (fatura: Fatura) => {
     const prazo = fatura.contratos?.prazo_faturamento || 30;
-    const emissao = new Date(fatura.emissao);
-    const venc = new Date(emissao);
+    const baseDate = (fatura as any).data_aprovacao
+      ? new Date((fatura as any).data_aprovacao + "T00:00:00")
+      : new Date(fatura.emissao);
+    const venc = new Date(baseDate);
     venc.setDate(venc.getDate() + prazo);
     return venc;
   };

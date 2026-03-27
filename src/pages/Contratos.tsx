@@ -76,6 +76,7 @@ interface AjusteTemporario {
   data_fim: string;
   motivo: string;
   created_at: string;
+  desconto_percentual: number;
 }
 
 interface AjusteForm {
@@ -87,6 +88,7 @@ interface AjusteForm {
   data_inicio: string;
   data_fim: string;
   motivo: string;
+  desconto_percentual: number;
 }
 
 interface Aditivo {
@@ -122,7 +124,7 @@ interface AditivoForm {
   equipamentos: FormEquipItem[];
 }
 
-const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30 };
+const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30, tipo_medicao: "horas" };
 
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
@@ -147,7 +149,7 @@ const Contratos = () => {
   const [ajustes, setAjustes] = useState<AjusteTemporario[]>([]);
   const [ajusteFormOpen, setAjusteFormOpen] = useState(false);
   const [editingAjuste, setEditingAjuste] = useState<AjusteTemporario | null>(null);
-  const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_ids: [], valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "" });
+  const [ajusteForm, setAjusteForm] = useState<AjusteForm>({ equipamento_ids: [], valor_hora: 0, valor_hora_excedente: 0, hora_minima: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", motivo: "", desconto_percentual: 0 });
   const [ajusteTodos, setAjusteTodos] = useState(false);
   const [ajusteCampos, setAjusteCampos] = useState({ valor_hora: true, valor_hora_excedente: true, hora_minima: true, horas_contratadas: true });
   // Aditivos
@@ -953,7 +955,7 @@ const Contratos = () => {
     setEditing(item);
     const ces = getContratoEquipamentos(item);
     setFormEquipamentos(ces.map(ce => ({ equipamento_id: ce.equipamento_id, valor_hora: Number(ce.valor_hora), horas_contratadas: Number(ce.horas_contratadas), valor_hora_excedente: Number(ce.valor_hora_excedente || 0), hora_minima: Number(ce.hora_minima || 0), data_entrega: ce.data_entrega || "", data_devolucao: ce.data_devolucao || "" })));
-    setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, dia_medicao_inicio: (item as any).dia_medicao_inicio || 1, dia_medicao_fim: (item as any).dia_medicao_fim || 30, prazo_faturamento: (item as any).prazo_faturamento || 30 });
+    setForm({ empresa_id: item.empresa_id, equipamento_id: item.equipamento_id, valor_hora: item.valor_hora, horas_contratadas: item.horas_contratadas, data_inicio: item.data_inicio, data_fim: item.data_fim, observacoes: item.observacoes || "", status: item.status, dia_medicao_inicio: (item as any).dia_medicao_inicio || 1, dia_medicao_fim: (item as any).dia_medicao_fim || 30, prazo_faturamento: (item as any).prazo_faturamento || 30, tipo_medicao: (item as any).tipo_medicao || "horas" });
     setDialogOpen(true);
   };
 
@@ -980,7 +982,7 @@ const Contratos = () => {
       return;
     }
     const mainEquipId = formEquipamentos[0].equipamento_id;
-    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(formEquipamentos[0].valor_hora), horas_contratadas: Number(formEquipamentos[0].horas_contratadas), dia_medicao_inicio: Number(form.dia_medicao_inicio), dia_medicao_fim: Number(form.dia_medicao_fim), prazo_faturamento: Number(form.prazo_faturamento) };
+    const payload = { ...form, equipamento_id: mainEquipId, valor_hora: Number(formEquipamentos[0].valor_hora), horas_contratadas: Number(formEquipamentos[0].horas_contratadas), dia_medicao_inicio: Number(form.dia_medicao_inicio), dia_medicao_fim: Number(form.dia_medicao_fim), prazo_faturamento: Number(form.prazo_faturamento), tipo_medicao: form.tipo_medicao };
 
     let contratoId: string;
 
@@ -1076,6 +1078,7 @@ const Contratos = () => {
       data_inicio: "",
       data_fim: maxDataFim,
       motivo: "",
+      desconto_percentual: 0,
     });
     setAjusteFormOpen(true);
   };
@@ -1091,6 +1094,7 @@ const Contratos = () => {
       data_inicio: aj.data_inicio,
       data_fim: aj.data_fim,
       motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]", ""),
+      desconto_percentual: Number(aj.desconto_percentual) || 0,
     });
     setAjusteFormOpen(true);
   };
@@ -1123,6 +1127,7 @@ const Contratos = () => {
         data_inicio: ajusteForm.data_inicio,
         data_fim: dataFimFinal,
         motivo: ajusteForm.motivo,
+        desconto_percentual: Number(ajusteForm.desconto_percentual) || 0,
       };
       const { error } = await supabase.from("contratos_equipamentos_ajustes").update(payload).eq("id", editingAjuste.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
@@ -1182,6 +1187,7 @@ const Contratos = () => {
         data_inicio: ajusteForm.data_inicio,
         data_fim: dataFimFinal,
         motivo: ajusteForm.motivo ? `[LOTE] ${ajusteForm.motivo}` : "[LOTE]",
+        desconto_percentual: Number(ajusteForm.desconto_percentual) || 0,
       }));
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
@@ -1204,6 +1210,7 @@ const Contratos = () => {
           data_inicio: ajusteForm.data_inicio,
           data_fim: dataFimFinal,
           motivo: ajusteForm.motivo,
+          desconto_percentual: Number(ajusteForm.desconto_percentual) || 0,
         };
       });
       const { error } = await supabase.from("contratos_equipamentos_ajustes").insert(rows);
@@ -1730,19 +1737,19 @@ const Contratos = () => {
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Valor/Diária (R$)" : "Valor/Hora (R$)"}</Label>
                             <CurrencyInput value={fe.valor_hora} onValueChange={(v) => updateEquipItem(fe.equipamento_id, "valor_hora", v)} className="h-8 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Valor Hora Excedente (R$)</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Valor Diária Excedente (R$)" : "Valor Hora Excedente (R$)"}</Label>
                             <CurrencyInput value={fe.valor_hora_excedente} onValueChange={(v) => updateEquipItem(fe.equipamento_id, "valor_hora_excedente", v)} className="h-8 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Diárias Contratadas" : "Horas Contratadas"}</Label>
                             <Input type="number" value={fe.horas_contratadas || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "horas_contratadas", Number(e.target.value))} className="h-8 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Hora Mínima</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Diária Mínima" : "Hora Mínima"}</Label>
                             <Input type="number" value={fe.hora_minima || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "hora_minima", Number(e.target.value))} className="h-8 text-sm" placeholder="0 = sem mínimo" />
                           </div>
                         </div>
@@ -1810,6 +1817,17 @@ const Contratos = () => {
                   <SelectItem value="90">90 dias</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Tipo de Medição</Label>
+              <Select value={form.tipo_medicao} onValueChange={(v) => setForm({ ...form, tipo_medicao: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="horas">Por Horas (Horímetro)</SelectItem>
+                  <SelectItem value="diarias">Por Diárias</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">{form.tipo_medicao === "diarias" ? "Medição será feita contando dias trabalhados" : "Medição será feita por leitura de horímetro"}</p>
             </div>
             <div>
               <Label>Status</Label>
@@ -2227,6 +2245,11 @@ const Contratos = () => {
               <div className={!editingAjuste && !ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
             </div>
             <div><Label>Motivo</Label><Input value={ajusteForm.motivo} onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: Reajuste temporário por demanda extra" /></div>
+            <div>
+              <Label>Desconto (%)</Label>
+              <Input type="number" min="0" max="100" step="0.5" value={ajusteForm.desconto_percentual || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, desconto_percentual: Number(e.target.value) }))} placeholder="0 = sem desconto" />
+              {ajusteForm.desconto_percentual > 0 && <p className="text-xs text-muted-foreground mt-1">Será aplicado {ajusteForm.desconto_percentual}% de desconto sobre o valor calculado</p>}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAjusteFormOpen(false)}>Cancelar</Button>
