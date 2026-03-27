@@ -179,6 +179,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       disponibilidade_texto: item.disponibilidade_texto || "",
       analise_cadastral_texto: item.analise_cadastral_texto || "",
       seguro_texto: item.seguro_texto || "",
+      tipo_medicao: (item as any).tipo_medicao || "horas",
     });
 
     // Load related data from database
