@@ -556,29 +556,32 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     });
     y += 4;
 
+    const isDiarias = (item as any).tipo_medicao === "diarias";
+    const unitLabel = isDiarias ? "Diária" : "Hora";
+
     // 2. PRAZO
     y = sectionTitle("2. PRAZO", y);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...medGray);
-    const prazoLines = doc.splitTextToSize("A locação será contratada por período mensal, podendo ser prorrogada mediante solicitação e acordo das partes.", contentW - 8);
+    const prazoText = isDiarias
+      ? "Mediante solicitação e acordo das partes."
+      : "A locação será contratada por período mensal, podendo ser prorrogada mediante solicitação e acordo das partes.";
+    const prazoLines = doc.splitTextToSize(prazoText, contentW - 8);
     doc.text(prazoLines, margin + 4, y);
     y += prazoLines.length * 4.5 + 6;
 
     // 3. PREÇO E CONDIÇÕES
-    const isDiarias = (item as any).tipo_medicao === "diarias";
-    const unitLabel = isDiarias ? "Diária" : "Hora";
     y = sectionTitle("3. PREÇO E CONDIÇÕES", y);
     if (isDiarias) {
       autoTable(doc, {
         startY: y,
         margin: { left: margin, right: margin },
-        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, "Total Mensal"]],
+        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`]],
         body: (eqs || []).map(eq => [
           String(eq.quantidade).padStart(2, "0"),
           eq.equipamento_tipo,
           fmt(Number(eq.valor_hora)),
-          fmt(Number(eq.valor_hora) * Number(eq.quantidade) * 30),
         ]),
         styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
         headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
@@ -637,20 +640,23 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     if (item.valor_mobilizacao > 0 || item.valor_mobilizacao_texto) {
       y = subItem("3.1.", "Transporte do Equipamento", item.valor_mobilizacao_texto || formatMobilizacaoTexto(Number(item.valor_mobilizacao)), y);
     }
-    if (item.franquia_horas_texto) {
+    if (!isDiarias && item.franquia_horas_texto) {
       y = subItem("3.2.", "Franquia de Horas", item.franquia_horas_texto, y);
     }
-    if (item.horas_excedentes_texto) {
+    if (!isDiarias && item.horas_excedentes_texto) {
       y = subItem("3.3.", "Horas Excedentes", item.horas_excedentes_texto, y);
     }
     if (item.disponibilidade_texto) {
-      y = subItem("3.4.", "Disponibilidade", item.disponibilidade_texto, y);
+      const num = isDiarias ? "3.2." : "3.4.";
+      y = subItem(num, "Disponibilidade", item.disponibilidade_texto, y);
     }
     if (item.analise_cadastral_texto) {
-      y = subItem("3.5.", "Análise Cadastral", item.analise_cadastral_texto, y);
+      const num = isDiarias ? "3.3." : "3.5.";
+      y = subItem(num, "Análise Cadastral", item.analise_cadastral_texto, y);
     }
     if (item.seguro_texto) {
-      y = subItem("3.6.", "Seguro", item.seguro_texto, y);
+      const num = isDiarias ? "3.4." : "3.6.";
+      y = subItem(num, "Seguro", item.seguro_texto, y);
     }
 
     // Check if we need a new page for payment section
@@ -1058,9 +1064,13 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
               )}
             </div>
 
+            {form.tipo_medicao !== "diarias" && (
+              <div className="space-y-3">
+                <div><Label>Franquia de Horas (texto)</Label><Textarea value={form.franquia_horas_texto} onChange={e => setForm(f => ({ ...f, franquia_horas_texto: e.target.value }))} rows={2} /></div>
+                <div><Label>Horas Excedentes (texto)</Label><Textarea value={form.horas_excedentes_texto} onChange={e => setForm(f => ({ ...f, horas_excedentes_texto: e.target.value }))} rows={2} /></div>
+              </div>
+            )}
             <div className="space-y-3">
-              <div><Label>Franquia de Horas (texto)</Label><Textarea value={form.franquia_horas_texto} onChange={e => setForm(f => ({ ...f, franquia_horas_texto: e.target.value }))} rows={2} /></div>
-              <div><Label>Horas Excedentes (texto)</Label><Textarea value={form.horas_excedentes_texto} onChange={e => setForm(f => ({ ...f, horas_excedentes_texto: e.target.value }))} rows={2} /></div>
               <div><Label>Disponibilidade (texto)</Label><Textarea value={form.disponibilidade_texto} onChange={e => setForm(f => ({ ...f, disponibilidade_texto: e.target.value }))} rows={2} /></div>
               <div><Label>Análise Cadastral (texto)</Label><Textarea value={form.analise_cadastral_texto} onChange={e => setForm(f => ({ ...f, analise_cadastral_texto: e.target.value }))} rows={2} /></div>
               <div><Label>Seguro (texto)</Label><Textarea value={form.seguro_texto} onChange={e => setForm(f => ({ ...f, seguro_texto: e.target.value }))} rows={2} /></div>
