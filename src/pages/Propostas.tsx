@@ -1063,9 +1063,13 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
               )}
             </div>
 
+            {form.tipo_medicao !== "diarias" && (
+              <div className="space-y-3">
+                <div><Label>Franquia de Horas (texto)</Label><Textarea value={form.franquia_horas_texto} onChange={e => setForm(f => ({ ...f, franquia_horas_texto: e.target.value }))} rows={2} /></div>
+                <div><Label>Horas Excedentes (texto)</Label><Textarea value={form.horas_excedentes_texto} onChange={e => setForm(f => ({ ...f, horas_excedentes_texto: e.target.value }))} rows={2} /></div>
+              </div>
+            )}
             <div className="space-y-3">
-              <div><Label>Franquia de Horas (texto)</Label><Textarea value={form.franquia_horas_texto} onChange={e => setForm(f => ({ ...f, franquia_horas_texto: e.target.value }))} rows={2} /></div>
-              <div><Label>Horas Excedentes (texto)</Label><Textarea value={form.horas_excedentes_texto} onChange={e => setForm(f => ({ ...f, horas_excedentes_texto: e.target.value }))} rows={2} /></div>
               <div><Label>Disponibilidade (texto)</Label><Textarea value={form.disponibilidade_texto} onChange={e => setForm(f => ({ ...f, disponibilidade_texto: e.target.value }))} rows={2} /></div>
               <div><Label>Análise Cadastral (texto)</Label><Textarea value={form.analise_cadastral_texto} onChange={e => setForm(f => ({ ...f, analise_cadastral_texto: e.target.value }))} rows={2} /></div>
               <div><Label>Seguro (texto)</Label><Textarea value={form.seguro_texto} onChange={e => setForm(f => ({ ...f, seguro_texto: e.target.value }))} rows={2} /></div>
