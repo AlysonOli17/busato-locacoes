@@ -642,8 +642,11 @@ export const FaturamentoContent = () => {
   const getVencimento = (item: Fatura) => {
     const ct = contratos.find(c => c.id === item.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
-    const emissaoDate = new Date(item.emissao);
-    const vencimento = new Date(emissaoDate);
+    // Vencimento é contado a partir da data de aprovação, se existir
+    const baseDate = (item as any).data_aprovacao
+      ? parseLocalDate((item as any).data_aprovacao)
+      : parseLocalDate(item.emissao);
+    const vencimento = new Date(baseDate);
     vencimento.setDate(vencimento.getDate() + prazo);
     return vencimento;
   };
