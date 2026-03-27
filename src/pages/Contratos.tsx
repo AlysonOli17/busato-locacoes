@@ -1730,19 +1730,19 @@ const Contratos = () => {
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <Label className="text-xs text-muted-foreground">Valor/Hora (R$)</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Valor/Diária (R$)" : "Valor/Hora (R$)"}</Label>
                             <CurrencyInput value={fe.valor_hora} onValueChange={(v) => updateEquipItem(fe.equipamento_id, "valor_hora", v)} className="h-8 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Valor Hora Excedente (R$)</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Valor Diária Excedente (R$)" : "Valor Hora Excedente (R$)"}</Label>
                             <CurrencyInput value={fe.valor_hora_excedente} onValueChange={(v) => updateEquipItem(fe.equipamento_id, "valor_hora_excedente", v)} className="h-8 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Horas Contratadas</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Diárias Contratadas" : "Horas Contratadas"}</Label>
                             <Input type="number" value={fe.horas_contratadas || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "horas_contratadas", Number(e.target.value))} className="h-8 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Hora Mínima</Label>
+                            <Label className="text-xs text-muted-foreground">{form.tipo_medicao === "diarias" ? "Diária Mínima" : "Hora Mínima"}</Label>
                             <Input type="number" value={fe.hora_minima || ""} onChange={(e) => updateEquipItem(fe.equipamento_id, "hora_minima", Number(e.target.value))} className="h-8 text-sm" placeholder="0 = sem mínimo" />
                           </div>
                         </div>
