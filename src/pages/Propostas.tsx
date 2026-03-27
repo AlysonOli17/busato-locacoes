@@ -1026,15 +1026,19 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
             </div>
 
             {/* Mobilização e condições */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Valor Mobilização (R$)</Label>
-                <CurrencyInput value={form.valor_mobilizacao} onValueChange={v => setForm(f => ({ ...f, valor_mobilizacao: v }))} />
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Valor Mobilização (R$)</Label>
+                  <CurrencyInput value={form.valor_mobilizacao} onValueChange={v => {
+                    const texto = formatMobilizacaoTexto(v);
+                    setForm(f => ({ ...f, valor_mobilizacao: v, valor_mobilizacao_texto: texto }));
+                  }} />
+                </div>
               </div>
-              <div>
-                <Label>Texto Mobilização</Label>
-                <Input value={form.valor_mobilizacao_texto} onChange={e => setForm(f => ({ ...f, valor_mobilizacao_texto: e.target.value }))} placeholder="Ex: R$1000,00 (mil reais) transporte do equipamento." />
-              </div>
+              {form.valor_mobilizacao > 0 && (
+                <p className="text-sm text-muted-foreground italic px-1">{form.valor_mobilizacao_texto}</p>
+              )}
             </div>
 
             <div className="space-y-3">
