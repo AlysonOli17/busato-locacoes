@@ -88,6 +88,7 @@ interface AjusteForm {
   data_inicio: string;
   data_fim: string;
   motivo: string;
+  desconto_percentual: number;
 }
 
 interface Aditivo {
