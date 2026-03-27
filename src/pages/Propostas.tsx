@@ -98,6 +98,7 @@ const emptyForm = {
   disponibilidade_texto: "Equipamentos sujeitos à disponibilidade no momento da contratação.",
   analise_cadastral_texto: "Sujeito a verificação cadastral conforme normas vigentes.",
   seguro_texto: "Em caso de acionamento do seguro a franquia é de responsabilidade do cliente.",
+  tipo_medicao: "horas",
 };
 
 const parseLocalDate = (d: string) => new Date(d + "T00:00:00");
