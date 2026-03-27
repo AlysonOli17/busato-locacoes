@@ -635,7 +635,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     };
 
     if (item.valor_mobilizacao > 0 || item.valor_mobilizacao_texto) {
-      y = subItem("3.1.", "Mobilização / Desmobilização", item.valor_mobilizacao_texto || fmt(Number(item.valor_mobilizacao)) + " para transporte do equipamento.", y);
+      y = subItem("3.1.", "Transporte do Equipamento", item.valor_mobilizacao_texto || formatMobilizacaoTexto(Number(item.valor_mobilizacao)), y);
     }
     if (item.franquia_horas_texto) {
       y = subItem("3.2.", "Franquia de Horas", item.franquia_horas_texto, y);
