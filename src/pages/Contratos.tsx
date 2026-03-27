@@ -1812,6 +1812,16 @@ const Contratos = () => {
               </Select>
             </div>
             <div>
+              <Label>Tipo de Medição</Label>
+              <Select value={form.tipo_medicao} onValueChange={(v) => setForm({ ...form, tipo_medicao: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="horas">Por Horas (Horímetro)</SelectItem>
+                  <SelectItem value="diarias">Por Diárias</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">{form.tipo_medicao === "diarias" ? "Medição será feita contando dias trabalhados" : "Medição será feita por leitura de horímetro"}</p>
+            <div>
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
