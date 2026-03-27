@@ -76,6 +76,7 @@ interface AjusteTemporario {
   data_fim: string;
   motivo: string;
   created_at: string;
+  desconto_percentual: number;
 }
 
 interface AjusteForm {
