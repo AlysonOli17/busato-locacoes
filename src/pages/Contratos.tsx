@@ -122,7 +122,7 @@ interface AditivoForm {
   equipamentos: FormEquipItem[];
 }
 
-const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30 };
+const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30, tipo_medicao: "horas" };
 
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
