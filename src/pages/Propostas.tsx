@@ -568,24 +568,41 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     // 3. PREÇO E CONDIÇÕES
     const isDiarias = (item as any).tipo_medicao === "diarias";
     const unitLabel = isDiarias ? "Diária" : "Hora";
-    const franquiaLabel = isDiarias ? "Franquia (d)" : "Franquia (h)";
     y = sectionTitle("3. PREÇO E CONDIÇÕES", y);
-    autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
-      head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, franquiaLabel, "Total Mensal"]],
-      body: (eqs || []).map(eq => [
-        String(eq.quantidade).padStart(2, "0"),
-        eq.equipamento_tipo,
-        fmt(Number(eq.valor_hora)),
-        String(eq.franquia_mensal),
-        fmt(Number(eq.valor_hora) * Number(eq.franquia_mensal) * Number(eq.quantidade)),
-      ]),
-      styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
-      headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      alternateRowStyles: { fillColor: [245, 248, 252] },
-      theme: "striped",
-    });
+    if (isDiarias) {
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, "Total Mensal"]],
+        body: (eqs || []).map(eq => [
+          String(eq.quantidade).padStart(2, "0"),
+          eq.equipamento_tipo,
+          fmt(Number(eq.valor_hora)),
+          fmt(Number(eq.valor_hora) * Number(eq.quantidade) * 30),
+        ]),
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        theme: "striped",
+      });
+    } else {
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [["Qtd.", "Equipamento", `Valor/${unitLabel}`, "Franquia (h)", "Total Mensal"]],
+        body: (eqs || []).map(eq => [
+          String(eq.quantidade).padStart(2, "0"),
+          eq.equipamento_tipo,
+          fmt(Number(eq.valor_hora)),
+          String(eq.franquia_mensal),
+          fmt(Number(eq.valor_hora) * Number(eq.franquia_mensal) * Number(eq.quantidade)),
+        ]),
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: darkGray },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        theme: "striped",
+      });
+    }
     y = (doc as any).lastAutoTable.finalY + 8;
 
     // Bottom margin – content must not go below this Y to avoid overlapping the footer
