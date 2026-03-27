@@ -1,0 +1,1 @@
+ALTER TABLE public.propostas ADD COLUMN tipo_medicao text NOT NULL DEFAULT 'horas';
