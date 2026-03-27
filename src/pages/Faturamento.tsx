@@ -319,10 +319,17 @@ export const FaturamentoContent = () => {
         }
       }
 
-      // Calculate hours using interpolation (average daily hours between readings)
+      // Calculate measured value: hours (horímetro) or days (diárias)
+      const isDiarias = ct.tipo_medicao === "diarias";
       const filteredMedicoes = medicoesData.filter(m => m.equipamento_id === eqId);
       let horasMedidas = 0;
-      if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
+
+      if (isDiarias) {
+        // For diárias: count distinct work days with measurements in the period
+        const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
+        const uniqueDays = new Set(trabalho.map(m => String(m.data)));
+        horasMedidas = uniqueDays.size;
+      } else if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
         // Build readings array: baseline + in-period readings
         const allReadings: { data: string; horimetro_final: number }[] = [];
@@ -333,7 +340,6 @@ export const FaturamentoContent = () => {
         }
 
         if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
-          // Equipment returned mid-period: calculate hours up to return date
           const result = calcularHorasInterpoladas(allReadings, inicio, dataDevolucao);
           horasMedidas = result.totalHoras;
         } else {
