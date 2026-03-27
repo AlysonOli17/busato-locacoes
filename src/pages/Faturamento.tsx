@@ -76,6 +76,7 @@ interface Fatura {
   total_gastos: number;
   contratos: ContratoRef;
   conta_bancaria_id: string | null;
+  data_aprovacao: string | null;
 }
 
 interface GastoItem {
