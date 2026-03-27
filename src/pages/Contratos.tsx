@@ -2245,6 +2245,11 @@ const Contratos = () => {
               <div className={!editingAjuste && !ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
             </div>
             <div><Label>Motivo</Label><Input value={ajusteForm.motivo} onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: Reajuste temporário por demanda extra" /></div>
+            <div>
+              <Label>Desconto (%)</Label>
+              <Input type="number" min="0" max="100" step="0.5" value={ajusteForm.desconto_percentual || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, desconto_percentual: Number(e.target.value) }))} placeholder="0 = sem desconto" />
+              {ajusteForm.desconto_percentual > 0 && <p className="text-xs text-muted-foreground mt-1">Será aplicado {ajusteForm.desconto_percentual}% de desconto sobre o valor calculado</p>}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAjusteFormOpen(false)}>Cancelar</Button>
