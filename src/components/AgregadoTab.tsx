@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, CalendarDays, FileBarChart, FileDown, Pencil, Trash2, Upload, Download } from "lucide-react";
+import { Plus, CalendarDays, FileBarChart, FileDown, Pencil, Trash2, Upload, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { addLetterhead } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
