@@ -85,11 +85,24 @@ const Medicoes = () => {
     }
   };
 
+  // Validate dataFim: must not exceed last entry date for the selected equipment
+  const lastEntryDate = items
+    .filter(i => filterEquip === "Todos" || i.equipamento_id === filterEquip)
+    .reduce((max, i) => (i.data > max ? i.data : max), "");
+
+  const validDataFim = (() => {
+    if (!dataFim) return undefined;
+    if (lastEntryDate && format(dataFim, "yyyy-MM-dd") > lastEntryDate) {
+      return parseLocalDate(lastEntryDate);
+    }
+    return dataFim;
+  })();
+
   const filtered = items.filter((i) => {
     if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
     const itemDate = parseLocalDate(i.data);
     if (dataInicio) {if (itemDate < dataInicio) return false;}
-    if (dataFim) {const fim = new Date(dataFim);fim.setHours(23, 59, 59, 999);if (itemDate > fim) return false;}
+    if (validDataFim) {const fim = new Date(validDataFim);fim.setHours(23, 59, 59, 999);if (itemDate > fim) return false;}
     return true;
   });
 
@@ -140,10 +153,10 @@ const Medicoes = () => {
     let totalHoras = 0;
     let mediaHorasDia = 0;
 
-    if (dataInicio && dataFim) {
+    if (dataInicio && validDataFim) {
       // Use interpolation when period filters are active
       const inicioStr = format(dataInicio, "yyyy-MM-dd");
-      const fimStr = format(dataFim, "yyyy-MM-dd");
+      const fimStr = format(validDataFim, "yyyy-MM-dd");
       // Build readings array: baseline + in-period readings
       const allReadings: { data: string; horimetro_final: number }[] = [];
       const baseline = baselines.get(eqId);
@@ -340,12 +353,13 @@ const Medicoes = () => {
           </CardContent>
         </Card>
 
+        {hasFilters && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-accent/30 bg-accent/5">
             <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-xs font-medium text-muted-foreground">Total Geral</CardTitle></CardHeader>
             <CardContent className="px-3 pb-3 pt-0">
               <div className="text-lg font-bold text-sidebar">{totalHorasGeral.toFixed(1)}h</div>
-              <p className="text-[10px] text-muted-foreground">{filtered.length} registros{hasFilters ? " (filtrado)" : ""}</p>
+              <p className="text-[10px] text-muted-foreground">{filtered.length} registros (filtrado)</p>
             </CardContent>
           </Card>
           {Array.from(summaryMap.entries()).map(([id, data]) =>
@@ -364,6 +378,7 @@ const Medicoes = () => {
             </Card>
           )}
         </div>
+        )}
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">
