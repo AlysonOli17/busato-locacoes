@@ -569,12 +569,12 @@ export const AgregadoTab = () => {
           <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Equipamento</TableHead>
-                <TableHead>Tag/Placa</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>O.S.</TableHead>
-                <TableHead>PDE</TableHead>
-                <TableHead>Matrícula</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}><span className="flex items-center">Equipamento<SortIcon col="equipamento" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}><span className="flex items-center">Tag/Placa<SortIcon col="tag" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}><span className="flex items-center">Data<SortIcon col="data" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("os")}><span className="flex items-center">O.S.<SortIcon col="os" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("pde")}><span className="flex items-center">PDE<SortIcon col="pde" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("matricula")}><span className="flex items-center">Matrícula<SortIcon col="matricula" /></span></TableHead>
                 <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
