@@ -40,9 +40,7 @@ const emptyForm = {
   equipamento_id: "",
   data: new Date().toISOString().split("T")[0],
   os: "",
-  complementar: "",
   pde: "",
-  tipo: "",
   matricula: "",
   observacoes: "",
 };
@@ -80,7 +78,6 @@ export const AgregadoTab = () => {
     return true;
   }), [items, filterEquip, dataInicio, dataFim]);
 
-  // Summary: count unique days per equipment
   const summaryMap = useMemo(() => {
     const map = new Map<string, { totalDiarias: number; entries: number; label: string; tag: string }>();
     const equipEntries = new Map<string, Agregado[]>();
@@ -100,7 +97,6 @@ export const AgregadoTab = () => {
   }, [filtered]);
 
   const totalDiariasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalDiarias, 0);
-
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
   const openNew = () => {
@@ -115,9 +111,7 @@ export const AgregadoTab = () => {
       equipamento_id: item.equipamento_id,
       data: item.data,
       os: item.os,
-      complementar: item.complementar,
       pde: item.pde,
-      tipo: item.tipo,
       matricula: item.matricula,
       observacoes: item.observacoes || "",
     });
@@ -133,9 +127,7 @@ export const AgregadoTab = () => {
       equipamento_id: form.equipamento_id,
       data: form.data,
       os: form.os,
-      complementar: form.complementar,
       pde: form.pde,
-      tipo: form.tipo,
       matricula: form.matricula,
       observacoes: form.observacoes || null,
     };
@@ -164,14 +156,29 @@ export const AgregadoTab = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
 
+  // Build lookup maps for equipment matching
+  const buildEquipMaps = () => {
+    const placaMap = new Map<string, string>();
+    const tipoModeloMap = new Map<string, string>();
+    equipamentos.forEach(eq => {
+      if (eq.tag_placa) placaMap.set(eq.tag_placa.trim().toUpperCase(), eq.id);
+      // Map "Tipo Modelo" for matching via the "Tipo" column in Excel
+      const key = `${eq.tipo} ${eq.modelo}`.trim().toUpperCase();
+      if (!tipoModeloMap.has(key)) tipoModeloMap.set(key, eq.id);
+      // Also map just tipo
+      const tipoKey = eq.tipo.trim().toUpperCase();
+      if (!tipoModeloMap.has(tipoKey)) tipoModeloMap.set(tipoKey, eq.id);
+    });
+    return { placaMap, tipoModeloMap };
+  };
+
   const downloadTemplate = async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Diárias Agregado");
     ws.columns = [
       { header: "O.S.", key: "os", width: 15 },
-      { header: "Complementar", key: "complementar", width: 20 },
       { header: "PDE", key: "pde", width: 15 },
-      { header: "Tipo", key: "tipo", width: 15 },
+      { header: "Tipo (Equipamento)", key: "tipo_equip", width: 25 },
       { header: "Placa / Tag", key: "placa_tag", width: 18 },
       { header: "Matrícula", key: "matricula", width: 15 },
       { header: "Data", key: "data", width: 15 },
@@ -182,8 +189,7 @@ export const AgregadoTab = () => {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
       cell.alignment = { horizontal: "center" };
     });
-    // Add example row
-    ws.addRow({ os: "OS-001", complementar: "", pde: "PDE-01", tipo: "QQP", placa_tag: "ABC-1234", matricula: "12345", data: "01/01/2026" });
+    ws.addRow({ os: "OS-001", pde: "PDE-01", tipo_equip: "Escavadeira CAT 320", placa_tag: "ABC-1234", matricula: "12345", data: "01/01/2026" });
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
@@ -205,34 +211,37 @@ export const AgregadoTab = () => {
       const ws = wb.worksheets[0];
       if (!ws) { toast({ title: "Erro", description: "Planilha vazia.", variant: "destructive" }); return; }
 
-      // Build placa→equipamento map
-      const placaMap = new Map<string, string>();
-      equipamentos.forEach(eq => {
-        if (eq.tag_placa) placaMap.set(eq.tag_placa.trim().toUpperCase(), eq.id);
-      });
+      const { placaMap, tipoModeloMap } = buildEquipMaps();
 
       const rows: any[] = [];
       let skipped = 0;
+      const skippedDetails: string[] = [];
+
       ws.eachRow((row, rowNum) => {
-        if (rowNum === 1) return; // skip header
+        if (rowNum === 1) return;
+        // Columns: 1=O.S., 2=PDE, 3=Tipo(Equipamento), 4=Placa/Tag, 5=Matrícula, 6=Data
         const os = String(row.getCell(1).value || "").trim();
-        const complementar = String(row.getCell(2).value || "").trim();
-        const pde = String(row.getCell(3).value || "").trim();
-        const tipo = String(row.getCell(4).value || "").trim();
-        const placaRaw = String(row.getCell(5).value || "").trim().toUpperCase();
-        const matricula = String(row.getCell(6).value || "").trim();
-        const dataRaw = row.getCell(7).value;
+        const pde = String(row.getCell(2).value || "").trim();
+        const tipoEquip = String(row.getCell(3).value || "").trim().toUpperCase();
+        const placaRaw = String(row.getCell(4).value || "").trim().toUpperCase();
+        const matricula = String(row.getCell(5).value || "").trim();
+        const dataRaw = row.getCell(6).value;
 
-        // Resolve equipment by placa
-        const eqId = placaMap.get(placaRaw);
-        if (!eqId) { skipped++; return; }
+        // Resolve equipment: first by placa, then by tipo/modelo match
+        let eqId = placaMap.get(placaRaw);
+        if (!eqId && tipoEquip) {
+          eqId = tipoModeloMap.get(tipoEquip);
+        }
+        if (!eqId) {
+          skipped++;
+          skippedDetails.push(`Linha ${rowNum}: Placa "${placaRaw}" / Tipo "${tipoEquip}" não encontrado`);
+          return;
+        }
 
-        // Parse date
         let dataStr = "";
         if (dataRaw instanceof Date) {
           dataStr = format(dataRaw, "yyyy-MM-dd");
         } else if (typeof dataRaw === "string") {
-          // Try dd/MM/yyyy
           const parts = dataRaw.split("/");
           if (parts.length === 3) {
             dataStr = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
@@ -242,15 +251,14 @@ export const AgregadoTab = () => {
         }
         if (!dataStr) { skipped++; return; }
 
-        rows.push({ equipamento_id: eqId, data: dataStr, os, complementar, pde, tipo, matricula, observacoes: null });
+        rows.push({ equipamento_id: eqId, data: dataStr, os, pde, matricula, observacoes: null });
       });
 
       if (rows.length === 0) {
-        toast({ title: "Nenhum registro válido", description: `${skipped} linhas ignoradas (placa não encontrada ou dados inválidos).`, variant: "destructive" });
+        toast({ title: "Nenhum registro válido", description: `${skipped} linhas ignoradas.\n${skippedDetails.slice(0, 5).join("\n")}`, variant: "destructive" });
         return;
       }
 
-      // Insert in batches of 50
       for (let i = 0; i < rows.length; i += 50) {
         const batch = rows.slice(i, i + 50);
         const { error } = await supabase.from("agregados").insert(batch);
@@ -283,15 +291,13 @@ export const AgregadoTab = () => {
           </Button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
           <Button variant="outline" size="sm" onClick={() => {
-            const headers = ["Equipamento", "Tag/Placa", "Data", "O.S.", "Complementar", "PDE", "Tipo", "Matrícula"];
+            const headers = ["Equipamento", "Tag/Placa", "Data", "O.S.", "PDE", "Matrícula"];
             const rows = filtered.map((m) => [
               `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
               m.equipamentos?.tag_placa || "—",
               parseLocalDate(m.data).toLocaleDateString("pt-BR"),
               m.os || "—",
-              m.complementar || "—",
               m.pde || "—",
-              m.tipo || "—",
               m.matricula || "—",
             ]);
             const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
@@ -366,16 +372,14 @@ export const AgregadoTab = () => {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[800px]">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Equipamento</TableHead>
                 <TableHead>Tag/Placa</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>O.S.</TableHead>
-                <TableHead>Complementar</TableHead>
                 <TableHead>PDE</TableHead>
-                <TableHead>Tipo</TableHead>
                 <TableHead>Matrícula</TableHead>
                 <TableHead className="w-20">Ações</TableHead>
               </TableRow>
@@ -387,9 +391,7 @@ export const AgregadoTab = () => {
                   <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                   <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
                   <TableCell className="text-sm">{item.os || "—"}</TableCell>
-                  <TableCell className="text-sm">{item.complementar || "—"}</TableCell>
                   <TableCell className="text-sm">{item.pde || "—"}</TableCell>
-                  <TableCell><Badge className="bg-accent/10 text-accent border-0 text-xs">{item.tipo || "—"}</Badge></TableCell>
                   <TableCell className="text-sm">{item.matricula || "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -404,7 +406,7 @@ export const AgregadoTab = () => {
                 </TableRow>
               )}
               {!loading && filtered.length === 0 &&
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma diária encontrada</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma diária encontrada</TableCell></TableRow>
               }
             </TableBody>
           </Table>
@@ -446,18 +448,8 @@ export const AgregadoTab = () => {
                 <Input value={form.os} onChange={(e) => setForm({ ...form, os: e.target.value })} placeholder="Ex: OS-001" />
               </div>
               <div>
-                <Label>Complementar</Label>
-                <Input value={form.complementar} onChange={(e) => setForm({ ...form, complementar: e.target.value })} placeholder="Complemento da O.S." />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
                 <Label>PDE</Label>
                 <Input value={form.pde} onChange={(e) => setForm({ ...form, pde: e.target.value })} placeholder="PDE" />
-              </div>
-              <div>
-                <Label>Tipo</Label>
-                <Input value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} placeholder="Ex: QQP" />
               </div>
             </div>
             <div>
