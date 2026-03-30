@@ -157,15 +157,15 @@ export const AgregadoTab = () => {
   const [importing, setImporting] = useState(false);
 
   // Build lookup maps for equipment matching
+  const normalizePlaca = (p: string) => p.replace(/[\s\-_.]/g, "").toUpperCase();
+
   const buildEquipMaps = () => {
     const placaMap = new Map<string, string>();
     const tipoModeloMap = new Map<string, string>();
     equipamentos.forEach(eq => {
-      if (eq.tag_placa) placaMap.set(eq.tag_placa.trim().toUpperCase(), eq.id);
-      // Map "Tipo Modelo" for matching via the "Tipo" column in Excel
+      if (eq.tag_placa) placaMap.set(normalizePlaca(eq.tag_placa), eq.id);
       const key = `${eq.tipo} ${eq.modelo}`.trim().toUpperCase();
       if (!tipoModeloMap.has(key)) tipoModeloMap.set(key, eq.id);
-      // Also map just tipo
       const tipoKey = eq.tipo.trim().toUpperCase();
       if (!tipoModeloMap.has(tipoKey)) tipoModeloMap.set(tipoKey, eq.id);
     });
@@ -258,7 +258,7 @@ export const AgregadoTab = () => {
       ws.eachRow((row, rowNum) => {
         if (rowNum === 1) return;
 
-        const placaRaw = cellStr(row, colMap.placa).toUpperCase();
+        const placaRaw = normalizePlaca(cellStr(row, colMap.placa));
         const tipoEquip = cellStr(row, colMap.tipo).toUpperCase();
         const os = cellStr(row, colMap.os);
         const pde = cellStr(row, colMap.pde);
