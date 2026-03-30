@@ -305,12 +305,9 @@ export const AgregadoTab = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Agregado - Diárias</h1>
-          <p className="text-sm text-muted-foreground">Lançamento de diárias por equipamento agregado</p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h1 className="text-xl font-bold text-foreground">Agregado - Diárias</h1>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={downloadTemplate}>
             <Download className="h-4 w-4 mr-1" /> Modelo Excel
@@ -452,40 +449,31 @@ export const AgregadoTab = () => {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <FileBarChart className="h-4 w-4 text-accent" /> Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Equipamento</Label>
-              <SearchableSelect
-                value={filterEquip}
-                onValueChange={setFilterEquip}
-                placeholder="Todos os Equipamentos"
-                searchPlaceholder="Pesquisar equipamento..."
-                className="w-64"
-                options={[
-                  { value: "Todos", label: "Todos os Equipamentos" },
-                  ...equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) })),
-                ]}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Data Inicial</Label>
-              <Input type="date" className="w-48" value={dataInicio ? format(dataInicio, "yyyy-MM-dd") : ""} onChange={(e) => setDataInicio(e.target.value ? parseLocalDate(e.target.value) : undefined)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Data Final</Label>
-              <Input type="date" className="w-48" value={dataFim ? format(dataFim, "yyyy-MM-dd") : ""} onChange={(e) => setDataFim(e.target.value ? parseLocalDate(e.target.value) : undefined)} />
-            </div>
-            {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Limpar filtros</Button>}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Equipamento</Label>
+          <SearchableSelect
+            value={filterEquip}
+            onValueChange={setFilterEquip}
+            placeholder="Todos"
+            searchPlaceholder="Pesquisar..."
+            className="w-52"
+            options={[
+              { value: "Todos", label: "Todos os Equipamentos" },
+              ...equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) })),
+            ]}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Início</Label>
+          <Input type="date" className="w-36 h-9" value={dataInicio ? format(dataInicio, "yyyy-MM-dd") : ""} onChange={(e) => setDataInicio(e.target.value ? parseLocalDate(e.target.value) : undefined)} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Fim</Label>
+          <Input type="date" className="w-36 h-9" value={dataFim ? format(dataFim, "yyyy-MM-dd") : ""} onChange={(e) => setDataFim(e.target.value ? parseLocalDate(e.target.value) : undefined)} />
+        </div>
+        {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground text-xs">Limpar</Button>}
+      </div>
 
       {hasFilters && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
