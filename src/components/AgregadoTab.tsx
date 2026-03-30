@@ -258,7 +258,7 @@ export const AgregadoTab = () => {
       ws.eachRow((row, rowNum) => {
         if (rowNum === 1) return;
 
-        const placaRaw = cellStr(row, colMap.placa).toUpperCase();
+        const placaRaw = normalizePlaca(cellStr(row, colMap.placa));
         const tipoEquip = cellStr(row, colMap.tipo).toUpperCase();
         const os = cellStr(row, colMap.os);
         const pde = cellStr(row, colMap.pde);
