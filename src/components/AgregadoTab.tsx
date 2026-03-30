@@ -161,6 +161,112 @@ export const AgregadoTab = () => {
 
   const clearFilters = () => { setFilterEquip("Todos"); setDataInicio(undefined); setDataFim(undefined); };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  const downloadTemplate = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Diárias Agregado");
+    ws.columns = [
+      { header: "O.S.", key: "os", width: 15 },
+      { header: "Complementar", key: "complementar", width: 20 },
+      { header: "PDE", key: "pde", width: 15 },
+      { header: "Tipo", key: "tipo", width: 15 },
+      { header: "Placa / Tag", key: "placa_tag", width: 18 },
+      { header: "Matrícula", key: "matricula", width: 15 },
+      { header: "Data", key: "data", width: 15 },
+    ];
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+      cell.alignment = { horizontal: "center" };
+    });
+    // Add example row
+    ws.addRow({ os: "OS-001", complementar: "", pde: "PDE-01", tipo: "QQP", placa_tag: "ABC-1234", matricula: "12345", data: "01/01/2026" });
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "modelo_diarias_agregado.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const wb = new ExcelJS.Workbook();
+      const buffer = await file.arrayBuffer();
+      await wb.xlsx.load(buffer);
+      const ws = wb.worksheets[0];
+      if (!ws) { toast({ title: "Erro", description: "Planilha vazia.", variant: "destructive" }); return; }
+
+      // Build placa→equipamento map
+      const placaMap = new Map<string, string>();
+      equipamentos.forEach(eq => {
+        if (eq.tag_placa) placaMap.set(eq.tag_placa.trim().toUpperCase(), eq.id);
+      });
+
+      const rows: any[] = [];
+      let skipped = 0;
+      ws.eachRow((row, rowNum) => {
+        if (rowNum === 1) return; // skip header
+        const os = String(row.getCell(1).value || "").trim();
+        const complementar = String(row.getCell(2).value || "").trim();
+        const pde = String(row.getCell(3).value || "").trim();
+        const tipo = String(row.getCell(4).value || "").trim();
+        const placaRaw = String(row.getCell(5).value || "").trim().toUpperCase();
+        const matricula = String(row.getCell(6).value || "").trim();
+        const dataRaw = row.getCell(7).value;
+
+        // Resolve equipment by placa
+        const eqId = placaMap.get(placaRaw);
+        if (!eqId) { skipped++; return; }
+
+        // Parse date
+        let dataStr = "";
+        if (dataRaw instanceof Date) {
+          dataStr = format(dataRaw, "yyyy-MM-dd");
+        } else if (typeof dataRaw === "string") {
+          // Try dd/MM/yyyy
+          const parts = dataRaw.split("/");
+          if (parts.length === 3) {
+            dataStr = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+          } else {
+            dataStr = dataRaw;
+          }
+        }
+        if (!dataStr) { skipped++; return; }
+
+        rows.push({ equipamento_id: eqId, data: dataStr, os, complementar, pde, tipo, matricula, observacoes: null });
+      });
+
+      if (rows.length === 0) {
+        toast({ title: "Nenhum registro válido", description: `${skipped} linhas ignoradas (placa não encontrada ou dados inválidos).`, variant: "destructive" });
+        return;
+      }
+
+      // Insert in batches of 50
+      for (let i = 0; i < rows.length; i += 50) {
+        const batch = rows.slice(i, i + 50);
+        const { error } = await supabase.from("agregados").insert(batch);
+        if (error) { toast({ title: "Erro ao importar", description: error.message, variant: "destructive" }); return; }
+      }
+
+      toast({ title: "Importação concluída", description: `${rows.length} registros importados.${skipped > 0 ? ` ${skipped} linhas ignoradas.` : ""}` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao ler arquivo", description: err.message || "Formato inválido.", variant: "destructive" });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
