@@ -68,6 +68,53 @@ export type Database = {
           },
         ]
       }
+      agregados: {
+        Row: {
+          complementar: string
+          created_at: string
+          data: string
+          equipamento_id: string
+          id: string
+          matricula: string
+          observacoes: string | null
+          os: string
+          pde: string
+          tipo: string
+        }
+        Insert: {
+          complementar?: string
+          created_at?: string
+          data?: string
+          equipamento_id: string
+          id?: string
+          matricula?: string
+          observacoes?: string | null
+          os?: string
+          pde?: string
+          tipo?: string
+        }
+        Update: {
+          complementar?: string
+          created_at?: string
+          data?: string
+          equipamento_id?: string
+          id?: string
+          matricula?: string
+          observacoes?: string | null
+          os?: string
+          pde?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agregados_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apolices: {
         Row: {
           created_at: string
