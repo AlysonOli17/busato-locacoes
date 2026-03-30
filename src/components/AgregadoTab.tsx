@@ -430,6 +430,45 @@ export const AgregadoTab = () => {
               y = (doc as any).lastAutoTable.finalY + 8;
             });
 
+            // === BLOCO DE ASSINATURA ===
+            const sigBlockH = 50;
+            if (y > pageH - sigBlockH - 15) {
+              doc.addPage();
+              y = 20;
+            }
+            y += 10;
+
+            doc.setDrawColor(100, 100, 100);
+            doc.setLineWidth(0.4);
+
+            const colW = (pageW - marginLeft - marginRight) / 2;
+            const lineY = y + 25;
+            const nameY = lineY + 5;
+
+            // Left signature
+            doc.line(marginLeft + 10, lineY, marginLeft + colW - 10, lineY);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(60, 60, 60);
+            doc.text("CONTRATANTE", marginLeft + colW / 2, nameY, { align: "center" });
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(120, 120, 120);
+            doc.text("Assinatura / Carimbo", marginLeft + colW / 2, nameY + 4, { align: "center" });
+
+            // Right signature
+            const rightStart = marginLeft + colW;
+            doc.setDrawColor(100, 100, 100);
+            doc.line(rightStart + 10, lineY, rightStart + colW - 10, lineY);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(60, 60, 60);
+            doc.text("BUSATO LOCAÇÃO", rightStart + colW / 2, nameY, { align: "center" });
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(120, 120, 120);
+            doc.text("Assinatura / Carimbo", rightStart + colW / 2, nameY + 4, { align: "center" });
+
             // Footer with page numbers
             const totalPages = doc.getNumberOfPages();
             for (let i = 1; i <= totalPages; i++) {
