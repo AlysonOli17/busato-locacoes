@@ -123,6 +123,12 @@ export const AgregadoTab = () => {
     });
   }, [items, filterEquip, dataInicio, dataFim, sortCol, sortAsc]);
 
+  const allSelected = filtered.length > 0 && selected.size === filtered.length;
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(filtered.map((i) => i.id)));
+  };
+
   const summaryMap = useMemo(() => {
     const map = new Map<string, { totalDiarias: number; entries: number; label: string; tag: string }>();
     const equipEntries = new Map<string, Agregado[]>();
