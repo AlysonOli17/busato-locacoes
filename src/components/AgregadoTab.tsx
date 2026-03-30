@@ -141,8 +141,9 @@ export const AgregadoTab = () => {
       const first = entries[0];
       const label = `${first.equipamentos?.tipo} ${first.equipamentos?.modelo}`;
       const tag = first.equipamentos?.tag_placa || "";
-      const uniqueDays = new Set(entries.map(e => e.data));
-      map.set(eqId, { totalDiarias: uniqueDays.size, entries: entries.length, label, tag });
+      // Conta diárias: mesmo dia + mesma O.S. = 1 diária; O.S. diferente no mesmo dia = diárias separadas
+      const uniqueDiarias = new Set(entries.map(e => `${e.data}||${e.os || ""}`));
+      map.set(eqId, { totalDiarias: uniqueDiarias.size, entries: entries.length, label, tag });
     });
     return map;
   }, [filtered]);
