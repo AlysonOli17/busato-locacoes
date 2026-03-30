@@ -297,11 +297,26 @@ export const AgregadoTab = () => {
       const cellDate = (row: ExcelJS.Row, col: number | undefined): string => {
         if (!col) return "";
         const val = row.getCell(col).value;
-        if (val instanceof Date) return format(val, "yyyy-MM-dd");
+        if (val instanceof Date) {
+          // Use UTC components to avoid timezone offset shifting the date
+          const y = val.getUTCFullYear();
+          const m = String(val.getUTCMonth() + 1).padStart(2, "0");
+          const d = String(val.getUTCDate()).padStart(2, "0");
+          return `${y}-${m}-${d}`;
+        }
         if (typeof val === "string") {
           const parts = val.trim().split("/");
           if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
           return val.trim();
+        }
+        if (typeof val === "number") {
+          // Excel serial date number
+          const epoch = new Date(Date.UTC(1899, 11, 30));
+          const date = new Date(epoch.getTime() + val * 86400000);
+          const y = date.getUTCFullYear();
+          const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+          const d = String(date.getUTCDate()).padStart(2, "0");
+          return `${y}-${m}-${d}`;
         }
         return "";
       };
