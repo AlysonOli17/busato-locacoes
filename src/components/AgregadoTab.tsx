@@ -432,9 +432,9 @@ export const AgregadoTab = () => {
             const summaryHeaders = ["Equipamento", "Tag/Placa", "Nº Série", "Total Diárias", "Total Registros"];
             const summaryRows: string[][] = [];
             grouped.forEach((g) => {
-              totalGeralDiarias += g.uniqueDays.size;
+              totalGeralDiarias += g.uniqueDiarias.size;
               totalGeralRegistros += g.entries.length;
-              summaryRows.push([g.label, g.tag, g.serie, String(g.uniqueDays.size), String(g.entries.length)]);
+              summaryRows.push([g.label, g.tag, g.serie, String(g.uniqueDiarias.size), String(g.entries.length)]);
             });
 
             autoTable(doc, {
