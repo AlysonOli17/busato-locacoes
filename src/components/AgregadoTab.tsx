@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { getEquipLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, CalendarDays, FileBarChart, FileDown, Pencil, Trash2 } from "lucide-react";
+import { Plus, CalendarDays, FileBarChart, FileDown, Pencil, Trash2, Upload, Download } from "lucide-react";
 import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import ExcelJS from "exceljs";
 
 interface Equipamento {
   id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null;
