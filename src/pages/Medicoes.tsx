@@ -448,6 +448,9 @@ const Medicoes = () => {
         <TabsContent value="faturamento-novo">
           <FaturamentoTab />
         </TabsContent>
+        <TabsContent value="agregado">
+          <AgregadoTab />
+        </TabsContent>
       </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
