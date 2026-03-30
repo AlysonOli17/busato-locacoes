@@ -319,18 +319,130 @@ export const AgregadoTab = () => {
             <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : "Importar Excel"}
           </Button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
-          <Button variant="outline" size="sm" onClick={() => {
-            const headers = ["Equipamento", "Tag/Placa", "Data", "O.S.", "PDE", "Matrícula"];
-            const rows = filtered.map((m) => [
-              `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
-              m.equipamentos?.tag_placa || "—",
-              parseLocalDate(m.data).toLocaleDateString("pt-BR"),
-              m.os || "—",
-              m.pde || "—",
-              m.matricula || "—",
-            ]);
-            const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
-            exportToPDF({ title: `Relatório de Diárias Agregado${periodo}`, headers, rows, filename: `agregado_diarias_${new Date().toISOString().slice(0, 10)}` });
+          <Button variant="outline" size="sm" onClick={async () => {
+            const periodo = dataInicio && dataFim ? `${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
+            const doc = new jsPDF({ orientation: "landscape" });
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
+            const marginLeft = 14;
+            const marginRight = 14;
+
+            const startY = await addLetterhead(doc, "RELATÓRIO DE DIÁRIAS - AGREGADO");
+
+            // Período e resumo geral
+            let y = startY;
+            doc.setFontSize(9);
+            doc.setTextColor(60, 60, 60);
+            if (periodo) {
+              doc.text(`Período: ${periodo}`, marginLeft, y);
+              y += 5;
+            }
+
+            // Group by equipment
+            const grouped = new Map<string, { label: string; tag: string; serie: string; entries: Agregado[]; uniqueDays: Set<string> }>();
+            filtered.forEach((m) => {
+              const eqId = m.equipamento_id;
+              if (!grouped.has(eqId)) {
+                grouped.set(eqId, {
+                  label: `${m.equipamentos?.tipo || ""} ${m.equipamentos?.modelo || ""}`.trim(),
+                  tag: m.equipamentos?.tag_placa || "—",
+                  serie: m.equipamentos?.numero_serie || "—",
+                  entries: [],
+                  uniqueDays: new Set(),
+                });
+              }
+              const g = grouped.get(eqId)!;
+              g.entries.push(m);
+              g.uniqueDays.add(m.data);
+            });
+
+            let totalGeralDiarias = 0;
+            let totalGeralRegistros = 0;
+
+            // === RESUMO POR EQUIPAMENTO ===
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(41, 128, 185);
+            doc.text("RESUMO POR EQUIPAMENTO", marginLeft, y);
+            y += 2;
+
+            const summaryHeaders = ["Equipamento", "Tag/Placa", "Nº Série", "Total Diárias", "Total Registros"];
+            const summaryRows: string[][] = [];
+            grouped.forEach((g) => {
+              totalGeralDiarias += g.uniqueDays.size;
+              totalGeralRegistros += g.entries.length;
+              summaryRows.push([g.label, g.tag, g.serie, String(g.uniqueDays.size), String(g.entries.length)]);
+            });
+
+            autoTable(doc, {
+              head: [summaryHeaders],
+              body: summaryRows,
+              startY: y,
+              styles: { fontSize: 8, cellPadding: 2.5 },
+              headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
+              columnStyles: { 3: { halign: "center", fontStyle: "bold" }, 4: { halign: "center" } },
+              alternateRowStyles: { fillColor: [245, 247, 250] },
+              foot: [["TOTAL GERAL", "", "", String(totalGeralDiarias), String(totalGeralRegistros)]],
+              footStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center", fontSize: 9 },
+              theme: "grid",
+            });
+
+            y = (doc as any).lastAutoTable.finalY + 10;
+
+            // === DETALHAMENTO POR EQUIPAMENTO ===
+            grouped.forEach((g) => {
+              // Check page space
+              if (y > pageH - 50) {
+                doc.addPage();
+                y = 20;
+              }
+
+              // Equipment header
+              doc.setFontSize(9);
+              doc.setFont("helvetica", "bold");
+              doc.setTextColor(41, 128, 185);
+              doc.text(`${g.label}`, marginLeft, y);
+              doc.setFont("helvetica", "normal");
+              doc.setTextColor(100, 100, 100);
+              doc.text(`Tag: ${g.tag}  |  Série: ${g.serie}  |  Diárias: ${g.uniqueDays.size}`, marginLeft + doc.getTextWidth(g.label) + 5, y);
+              y += 2;
+
+              // Sort entries by date
+              const sorted = [...g.entries].sort((a, b) => a.data.localeCompare(b.data));
+              const detailHeaders = ["Data", "O.S.", "PDE", "Matrícula", "Observações"];
+              const detailRows = sorted.map((m) => [
+                parseLocalDate(m.data).toLocaleDateString("pt-BR"),
+                m.os || "—",
+                m.pde || "—",
+                m.matricula || "—",
+                m.observacoes || "—",
+              ]);
+
+              autoTable(doc, {
+                head: [detailHeaders],
+                body: detailRows,
+                startY: y,
+                styles: { fontSize: 7.5, cellPadding: 2 },
+                headStyles: { fillColor: [52, 73, 94], textColor: 255, fontStyle: "bold", halign: "center", fontSize: 7.5 },
+                columnStyles: { 0: { halign: "center" }, 4: { cellWidth: 80 } },
+                alternateRowStyles: { fillColor: [248, 249, 250] },
+                theme: "grid",
+                margin: { left: marginLeft, right: marginRight },
+              });
+
+              y = (doc as any).lastAutoTable.finalY + 8;
+            });
+
+            // Footer with page numbers
+            const totalPages = doc.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+              doc.setPage(i);
+              doc.setFontSize(7);
+              doc.setTextColor(150, 150, 150);
+              doc.text(`Página ${i} de ${totalPages}`, pageW - marginRight, pageH - 8, { align: "right" });
+            }
+
+            doc.save(`relatorio_diarias_agregado_${new Date().toISOString().slice(0, 10)}.pdf`);
           }}>
             <FileDown className="h-4 w-4 mr-1" /> PDF Diárias
           </Button>
