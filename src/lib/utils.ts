@@ -52,7 +52,20 @@ export function calcularHorasInterpoladas(
     }
 
     if (prevIdx === -1) return null; // Before first reading
-    if (nextIdx === -1) return null; // After last reading
+    if (nextIdx === -1) {
+      // After last reading: extrapolate using average daily rate
+      if (sorted.length >= 2) {
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const totalDays = daysDiff(first.data, last.data);
+        if (totalDays > 0) {
+          const dailyRate = (last.horim - first.horim) / totalDays;
+          const daysFromLast = daysDiff(last.data, dateStr);
+          return last.horim + dailyRate * daysFromLast;
+        }
+      }
+      return null;
+    }
 
     const prev = sorted[prevIdx];
     const next = sorted[nextIdx];
