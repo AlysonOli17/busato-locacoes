@@ -274,7 +274,14 @@ export const AgregadoTab = () => {
           <h1 className="text-2xl font-bold text-foreground">Agregado - Diárias</h1>
           <p className="text-sm text-muted-foreground">Lançamento de diárias por equipamento agregado</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={downloadTemplate}>
+            <Download className="h-4 w-4 mr-1" /> Modelo Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : "Importar Excel"}
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
           <Button variant="outline" size="sm" onClick={() => {
             const headers = ["Equipamento", "Tag/Placa", "Data", "O.S.", "Complementar", "PDE", "Tipo", "Matrícula"];
             const rows = filtered.map((m) => [
