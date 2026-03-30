@@ -64,14 +64,6 @@ export const AgregadoTab = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  const allSelected = filtered.length > 0 && selected.size === filtered.length;
-  const someSelected = selected.size > 0 && selected.size < filtered.length;
-
-  const toggleAll = () => {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(filtered.map((i) => i.id)));
-  };
-
   const toggleOne = (id: string) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id); else next.add(id);
