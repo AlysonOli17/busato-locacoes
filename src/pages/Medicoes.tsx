@@ -353,12 +353,13 @@ const Medicoes = () => {
           </CardContent>
         </Card>
 
+        {hasFilters && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-accent/30 bg-accent/5">
             <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-xs font-medium text-muted-foreground">Total Geral</CardTitle></CardHeader>
             <CardContent className="px-3 pb-3 pt-0">
               <div className="text-lg font-bold text-sidebar">{totalHorasGeral.toFixed(1)}h</div>
-              <p className="text-[10px] text-muted-foreground">{filtered.length} registros{hasFilters ? " (filtrado)" : ""}</p>
+              <p className="text-[10px] text-muted-foreground">{filtered.length} registros (filtrado)</p>
             </CardContent>
           </Card>
           {Array.from(summaryMap.entries()).map(([id, data]) =>
@@ -377,6 +378,7 @@ const Medicoes = () => {
             </Card>
           )}
         </div>
+        )}
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">
