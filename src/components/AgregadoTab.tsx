@@ -141,8 +141,9 @@ export const AgregadoTab = () => {
       const first = entries[0];
       const label = `${first.equipamentos?.tipo} ${first.equipamentos?.modelo}`;
       const tag = first.equipamentos?.tag_placa || "";
-      const uniqueDays = new Set(entries.map(e => e.data));
-      map.set(eqId, { totalDiarias: uniqueDays.size, entries: entries.length, label, tag });
+      // Conta diárias: mesmo dia + mesma O.S. = 1 diária; O.S. diferente no mesmo dia = diárias separadas
+      const uniqueDiarias = new Set(entries.map(e => `${e.data}||${e.os || ""}`));
+      map.set(eqId, { totalDiarias: uniqueDiarias.size, entries: entries.length, label, tag });
     });
     return map;
   }, [filtered]);
@@ -400,7 +401,7 @@ export const AgregadoTab = () => {
             }
 
             // Group by equipment
-            const grouped = new Map<string, { label: string; tag: string; serie: string; entries: Agregado[]; uniqueDays: Set<string> }>();
+            const grouped = new Map<string, { label: string; tag: string; serie: string; entries: Agregado[]; uniqueDiarias: Set<string> }>();
             filtered.forEach((m) => {
               const eqId = m.equipamento_id;
               if (!grouped.has(eqId)) {
@@ -409,12 +410,13 @@ export const AgregadoTab = () => {
                   tag: m.equipamentos?.tag_placa || "—",
                   serie: m.equipamentos?.numero_serie || "—",
                   entries: [],
-                  uniqueDays: new Set(),
+                  uniqueDiarias: new Set(),
                 });
               }
               const g = grouped.get(eqId)!;
               g.entries.push(m);
-              g.uniqueDays.add(m.data);
+              // Mesmo dia + mesma O.S. = 1 diária; O.S. diferente = diária separada
+              g.uniqueDiarias.add(`${m.data}||${m.os || ""}`);
             });
 
             let totalGeralDiarias = 0;
@@ -430,9 +432,9 @@ export const AgregadoTab = () => {
             const summaryHeaders = ["Equipamento", "Tag/Placa", "Nº Série", "Total Diárias", "Total Registros"];
             const summaryRows: string[][] = [];
             grouped.forEach((g) => {
-              totalGeralDiarias += g.uniqueDays.size;
+              totalGeralDiarias += g.uniqueDiarias.size;
               totalGeralRegistros += g.entries.length;
-              summaryRows.push([g.label, g.tag, g.serie, String(g.uniqueDays.size), String(g.entries.length)]);
+              summaryRows.push([g.label, g.tag, g.serie, String(g.uniqueDiarias.size), String(g.entries.length)]);
             });
 
             autoTable(doc, {
@@ -465,7 +467,7 @@ export const AgregadoTab = () => {
               doc.text(`${g.label}`, marginLeft, y);
               doc.setFont("helvetica", "normal");
               doc.setTextColor(100, 100, 100);
-              doc.text(`Tag: ${g.tag}  |  Série: ${g.serie}  |  Diárias: ${g.uniqueDays.size}`, marginLeft + doc.getTextWidth(g.label) + 5, y);
+              doc.text(`Tag: ${g.tag}  |  Série: ${g.serie}  |  Diárias: ${g.uniqueDiarias.size}`, marginLeft + doc.getTextWidth(g.label) + 5, y);
               y += 2;
 
               // Sort entries by date
