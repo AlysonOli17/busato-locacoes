@@ -401,7 +401,7 @@ export const AgregadoTab = () => {
             }
 
             // Group by equipment
-            const grouped = new Map<string, { label: string; tag: string; serie: string; entries: Agregado[]; uniqueDays: Set<string> }>();
+            const grouped = new Map<string, { label: string; tag: string; serie: string; entries: Agregado[]; uniqueDiarias: Set<string> }>();
             filtered.forEach((m) => {
               const eqId = m.equipamento_id;
               if (!grouped.has(eqId)) {
@@ -410,12 +410,13 @@ export const AgregadoTab = () => {
                   tag: m.equipamentos?.tag_placa || "—",
                   serie: m.equipamentos?.numero_serie || "—",
                   entries: [],
-                  uniqueDays: new Set(),
+                  uniqueDiarias: new Set(),
                 });
               }
               const g = grouped.get(eqId)!;
               g.entries.push(m);
-              g.uniqueDays.add(m.data);
+              // Mesmo dia + mesma O.S. = 1 diária; O.S. diferente = diária separada
+              g.uniqueDiarias.add(`${m.data}||${m.os || ""}`);
             });
 
             let totalGeralDiarias = 0;
