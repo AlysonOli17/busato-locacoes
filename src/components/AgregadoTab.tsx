@@ -213,22 +213,60 @@ export const AgregadoTab = () => {
 
       const { placaMap, tipoModeloMap } = buildEquipMaps();
 
+      // Auto-detect columns by header names
+      const headerRow = ws.getRow(1);
+      const colMap: Record<string, number> = {};
+      headerRow.eachCell((cell, colNum) => {
+        const val = String(cell.value || "").trim().toUpperCase();
+        if (val.includes("O.S") || val.includes("OS")) colMap.os = colNum;
+        else if (val.includes("PDE")) colMap.pde = colNum;
+        else if (val.includes("TIPO") || val.includes("EQUIPAMENTO") || val.includes("QQP")) colMap.tipo = colNum;
+        else if (val.includes("PLACA") || val.includes("TAG")) colMap.placa = colNum;
+        else if (val.includes("MATRIC")) colMap.matricula = colNum;
+        else if (val.includes("DATA")) colMap.data = colNum;
+        else if (val.includes("COMPLEMENTA")) colMap.complementar = colNum;
+      });
+
+      if (!colMap.placa && !colMap.tipo) {
+        toast({ title: "Erro", description: "Não foi possível identificar as colunas de Placa/Tag ou Tipo no cabeçalho.", variant: "destructive" });
+        return;
+      }
+
       const rows: any[] = [];
       let skipped = 0;
       const skippedDetails: string[] = [];
 
+      const cellStr = (row: ExcelJS.Row, col: number | undefined): string => {
+        if (!col) return "";
+        const val = row.getCell(col).value;
+        if (val instanceof Date) return "";
+        return String(val || "").trim();
+      };
+
+      const cellDate = (row: ExcelJS.Row, col: number | undefined): string => {
+        if (!col) return "";
+        const val = row.getCell(col).value;
+        if (val instanceof Date) return format(val, "yyyy-MM-dd");
+        if (typeof val === "string") {
+          const parts = val.trim().split("/");
+          if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+          return val.trim();
+        }
+        return "";
+      };
+
       ws.eachRow((row, rowNum) => {
         if (rowNum === 1) return;
-        // Columns: 1=O.S., 2=PDE, 3=Tipo(Equipamento), 4=Placa/Tag, 5=Matrícula, 6=Data
-        const os = String(row.getCell(1).value || "").trim();
-        const pde = String(row.getCell(2).value || "").trim();
-        const tipoEquip = String(row.getCell(3).value || "").trim().toUpperCase();
-        const placaRaw = String(row.getCell(4).value || "").trim().toUpperCase();
-        const matricula = String(row.getCell(5).value || "").trim();
-        const dataRaw = row.getCell(6).value;
 
-        // Resolve equipment: first by placa, then by tipo/modelo match
-        let eqId = placaMap.get(placaRaw);
+        const placaRaw = cellStr(row, colMap.placa).toUpperCase();
+        const tipoEquip = cellStr(row, colMap.tipo).toUpperCase();
+        const os = cellStr(row, colMap.os);
+        const pde = cellStr(row, colMap.pde);
+        const matricula = cellStr(row, colMap.matricula);
+        const dataStr = cellDate(row, colMap.data);
+
+        // Resolve equipment: first by placa, then by tipo/modelo
+        let eqId = placaRaw ? placaMap.get(placaRaw) : undefined;
         if (!eqId && tipoEquip) {
           eqId = tipoModeloMap.get(tipoEquip);
         }
@@ -238,17 +276,6 @@ export const AgregadoTab = () => {
           return;
         }
 
-        let dataStr = "";
-        if (dataRaw instanceof Date) {
-          dataStr = format(dataRaw, "yyyy-MM-dd");
-        } else if (typeof dataRaw === "string") {
-          const parts = dataRaw.split("/");
-          if (parts.length === 3) {
-            dataStr = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-          } else {
-            dataStr = dataRaw;
-          }
-        }
         if (!dataStr) { skipped++; return; }
 
         rows.push({ equipamento_id: eqId, data: dataStr, os, pde, matricula, observacoes: null });
