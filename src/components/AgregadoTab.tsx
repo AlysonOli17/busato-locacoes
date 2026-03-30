@@ -58,7 +58,19 @@ export const AgregadoTab = () => {
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [sortCol, setSortCol] = useState<string>("data");
+  const [sortAsc, setSortAsc] = useState(false);
   const { toast } = useToast();
+
+  const toggleSort = (col: string) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortAsc ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
 
   const fetchData = async () => {
     const [agRes, equipRes] = await Promise.all([
