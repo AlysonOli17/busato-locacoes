@@ -600,7 +600,7 @@ export const AgregadoTab = () => {
           <Table className="min-w-[650px]">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10"><Checkbox checked={allSelected} indeterminate={someSelected} onCheckedChange={toggleAll} /></TableHead>
+                <TableHead className="w-10"><Checkbox checked={allSelected ? true : (selected.size > 0 ? "indeterminate" : false)} onCheckedChange={toggleAll} /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}><span className="flex items-center">Equipamento<SortIcon col="equipamento" /></span></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}><span className="flex items-center">Tag/Placa<SortIcon col="tag" /></span></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}><span className="flex items-center">Data<SortIcon col="data" /></span></TableHead>
