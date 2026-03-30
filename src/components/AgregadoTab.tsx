@@ -61,7 +61,31 @@ export const AgregadoTab = () => {
   const [loading, setLoading] = useState(true);
   const [sortCol, setSortCol] = useState<string>("data");
   const [sortAsc, setSortAsc] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const allSelected = filtered.length > 0 && selected.size === filtered.length;
+  const someSelected = selected.size > 0 && selected.size < filtered.length;
+
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(filtered.map((i) => i.id)));
+  };
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("agregados").delete().in("id", ids);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Sucesso", description: `${ids.length} registro(s) excluído(s)` });
+    setSelected(new Set());
+    fetchData();
+  };
 
   const toggleSort = (col: string) => {
     if (sortCol === col) setSortAsc(!sortAsc);
