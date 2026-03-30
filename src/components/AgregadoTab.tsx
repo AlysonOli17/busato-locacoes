@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, CalendarDays, FileBarChart, FileDown, Pencil, Trash2, Upload, Download } from "lucide-react";
+import { Plus, CalendarDays, FileBarChart, FileDown, Pencil, Trash2, Upload, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { addLetterhead } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -58,7 +58,19 @@ export const AgregadoTab = () => {
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [sortCol, setSortCol] = useState<string>("data");
+  const [sortAsc, setSortAsc] = useState(false);
   const { toast } = useToast();
+
+  const toggleSort = (col: string) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortAsc ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
 
   const fetchData = async () => {
     const [agRes, equipRes] = await Promise.all([
@@ -72,13 +84,27 @@ export const AgregadoTab = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = useMemo(() => items.filter((i) => {
-    if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
-    const itemDate = parseLocalDate(i.data);
-    if (dataInicio && itemDate < dataInicio) return false;
-    if (dataFim) { const fim = new Date(dataFim); fim.setHours(23, 59, 59, 999); if (itemDate > fim) return false; }
-    return true;
-  }), [items, filterEquip, dataInicio, dataFim]);
+  const filtered = useMemo(() => {
+    const f = items.filter((i) => {
+      if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
+      const itemDate = parseLocalDate(i.data);
+      if (dataInicio && itemDate < dataInicio) return false;
+      if (dataFim) { const fim = new Date(dataFim); fim.setHours(23, 59, 59, 999); if (itemDate > fim) return false; }
+      return true;
+    });
+    return f.sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "equipamento": cmp = (`${a.equipamentos?.tipo} ${a.equipamentos?.modelo}`).localeCompare(`${b.equipamentos?.tipo} ${b.equipamentos?.modelo}`); break;
+        case "tag": cmp = (a.equipamentos?.tag_placa || "").localeCompare(b.equipamentos?.tag_placa || ""); break;
+        case "data": cmp = a.data.localeCompare(b.data); break;
+        case "os": cmp = (a.os || "").localeCompare(b.os || ""); break;
+        case "pde": cmp = (a.pde || "").localeCompare(b.pde || ""); break;
+        case "matricula": cmp = (a.matricula || "").localeCompare(b.matricula || ""); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [items, filterEquip, dataInicio, dataFim, sortCol, sortAsc]);
 
   const summaryMap = useMemo(() => {
     const map = new Map<string, { totalDiarias: number; entries: number; label: string; tag: string }>();
@@ -543,12 +569,12 @@ export const AgregadoTab = () => {
           <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Equipamento</TableHead>
-                <TableHead>Tag/Placa</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>O.S.</TableHead>
-                <TableHead>PDE</TableHead>
-                <TableHead>Matrícula</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}><span className="flex items-center">Equipamento<SortIcon col="equipamento" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}><span className="flex items-center">Tag/Placa<SortIcon col="tag" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}><span className="flex items-center">Data<SortIcon col="data" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("os")}><span className="flex items-center">O.S.<SortIcon col="os" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("pde")}><span className="flex items-center">PDE<SortIcon col="pde" /></span></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("matricula")}><span className="flex items-center">Matrícula<SortIcon col="matricula" /></span></TableHead>
                 <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
