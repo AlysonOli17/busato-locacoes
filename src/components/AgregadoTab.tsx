@@ -84,13 +84,27 @@ export const AgregadoTab = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = useMemo(() => items.filter((i) => {
-    if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
-    const itemDate = parseLocalDate(i.data);
-    if (dataInicio && itemDate < dataInicio) return false;
-    if (dataFim) { const fim = new Date(dataFim); fim.setHours(23, 59, 59, 999); if (itemDate > fim) return false; }
-    return true;
-  }), [items, filterEquip, dataInicio, dataFim]);
+  const filtered = useMemo(() => {
+    const f = items.filter((i) => {
+      if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
+      const itemDate = parseLocalDate(i.data);
+      if (dataInicio && itemDate < dataInicio) return false;
+      if (dataFim) { const fim = new Date(dataFim); fim.setHours(23, 59, 59, 999); if (itemDate > fim) return false; }
+      return true;
+    });
+    return f.sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "equipamento": cmp = (`${a.equipamentos?.tipo} ${a.equipamentos?.modelo}`).localeCompare(`${b.equipamentos?.tipo} ${b.equipamentos?.modelo}`); break;
+        case "tag": cmp = (a.equipamentos?.tag_placa || "").localeCompare(b.equipamentos?.tag_placa || ""); break;
+        case "data": cmp = a.data.localeCompare(b.data); break;
+        case "os": cmp = (a.os || "").localeCompare(b.os || ""); break;
+        case "pde": cmp = (a.pde || "").localeCompare(b.pde || ""); break;
+        case "matricula": cmp = (a.matricula || "").localeCompare(b.matricula || ""); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [items, filterEquip, dataInicio, dataFim, sortCol, sortAsc]);
 
   const summaryMap = useMemo(() => {
     const map = new Map<string, { totalDiarias: number; entries: number; label: string; tag: string }>();
