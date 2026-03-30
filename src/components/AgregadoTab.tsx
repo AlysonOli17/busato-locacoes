@@ -467,7 +467,7 @@ export const AgregadoTab = () => {
               doc.text(`${g.label}`, marginLeft, y);
               doc.setFont("helvetica", "normal");
               doc.setTextColor(100, 100, 100);
-              doc.text(`Tag: ${g.tag}  |  Série: ${g.serie}  |  Diárias: ${g.uniqueDays.size}`, marginLeft + doc.getTextWidth(g.label) + 5, y);
+              doc.text(`Tag: ${g.tag}  |  Série: ${g.serie}  |  Diárias: ${g.uniqueDiarias.size}`, marginLeft + doc.getTextWidth(g.label) + 5, y);
               y += 2;
 
               // Sort entries by date
