@@ -85,11 +85,24 @@ const Medicoes = () => {
     }
   };
 
+  // Validate dataFim: must not exceed last entry date for the selected equipment
+  const lastEntryDate = items
+    .filter(i => filterEquip === "Todos" || i.equipamento_id === filterEquip)
+    .reduce((max, i) => (i.data > max ? i.data : max), "");
+
+  const validDataFim = (() => {
+    if (!dataFim) return undefined;
+    if (lastEntryDate && format(dataFim, "yyyy-MM-dd") > lastEntryDate) {
+      return parseLocalDate(lastEntryDate);
+    }
+    return dataFim;
+  })();
+
   const filtered = items.filter((i) => {
     if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
     const itemDate = parseLocalDate(i.data);
     if (dataInicio) {if (itemDate < dataInicio) return false;}
-    if (dataFim) {const fim = new Date(dataFim);fim.setHours(23, 59, 59, 999);if (itemDate > fim) return false;}
+    if (validDataFim) {const fim = new Date(validDataFim);fim.setHours(23, 59, 59, 999);if (itemDate > fim) return false;}
     return true;
   });
 
