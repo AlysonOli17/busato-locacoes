@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -60,7 +61,23 @@ export const AgregadoTab = () => {
   const [loading, setLoading] = useState(true);
   const [sortCol, setSortCol] = useState<string>("data");
   const [sortAsc, setSortAsc] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("agregados").delete().in("id", ids);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Sucesso", description: `${ids.length} registro(s) excluído(s)` });
+    setSelected(new Set());
+    fetchData();
+  };
 
   const toggleSort = (col: string) => {
     if (sortCol === col) setSortAsc(!sortAsc);
@@ -105,6 +122,12 @@ export const AgregadoTab = () => {
       return sortAsc ? cmp : -cmp;
     });
   }, [items, filterEquip, dataInicio, dataFim, sortCol, sortAsc]);
+
+  const allSelected = filtered.length > 0 && selected.size === filtered.length;
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(filtered.map((i) => i.id)));
+  };
 
   const summaryMap = useMemo(() => {
     const map = new Map<string, { totalDiarias: number; entries: number; label: string; tag: string }>();
@@ -564,11 +587,20 @@ export const AgregadoTab = () => {
         </div>
       )}
 
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 rounded-md border border-accent/30 bg-accent/5 px-4 py-2">
+          <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
+          <Button variant="outline" size="sm" onClick={() => setSelected(new Set())} className="text-xs">Limpar seleção</Button>
+          <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="text-xs"><Trash2 className="h-3.5 w-3.5 mr-1" />Excluir selecionados</Button>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[600px]">
+          <Table className="min-w-[650px]">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"><Checkbox checked={allSelected ? true : (selected.size > 0 ? "indeterminate" : false)} onCheckedChange={toggleAll} /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}><span className="flex items-center">Equipamento<SortIcon col="equipamento" /></span></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}><span className="flex items-center">Tag/Placa<SortIcon col="tag" /></span></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}><span className="flex items-center">Data<SortIcon col="data" /></span></TableHead>
@@ -580,7 +612,8 @@ export const AgregadoTab = () => {
             </TableHeader>
             <TableBody>
               {filtered.map((item) =>
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/10" : ""}>
+                  <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleOne(item.id)} /></TableCell>
                   <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                   <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                   <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
@@ -600,7 +633,7 @@ export const AgregadoTab = () => {
                 </TableRow>
               )}
               {!loading && filtered.length === 0 &&
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma diária encontrada</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma diária encontrada</TableCell></TableRow>
               }
             </TableBody>
           </Table>
