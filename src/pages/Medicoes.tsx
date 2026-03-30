@@ -153,10 +153,10 @@ const Medicoes = () => {
     let totalHoras = 0;
     let mediaHorasDia = 0;
 
-    if (dataInicio && dataFim) {
+    if (dataInicio && validDataFim) {
       // Use interpolation when period filters are active
       const inicioStr = format(dataInicio, "yyyy-MM-dd");
-      const fimStr = format(dataFim, "yyyy-MM-dd");
+      const fimStr = format(validDataFim, "yyyy-MM-dd");
       // Build readings array: baseline + in-period readings
       const allReadings: { data: string; horimetro_final: number }[] = [];
       const baseline = baselines.get(eqId);
