@@ -591,6 +591,7 @@ export type Database = {
           id: string
           numero_nota: string | null
           numero_sequencial: number
+          observacoes: string | null
           periodo: string
           periodo_medicao_fim: string | null
           periodo_medicao_inicio: string | null
@@ -611,6 +612,7 @@ export type Database = {
           id?: string
           numero_nota?: string | null
           numero_sequencial?: number
+          observacoes?: string | null
           periodo: string
           periodo_medicao_fim?: string | null
           periodo_medicao_inicio?: string | null
@@ -631,6 +633,7 @@ export type Database = {
           id?: string
           numero_nota?: string | null
           numero_sequencial?: number
+          observacoes?: string | null
           periodo?: string
           periodo_medicao_fim?: string | null
           periodo_medicao_inicio?: string | null
