@@ -131,6 +131,7 @@ export const FaturamentoContent = () => {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [approvalItemId, setApprovalItemId] = useState<string | null>(null);
   const [approvalNumeroNota, setApprovalNumeroNota] = useState("");
+  const [approvalObservacoes, setApprovalObservacoes] = useState("");
   
   const [formStatus, setFormStatus] = useState("Pendente");
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
