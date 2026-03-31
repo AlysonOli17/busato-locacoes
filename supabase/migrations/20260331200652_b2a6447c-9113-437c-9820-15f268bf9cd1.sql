@@ -1,0 +1,1 @@
+ALTER TABLE public.faturamento ADD COLUMN observacoes text DEFAULT '';

@@ -3,6 +3,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -131,6 +132,7 @@ export const FaturamentoContent = () => {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [approvalItemId, setApprovalItemId] = useState<string | null>(null);
   const [approvalNumeroNota, setApprovalNumeroNota] = useState("");
+  const [approvalObservacoes, setApprovalObservacoes] = useState("");
   
   const [formStatus, setFormStatus] = useState("Pendente");
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
@@ -633,14 +635,15 @@ export const FaturamentoContent = () => {
     return item.status;
   };
 
-  const handleAprovar = async (id: string, numeroNota: string) => {
+  const handleAprovar = async (id: string, numeroNota: string, observacoes: string) => {
     const hoje = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("faturamento").update({ status: "Aprovado", numero_nota: numeroNota || null, data_aprovacao: hoje } as any).eq("id", id);
+    const { error } = await supabase.from("faturamento").update({ status: "Aprovado", numero_nota: numeroNota || null, data_aprovacao: hoje, observacoes: observacoes || "" } as any).eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Medição aprovada", description: "A fatura foi emitida automaticamente na aba Faturamento." });
     setApprovalDialogOpen(false);
     setApprovalItemId(null);
     setApprovalNumeroNota("");
+    setApprovalObservacoes("");
     fetchData();
   };
 
@@ -1539,6 +1542,7 @@ export const FaturamentoContent = () => {
                             <Button variant="ghost" size="icon" title="Aprovar e emitir fatura" onClick={() => {
                               setApprovalItemId(item.id);
                               setApprovalNumeroNota("");
+                              setApprovalObservacoes("");
                               setApprovalDialogOpen(true);
                             }}><ShieldCheck className="h-4 w-4 text-success" /></Button>
                           )}
@@ -1973,14 +1977,20 @@ export const FaturamentoContent = () => {
               Aprovar Medição
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Informe o número da fatura:</p>
-          <div>
-            <Label>Nº Fatura</Label>
-            <Input value={approvalNumeroNota} onChange={(e) => setApprovalNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
+          <p className="text-sm text-muted-foreground">Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Informe o número da fatura e, se desejar, uma observação:</p>
+          <div className="space-y-4">
+            <div>
+              <Label>Nº Fatura</Label>
+              <Input value={approvalNumeroNota} onChange={(e) => setApprovalNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
+            </div>
+            <div>
+              <Label>Observação</Label>
+              <Textarea value={approvalObservacoes} onChange={(e) => setApprovalObservacoes(e.target.value)} placeholder="Observações sobre a fatura (opcional)" rows={3} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApprovalDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => approvalItemId && handleAprovar(approvalItemId, approvalNumeroNota)} className="bg-success text-success-foreground hover:bg-success/90">
+            <Button onClick={() => approvalItemId && handleAprovar(approvalItemId, approvalNumeroNota, approvalObservacoes)} className="bg-success text-success-foreground hover:bg-success/90">
               Aprovar e Emitir Fatura
             </Button>
           </DialogFooter>

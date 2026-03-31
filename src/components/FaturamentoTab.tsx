@@ -523,8 +523,23 @@ export const FaturamentoTab = () => {
       y += 5;
     }
 
+    // Observações
+    const obs = (fatura as any).observacoes;
+    if (obs && obs.trim()) {
+      y += 2;
+      doc.setFont("helvetica", "bold");
+      doc.text("Observações:", mLeft + 2, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      const obsLines = doc.splitTextToSize(obs, contentW - 4);
+      obsLines.forEach((line: string) => {
+        doc.text(line, mLeft + 2, y);
+        y += 4;
+      });
+    }
+
     // === SIGNATURE — positioned near footer ===
-    const sigY = pageH - mBottom - 30; // 30mm above bottom margin
+    const sigY = pageH - mBottom - 20;
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     doc.text("ATENCIOSAMENTE", pageW / 2, sigY, { align: "center" });
@@ -533,9 +548,7 @@ export const FaturamentoTab = () => {
     doc.line(pageW / 2 - 35, sigY + 10, pageW / 2 + 35, sigY + 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    doc.text("Edno Busato", pageW / 2, sigY + 14, { align: "center" });
-    doc.text("CPF - 005.110.117-33", pageW / 2, sigY + 17.5, { align: "center" });
-    doc.text("Busato Locações e Serviços LTDA", pageW / 2, sigY + 21, { align: "center" });
+    doc.text("Busato Locações e Serviços LTDA", pageW / 2, sigY + 14, { align: "center" });
 
     const saveLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
     doc.save(`fatura_locacao_${saveLabel}.pdf`);
