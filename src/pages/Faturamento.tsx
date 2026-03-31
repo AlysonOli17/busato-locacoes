@@ -1408,7 +1408,6 @@ export const FaturamentoContent = () => {
             {selected.size > 0 && <p className="text-sm text-muted-foreground">{selected.size} selecionada(s)</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportRelatorioFinanceiro()}><FileDown className="h-4 w-4 mr-1" /> Relatório Financeiro</Button>
             <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> Exportar Medição</Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
