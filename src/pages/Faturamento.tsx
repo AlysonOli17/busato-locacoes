@@ -703,6 +703,70 @@ export const FaturamentoContent = () => {
 
   };
 
+  const exportRelatorioFinanceiro = async () => {
+    const jsPDF = (await import("jspdf")).default;
+    const autoTableFn = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF({ orientation: "landscape" });
+
+    const startY = await addLetterhead(doc, "Relatório Financeiro");
+
+    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+    
+    const headers = ["Nº", "Nº Nota", "Empresa", "CNPJ", "Período Medição", "Emissão", "Vencimento", "Valor Total (R$)", "Status"];
+    const rows = data.map(i => {
+      const venc = getVencimento(i);
+      return [
+        String(i.numero_sequencial),
+        i.numero_nota || "—",
+        i.contratos?.empresas?.nome || "",
+        i.contratos?.empresas?.cnpj || "",
+        i.periodo_medicao_inicio && i.periodo_medicao_fim
+          ? `${parseLocalDate(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+          : "—",
+        parseLocalDate(i.emissao).toLocaleDateString("pt-BR"),
+        venc.toLocaleDateString("pt-BR"),
+        Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        getDisplayStatus(i),
+      ];
+    });
+
+    autoTableFn(doc, {
+      head: [headers],
+      body: rows,
+      startY,
+      styles: { fontSize: 7, cellPadding: 2.5 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      columnStyles: { 7: { halign: "right" } },
+      didParseCell: (cellData: any) => {
+        if (cellData.section === "body" && cellData.column.index === 8) {
+          const status = cellData.cell.raw;
+          if (status === "Em Atraso") {
+            cellData.cell.styles.textColor = [192, 57, 43];
+            cellData.cell.styles.fontStyle = "bold";
+          } else if (status === "Pendente") {
+            cellData.cell.styles.textColor = [243, 156, 18];
+          } else if (status === "Aprovado") {
+            cellData.cell.styles.textColor = [41, 128, 185];
+          } else if (status === "Pago") {
+            cellData.cell.styles.textColor = [39, 174, 96];
+          }
+        }
+      },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 8;
+    const totalGeral = data.reduce((sum, i) => sum + Number(i.valor_total), 0);
+    const pageW = doc.internal.pageSize.getWidth();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(41, 128, 185);
+    doc.text(`Total: R$ ${totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - 14, finalY, { align: "right" });
+
+    doc.save(`relatorio_financeiro_${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast({ title: "Relatório exportado", description: "O relatório financeiro foi gerado com sucesso." });
+  };
+
   const exportDetailedPDF = async (singleItem?: Fatura) => {
     const data = singleItem ? [singleItem] : filtered.filter(i => selected.size === 0 || selected.has(i.id));
     if (data.length === 0) return;
