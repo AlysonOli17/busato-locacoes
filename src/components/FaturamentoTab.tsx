@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DollarSign, FileDown, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle } from "lucide-react";
+import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CurrencyInput } from "@/components/CurrencyInput";
@@ -573,6 +573,76 @@ export const FaturamentoTab = () => {
     return empresas.filter(e => ids.has(e.id));
   }, [faturas, contratos, empresas]);
 
+  const exportRelatorioFinanceiro = async () => {
+    const logo = await loadLogo();
+    const doc = new jsPDF({ orientation: "landscape" });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // Letterhead
+    let y = 12;
+    if (logo) doc.addImage(logo, "PNG", 14, y, 48, 12);
+    doc.setFontSize(16);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Relatório Financeiro", pageW - 14, y + 8, { align: "right" });
+    y += 18;
+    doc.setDrawColor(41, 128, 185);
+    doc.setLineWidth(0.7);
+    doc.line(14, y, pageW - 14, y);
+    y += 4;
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 140);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, pageW - 14, y, { align: "right" });
+    y += 6;
+
+    const data = filteredFaturas;
+    const headers = ["Nº Fatura", "Empresa", "CNPJ", "Período Medição", "Emissão", "Vencimento", "Valor Total (R$)", "Status"];
+    const rows = data.map(f => {
+      const ct = getContrato(f.contrato_id);
+      const venc = getVencimento(f);
+      const status = getDisplayStatus(f);
+      return [
+        f.numero_nota || "—",
+        ct?.empresas?.nome || "",
+        ct?.empresas?.cnpj || "",
+        f.periodo_medicao_inicio && f.periodo_medicao_fim
+          ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+          : "—",
+        parseLocalDate(f.emissao).toLocaleDateString("pt-BR"),
+        venc.toLocaleDateString("pt-BR"),
+        Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        status,
+      ];
+    });
+
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY: y,
+      styles: { fontSize: 7, cellPadding: 2.5 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      columnStyles: { 6: { halign: "right" } },
+      didParseCell: (cellData: any) => {
+        if (cellData.section === "body" && cellData.column.index === 7) {
+          const s = cellData.cell.raw;
+          if (s === "Em Atraso") { cellData.cell.styles.textColor = [192, 57, 43]; cellData.cell.styles.fontStyle = "bold"; }
+          else if (s === "Pendente") { cellData.cell.styles.textColor = [243, 156, 18]; }
+          else if (s === "Pago") { cellData.cell.styles.textColor = [39, 174, 96]; }
+        }
+      },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 8;
+    const total = data.reduce((s, f) => s + Number(f.valor_total), 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(41, 128, 185);
+    doc.text(`Total: R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - 14, finalY, { align: "right" });
+
+    doc.save(`relatorio_financeiro_${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast({ title: "Relatório exportado", description: "O relatório financeiro foi gerado com sucesso." });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -580,6 +650,9 @@ export const FaturamentoTab = () => {
           <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
           <p className="text-sm text-muted-foreground">Faturas emitidas a partir de medições aprovadas</p>
         </div>
+        <Button variant="outline" size="sm" onClick={exportRelatorioFinanceiro}>
+          <FileText className="h-4 w-4 mr-1" /> Relatório Financeiro
+        </Button>
       </div>
 
       {/* KPI Cards */}
@@ -647,14 +720,14 @@ export const FaturamentoTab = () => {
           <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Nº</TableHead>
+                <TableHead>Nº Fatura</TableHead>
                 <TableHead>Empresa</TableHead>
                 <TableHead>Equipamento</TableHead>
                 <TableHead>Período</TableHead>
                 <TableHead>Emissão</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Valor</TableHead>
-                <TableHead>Nº Nota</TableHead>
+                
                 <TableHead>Status</TableHead>
                 <TableHead className="w-28">Ações</TableHead>
               </TableRow>
@@ -679,7 +752,7 @@ export const FaturamentoTab = () => {
                     <TableCell className="text-sm">{parseLocalDate(f.emissao).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-sm">{getVencimento(f).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="text-sm font-mono">{f.numero_nota || "—"}</TableCell>
+                    
                     <TableCell>
                       <Badge className={statusColor(status)}>{status}</Badge>
                     </TableCell>
