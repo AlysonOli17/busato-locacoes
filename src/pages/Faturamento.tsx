@@ -1976,14 +1976,20 @@ export const FaturamentoContent = () => {
               Aprovar Medição
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Informe o número da fatura:</p>
-          <div>
-            <Label>Nº Fatura</Label>
-            <Input value={approvalNumeroNota} onChange={(e) => setApprovalNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
+          <p className="text-sm text-muted-foreground">Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Informe o número da fatura e, se desejar, uma observação:</p>
+          <div className="space-y-4">
+            <div>
+              <Label>Nº Fatura</Label>
+              <Input value={approvalNumeroNota} onChange={(e) => setApprovalNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
+            </div>
+            <div>
+              <Label>Observação</Label>
+              <Textarea value={approvalObservacoes} onChange={(e) => setApprovalObservacoes(e.target.value)} placeholder="Observações sobre a fatura (opcional)" rows={3} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApprovalDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => approvalItemId && handleAprovar(approvalItemId, approvalNumeroNota)} className="bg-success text-success-foreground hover:bg-success/90">
+            <Button onClick={() => approvalItemId && handleAprovar(approvalItemId, approvalNumeroNota, approvalObservacoes)} className="bg-success text-success-foreground hover:bg-success/90">
               Aprovar e Emitir Fatura
             </Button>
           </DialogFooter>
