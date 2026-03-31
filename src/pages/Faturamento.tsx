@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, MessageCircle } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { calcularHorasInterpoladas } from "@/lib/utils";
@@ -701,6 +701,70 @@ export const FaturamentoContent = () => {
     ]);
     return { title: "Relatório de Medição", headers, rows, filename: `medicao_${new Date().toISOString().slice(0, 10)}` };
 
+  };
+
+  const exportRelatorioFinanceiro = async () => {
+    const jsPDF = (await import("jspdf")).default;
+    const autoTableFn = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF({ orientation: "landscape" });
+
+    const startY = await addLetterhead(doc, "Relatório Financeiro");
+
+    const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
+    
+    const headers = ["Nº", "Nº Nota", "Empresa", "CNPJ", "Período Medição", "Emissão", "Vencimento", "Valor Total (R$)", "Status"];
+    const rows = data.map(i => {
+      const venc = getVencimento(i);
+      return [
+        String(i.numero_sequencial),
+        i.numero_nota || "—",
+        i.contratos?.empresas?.nome || "",
+        i.contratos?.empresas?.cnpj || "",
+        i.periodo_medicao_inicio && i.periodo_medicao_fim
+          ? `${parseLocalDate(i.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(i.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+          : "—",
+        parseLocalDate(i.emissao).toLocaleDateString("pt-BR"),
+        venc.toLocaleDateString("pt-BR"),
+        Number(i.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        getDisplayStatus(i),
+      ];
+    });
+
+    autoTableFn(doc, {
+      head: [headers],
+      body: rows,
+      startY,
+      styles: { fontSize: 7, cellPadding: 2.5 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      columnStyles: { 7: { halign: "right" } },
+      didParseCell: (cellData: any) => {
+        if (cellData.section === "body" && cellData.column.index === 8) {
+          const status = cellData.cell.raw;
+          if (status === "Em Atraso") {
+            cellData.cell.styles.textColor = [192, 57, 43];
+            cellData.cell.styles.fontStyle = "bold";
+          } else if (status === "Pendente") {
+            cellData.cell.styles.textColor = [243, 156, 18];
+          } else if (status === "Aprovado") {
+            cellData.cell.styles.textColor = [41, 128, 185];
+          } else if (status === "Pago") {
+            cellData.cell.styles.textColor = [39, 174, 96];
+          }
+        }
+      },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 8;
+    const totalGeral = data.reduce((sum, i) => sum + Number(i.valor_total), 0);
+    const pageW = doc.internal.pageSize.getWidth();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(41, 128, 185);
+    doc.text(`Total: R$ ${totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - 14, finalY, { align: "right" });
+
+    doc.save(`relatorio_financeiro_${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast({ title: "Relatório exportado", description: "O relatório financeiro foi gerado com sucesso." });
   };
 
   const exportDetailedPDF = async (singleItem?: Fatura) => {
@@ -1407,9 +1471,7 @@ export const FaturamentoContent = () => {
             {selected.size > 0 && <p className="text-sm text-muted-foreground">{selected.size} selecionada(s)</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => { toast({ title: "Enviar por E-mail", description: "Funcionalidade de envio por e-mail será implementada em breve." }); }}><Mail className="h-4 w-4 mr-1" /> Enviar por E-mail</Button>
-            <Button variant="outline" size="sm" onClick={() => { const text = encodeURIComponent("Olá! Segue a medição para conferência."); window.open(`https://wa.me/?text=${text}`, "_blank"); }}><MessageCircle className="h-4 w-4 mr-1" /> Enviar por WhatsApp</Button>
-            <Button variant="outline" size="sm" onClick={() => setContasDialogOpen(true)}><Landmark className="h-4 w-4 mr-1" /> Contas</Button>
+            <Button variant="outline" size="sm" onClick={() => exportRelatorioFinanceiro()}><FileDown className="h-4 w-4 mr-1" /> Relatório Financeiro</Button>
             <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> Exportar Medição</Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
