@@ -650,7 +650,7 @@ export const FaturamentoTab = () => {
           <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Nº</TableHead>
+                <TableHead>Nº Fatura</TableHead>
                 <TableHead>Empresa</TableHead>
                 <TableHead>Equipamento</TableHead>
                 <TableHead>Período</TableHead>
