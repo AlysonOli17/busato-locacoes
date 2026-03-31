@@ -1541,6 +1541,7 @@ export const FaturamentoContent = () => {
                             <Button variant="ghost" size="icon" title="Aprovar e emitir fatura" onClick={() => {
                               setApprovalItemId(item.id);
                               setApprovalNumeroNota("");
+                              setApprovalObservacoes("");
                               setApprovalDialogOpen(true);
                             }}><ShieldCheck className="h-4 w-4 text-success" /></Button>
                           )}
