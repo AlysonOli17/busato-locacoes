@@ -752,7 +752,7 @@ export const FaturamentoTab = () => {
                     <TableCell className="text-sm">{parseLocalDate(f.emissao).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-sm">{getVencimento(f).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="text-sm font-mono">{f.numero_nota || "—"}</TableCell>
+                    
                     <TableCell>
                       <Badge className={statusColor(status)}>{status}</Badge>
                     </TableCell>
