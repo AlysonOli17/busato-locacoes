@@ -727,7 +727,7 @@ export const FaturamentoTab = () => {
                 <TableHead>Emissão</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Valor</TableHead>
-                <TableHead>Nº Nota</TableHead>
+                
                 <TableHead>Status</TableHead>
                 <TableHead className="w-28">Ações</TableHead>
               </TableRow>
