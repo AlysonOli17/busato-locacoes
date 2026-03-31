@@ -1471,9 +1471,7 @@ export const FaturamentoContent = () => {
             {selected.size > 0 && <p className="text-sm text-muted-foreground">{selected.size} selecionada(s)</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => { toast({ title: "Enviar por E-mail", description: "Funcionalidade de envio por e-mail será implementada em breve." }); }}><Mail className="h-4 w-4 mr-1" /> Enviar por E-mail</Button>
-            <Button variant="outline" size="sm" onClick={() => { const text = encodeURIComponent("Olá! Segue a medição para conferência."); window.open(`https://wa.me/?text=${text}`, "_blank"); }}><MessageCircle className="h-4 w-4 mr-1" /> Enviar por WhatsApp</Button>
-            <Button variant="outline" size="sm" onClick={() => setContasDialogOpen(true)}><Landmark className="h-4 w-4 mr-1" /> Contas</Button>
+            <Button variant="outline" size="sm" onClick={() => exportRelatorioFinanceiro()}><FileDown className="h-4 w-4 mr-1" /> Relatório Financeiro</Button>
             <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> Exportar Medição</Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
