@@ -580,6 +580,9 @@ export const FaturamentoTab = () => {
           <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
           <p className="text-sm text-muted-foreground">Faturas emitidas a partir de medições aprovadas</p>
         </div>
+        <Button variant="outline" size="sm" onClick={exportRelatorioFinanceiro}>
+          <FileText className="h-4 w-4 mr-1" /> Relatório Financeiro
+        </Button>
       </div>
 
       {/* KPI Cards */}
