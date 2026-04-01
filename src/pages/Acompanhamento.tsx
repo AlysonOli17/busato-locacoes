@@ -350,18 +350,18 @@ const Acompanhamento = () => {
                 <Table className="min-w-[700px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Empresa</TableHead>
-                      <TableHead>Nº Nota</TableHead>
-                      <TableHead>Equipamento</TableHead>
+                      <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
+                      <SortableTableHead column="nota" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Nota</SortableTableHead>
+                      <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
                       <TableHead>Período Medição</TableHead>
-                      <TableHead>Emissão</TableHead>
-                      <TableHead>Vencimento</TableHead>
-                      <TableHead>Valor (R$)</TableHead>
-                      <TableHead>Status</TableHead>
+                      <SortableTableHead column="emissao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Emissão</SortableTableHead>
+                      <SortableTableHead column="vencimento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Vencimento</SortableTableHead>
+                      <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor (R$)</SortableTableHead>
+                      <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {faturasFiltered.map(f => {
+                    {sortedFaturas.map(f => {
                       const status = getDisplayStatus(f);
                       return (
                         <TableRow key={f.id}>
