@@ -52,6 +52,9 @@ const Gastos = () => {
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("data");
+  const [sortAsc, setSortAsc] = useState(false);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const [gastosRes, equipRes, fatGastosRes] = await Promise.all([
