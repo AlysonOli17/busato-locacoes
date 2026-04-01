@@ -161,6 +161,9 @@ const Contratos = () => {
   // Aditivos por contrato (para exibição na tabela)
   const [aditivosPorContrato, setAditivosPorContrato] = useState<Record<string, Aditivo[]>>({});
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("empresa");
+  const [sortAsc, setSortAsc] = useState(true);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes] = await Promise.all([
