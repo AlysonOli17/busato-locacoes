@@ -554,12 +554,7 @@ export const FaturamentoTab = () => {
     // ── SIGNATURE BLOCK (positioned dynamically below content) ──
     y = Math.max(y + 10, pageH - 15 - 45);
 
-    // "ATENCIOSAMENTE" box
-    const atenW = 40;
-    doc.rect(mLeft + contentW / 2 - atenW / 2, y, atenW, 6);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.text("ATENCIOSAMENTE", mLeft + contentW / 2, y + 4, { align: "center" });
+    // Signature area
 
     // Signature line
     const sigLineY = y + 25;
