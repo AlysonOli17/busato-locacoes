@@ -278,11 +278,6 @@ const Medicoes = () => {
     else { setSortCol(col); setSortAsc(true); }
   };
 
-  const SortIcon = ({ col }: { col: typeof sortCol }) => {
-    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
-    return sortAsc ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
-  };
-
   const sorted = [...filtered].sort((a, b) => {
     let cmp = 0;
     switch (sortCol) {
