@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
 import { FaturamentoTab } from "@/components/FaturamentoTab";
-import { AgregadoTab } from "@/components/AgregadoTab";
+
 
 interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;numero_serie: string | null;}
 interface Medicao {
@@ -298,7 +298,7 @@ const Medicoes = () => {
           <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
           <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>
           <TabsTrigger value="faturamento-novo" className="gap-2"><DollarSign className="h-4 w-4" /> Faturamento</TabsTrigger>
-          <TabsTrigger value="agregado" className="gap-2"><CalendarIcon className="h-4 w-4" /> Agregado</TabsTrigger>
+          
         </TabsList>
         <TabsContent value="medicoes">
       <div className="space-y-6">
@@ -468,9 +468,6 @@ const Medicoes = () => {
         </TabsContent>
         <TabsContent value="faturamento-novo">
           <FaturamentoTab />
-        </TabsContent>
-        <TabsContent value="agregado">
-          <AgregadoTab />
         </TabsContent>
       </Tabs>
 

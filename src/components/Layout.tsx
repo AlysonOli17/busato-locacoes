@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
-  Wrench, Building2, FileText, Clock,
+  Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
   ChevronLeft, ChevronRight
 } from "lucide-react";
@@ -18,6 +18,7 @@ const allNavItems = [
   { to: "/contratos", icon: FileText, label: "Contratos" },
   
   { to: "/medicoes", icon: Clock, label: "Medições / Faturamento" },
+  { to: "/agregados", icon: CalendarDays, label: "Agregados" },
   { to: "/apolices", icon: Shield, label: "Apólices" },
   { to: "/gastos", icon: DollarSign, label: "Custos" },
   { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },

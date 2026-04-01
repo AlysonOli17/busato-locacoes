@@ -15,6 +15,7 @@ import Apolices from "./pages/Apolices";
 import Gastos from "./pages/Gastos";
 import Usuarios from "./pages/Usuarios";
 import Acompanhamento from "./pages/Acompanhamento";
+import Agregados from "./pages/Agregados";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/gastos" element={<ProtectedRoute requiredPermission="/gastos"><Gastos /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />
             <Route path="/acompanhamento" element={<ProtectedRoute requiredPermission="/acompanhamento"><Acompanhamento /></ProtectedRoute>} />
+            <Route path="/agregados" element={<ProtectedRoute requiredPermission="/agregados"><Agregados /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
