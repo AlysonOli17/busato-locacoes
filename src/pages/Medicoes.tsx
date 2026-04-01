@@ -15,7 +15,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { exportToPDF } from "@/lib/exportUtils";
@@ -48,6 +48,8 @@ const Medicoes = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0 });
+  const [sortCol, setSortCol] = useState<"equipamento" | "tag" | "data" | "tipo" | "horimetro" | "horas_indisp">("data");
+  const [sortAsc, setSortAsc] = useState(false);
   const [filterEquip, setFilterEquip] = useState("Todos");
   const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
@@ -270,6 +272,29 @@ const Medicoes = () => {
   const clearFilters = () => {setFilterEquip("Todos");setDataInicio(undefined);setDataFim(undefined);};
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
+  const toggleSort = (col: typeof sortCol) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  };
+
+  const SortIcon = ({ col }: { col: typeof sortCol }) => {
+    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortAsc ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    switch (sortCol) {
+      case "equipamento": cmp = `${a.equipamentos?.tipo} ${a.equipamentos?.modelo}`.localeCompare(`${b.equipamentos?.tipo} ${b.equipamentos?.modelo}`); break;
+      case "tag": cmp = (a.equipamentos?.tag_placa || "").localeCompare(b.equipamentos?.tag_placa || ""); break;
+      case "data": cmp = a.data.localeCompare(b.data); break;
+      case "tipo": cmp = (a.tipo || "Trabalho").localeCompare(b.tipo || "Trabalho"); break;
+      case "horimetro": cmp = Number(a.horimetro_final) - Number(b.horimetro_final); break;
+      case "horas_indisp": cmp = Number(a.horas_trabalhadas) - Number(b.horas_trabalhadas); break;
+    }
+    return sortAsc ? cmp : -cmp;
+  });
+
   return (
     <Layout title="Medições / Faturamento">
       <Tabs defaultValue="medicoes" className="space-y-6">
@@ -387,17 +412,29 @@ const Medicoes = () => {
             <Table className="min-w-[700px]">
               <TableHeader>
                  <TableRow>
-                   <TableHead>Equipamento</TableHead>
-                    <TableHead>Tag/Placa</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Horímetro Atual</TableHead>
-                    <TableHead>Horas Indisp.</TableHead>
-                    <TableHead className="w-20">Ações</TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}>
+                     <span className="flex items-center">Equipamento <SortIcon col="equipamento" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}>
+                     <span className="flex items-center">Tag/Placa <SortIcon col="tag" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}>
+                     <span className="flex items-center">Data <SortIcon col="data" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tipo")}>
+                     <span className="flex items-center">Tipo <SortIcon col="tipo" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horimetro")}>
+                     <span className="flex items-center">Horímetro Atual <SortIcon col="horimetro" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horas_indisp")}>
+                     <span className="flex items-center">Horas Indisp. <SortIcon col="horas_indisp" /></span>
+                   </TableHead>
+                   <TableHead className="w-20">Ações</TableHead>
                  </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) =>
+                {sorted.map((item) =>
                 <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
@@ -433,7 +470,7 @@ const Medicoes = () => {
                     </TableCell>
                   </TableRow>
                 )}
-                {!loading && filtered.length === 0 &&
+                {!loading && sorted.length === 0 &&
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum horímetro encontrado</TableCell></TableRow>
                 }
               </TableBody>
