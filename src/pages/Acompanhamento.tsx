@@ -70,6 +70,9 @@ const Acompanhamento = () => {
   const [medicoes, setMedicoes] = useState<any[]>([]);
   const [filtroEmpresa, setFiltroEmpresa] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [sortCol, setSortCol] = useState("emissao");
+  const [sortAsc, setSortAsc] = useState(false);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   useEffect(() => {
     const fetchAll = async () => {
