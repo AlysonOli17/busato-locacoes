@@ -60,6 +60,9 @@ const Usuarios = () => {
   const [savingPerms, setSavingPerms] = useState(false);
 
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("nome");
+  const [sortAsc, setSortAsc] = useState(true);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const callManageUser = async (body: any) => {
     const res = await supabase.functions.invoke("manage-user", { body });
