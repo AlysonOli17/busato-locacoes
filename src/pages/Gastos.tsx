@@ -295,19 +295,19 @@ const Gastos = () => {
             <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Equipamento</TableHead>
-                  <TableHead>Tag/Placa</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Classificação</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Data</TableHead>
+                  <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
+                  <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag/Placa</SortableTableHead>
+                  <SortableTableHead column="descricao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Descrição</SortableTableHead>
+                  <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
+                  <SortableTableHead column="classificacao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Classificação</SortableTableHead>
+                  <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor</SortableTableHead>
+                  <SortableTableHead column="data" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Data</SortableTableHead>
                   <TableHead>Fatura</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => (
+                {sorted.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
