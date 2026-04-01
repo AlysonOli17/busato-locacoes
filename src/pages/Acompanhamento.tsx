@@ -164,6 +164,22 @@ const Acompanhamento = () => {
     });
   }, [faturas, filtroEmpresa, contratos]);
 
+  const sortedFaturas = useMemo(() => {
+    return [...faturasFiltered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "empresa": cmp = (a.contratos?.empresas?.nome || "").localeCompare(b.contratos?.empresas?.nome || ""); break;
+        case "nota": cmp = (a.numero_nota || "").localeCompare(b.numero_nota || ""); break;
+        case "equipamento": cmp = `${a.contratos?.equipamentos?.tipo} ${a.contratos?.equipamentos?.modelo}`.localeCompare(`${b.contratos?.equipamentos?.tipo} ${b.contratos?.equipamentos?.modelo}`); break;
+        case "emissao": cmp = a.emissao.localeCompare(b.emissao); break;
+        case "vencimento": cmp = getVencimento(a).getTime() - getVencimento(b).getTime(); break;
+        case "valor": cmp = Number(a.valor_total) - Number(b.valor_total); break;
+        case "status": cmp = getDisplayStatus(a).localeCompare(getDisplayStatus(b)); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [faturasFiltered, sortCol, sortAsc]);
+
   const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
   const totalPendente = faturasFiltered.filter(f => getDisplayStatus(f) === "Pendente").reduce((s, f) => s + Number(f.valor_total), 0);
   const totalAtraso = faturasFiltered.filter(f => getDisplayStatus(f) === "Em Atraso").reduce((s, f) => s + Number(f.valor_total), 0);
