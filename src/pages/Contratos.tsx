@@ -1442,15 +1442,15 @@ const Contratos = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead>Empresa</TableHead>
+                  <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
                   <TableHead>Equipamentos</TableHead>
-                  <TableHead>Período</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead column="periodo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Período</SortableTableHead>
+                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                   <TableHead className="w-28">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => {
+                {sorted.map((item) => {
                   const ces = getContratoEquipamentos(item);
                   return (
                     <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
