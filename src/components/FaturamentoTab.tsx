@@ -214,6 +214,23 @@ export const FaturamentoTab = () => {
     });
   }, [faturas, filterEmpresa, filterStatus, contratos]);
 
+  const sortedFaturas = useMemo(() => {
+    return [...filteredFaturas].sort((a, b) => {
+      let cmp = 0;
+      const ctA = getContrato(a.contrato_id);
+      const ctB = getContrato(b.contrato_id);
+      switch (sortCol) {
+        case "numero": cmp = (a.numero_nota || String(a.numero_sequencial)).localeCompare(b.numero_nota || String(b.numero_sequencial)); break;
+        case "empresa": cmp = (ctA?.empresas?.nome || "").localeCompare(ctB?.empresas?.nome || ""); break;
+        case "emissao": cmp = a.emissao.localeCompare(b.emissao); break;
+        case "vencimento": cmp = getVencimento(a).getTime() - getVencimento(b).getTime(); break;
+        case "valor": cmp = Number(a.valor_total) - Number(b.valor_total); break;
+        case "status": cmp = getDisplayStatus(a).localeCompare(getDisplayStatus(b)); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filteredFaturas, sortCol, sortAsc]);
+
   // KPIs
   const totalFaturado = faturas.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
   const totalPendente = faturas.filter(f => getDisplayStatus(f) === "Pendente").reduce((s, f) => s + Number(f.valor_total), 0);
