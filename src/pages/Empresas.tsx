@@ -254,17 +254,17 @@ const Empresas = () => {
             <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Razão Social</TableHead>
-                  <TableHead>Nome Fantasia</TableHead>
-                  <TableHead>Cidade/UF</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead column="cnpj" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>CNPJ</SortableTableHead>
+                  <SortableTableHead column="razao_social" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Razão Social</SortableTableHead>
+                  <SortableTableHead column="nome_fantasia" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nome Fantasia</SortableTableHead>
+                  <SortableTableHead column="cidade" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Cidade/UF</SortableTableHead>
+                  <SortableTableHead column="telefone" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Telefone</SortableTableHead>
+                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => (
+                {sorted.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-mono text-sm">{item.cnpj}</TableCell>
                     <TableCell className="font-medium text-sm">{item.razao_social || item.nome}</TableCell>
