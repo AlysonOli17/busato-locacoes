@@ -250,7 +250,7 @@ export const FaturamentoTab = () => {
     fetchData();
   };
 
-   const generateInvoicePDF = async (fatura: Fatura) => {
+  const generateInvoicePDF = async (fatura: Fatura) => {
     const ct = getContrato(fatura.contrato_id);
     if (!ct) return;
     const empresa = getEmpresa(ct.empresa_id);
@@ -260,7 +260,6 @@ export const FaturamentoTab = () => {
     const equips = faturaEquips.get(fatura.id) || [];
     const logo = await loadLogo();
 
-    // Fetch Busato company data dynamically
     const { data: busatoData } = await supabase
       .from("empresas")
       .select("*")
@@ -273,223 +272,254 @@ export const FaturamentoTab = () => {
       busatoData?.endereco_logradouro,
       busatoData?.endereco_numero,
       busatoData?.endereco_complemento,
+    ].filter(Boolean).join(", ");
+    const busatoBairroLine = [
       busatoData?.endereco_bairro,
       busatoData?.endereco_cidade,
       busatoData?.endereco_uf,
-      busatoData?.endereco_cep ? `CEP: ${busatoData.endereco_cep}` : ""
+      busatoData?.endereco_cep ? `CEP:${busatoData.endereco_cep}` : "",
     ].filter(Boolean).join(", ");
     const busatoCnpj = busatoData?.cnpj || "";
     const busatoIE = busatoData?.inscricao_estadual || "";
 
-    // ABNT NBR 14724 margins: top 30mm, bottom 20mm, left 30mm, right 20mm
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth(); // 210
-    const pageH = doc.internal.pageSize.getHeight(); // 297
-    const mLeft = 30;
-    const mRight = 20;
-    const mTop = 20;
-    const mBottom = 20;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const mLeft = 15;
+    const mRight = 15;
+    const mTop = 15;
     const contentW = pageW - mLeft - mRight;
+    const lineC = [0, 0, 0] as [number, number, number];
+    const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const docLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
+
+    doc.setDrawColor(...lineC);
+    doc.setLineWidth(0.3);
+
     let y = mTop;
 
-    // === HEADER ===
-    if (logo) doc.addImage(logo, "PNG", mLeft, y, 48, 12);
+    // ── OUTER BORDER ──
+    doc.rect(mLeft, y, contentW, pageH - mTop - 15);
 
-    doc.setFontSize(14);
+    // ── HEADER ROW: logo left, info right ──
+    const headerH = 28;
+    const logoColW = contentW * 0.4;
+    const infoColW = contentW - logoColW;
+
+    // Vertical divider in header
+    doc.line(mLeft + logoColW, y, mLeft + logoColW, y + headerH);
+    // Bottom of header
+    doc.line(mLeft, y + headerH, mLeft + contentW, y + headerH);
+
+    // Logo
+    if (logo) {
+      doc.addImage(logo, "PNG", mLeft + 6, y + 5, 55, 18);
+    }
+
+    // Right column: company info
+    const infoX = mLeft + logoColW + 2;
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(41, 128, 185);
-    const docLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
-    doc.text(`FATURA DE LOCAÇÃO ${docLabel}`, pageW - mRight, y + 8, { align: "right" });
-    y += 18;
-
-    // Busato info (dynamic from empresas table)
+    doc.setTextColor(0, 0, 0);
+    doc.text(`FATURA DE LOCAÇÃO ${docLabel}`, infoX, y + 6);
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(60, 60, 60);
-    doc.text(busatoNome.toUpperCase(), mLeft, y);
-    y += 3.5;
+    doc.text(busatoNome.toUpperCase(), infoX, y + 11);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    if (busatoEndereco) {
-      doc.text(busatoEndereco, mLeft, y);
-      y += 3;
-    }
-    const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `Inscrição Estadual: ${busatoIE}` : ""].filter(Boolean).join(" - ");
-    if (cnpjLine) {
-      doc.text(cnpjLine, mLeft, y);
-    }
-    y += 5;
+    if (busatoEndereco) doc.text(busatoEndereco, infoX, y + 14.5);
+    if (busatoBairroLine) doc.text(busatoBairroLine, infoX, y + 17.5);
+    const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? ` Inscrição Estadual  ${busatoIE}` : ""].filter(Boolean).join("  -");
+    if (cnpjLine) doc.text(cnpjLine, infoX, y + 21);
 
-    // Date + Value header
-    doc.setDrawColor(41, 128, 185);
-    doc.setLineWidth(0.5);
-    doc.line(mLeft, y, pageW - mRight, y);
-    y += 5;
+    y += headerH;
 
-    const colMid = mLeft + contentW / 2;
-
-    // Row: Data emissão | Valor da fatura
-    const drawLabelValue = (label: string, value: string, x: number, yPos: number, width: number) => {
-      doc.setFillColor(41, 128, 185);
-      doc.rect(x, yPos, width, 5, "F");
-      doc.setFontSize(6.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(255, 255, 255);
-      doc.text(label, x + 2, yPos + 3.5);
-      doc.setFillColor(255, 255, 255);
-      doc.rect(x, yPos + 5, width, 6, "S");
-      doc.setTextColor(40, 40, 40);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text(value, x + 2, yPos + 9.5);
-    };
-
-    drawLabelValue("DATA DA EMISSÃO", parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR"), mLeft, y, contentW / 2 - 1);
-    drawLabelValue("VALOR DA FATURA", `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colMid + 1, y, contentW / 2 - 1);
-    y += 15;
-
-    // === CLIENT INFO ===
-    const drawField = (label: string, value: string, x: number, yPos: number, width: number) => {
-      doc.setFillColor(230, 240, 250);
-      doc.rect(x, yPos, width, 4.5, "F");
-      doc.setFontSize(5.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(41, 128, 185);
-      doc.text(label, x + 1.5, yPos + 3.2);
-      doc.rect(x, yPos + 4.5, width, 6, "S");
-      doc.setTextColor(40, 40, 40);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.text(value || "", x + 1.5, yPos + 9);
-    };
-
-    drawField("NOME / RAZÃO SOCIAL", empresa.razao_social || empresa.nome, mLeft, y, contentW);
-    y += 12;
-
-    const endereco = [empresa.endereco_logradouro, empresa.endereco_numero, empresa.endereco_bairro, empresa.endereco_cep ? `CEP ${empresa.endereco_cep}` : ""].filter(Boolean).join(", ");
-    drawField("ENDEREÇO", endereco, mLeft, y, contentW);
-    y += 12;
-
-    const thirdW = contentW / 3 - 1;
-    drawField("MUNICÍPIO", empresa.endereco_cidade || "", mLeft, y, thirdW);
-    drawField("ESTADO", empresa.endereco_uf || "", mLeft + thirdW + 1.5, y, thirdW);
-    drawField("CNPJ", empresa.cnpj, mLeft + (thirdW + 1.5) * 2, y, thirdW);
-    y += 12;
-
-    drawField("INSCRIÇÃO MUNICIPAL", empresa.inscricao_municipal || "", mLeft, y, contentW / 2 - 1);
-    drawField("INSCRIÇÃO ESTADUAL", empresa.inscricao_estadual || "", colMid + 1, y, contentW / 2 - 1);
-    y += 12;
-
-    // Payment info
-    drawField("CONDIÇÕES PAGAMENTO", "Crédito Bancário", mLeft, y, thirdW);
-    drawField("DATA DE VENCIMENTO", vencimento.toLocaleDateString("pt-BR"), mLeft + thirdW + 1.5, y, thirdW);
-    drawField("LOCAL DE PAGAMENTO", conta ? `${empresa.endereco_cidade || "—"} ${empresa.endereco_uf || ""}` : "—", mLeft + (thirdW + 1.5) * 2, y, thirdW);
-    y += 12;
-
-    // Bank info
-    if (conta) {
-      const bankText = `O PAGAMENTO DEVERÁ SER EFETUADO ATRAVÉS DE DEPÓSITO BANCÁRIO PARA BUSATO LOCAÇÕES E SERVIÇOS\nBANCO ${conta.banco}, AGÊNCIA ${conta.agencia}.\nCONTA ${conta.tipo_conta.toUpperCase()} Nº ${conta.conta}${conta.pix ? `\nPIX: ${conta.pix}` : ""}`;
-      doc.setFillColor(230, 240, 250);
-      doc.rect(mLeft, y, contentW, 4.5, "F");
-      doc.setFontSize(5.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(41, 128, 185);
-      doc.text("ENDEREÇO DE COBRANÇA:", mLeft + 1.5, y + 3.2);
-      y += 7;
-      doc.setTextColor(40, 40, 40);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      const lines = doc.splitTextToSize(bankText, contentW - 4);
-      const boxH = lines.length * 4 + 3;
-      doc.rect(mLeft, y, contentW, boxH, "S");
-      let lineY = y + 4;
-      lines.forEach((line: string) => {
-        doc.text(line, mLeft + 2, lineY);
-        lineY += 4;
-      });
-      y += boxH + 3;
-    } else {
-      y += 2;
-    }
-
-    // === DESCRIPTION TABLE ===
-    autoTable(doc, {
-      startY: y,
-      head: [["DESCRIÇÃO", "QUANT.", "VALOR UNIT.", "TOTAL", "CFOP"]],
-      body: [
-        [
-          "Locação de Equipamento, sem Cessão de Mão de Obra.",
-          "1,00",
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          `R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          "",
-        ],
-      ],
-      theme: "grid",
-      styles: { fontSize: 7, cellPadding: 2.5, lineWidth: 0.2, lineColor: [200, 200, 200] },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", fontSize: 6.5, lineColor: [41, 128, 185] },
-      tableWidth: contentW,
-      columnStyles: {
-        0: { cellWidth: contentW * 0.45 },
-        1: { halign: "center", cellWidth: contentW * 0.1 },
-        2: { halign: "right", cellWidth: contentW * 0.18 },
-        3: { halign: "right", cellWidth: contentW * 0.18 },
-        4: { halign: "center", cellWidth: contentW * 0.09 },
-      },
-      margin: { left: mLeft, right: mRight },
-    });
-
-    y = (doc as any).lastAutoTable.finalY;
-
-    // Total
-    doc.setFillColor(41, 128, 185);
-    doc.rect(mLeft, y, contentW, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(255, 255, 255);
-    doc.text("VALOR TOTAL DA FATURA", mLeft + 2, y + 4.2);
-    doc.text(`R$ ${Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - mRight - 2, y + 4.2, { align: "right" });
-    y += 8;
-
-    // Legal note
-    doc.setFontSize(6);
-    doc.setTextColor(120, 120, 120);
-    doc.setFont("helvetica", "italic");
-    doc.text("AUTORIZADO CONFORME LEI COMPLEMENTAR 116/03", mLeft, y + 2);
-    y += 8;
-
-    // Complementary info
-    doc.setFillColor(230, 240, 250);
-    doc.rect(mLeft, y, contentW, 4.5, "F");
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(41, 128, 185);
-    doc.text("Informações complementares:", mLeft + 1.5, y + 3.2);
-    y += 9;
-
-    doc.setTextColor(40, 40, 40);
+    // ── DATA DA EMISSÃO ──
+    const emissaoH = 7;
+    doc.line(mLeft, y + emissaoH, mLeft + contentW, y + emissaoH);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-     doc.setFontSize(7);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`DATA DA EMISSÃO: ${parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR")}`, mLeft + contentW - 2, y + 5, { align: "right" });
+    y += emissaoH;
 
-    // Equipment list with hours info
+    // ── VALOR DA FATURA ──
+    const valorH = 8;
+    doc.line(mLeft, y + valorH, mLeft + contentW, y + valorH);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("VALOR DA FATURA   R$", mLeft + contentW * 0.25, y + 6, { align: "center" });
+    doc.text(fmt(Number(fatura.valor_total)), mLeft + contentW * 0.7, y + 6, { align: "center" });
+    y += valorH;
+
+    // ── Helper for form fields ──
+    const drawFormField = (label: string, value: string, x: number, yPos: number, w: number, h: number = 10) => {
+      doc.rect(x, yPos, w, h);
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(label, x + 1.5, yPos + 3.5);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(value || "", x + 1.5, yPos + 7.5);
+    };
+
+    // ── NOME/RAZÃO SOCIAL ──
+    drawFormField("NOME/RAZÃO SOCIAL", (empresa.razao_social || empresa.nome).toUpperCase(), mLeft, y, contentW);
+    y += 10;
+
+    // ── ENDEREÇO ──
+    const endereco = [empresa.endereco_logradouro, empresa.endereco_numero, `Bairro ${empresa.endereco_bairro || ""}`].filter(Boolean).join(", ");
+    drawFormField("ENDEREÇO", endereco, mLeft, y, contentW);
+    y += 10;
+
+    // ── MUNICÍPIO | ESTADO ──
+    const halfW = contentW / 2;
+    drawFormField("MUNICÍPIO", empresa.endereco_cidade || "", mLeft, y, halfW);
+    drawFormField("ESTADO", (empresa.endereco_uf || "").toUpperCase(), mLeft + halfW, y, halfW);
+    y += 10;
+
+    // ── CNPJ | INSCRIÇÃO MUNICIPAL | INSCRIÇÃO ESTADUAL ──
+    const thirdW = contentW / 3;
+    drawFormField("CNPJ", empresa.cnpj, mLeft, y, thirdW);
+    drawFormField("INSCRIÇÃO MUNICIPAL", empresa.inscricao_municipal || "", mLeft + thirdW, y, thirdW);
+    drawFormField("INSCRIÇÃO ESTADUAL", empresa.inscricao_estadual || "", mLeft + thirdW * 2, y, thirdW);
+    y += 10;
+
+    // ── CONDIÇÕES PAGAMENTO | DATA DE VENCIMENTO | LOCAL DE PAGAMENTO ──
+    drawFormField("CONDIÇÕES PAGAMENTO", "Crédito Bancário", mLeft, y, thirdW);
+    drawFormField("DATA DE VENCIMENTO", vencimento.toLocaleDateString("pt-BR"), mLeft + thirdW, y, thirdW);
+    const localPagto = conta ? [busatoData?.endereco_cidade, busatoData?.endereco_uf].filter(Boolean).join(" ") : "—";
+    drawFormField("LOCAL DE PAGAMENTO", localPagto, mLeft + thirdW * 2, y, thirdW);
+    y += 10;
+
+    // ── ENDEREÇO DE COBRANÇA ──
+    const cobrancaLabelH = 5;
+    doc.rect(mLeft, y, contentW, cobrancaLabelH);
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "bold");
+    doc.text("ENDEREÇO DE COBRANÇA:", mLeft + 1.5, y + 3.5);
+    y += cobrancaLabelH;
+
+    if (conta) {
+      const bankLine1 = `O PAGAMENTO DEVERÁ SER EFETUADO ATRAVÉS DE DEPÓSITO BANCÁRIO PARA ${busatoNome.toUpperCase()}`;
+      const bankLine2 = `BANCO ${conta.banco}, AGÊNCIA ${conta.agencia} ${busatoData?.endereco_cidade || ""} - ${busatoData?.endereco_uf || ""}.CONTA ${conta.tipo_conta.toUpperCase()} Nº${conta.conta}`;
+      const bankBoxH = 12;
+      doc.rect(mLeft, y, contentW, bankBoxH);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text(bankLine1, mLeft + contentW / 2, y + 4.5, { align: "center" });
+      doc.text(bankLine2, mLeft + contentW / 2, y + 8.5, { align: "center" });
+      y += bankBoxH;
+    } else {
+      doc.rect(mLeft, y, contentW, 6);
+      y += 6;
+    }
+
+    // ── DESCRIPTION TABLE ──
+    const descColWidths = [contentW * 0.42, contentW * 0.1, contentW * 0.18, contentW * 0.18, contentW * 0.12];
+    const descHeaders = ["DESCRIÇÃO", "QUANT.", "VALOR UNIT", "TOTAL", "CFOP"];
+
+    // Header row
+    const thH = 6;
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "bold");
+    let cx = mLeft;
+    descHeaders.forEach((h, i) => {
+      doc.rect(cx, y, descColWidths[i], thH);
+      doc.text(h, cx + descColWidths[i] / 2, y + 4, { align: "center" });
+      cx += descColWidths[i];
+    });
+    y += thH;
+
+    // Data row
+    const rowH = 8;
+    const descBody = [
+      "Locação de Equipamento, sem Cessão de Mão de Obra.",
+      "1,00",
+      `R$     ${fmt(Number(fatura.valor_total))}`,
+      `R$     ${fmt(Number(fatura.valor_total))}`,
+      "",
+    ];
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    cx = mLeft;
+    descBody.forEach((val, i) => {
+      doc.rect(cx, y, descColWidths[i], rowH);
+      if (i === 0) {
+        doc.text(val, cx + 2, y + 5.5);
+      } else {
+        doc.text(val, cx + descColWidths[i] / 2, y + 5.5, { align: "center" });
+      }
+      cx += descColWidths[i];
+    });
+    y += rowH;
+
+    // Empty rows area (visual space like the template)
+    const emptyH = 45;
+    cx = mLeft;
+    descColWidths.forEach(w => {
+      doc.rect(cx, y, w, emptyH);
+      cx += w;
+    });
+    y += emptyH;
+
+    // ── VALOR TOTAL DA FATURA ──
+    const totalRowH = 8;
+    // Left cells merged
+    const totalLabelW = descColWidths[0] + descColWidths[1] + descColWidths[2];
+    const totalValW = descColWidths[3] + descColWidths[4];
+    doc.rect(mLeft, y, totalLabelW, totalRowH);
+    doc.rect(mLeft + totalLabelW, y, totalValW, totalRowH);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text("VALOR TOTAL DA FATURA", mLeft + totalLabelW - 2, y + 5.5, { align: "right" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(`R$          ${fmt(Number(fatura.valor_total))}`, mLeft + totalLabelW + totalValW / 2, y + 5.5, { align: "center" });
+    y += totalRowH;
+
+    // ── AUTORIZADO ──
+    const autoH = 6;
+    doc.rect(mLeft, y, contentW, autoH);
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.text("AUTORIZADO CONFORME LEI COMPLEMENTAR 116/03", mLeft + contentW / 2, y + 4, { align: "center" });
+    y += autoH;
+
+    // ── INFORMAÇÕES COMPLEMENTARES ──
+    const infoStartY = y;
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "bold");
+    doc.text("Informações complementares:", mLeft + 1.5, y + 4);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+
     if (equips.length > 0) {
       equips.forEach(fe => {
         const eq = getEquipamento(fe.equipamento_id);
         if (eq) {
-          const qtStr = `01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`;
-          const wrappedLines = doc.splitTextToSize(qtStr, contentW - 4);
-          wrappedLines.forEach((line: string) => {
-            doc.text(line, mLeft + 2, y);
-            y += 4;
-          });
+          const qtStr = `01 ${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`;
+          doc.text(qtStr, mLeft + 1.5, y + 3);
+          y += 4;
         }
       });
     } else {
       const eq = ct?.equipamentos;
       if (eq) {
-        doc.text(`01 ${eq.tipo.toUpperCase()} ${eq.modelo.toUpperCase()}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 2, y);
-        y += 6;
+        doc.text(`01 ${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 1.5, y + 3);
+        y += 4;
       }
+    }
+
+    if (fatura.periodo_medicao_inicio && fatura.periodo_medicao_fim) {
+      doc.text(
+        `Período - ${parseLocalDate(fatura.periodo_medicao_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(fatura.periodo_medicao_fim).toLocaleDateString("pt-BR")}`,
+        mLeft + 1.5, y + 3
+      );
+      y += 4;
     }
 
     // Additional costs
@@ -497,30 +527,13 @@ export const FaturamentoTab = () => {
     if (allGastos.length > 0) {
       y += 2;
       doc.setFont("helvetica", "bold");
-      doc.text("Custos Adicionais:", mLeft + 2, y);
+      doc.text("Custos Adicionais:", mLeft + 1.5, y + 3);
       y += 4;
       doc.setFont("helvetica", "normal");
       allGastos.forEach(g => {
-        const line = `• ${g.tipo} — ${g.descricao}: R$ ${g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        const wrapped = doc.splitTextToSize(line, contentW - 4);
-        wrapped.forEach((l: string) => {
-          doc.text(l, mLeft + 2, y);
-          y += 4;
-        });
+        doc.text(`• ${g.tipo} — ${g.descricao}: R$ ${fmt(g.valor)}`, mLeft + 1.5, y + 3);
+        y += 4;
       });
-      const totalGastos = allGastos.reduce((s, g) => s + g.valor, 0);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Total Custos Adicionais: R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, mLeft + 2, y);
-      y += 5;
-      doc.setFont("helvetica", "normal");
-    }
-
-    if (fatura.periodo_medicao_inicio && fatura.periodo_medicao_fim) {
-      doc.text(
-        `Período ${parseLocalDate(fatura.periodo_medicao_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(fatura.periodo_medicao_fim).toLocaleDateString("pt-BR")}`,
-        mLeft + 2, y
-      );
-      y += 5;
     }
 
     // Observações
@@ -528,27 +541,34 @@ export const FaturamentoTab = () => {
     if (obs && obs.trim()) {
       y += 2;
       doc.setFont("helvetica", "bold");
-      doc.text("Observações:", mLeft + 2, y);
+      doc.text("Observações:", mLeft + 1.5, y + 3);
       y += 4;
       doc.setFont("helvetica", "normal");
       const obsLines = doc.splitTextToSize(obs, contentW - 4);
       obsLines.forEach((line: string) => {
-        doc.text(line, mLeft + 2, y);
+        doc.text(line, mLeft + 1.5, y + 3);
         y += 4;
       });
     }
 
-    // === SIGNATURE — positioned near footer ===
-    const sigY = pageH - mBottom - 20;
+    // ── SIGNATURE BLOCK ──
+    const sigAreaY = pageH - 15 - 55;
+    // "ATENCIOSAMENTE" box
+    const atenW = 40;
+    doc.rect(mLeft + contentW / 2 - atenW / 2, sigAreaY, atenW, 5);
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.text("ATENCIOSAMENTE", pageW / 2, sigY, { align: "center" });
+    doc.text("ATENCIOSAMENTE", mLeft + contentW / 2, sigAreaY + 3.5, { align: "center" });
+
+    // Signature line
+    const sigLineY = sigAreaY + 30;
     doc.setLineWidth(0.3);
-    doc.setDrawColor(80, 80, 80);
-    doc.line(pageW / 2 - 35, sigY + 10, pageW / 2 + 35, sigY + 10);
-    doc.setFont("helvetica", "normal");
+    doc.line(mLeft + contentW / 2 - 30, sigLineY, mLeft + contentW / 2 + 30, sigLineY);
+
+    // Company name under signature
     doc.setFontSize(7);
-    doc.text("Busato Locações e Serviços LTDA", pageW / 2, sigY + 14, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.text("Busato Locações e Serviços LTDA", mLeft + contentW / 2, sigLineY + 8, { align: "center" });
 
     const saveLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
     doc.save(`fatura_locacao_${saveLabel}.pdf`);
