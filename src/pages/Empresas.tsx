@@ -93,6 +93,21 @@ const Empresas = () => {
     (i) => i.nome.toLowerCase().includes(search.toLowerCase()) || i.cnpj.includes(search) || (i.razao_social || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "cnpj": cmp = a.cnpj.localeCompare(b.cnpj); break;
+        case "razao_social": cmp = (a.razao_social || a.nome).localeCompare(b.razao_social || b.nome); break;
+        case "nome_fantasia": cmp = (a.nome_fantasia || "").localeCompare(b.nome_fantasia || ""); break;
+        case "cidade": cmp = (a.endereco_cidade || "").localeCompare(b.endereco_cidade || ""); break;
+        case "telefone": cmp = (a.telefone || "").localeCompare(b.telefone || ""); break;
+        case "status": cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
+
   const handleImportCNPJ = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
