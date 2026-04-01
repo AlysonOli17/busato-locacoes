@@ -250,20 +250,20 @@ const Usuarios = () => {
                 <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Perfil</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Cadastro</TableHead>
+                      <SortableTableHead column="nome" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nome</SortableTableHead>
+                      <SortableTableHead column="email" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Email</SortableTableHead>
+                      <SortableTableHead column="role" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Perfil</SortableTableHead>
+                      <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
+                      <SortableTableHead column="created_at" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Cadastro</SortableTableHead>
                       <TableHead className="w-32">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-                    ) : filtered.length === 0 ? (
+                    ) : sorted.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum usuário encontrado</TableCell></TableRow>
-                    ) : filtered.map((item) => (
+                    ) : sorted.map((item) => (
                       <TableRow key={item.user_id}>
                         <TableCell className="font-medium text-sm">{item.nome}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{item.email}</TableCell>
