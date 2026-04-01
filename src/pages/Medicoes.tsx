@@ -15,7 +15,8 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle } from "lucide-react";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { exportToPDF } from "@/lib/exportUtils";
@@ -277,11 +278,6 @@ const Medicoes = () => {
     else { setSortCol(col); setSortAsc(true); }
   };
 
-  const SortIcon = ({ col }: { col: typeof sortCol }) => {
-    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
-    return sortAsc ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
-  };
-
   const sorted = [...filtered].sort((a, b) => {
     let cmp = 0;
     switch (sortCol) {
@@ -412,24 +408,12 @@ const Medicoes = () => {
             <Table className="min-w-[700px]">
               <TableHeader>
                  <TableRow>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}>
-                     <span className="flex items-center">Equipamento <SortIcon col="equipamento" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}>
-                     <span className="flex items-center">Tag/Placa <SortIcon col="tag" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}>
-                     <span className="flex items-center">Data <SortIcon col="data" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tipo")}>
-                     <span className="flex items-center">Tipo <SortIcon col="tipo" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horimetro")}>
-                     <span className="flex items-center">Horímetro Atual <SortIcon col="horimetro" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horas_indisp")}>
-                     <span className="flex items-center">Horas Indisp. <SortIcon col="horas_indisp" /></span>
-                   </TableHead>
+                   <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
+                   <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag/Placa</SortableTableHead>
+                   <SortableTableHead column="data" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Data</SortableTableHead>
+                   <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
+                   <SortableTableHead column="horimetro" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horímetro Atual</SortableTableHead>
+                   <SortableTableHead column="horas_indisp" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horas Indisp.</SortableTableHead>
                    <TableHead className="w-20">Ações</TableHead>
                  </TableRow>
               </TableHeader>

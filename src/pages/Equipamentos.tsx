@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
@@ -44,6 +45,9 @@ const Equipamentos = () => {
   const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
   const [sinistroIds, setSinistroIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("tipo");
+  const [sortAsc, setSortAsc] = useState(true);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const [eqRes, insRes, rentRes] = await Promise.all([
@@ -121,6 +125,22 @@ const Equipamentos = () => {
       default: return true;
     }
   });
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "tipo": cmp = a.tipo.localeCompare(b.tipo); break;
+        case "tag": cmp = (a.tag_placa || "").localeCompare(b.tag_placa || ""); break;
+        case "modelo": cmp = a.modelo.localeCompare(b.modelo); break;
+        case "serie": cmp = (a.numero_serie || "").localeCompare(b.numero_serie || ""); break;
+        case "ano": cmp = (a.ano || 0) - (b.ano || 0); break;
+        case "valor": cmp = (a.valor_bem || 0) - (b.valor_bem || 0); break;
+        case "status": cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Equipment) => {
@@ -274,13 +294,13 @@ const Equipamentos = () => {
             <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tag / Placa</TableHead>
-                  <TableHead>Modelo</TableHead>
-                  <TableHead>Nº Série</TableHead>
-                  <TableHead>Ano</TableHead>
-                  <TableHead>Valor do Bem</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
+                  <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag / Placa</SortableTableHead>
+                  <SortableTableHead column="modelo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Modelo</SortableTableHead>
+                  <SortableTableHead column="serie" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Série</SortableTableHead>
+                  <SortableTableHead column="ano" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Ano</SortableTableHead>
+                  <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor do Bem</SortableTableHead>
+                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                   <TableHead className="text-center">Seguro</TableHead>
                   <TableHead className="text-center">Locação</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
@@ -288,7 +308,7 @@ const Equipamentos = () => {
               </TableHeader>
               <TooltipProvider>
                 <TableBody>
-                  {filtered.map((item) => {
+                  {sorted.map((item) => {
                     const isInsured = insuredIds.has(item.id);
                     const isRented = rentedIds.has(item.id);
                     const hasSinistro = sinistroIds.has(item.id);
@@ -346,7 +366,7 @@ const Equipamentos = () => {
                       </TableRow>
                     );
                   })}
-                  {!loading && filtered.length === 0 && (
+                  {!loading && sorted.length === 0 && (
                     <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhum equipamento encontrado</TableCell></TableRow>
                   )}
                 </TableBody>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, CheckCircle2, Clock, Receipt, Building2, FileDown, FileSpreadsheet, TrendingUp, TrendingDown, CalendarClock, LayoutDashboard } from "lucide-react";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
@@ -69,6 +70,9 @@ const Acompanhamento = () => {
   const [medicoes, setMedicoes] = useState<any[]>([]);
   const [filtroEmpresa, setFiltroEmpresa] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [sortCol, setSortCol] = useState("emissao");
+  const [sortAsc, setSortAsc] = useState(false);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -159,6 +163,22 @@ const Acompanhamento = () => {
       return ct?.empresa_id === filtroEmpresa;
     });
   }, [faturas, filtroEmpresa, contratos]);
+
+  const sortedFaturas = useMemo(() => {
+    return [...faturasFiltered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "empresa": cmp = (a.contratos?.empresas?.nome || "").localeCompare(b.contratos?.empresas?.nome || ""); break;
+        case "nota": cmp = (a.numero_nota || "").localeCompare(b.numero_nota || ""); break;
+        case "equipamento": cmp = `${a.contratos?.equipamentos?.tipo} ${a.contratos?.equipamentos?.modelo}`.localeCompare(`${b.contratos?.equipamentos?.tipo} ${b.contratos?.equipamentos?.modelo}`); break;
+        case "emissao": cmp = a.emissao.localeCompare(b.emissao); break;
+        case "vencimento": cmp = getVencimento(a).getTime() - getVencimento(b).getTime(); break;
+        case "valor": cmp = Number(a.valor_total) - Number(b.valor_total); break;
+        case "status": cmp = getDisplayStatus(a).localeCompare(getDisplayStatus(b)); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [faturasFiltered, sortCol, sortAsc]);
 
   const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
   const totalPendente = faturasFiltered.filter(f => getDisplayStatus(f) === "Pendente").reduce((s, f) => s + Number(f.valor_total), 0);
@@ -330,18 +350,18 @@ const Acompanhamento = () => {
                 <Table className="min-w-[700px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Empresa</TableHead>
-                      <TableHead>Nº Nota</TableHead>
-                      <TableHead>Equipamento</TableHead>
+                      <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
+                      <SortableTableHead column="nota" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Nota</SortableTableHead>
+                      <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
                       <TableHead>Período Medição</TableHead>
-                      <TableHead>Emissão</TableHead>
-                      <TableHead>Vencimento</TableHead>
-                      <TableHead>Valor (R$)</TableHead>
-                      <TableHead>Status</TableHead>
+                      <SortableTableHead column="emissao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Emissão</SortableTableHead>
+                      <SortableTableHead column="vencimento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Vencimento</SortableTableHead>
+                      <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor (R$)</SortableTableHead>
+                      <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {faturasFiltered.map(f => {
+                    {sortedFaturas.map(f => {
                       const status = getDisplayStatus(f);
                       return (
                         <TableRow key={f.id}>
@@ -374,9 +394,9 @@ const Acompanhamento = () => {
                         </TableRow>
                       );
                     })}
-                    {!loading && faturasFiltered.length === 0 && (
+                    {!loading && sortedFaturas.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Nenhuma fatura encontrada
                         </TableCell>
                       </TableRow>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getEquipLabel } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
@@ -20,6 +20,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropostasContent } from "@/pages/Propostas";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
@@ -160,6 +161,9 @@ const Contratos = () => {
   // Aditivos por contrato (para exibição na tabela)
   const [aditivosPorContrato, setAditivosPorContrato] = useState<Record<string, Aditivo[]>>({});
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("empresa");
+  const [sortAsc, setSortAsc] = useState(true);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes] = await Promise.all([
@@ -389,6 +393,18 @@ const Contratos = () => {
   const filtered = items.filter(
     (i) => i.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.empresas?.cnpj?.includes(search) || getEquipamentosList(i).some(eq => eq.modelo?.toLowerCase().includes(search.toLowerCase()) || eq.tag_placa?.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "empresa": cmp = (a.empresas?.nome || "").localeCompare(b.empresas?.nome || ""); break;
+        case "periodo": cmp = a.data_inicio.localeCompare(b.data_inicio); break;
+        case "status": cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -1426,15 +1442,15 @@ const Contratos = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead>Empresa</TableHead>
+                  <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
                   <TableHead>Equipamentos</TableHead>
-                  <TableHead>Período</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead column="periodo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Período</SortableTableHead>
+                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                   <TableHead className="w-28">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => {
+                {sorted.map((item) => {
                   const ces = getContratoEquipamentos(item);
                   return (
                     <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2 } from "lucide-react";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -75,6 +76,9 @@ const Empresas = () => {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("razao_social");
+  const [sortAsc, setSortAsc] = useState(true);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const { data, error } = await supabase.from("empresas").select("*").order("created_at", { ascending: false });
@@ -88,6 +92,21 @@ const Empresas = () => {
   const filtered = items.filter(
     (i) => i.nome.toLowerCase().includes(search.toLowerCase()) || i.cnpj.includes(search) || (i.razao_social || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "cnpj": cmp = a.cnpj.localeCompare(b.cnpj); break;
+        case "razao_social": cmp = (a.razao_social || a.nome).localeCompare(b.razao_social || b.nome); break;
+        case "nome_fantasia": cmp = (a.nome_fantasia || "").localeCompare(b.nome_fantasia || ""); break;
+        case "cidade": cmp = (a.endereco_cidade || "").localeCompare(b.endereco_cidade || ""); break;
+        case "telefone": cmp = (a.telefone || "").localeCompare(b.telefone || ""); break;
+        case "status": cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
 
   const handleImportCNPJ = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -235,17 +254,17 @@ const Empresas = () => {
             <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Razão Social</TableHead>
-                  <TableHead>Nome Fantasia</TableHead>
-                  <TableHead>Cidade/UF</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead column="cnpj" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>CNPJ</SortableTableHead>
+                  <SortableTableHead column="razao_social" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Razão Social</SortableTableHead>
+                  <SortableTableHead column="nome_fantasia" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nome Fantasia</SortableTableHead>
+                  <SortableTableHead column="cidade" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Cidade/UF</SortableTableHead>
+                  <SortableTableHead column="telefone" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Telefone</SortableTableHead>
+                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => (
+                {sorted.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-mono text-sm">{item.cnpj}</TableCell>
                     <TableCell className="font-medium text-sm">{item.razao_social || item.nome}</TableCell>
@@ -267,7 +286,7 @@ const Empresas = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {!loading && filtered.length === 0 && (
+                {!loading && sorted.length === 0 && (
                   <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma empresa encontrada</TableCell></TableRow>
                 )}
               </TableBody>

@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -123,6 +124,9 @@ export const FaturamentoTab = () => {
   const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("numero");
+  const [sortAsc, setSortAsc] = useState(false);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
@@ -209,6 +213,23 @@ export const FaturamentoTab = () => {
       return true;
     });
   }, [faturas, filterEmpresa, filterStatus, contratos]);
+
+  const sortedFaturas = useMemo(() => {
+    return [...filteredFaturas].sort((a, b) => {
+      let cmp = 0;
+      const ctA = getContrato(a.contrato_id);
+      const ctB = getContrato(b.contrato_id);
+      switch (sortCol) {
+        case "numero": cmp = (a.numero_nota || String(a.numero_sequencial)).localeCompare(b.numero_nota || String(b.numero_sequencial)); break;
+        case "empresa": cmp = (ctA?.empresas?.nome || "").localeCompare(ctB?.empresas?.nome || ""); break;
+        case "emissao": cmp = a.emissao.localeCompare(b.emissao); break;
+        case "vencimento": cmp = getVencimento(a).getTime() - getVencimento(b).getTime(); break;
+        case "valor": cmp = Number(a.valor_total) - Number(b.valor_total); break;
+        case "status": cmp = getDisplayStatus(a).localeCompare(getDisplayStatus(b)); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filteredFaturas, sortCol, sortAsc]);
 
   // KPIs
   const totalFaturado = faturas.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
@@ -736,20 +757,20 @@ export const FaturamentoTab = () => {
           <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Nº Fatura</TableHead>
-                <TableHead>Empresa</TableHead>
+                <SortableTableHead column="numero" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Fatura</SortableTableHead>
+                <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
                 <TableHead>Equipamento</TableHead>
                 <TableHead>Período</TableHead>
-                <TableHead>Emissão</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Valor</TableHead>
+                <SortableTableHead column="emissao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Emissão</SortableTableHead>
+                <SortableTableHead column="vencimento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Vencimento</SortableTableHead>
+                <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor</SortableTableHead>
                 
-                <TableHead>Status</TableHead>
+                <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                 <TableHead className="w-28">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredFaturas.map(f => {
+              {sortedFaturas.map(f => {
                 const ct = getContrato(f.contrato_id);
                 const status = getDisplayStatus(f);
                 return (
@@ -788,7 +809,7 @@ export const FaturamentoTab = () => {
                   </TableRow>
                 );
               })}
-              {!loading && filteredFaturas.length === 0 && (
+              {!loading && sortedFaturas.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell>
                 </TableRow>
