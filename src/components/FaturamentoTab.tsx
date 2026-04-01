@@ -757,20 +757,20 @@ export const FaturamentoTab = () => {
           <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Nº Fatura</TableHead>
-                <TableHead>Empresa</TableHead>
+                <SortableTableHead column="numero" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Fatura</SortableTableHead>
+                <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
                 <TableHead>Equipamento</TableHead>
                 <TableHead>Período</TableHead>
-                <TableHead>Emissão</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Valor</TableHead>
+                <SortableTableHead column="emissao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Emissão</SortableTableHead>
+                <SortableTableHead column="vencimento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Vencimento</SortableTableHead>
+                <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor</SortableTableHead>
                 
-                <TableHead>Status</TableHead>
+                <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                 <TableHead className="w-28">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredFaturas.map(f => {
+              {sortedFaturas.map(f => {
                 const ct = getContrato(f.contrato_id);
                 const status = getDisplayStatus(f);
                 return (
