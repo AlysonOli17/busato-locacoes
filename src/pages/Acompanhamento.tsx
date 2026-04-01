@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, CheckCircle2, Clock, Receipt, Building2, FileDown, FileSpreadsheet, TrendingUp, TrendingDown, CalendarClock, LayoutDashboard } from "lucide-react";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
