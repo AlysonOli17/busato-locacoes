@@ -45,6 +45,9 @@ const Equipamentos = () => {
   const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
   const [sinistroIds, setSinistroIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("tipo");
+  const [sortAsc, setSortAsc] = useState(true);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const [eqRes, insRes, rentRes] = await Promise.all([
