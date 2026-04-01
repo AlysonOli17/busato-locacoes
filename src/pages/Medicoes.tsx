@@ -470,7 +470,7 @@ const Medicoes = () => {
                     </TableCell>
                   </TableRow>
                 )}
-                {!loading && filtered.length === 0 &&
+                {!loading && sorted.length === 0 &&
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum horímetro encontrado</TableCell></TableRow>
                 }
               </TableBody>
