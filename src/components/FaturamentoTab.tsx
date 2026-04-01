@@ -488,87 +488,88 @@ export const FaturamentoTab = () => {
     y += autoH;
 
     // ── INFORMAÇÕES COMPLEMENTARES ──
-    const infoStartY = y;
-    doc.setFontSize(6.5);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.text("Informações complementares:", mLeft + 1.5, y + 4);
-    y += 6;
+    doc.text("Informações complementares:", mLeft + 1.5, y + 5);
+    y += 8;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
+    const lineH = 5;
 
     if (equips.length > 0) {
       equips.forEach(fe => {
         const eq = getEquipamento(fe.equipamento_id);
         if (eq) {
           const qtStr = `01 ${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`;
-          doc.text(qtStr, mLeft + 1.5, y + 3);
-          y += 4;
+          doc.text(qtStr, mLeft + 1.5, y);
+          y += lineH;
         }
       });
     } else {
       const eq = ct?.equipamentos;
       if (eq) {
-        doc.text(`01 ${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 1.5, y + 3);
-        y += 4;
+        doc.text(`01 ${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` - ${eq.tag_placa}` : ""}`, mLeft + 1.5, y);
+        y += lineH;
       }
     }
 
     if (fatura.periodo_medicao_inicio && fatura.periodo_medicao_fim) {
       doc.text(
         `Período - ${parseLocalDate(fatura.periodo_medicao_inicio).toLocaleDateString("pt-BR")} a ${parseLocalDate(fatura.periodo_medicao_fim).toLocaleDateString("pt-BR")}`,
-        mLeft + 1.5, y + 3
+        mLeft + 1.5, y
       );
-      y += 4;
+      y += lineH;
     }
 
     // Additional costs
     const allGastos = faturaGastos.get(fatura.id) || [];
     if (allGastos.length > 0) {
-      y += 2;
+      y += 3;
       doc.setFont("helvetica", "bold");
-      doc.text("Custos Adicionais:", mLeft + 1.5, y + 3);
-      y += 4;
+      doc.text("Custos Adicionais:", mLeft + 1.5, y);
+      y += lineH;
       doc.setFont("helvetica", "normal");
       allGastos.forEach(g => {
-        doc.text(`• ${g.tipo} — ${g.descricao}: R$ ${fmt(g.valor)}`, mLeft + 1.5, y + 3);
-        y += 4;
+        doc.text(`• ${g.tipo} — ${g.descricao}: R$ ${fmt(g.valor)}`, mLeft + 1.5, y);
+        y += lineH;
       });
     }
 
     // Observações
     const obs = (fatura as any).observacoes;
     if (obs && obs.trim()) {
-      y += 2;
+      y += 3;
       doc.setFont("helvetica", "bold");
-      doc.text("Observações:", mLeft + 1.5, y + 3);
-      y += 4;
+      doc.text("Observações:", mLeft + 1.5, y);
+      y += lineH;
       doc.setFont("helvetica", "normal");
       const obsLines = doc.splitTextToSize(obs, contentW - 4);
       obsLines.forEach((line: string) => {
-        doc.text(line, mLeft + 1.5, y + 3);
-        y += 4;
+        doc.text(line, mLeft + 1.5, y);
+        y += lineH;
       });
     }
 
-    // ── SIGNATURE BLOCK ──
-    const sigAreaY = pageH - 15 - 55;
+    // ── SIGNATURE BLOCK (positioned dynamically below content) ──
+    y = Math.max(y + 10, pageH - 15 - 45);
+
     // "ATENCIOSAMENTE" box
     const atenW = 40;
-    doc.rect(mLeft + contentW / 2 - atenW / 2, sigAreaY, atenW, 5);
+    doc.rect(mLeft + contentW / 2 - atenW / 2, y, atenW, 6);
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.text("ATENCIOSAMENTE", mLeft + contentW / 2, sigAreaY + 3.5, { align: "center" });
+    doc.text("ATENCIOSAMENTE", mLeft + contentW / 2, y + 4, { align: "center" });
 
     // Signature line
-    const sigLineY = sigAreaY + 30;
+    const sigLineY = y + 25;
     doc.setLineWidth(0.3);
     doc.line(mLeft + contentW / 2 - 30, sigLineY, mLeft + contentW / 2 + 30, sigLineY);
 
     // Company name under signature
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.text("Busato Locações e Serviços LTDA", mLeft + contentW / 2, sigLineY + 8, { align: "center" });
+    doc.text("Busato Locações e Serviços LTDA", mLeft + contentW / 2, sigLineY + 6, { align: "center" });
 
     const saveLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
     doc.save(`fatura_locacao_${saveLabel}.pdf`);
