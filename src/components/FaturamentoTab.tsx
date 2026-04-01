@@ -809,7 +809,7 @@ export const FaturamentoTab = () => {
                   </TableRow>
                 );
               })}
-              {!loading && filteredFaturas.length === 0 && (
+              {!loading && sortedFaturas.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell>
                 </TableRow>
