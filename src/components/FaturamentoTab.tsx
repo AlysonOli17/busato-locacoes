@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
