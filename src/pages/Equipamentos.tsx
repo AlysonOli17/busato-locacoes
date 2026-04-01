@@ -126,6 +126,22 @@ const Equipamentos = () => {
     }
   });
 
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "tipo": cmp = a.tipo.localeCompare(b.tipo); break;
+        case "tag": cmp = (a.tag_placa || "").localeCompare(b.tag_placa || ""); break;
+        case "modelo": cmp = a.modelo.localeCompare(b.modelo); break;
+        case "serie": cmp = (a.numero_serie || "").localeCompare(b.numero_serie || ""); break;
+        case "ano": cmp = (a.ano || 0) - (b.ano || 0); break;
+        case "valor": cmp = (a.valor_bem || 0) - (b.valor_bem || 0); break;
+        case "status": cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
+
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Equipment) => {
     setEditing(item);
