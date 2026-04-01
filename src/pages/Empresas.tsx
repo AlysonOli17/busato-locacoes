@@ -76,6 +76,9 @@ const Empresas = () => {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("razao_social");
+  const [sortAsc, setSortAsc] = useState(true);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const { data, error } = await supabase.from("empresas").select("*").order("created_at", { ascending: false });
