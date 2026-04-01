@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getEquipLabel } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
