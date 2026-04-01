@@ -408,24 +408,12 @@ const Medicoes = () => {
             <Table className="min-w-[700px]">
               <TableHeader>
                  <TableRow>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}>
-                     <span className="flex items-center">Equipamento <SortIcon col="equipamento" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}>
-                     <span className="flex items-center">Tag/Placa <SortIcon col="tag" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}>
-                     <span className="flex items-center">Data <SortIcon col="data" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tipo")}>
-                     <span className="flex items-center">Tipo <SortIcon col="tipo" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horimetro")}>
-                     <span className="flex items-center">Horímetro Atual <SortIcon col="horimetro" /></span>
-                   </TableHead>
-                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horas_indisp")}>
-                     <span className="flex items-center">Horas Indisp. <SortIcon col="horas_indisp" /></span>
-                   </TableHead>
+                   <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
+                   <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag/Placa</SortableTableHead>
+                   <SortableTableHead column="data" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Data</SortableTableHead>
+                   <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
+                   <SortableTableHead column="horimetro" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horímetro Atual</SortableTableHead>
+                   <SortableTableHead column="horas_indisp" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horas Indisp.</SortableTableHead>
                    <TableHead className="w-20">Ações</TableHead>
                  </TableRow>
               </TableHeader>
