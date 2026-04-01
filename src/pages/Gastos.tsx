@@ -100,6 +100,22 @@ const Gastos = () => {
     return i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.descricao.toLowerCase().includes(search.toLowerCase());
   });
 
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "equipamento": cmp = `${a.equipamentos?.tipo} ${a.equipamentos?.modelo}`.localeCompare(`${b.equipamentos?.tipo} ${b.equipamentos?.modelo}`); break;
+        case "tag": cmp = (a.equipamentos?.tag_placa || "").localeCompare(b.equipamentos?.tag_placa || ""); break;
+        case "descricao": cmp = a.descricao.localeCompare(b.descricao); break;
+        case "tipo": cmp = a.tipo.localeCompare(b.tipo); break;
+        case "classificacao": cmp = a.classificacao.localeCompare(b.classificacao); break;
+        case "valor": cmp = Number(a.valor) - Number(b.valor); break;
+        case "data": cmp = a.data.localeCompare(b.data); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
+
   const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   // Summary calcs - separate mobilização as revenue
