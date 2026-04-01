@@ -15,6 +15,7 @@ import Apolices from "./pages/Apolices";
 import Gastos from "./pages/Gastos";
 import Usuarios from "./pages/Usuarios";
 import Acompanhamento from "./pages/Acompanhamento";
+import Agregados from "./pages/Agregados";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
