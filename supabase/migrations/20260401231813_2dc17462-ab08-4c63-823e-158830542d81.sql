@@ -1,0 +1,1 @@
+INSERT INTO public.role_permissions (permission, role) VALUES ('/agregados', 'admin'), ('/agregados', 'operador'), ('/agregados', 'visualizador') ON CONFLICT DO NOTHING;
