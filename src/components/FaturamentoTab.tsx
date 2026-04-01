@@ -124,6 +124,9 @@ export const FaturamentoTab = () => {
   const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("numero");
+  const [sortAsc, setSortAsc] = useState(false);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
