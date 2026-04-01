@@ -394,6 +394,18 @@ const Contratos = () => {
     (i) => i.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.empresas?.cnpj?.includes(search) || getEquipamentosList(i).some(eq => eq.modelo?.toLowerCase().includes(search.toLowerCase()) || eq.tag_placa?.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "empresa": cmp = (a.empresas?.nome || "").localeCompare(b.empresas?.nome || ""); break;
+        case "periodo": cmp = a.data_inicio.localeCompare(b.data_inicio); break;
+        case "status": cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
+
   const toggleSelect = (id: string) => {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
