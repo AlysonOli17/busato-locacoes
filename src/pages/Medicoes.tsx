@@ -272,6 +272,29 @@ const Medicoes = () => {
   const clearFilters = () => {setFilterEquip("Todos");setDataInicio(undefined);setDataFim(undefined);};
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
+  const toggleSort = (col: typeof sortCol) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  };
+
+  const SortIcon = ({ col }: { col: typeof sortCol }) => {
+    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortAsc ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    switch (sortCol) {
+      case "equipamento": cmp = `${a.equipamentos?.tipo} ${a.equipamentos?.modelo}`.localeCompare(`${b.equipamentos?.tipo} ${b.equipamentos?.modelo}`); break;
+      case "tag": cmp = (a.equipamentos?.tag_placa || "").localeCompare(b.equipamentos?.tag_placa || ""); break;
+      case "data": cmp = a.data.localeCompare(b.data); break;
+      case "tipo": cmp = (a.tipo || "Trabalho").localeCompare(b.tipo || "Trabalho"); break;
+      case "horimetro": cmp = Number(a.horimetro_final) - Number(b.horimetro_final); break;
+      case "horas_indisp": cmp = Number(a.horas_trabalhadas) - Number(b.horas_trabalhadas); break;
+    }
+    return sortAsc ? cmp : -cmp;
+  });
+
   return (
     <Layout title="Medições / Faturamento">
       <Tabs defaultValue="medicoes" className="space-y-6">
