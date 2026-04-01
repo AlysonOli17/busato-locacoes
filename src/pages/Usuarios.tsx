@@ -98,6 +98,20 @@ const Usuarios = () => {
     u.nome.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "nome": cmp = a.nome.localeCompare(b.nome); break;
+        case "email": cmp = a.email.localeCompare(b.email); break;
+        case "role": cmp = (a.role || "").localeCompare(b.role || ""); break;
+        case "status": cmp = a.status.localeCompare(b.status); break;
+        case "created_at": cmp = a.created_at.localeCompare(b.created_at); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
+
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: UserItem) => {
     setEditing(item);
