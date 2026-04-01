@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
 import { FaturamentoTab } from "@/components/FaturamentoTab";
-import { AgregadoTab } from "@/components/AgregadoTab";
+
 
 interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;numero_serie: string | null;}
 interface Medicao {
