@@ -294,13 +294,13 @@ const Equipamentos = () => {
             <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tag / Placa</TableHead>
-                  <TableHead>Modelo</TableHead>
-                  <TableHead>Nº Série</TableHead>
-                  <TableHead>Ano</TableHead>
-                  <TableHead>Valor do Bem</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
+                  <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag / Placa</SortableTableHead>
+                  <SortableTableHead column="modelo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Modelo</SortableTableHead>
+                  <SortableTableHead column="serie" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Série</SortableTableHead>
+                  <SortableTableHead column="ano" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Ano</SortableTableHead>
+                  <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor do Bem</SortableTableHead>
+                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
                   <TableHead className="text-center">Seguro</TableHead>
                   <TableHead className="text-center">Locação</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
@@ -308,7 +308,7 @@ const Equipamentos = () => {
               </TableHeader>
               <TooltipProvider>
                 <TableBody>
-                  {filtered.map((item) => {
+                  {sorted.map((item) => {
                     const isInsured = insuredIds.has(item.id);
                     const isRented = rentedIds.has(item.id);
                     const hasSinistro = sinistroIds.has(item.id);
