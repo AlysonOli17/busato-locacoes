@@ -412,17 +412,29 @@ const Medicoes = () => {
             <Table className="min-w-[700px]">
               <TableHeader>
                  <TableRow>
-                   <TableHead>Equipamento</TableHead>
-                    <TableHead>Tag/Placa</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Horímetro Atual</TableHead>
-                    <TableHead>Horas Indisp.</TableHead>
-                    <TableHead className="w-20">Ações</TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("equipamento")}>
+                     <span className="flex items-center">Equipamento <SortIcon col="equipamento" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tag")}>
+                     <span className="flex items-center">Tag/Placa <SortIcon col="tag" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data")}>
+                     <span className="flex items-center">Data <SortIcon col="data" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tipo")}>
+                     <span className="flex items-center">Tipo <SortIcon col="tipo" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horimetro")}>
+                     <span className="flex items-center">Horímetro Atual <SortIcon col="horimetro" /></span>
+                   </TableHead>
+                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("horas_indisp")}>
+                     <span className="flex items-center">Horas Indisp. <SortIcon col="horas_indisp" /></span>
+                   </TableHead>
+                   <TableHead className="w-20">Ações</TableHead>
                  </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) =>
+                {sorted.map((item) =>
                 <TableRow key={item.id}>
                     <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
