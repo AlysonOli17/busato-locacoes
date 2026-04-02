@@ -178,12 +178,14 @@ export const FaturamentoContent = () => {
   const [creatingMob, setCreatingMob] = useState(false);
 
   const fetchData = async () => {
-    const [fatRes, ctRes, contasRes] = await Promise.all([
+    const [fatRes, ctRes, contasRes, empListRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal").order("nome"),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
+    if (empListRes.data) setEmpresasList(empListRes.data as unknown as EmpresaFat[]);
     const ctData = ctRes.data as unknown as ContratoRef[] || [];
     if (ctData.length > 0) {
       setContratos(ctData);
