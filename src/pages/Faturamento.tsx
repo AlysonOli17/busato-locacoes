@@ -1518,6 +1518,10 @@ export const FaturamentoContent = () => {
                         <div>
                           <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
                           <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
+                          {item.empresa_faturamento_id && (() => {
+                            const ef = empresasList.find(e => e.id === item.empresa_faturamento_id);
+                            return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}</p> : null;
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
