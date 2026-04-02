@@ -465,6 +465,53 @@ export type Database = {
           },
         ]
       }
+      custos_agregados: {
+        Row: {
+          created_at: string
+          data: string
+          descricao: string
+          equipamento_id: string
+          id: string
+          observacoes: string | null
+          os_numero_compra: string
+          preco_unitario: number
+          quantidade: number
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          descricao?: string
+          equipamento_id: string
+          id?: string
+          observacoes?: string | null
+          os_numero_compra?: string
+          preco_unitario?: number
+          quantidade?: number
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          descricao?: string
+          equipamento_id?: string
+          id?: string
+          observacoes?: string | null
+          os_numero_compra?: string
+          preco_unitario?: number
+          quantidade?: number
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custos_agregados_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           atividade_principal: string | null
