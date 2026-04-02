@@ -61,6 +61,7 @@ interface Fatura {
   periodo: string;
   valor_hora: number;
   valor_excedente_hora: number;
+  empresa_faturamento_id: string | null;
 }
 
 interface ContratoRef {
