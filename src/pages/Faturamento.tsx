@@ -977,7 +977,7 @@ export const FaturamentoContent = () => {
           hm = Number((hm * diasUsados / diasTotais).toFixed(1));
         }
         if (devolucao && devolucao >= inicio && devolucao < fim) {
-          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
+          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000) + 1);
           const refI = entrega && entrega > inicio ? entrega : inicio;
           const diasUsados = Math.max(1, Math.round((parseLocalDate(devolucao).getTime() - parseLocalDate(refI).getTime()) / 86400000) + 1);
           hc = Number((baseHc * diasUsados / diasTotais).toFixed(1));
