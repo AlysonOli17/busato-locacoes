@@ -241,7 +241,7 @@ export const CustosAgregadoTab = () => {
 
       {/* Dialog Form */}
       <Dialog open={dialogOpen} onOpenChange={v => { if (!v) { setDialogOpen(false); setEditing(null); } }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl max-h-[95vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader><DialogTitle>{editing ? "Editar Custo" : "Novo Custo"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
