@@ -170,7 +170,7 @@ export const MedicaoAgregadoTab = () => {
         valorDiaria: vd,
         valorDiariasTotal,
         totalCustos,
-        valorTotal: valorDiariasTotal + totalCustos,
+        valorTotal: valorDiariasTotal - totalCustos,
       });
     });
 
