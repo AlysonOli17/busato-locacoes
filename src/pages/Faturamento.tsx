@@ -79,6 +79,23 @@ interface Fatura {
   contratos: ContratoRef;
   conta_bancaria_id: string | null;
   data_aprovacao: string | null;
+  empresa_faturamento_id: string | null;
+}
+
+interface EmpresaFat {
+  id: string;
+  nome: string;
+  cnpj: string;
+  razao_social: string | null;
+  endereco_logradouro: string | null;
+  endereco_numero: string | null;
+  endereco_complemento: string | null;
+  endereco_bairro: string | null;
+  endereco_cidade: string | null;
+  endereco_uf: string | null;
+  endereco_cep: string | null;
+  inscricao_estadual: string | null;
+  inscricao_municipal: string | null;
 }
 
 interface GastoItem {
