@@ -871,10 +871,14 @@ export const FaturamentoContent = () => {
       const medInfoRows = [
         { label: "Mês de Referência:", value: mesRef },
         { label: "Período de Medição:", value: periodoStr },
-        { label: "Empresa Contratante:", value: emp?.nome || "—" },
-        { label: "CNPJ Contratante:", value: emp?.cnpj || "—" },
+        { label: empresaFat ? "Faturar Para:" : "Empresa Contratante:", value: empNome },
+        { label: empresaFat ? "CNPJ Faturamento:" : "CNPJ Contratante:", value: empCnpj },
         { label: "Objeto de contrato:", value: equipTypes },
       ];
+      if (empresaFat) {
+        medInfoRows.push({ label: "Empresa Locadora:", value: emp?.nome || "—" });
+        medInfoRows.push({ label: "CNPJ Locadora:", value: emp?.cnpj || "—" });
+      }
 
       // Draw info block with gray background for labels
       for (const info of medInfoRows) {
