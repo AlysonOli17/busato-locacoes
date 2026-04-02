@@ -1896,6 +1896,23 @@ export const FaturamentoContent = () => {
               </div>
             </div>
 
+            <div>
+              <Label>Faturar Para (empresa diferente do contrato)</Label>
+              <SearchableSelect
+                value={formEmpresaFaturamentoId}
+                onValueChange={setFormEmpresaFaturamentoId}
+                placeholder="Mesma empresa do contrato"
+                searchPlaceholder="Pesquisar empresa..."
+                options={[
+                  { value: "", label: "Mesma empresa do contrato" },
+                  ...empresasList.map(e => ({ value: e.id, label: `${e.nome} — ${e.cnpj}` })),
+                ]}
+              />
+              {formEmpresaFaturamentoId && (
+                <p className="text-xs text-warning mt-1">⚠ A fatura será emitida para uma empresa diferente da empresa do contrato.</p>
+              )}
+            </div>
+
             {/* Totals */}
             {equipForms.length > 0 && (
               <div className="p-4 rounded-lg bg-accent/10 space-y-2">
