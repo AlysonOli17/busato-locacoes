@@ -1,0 +1,1 @@
+ALTER TABLE public.faturamento ADD COLUMN empresa_faturamento_id uuid REFERENCES public.empresas(id) DEFAULT NULL;
