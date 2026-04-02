@@ -79,6 +79,23 @@ interface Fatura {
   contratos: ContratoRef;
   conta_bancaria_id: string | null;
   data_aprovacao: string | null;
+  empresa_faturamento_id: string | null;
+}
+
+interface EmpresaFat {
+  id: string;
+  nome: string;
+  cnpj: string;
+  razao_social: string | null;
+  endereco_logradouro: string | null;
+  endereco_numero: string | null;
+  endereco_complemento: string | null;
+  endereco_bairro: string | null;
+  endereco_cidade: string | null;
+  endereco_uf: string | null;
+  endereco_cep: string | null;
+  inscricao_estadual: string | null;
+  inscricao_municipal: string | null;
 }
 
 interface GastoItem {
@@ -147,6 +164,8 @@ export const FaturamentoContent = () => {
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [contasDialogOpen, setContasDialogOpen] = useState(false);
   const [formContaBancariaId, setFormContaBancariaId] = useState("");
+  const [empresasList, setEmpresasList] = useState<EmpresaFat[]>([]);
+  const [formEmpresaFaturamentoId, setFormEmpresaFaturamentoId] = useState("");
   const { toast } = useToast();
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
@@ -159,12 +178,14 @@ export const FaturamentoContent = () => {
   const [creatingMob, setCreatingMob] = useState(false);
 
   const fetchData = async () => {
-    const [fatRes, ctRes, contasRes] = await Promise.all([
+    const [fatRes, ctRes, contasRes, empListRes] = await Promise.all([
       supabase.from("faturamento").select("*, contratos(id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal").order("nome"),
     ]);
     if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
+    if (empListRes.data) setEmpresasList(empListRes.data as unknown as EmpresaFat[]);
     const ctData = ctRes.data as unknown as ContratoRef[] || [];
     if (ctData.length > 0) {
       setContratos(ctData);
@@ -729,6 +750,10 @@ export const FaturamentoContent = () => {
 
       const ct = item.contratos;
       const emp = ct?.empresas;
+      // If empresa_faturamento_id is set, use that company for the PDF header
+      const empresaFat = item.empresa_faturamento_id ? empresasList.find(e => e.id === item.empresa_faturamento_id) : null;
+      const empNome = empresaFat ? empresaFat.nome : (emp?.nome || "—");
+      const empCnpj = empresaFat ? empresaFat.cnpj : (emp?.cnpj || "—");
       const gastosVal = Number(item.total_gastos || 0);
       const inicio = item.periodo_medicao_inicio || "";
       const fim = item.periodo_medicao_fim || "";
@@ -846,10 +871,14 @@ export const FaturamentoContent = () => {
       const medInfoRows = [
         { label: "Mês de Referência:", value: mesRef },
         { label: "Período de Medição:", value: periodoStr },
-        { label: "Empresa Contratante:", value: emp?.nome || "—" },
-        { label: "CNPJ Contratante:", value: emp?.cnpj || "—" },
+        { label: empresaFat ? "Faturar Para:" : "Empresa Contratante:", value: empNome },
+        { label: empresaFat ? "CNPJ Faturamento:" : "CNPJ Contratante:", value: empCnpj },
         { label: "Objeto de contrato:", value: equipTypes },
       ];
+      if (empresaFat) {
+        medInfoRows.push({ label: "Empresa Locadora:", value: emp?.nome || "—" });
+        medInfoRows.push({ label: "CNPJ Locadora:", value: emp?.cnpj || "—" });
+      }
 
       // Draw info block with gray background for labels
       for (const info of medInfoRows) {
@@ -1220,7 +1249,7 @@ export const FaturamentoContent = () => {
       // Right signature
       const rightX = mL + halfW + 30;
       doc.line(rightX, sigLineY, rightX + halfW, sigLineY);
-      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 5, { align: "center" });
+      doc.text(empNome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 5, { align: "center" });
 
       // ──────────────── FOOTER ────────────────
       const totalPages = doc.getNumberOfPages();
@@ -1272,6 +1301,7 @@ export const FaturamentoContent = () => {
     setTotalGastos(0);
     setSelectedGastos(new Set());
     setFormContaBancariaId("");
+    setFormEmpresaFaturamentoId("");
     setDialogOpen(true);
   };
 
@@ -1282,6 +1312,7 @@ export const FaturamentoContent = () => {
     
     setFormStatus(item.status);
     setFormContaBancariaId(item.conta_bancaria_id || "");
+    setFormEmpresaFaturamentoId(item.empresa_faturamento_id || "");
     setFormMedicaoInicio(item.periodo_medicao_inicio || "");
     setFormMedicaoFim(item.periodo_medicao_fim || "");
 
@@ -1343,6 +1374,7 @@ export const FaturamentoContent = () => {
       periodo_medicao_fim: formMedicaoFim || null,
       total_gastos: totalGastos,
       conta_bancaria_id: formContaBancariaId || null,
+      empresa_faturamento_id: formEmpresaFaturamentoId || null,
     } as any;
 
     let faturaId: string;
@@ -1486,6 +1518,10 @@ export const FaturamentoContent = () => {
                         <div>
                           <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
                           <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
+                          {item.empresa_faturamento_id && (() => {
+                            const ef = empresasList.find(e => e.id === item.empresa_faturamento_id);
+                            return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}</p> : null;
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -1870,6 +1906,23 @@ export const FaturamentoContent = () => {
                   ]}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label>Faturar Para (empresa diferente do contrato)</Label>
+              <SearchableSelect
+                value={formEmpresaFaturamentoId}
+                onValueChange={setFormEmpresaFaturamentoId}
+                placeholder="Mesma empresa do contrato"
+                searchPlaceholder="Pesquisar empresa..."
+                options={[
+                  { value: "", label: "Mesma empresa do contrato" },
+                  ...empresasList.map(e => ({ value: e.id, label: `${e.nome} — ${e.cnpj}` })),
+                ]}
+              />
+              {formEmpresaFaturamentoId && (
+                <p className="text-xs text-warning mt-1">⚠ A fatura será emitida para uma empresa diferente da empresa do contrato.</p>
+              )}
             </div>
 
             {/* Totals */}

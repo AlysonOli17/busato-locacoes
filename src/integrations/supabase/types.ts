@@ -662,6 +662,7 @@ export type Database = {
           created_at: string
           data_aprovacao: string | null
           emissao: string
+          empresa_faturamento_id: string | null
           horas_excedentes: number
           horas_normais: number
           id: string
@@ -683,6 +684,7 @@ export type Database = {
           created_at?: string
           data_aprovacao?: string | null
           emissao?: string
+          empresa_faturamento_id?: string | null
           horas_excedentes?: number
           horas_normais?: number
           id?: string
@@ -704,6 +706,7 @@ export type Database = {
           created_at?: string
           data_aprovacao?: string | null
           emissao?: string
+          empresa_faturamento_id?: string | null
           horas_excedentes?: number
           horas_normais?: number
           id?: string
@@ -732,6 +735,13 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faturamento_empresa_faturamento_id_fkey"
+            columns: ["empresa_faturamento_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
         ]

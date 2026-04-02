@@ -61,6 +61,7 @@ interface Fatura {
   periodo: string;
   valor_hora: number;
   valor_excedente_hora: number;
+  empresa_faturamento_id: string | null;
 }
 
 interface ContratoRef {
@@ -274,7 +275,10 @@ export const FaturamentoTab = () => {
   const generateInvoicePDF = async (fatura: Fatura) => {
     const ct = getContrato(fatura.contrato_id);
     if (!ct) return;
-    const empresa = getEmpresa(ct.empresa_id);
+    // Use alternative billing company if set
+    const empresa = fatura.empresa_faturamento_id
+      ? getEmpresa(fatura.empresa_faturamento_id) || getEmpresa(ct.empresa_id)
+      : getEmpresa(ct.empresa_id);
     if (!empresa) return;
     const conta = getConta(fatura.conta_bancaria_id);
     const vencimento = getVencimento(fatura);
@@ -779,6 +783,10 @@ export const FaturamentoTab = () => {
                     <TableCell>
                       <p className="font-medium text-sm">{ct?.empresas?.nome || "—"}</p>
                       <p className="text-xs text-muted-foreground font-mono">{ct?.empresas?.cnpj}</p>
+                      {f.empresa_faturamento_id && (() => {
+                        const ef = empresas.find(e => e.id === f.empresa_faturamento_id);
+                        return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}</p> : null;
+                      })()}
                     </TableCell>
                     <TableCell className="text-sm">{getEquipLabel(ct?.equipamentos)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
