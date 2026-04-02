@@ -289,8 +289,12 @@ export const MedicaoAgregadoTab = () => {
     }
 
     // Summary table
+    const selectedIds = selectedEquips.size > 0 ? selectedEquips : new Set(sortedSummary.map(r => r.equipId));
+    const exportItems = sortedSummary.filter(r => selectedIds.has(r.equipId));
+    const exportCustos = filteredCustos.filter(c => selectedIds.has(c.equipamento_id));
+
     const headers = ["Equipamento", "Tag/Placa", "Nº Série", "Diárias", "V/Diária", "Total Diárias", "Custos", "Valor Total"];
-    const rows = sortedSummary.map(r => [
+    const rows = exportItems.map(r => [
       `${r.tipo} ${r.modelo}`,
       r.tag,
       r.serie,
@@ -300,6 +304,11 @@ export const MedicaoAgregadoTab = () => {
       `R$ ${fmt(r.totalCustos)}`,
       `R$ ${fmt(r.valorTotal)}`,
     ]);
+
+    const expDiarias = exportItems.reduce((s, r) => s + r.totalDiarias, 0);
+    const expValDiarias = exportItems.reduce((s, r) => s + r.valorDiariasTotal, 0);
+    const expCustos = exportItems.reduce((s, r) => s + r.totalCustos, 0);
+    const expTotal = exportItems.reduce((s, r) => s + r.valorTotal, 0);
 
     autoTable(doc, {
       head: [headers],
@@ -315,7 +324,7 @@ export const MedicaoAgregadoTab = () => {
         7: { halign: "right", fontStyle: "bold" },
       },
       alternateRowStyles: { fillColor: [245, 247, 250] },
-      foot: [["TOTAL GERAL", "", "", String(totalGeralDiarias), "", `R$ ${fmt(totalGeralValorDiarias)}`, `R$ ${fmt(totalGeralCustos)}`, `R$ ${fmt(totalGeral)}`]],
+      foot: [["TOTAL GERAL", "", "", String(expDiarias), "", `R$ ${fmt(expValDiarias)}`, `R$ ${fmt(expCustos)}`, `R$ ${fmt(expTotal)}`]],
       footStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center", fontSize: 9 },
       theme: "grid",
       margin: { left: marginLeft, right: marginRight },
