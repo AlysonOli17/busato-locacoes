@@ -971,13 +971,13 @@ export const FaturamentoContent = () => {
         const entrega = ae?.data_entrega || ce?.data_entrega || null;
         const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
         if (entrega && entrega > inicio && entrega <= fim) {
-          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
-          const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000));
+          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000) + 1);
+          const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000) + 1);
           hc = Number((hc * diasUsados / diasTotais).toFixed(1));
           hm = Number((hm * diasUsados / diasTotais).toFixed(1));
         }
         if (devolucao && devolucao >= inicio && devolucao < fim) {
-          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000));
+          const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000) + 1);
           const refI = entrega && entrega > inicio ? entrega : inicio;
           const diasUsados = Math.max(1, Math.round((parseLocalDate(devolucao).getTime() - parseLocalDate(refI).getTime()) / 86400000) + 1);
           hc = Number((baseHc * diasUsados / diasTotais).toFixed(1));
