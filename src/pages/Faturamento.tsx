@@ -1249,7 +1249,7 @@ export const FaturamentoContent = () => {
       // Right signature
       const rightX = mL + halfW + 30;
       doc.line(rightX, sigLineY, rightX + halfW, sigLineY);
-      doc.text(emp?.nome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 5, { align: "center" });
+      doc.text(empNome || "CONTRATANTE", rightX + halfW / 2, sigLineY + 5, { align: "center" });
 
       // ──────────────── FOOTER ────────────────
       const totalPages = doc.getNumberOfPages();
