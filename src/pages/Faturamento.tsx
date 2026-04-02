@@ -1293,6 +1293,7 @@ export const FaturamentoContent = () => {
     setTotalGastos(0);
     setSelectedGastos(new Set());
     setFormContaBancariaId("");
+    setFormEmpresaFaturamentoId("");
     setDialogOpen(true);
   };
 
