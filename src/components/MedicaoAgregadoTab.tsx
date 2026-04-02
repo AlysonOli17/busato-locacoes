@@ -431,8 +431,13 @@ export const MedicaoAgregadoTab = () => {
             <Settings className="h-4 w-4 mr-1" /> Valores Diária
           </Button>
           <Button variant="outline" size="sm" onClick={exportPDF}>
-            <FileDown className="h-4 w-4 mr-1" /> Exportar Medição
+            <FileDown className="h-4 w-4 mr-1" /> Exportar Medição{selectedEquips.size > 0 ? ` (${selectedEquips.size})` : ""}
           </Button>
+          {selectedEquips.size > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedEquips(new Set())} className="text-muted-foreground text-xs">
+              Limpar seleção
+            </Button>
+          )}
         </div>
       </div>
 
