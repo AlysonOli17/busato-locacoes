@@ -1304,6 +1304,7 @@ export const FaturamentoContent = () => {
     
     setFormStatus(item.status);
     setFormContaBancariaId(item.conta_bancaria_id || "");
+    setFormEmpresaFaturamentoId(item.empresa_faturamento_id || "");
     setFormMedicaoInicio(item.periodo_medicao_inicio || "");
     setFormMedicaoFim(item.periodo_medicao_fim || "");
 
