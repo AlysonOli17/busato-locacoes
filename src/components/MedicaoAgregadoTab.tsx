@@ -502,6 +502,12 @@ export const MedicaoAgregadoTab = () => {
           <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={selectedEquips.size === sortedSummary.length && sortedSummary.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
                 <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag/Placa</SortableTableHead>
                 <TableHead>Nº Série</TableHead>
@@ -514,11 +520,17 @@ export const MedicaoAgregadoTab = () => {
             </TableHeader>
             <TableBody>
               {sortedSummary.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum dado encontrado. Selecione um período.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum dado encontrado. Selecione um período.</TableCell></TableRow>
               ) : (
                 <>
                   {sortedSummary.map(row => (
-                    <TableRow key={row.equipId}>
+                    <TableRow key={row.equipId} className={selectedEquips.has(row.equipId) ? "bg-accent/10" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedEquips.has(row.equipId)}
+                          onCheckedChange={() => toggleSelectEquip(row.equipId)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{row.tipo} {row.modelo}</TableCell>
                       <TableCell className="font-mono text-sm">{row.tag}</TableCell>
                       <TableCell className="text-sm">{row.serie}</TableCell>
@@ -531,9 +543,9 @@ export const MedicaoAgregadoTab = () => {
                       <TableCell className="text-right font-bold text-primary">R$ {fmt(row.valorTotal)}</TableCell>
                     </TableRow>
                   ))}
-                  {/* Total row */}
                   <TableRow className="bg-muted/50 font-bold border-t-2">
-                    <TableCell colSpan={3} className="font-bold">TOTAL GERAL</TableCell>
+                    <TableCell />
+                    <TableCell colSpan={3} className="font-bold">TOTAL {selectedEquips.size > 0 ? "SELECIONADOS" : "GERAL"}</TableCell>
                     <TableCell className="text-center font-bold">{totalGeralDiarias}</TableCell>
                     <TableCell />
                     <TableCell className="text-right font-bold">R$ {fmt(totalGeralValorDiarias)}</TableCell>
