@@ -750,6 +750,10 @@ export const FaturamentoContent = () => {
 
       const ct = item.contratos;
       const emp = ct?.empresas;
+      // If empresa_faturamento_id is set, use that company for the PDF header
+      const empresaFat = item.empresa_faturamento_id ? empresasList.find(e => e.id === item.empresa_faturamento_id) : null;
+      const empNome = empresaFat ? empresaFat.nome : (emp?.nome || "—");
+      const empCnpj = empresaFat ? empresaFat.cnpj : (emp?.cnpj || "—");
       const gastosVal = Number(item.total_gastos || 0);
       const inicio = item.periodo_medicao_inicio || "";
       const fim = item.periodo_medicao_fim || "";
