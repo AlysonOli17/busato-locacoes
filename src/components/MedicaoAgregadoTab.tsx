@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { SortableTableHead } from "@/components/SortableTableHead";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileDown, Settings, Pencil, Trash2 } from "lucide-react";
 import { addLetterhead } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
