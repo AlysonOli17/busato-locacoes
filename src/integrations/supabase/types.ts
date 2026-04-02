@@ -469,37 +469,28 @@ export type Database = {
         Row: {
           created_at: string
           data: string
-          descricao: string
           equipamento_id: string
           id: string
           observacoes: string | null
           os_numero_compra: string
-          preco_unitario: number
-          quantidade: number
           valor: number
         }
         Insert: {
           created_at?: string
           data?: string
-          descricao?: string
           equipamento_id: string
           id?: string
           observacoes?: string | null
           os_numero_compra?: string
-          preco_unitario?: number
-          quantidade?: number
           valor?: number
         }
         Update: {
           created_at?: string
           data?: string
-          descricao?: string
           equipamento_id?: string
           id?: string
           observacoes?: string | null
           os_numero_compra?: string
-          preco_unitario?: number
-          quantidade?: number
           valor?: number
         }
         Relationships: [
@@ -508,6 +499,44 @@ export type Database = {
             columns: ["equipamento_id"]
             isOneToOne: false
             referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custos_agregados_itens: {
+        Row: {
+          created_at: string
+          custo_id: string
+          descricao: string
+          id: string
+          preco_unitario: number
+          quantidade: number
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          custo_id: string
+          descricao?: string
+          id?: string
+          preco_unitario?: number
+          quantidade?: number
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          custo_id?: string
+          descricao?: string
+          id?: string
+          preco_unitario?: number
+          quantidade?: number
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custos_agregados_itens_custo_id_fkey"
+            columns: ["custo_id"]
+            isOneToOne: false
+            referencedRelation: "custos_agregados"
             referencedColumns: ["id"]
           },
         ]
