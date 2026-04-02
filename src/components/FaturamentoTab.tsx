@@ -275,7 +275,10 @@ export const FaturamentoTab = () => {
   const generateInvoicePDF = async (fatura: Fatura) => {
     const ct = getContrato(fatura.contrato_id);
     if (!ct) return;
-    const empresa = getEmpresa(ct.empresa_id);
+    // Use alternative billing company if set
+    const empresa = fatura.empresa_faturamento_id
+      ? getEmpresa(fatura.empresa_faturamento_id) || getEmpresa(ct.empresa_id)
+      : getEmpresa(ct.empresa_id);
     if (!empresa) return;
     const conta = getConta(fatura.conta_bancaria_id);
     const vencimento = getVencimento(fatura);
