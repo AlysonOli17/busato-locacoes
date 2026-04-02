@@ -333,7 +333,7 @@ export const MedicaoAgregadoTab = () => {
     y = (doc as any).lastAutoTable.finalY + 10;
 
     // Detail: custos per equipment (if any)
-    if (filteredCustos.length > 0) {
+    if (exportCustos.length > 0) {
       if (y > pageH - 60) { doc.addPage(); y = 20; }
 
       doc.setFontSize(10);
@@ -343,7 +343,7 @@ export const MedicaoAgregadoTab = () => {
       y += 3;
 
       const custosHeaders = ["Equipamento", "Data", "OS / Nº Compra", "Valor", "Observações"];
-      const custosRows = filteredCustos.map(c => {
+      const custosRows = exportCustos.map(c => {
         const eq = equipamentos.find(e => e.id === c.equipamento_id);
         return [
           eq ? `${eq.tipo} ${eq.modelo}` : "—",
