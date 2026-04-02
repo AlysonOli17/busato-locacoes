@@ -300,9 +300,12 @@ export const CustosAgregadoTab = () => {
               <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{editing ? "Salvar" : "Registrar"}</Button>
+            {!editing && (
+              <Button variant="secondary" onClick={() => handleSave(true)}>Registrar e Novo</Button>
+            )}
+            <Button onClick={() => handleSave(false)}>{editing ? "Salvar" : "Registrar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
