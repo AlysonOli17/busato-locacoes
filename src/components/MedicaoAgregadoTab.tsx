@@ -199,10 +199,27 @@ export const MedicaoAgregadoTab = () => {
     else { setSortCol(col); setSortAsc(true); }
   };
 
-  const totalGeralDiarias = sortedSummary.reduce((s, r) => s + r.totalDiarias, 0);
-  const totalGeralValorDiarias = sortedSummary.reduce((s, r) => s + r.valorDiariasTotal, 0);
-  const totalGeralCustos = sortedSummary.reduce((s, r) => s + r.totalCustos, 0);
-  const totalGeral = sortedSummary.reduce((s, r) => s + r.valorTotal, 0);
+  const toggleSelectEquip = (id: string) => {
+    setSelectedEquips(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEquips.size === sortedSummary.length) setSelectedEquips(new Set());
+    else setSelectedEquips(new Set(sortedSummary.map(r => r.equipId)));
+  };
+
+  const pdfItems = selectedEquips.size > 0
+    ? sortedSummary.filter(r => selectedEquips.has(r.equipId))
+    : sortedSummary;
+
+  const totalGeralDiarias = pdfItems.reduce((s, r) => s + r.totalDiarias, 0);
+  const totalGeralValorDiarias = pdfItems.reduce((s, r) => s + r.valorDiariasTotal, 0);
+  const totalGeralCustos = pdfItems.reduce((s, r) => s + r.totalCustos, 0);
+  const totalGeral = pdfItems.reduce((s, r) => s + r.valorTotal, 0);
 
   // Unique equipment types from equipamentos
   const tiposEquipamento = useMemo(() => {
