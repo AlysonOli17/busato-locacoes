@@ -1242,6 +1242,30 @@ export type Database = {
         }
         Relationships: []
       }
+      valores_diaria_agregado: {
+        Row: {
+          created_at: string
+          id: string
+          tipo_equipamento: string
+          updated_at: string
+          valor_diaria: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tipo_equipamento: string
+          updated_at?: string
+          valor_diaria?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tipo_equipamento?: string
+          updated_at?: string
+          valor_diaria?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

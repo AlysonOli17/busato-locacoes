@@ -374,13 +374,7 @@ export const AgregadoTab = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl font-bold text-foreground">Agregado - Diárias</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={downloadTemplate}>
-            <Download className="h-4 w-4 mr-1" /> Modelo Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : "Importar Excel"}
-          </Button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+          
           <Button variant="outline" size="sm" onClick={async () => {
             const periodo = dataInicio && dataFim ? `${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
             const doc = new jsPDF({ orientation: "landscape" });
