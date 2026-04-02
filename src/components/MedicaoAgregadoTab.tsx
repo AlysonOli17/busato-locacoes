@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { SortableTableHead } from "@/components/SortableTableHead";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileDown, Settings, Pencil, Trash2 } from "lucide-react";
 import { addLetterhead } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +63,7 @@ export const MedicaoAgregadoTab = () => {
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [sortCol, setSortCol] = useState<string>("equipamento");
   const [sortAsc, setSortAsc] = useState(true);
+  const [selectedEquips, setSelectedEquips] = useState<Set<string>>(new Set());
 
   // Dialog for managing valores
   const [valoresDialogOpen, setValoresDialogOpen] = useState(false);
@@ -197,10 +199,27 @@ export const MedicaoAgregadoTab = () => {
     else { setSortCol(col); setSortAsc(true); }
   };
 
-  const totalGeralDiarias = sortedSummary.reduce((s, r) => s + r.totalDiarias, 0);
-  const totalGeralValorDiarias = sortedSummary.reduce((s, r) => s + r.valorDiariasTotal, 0);
-  const totalGeralCustos = sortedSummary.reduce((s, r) => s + r.totalCustos, 0);
-  const totalGeral = sortedSummary.reduce((s, r) => s + r.valorTotal, 0);
+  const toggleSelectEquip = (id: string) => {
+    setSelectedEquips(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEquips.size === sortedSummary.length) setSelectedEquips(new Set());
+    else setSelectedEquips(new Set(sortedSummary.map(r => r.equipId)));
+  };
+
+  const pdfItems = selectedEquips.size > 0
+    ? sortedSummary.filter(r => selectedEquips.has(r.equipId))
+    : sortedSummary;
+
+  const totalGeralDiarias = pdfItems.reduce((s, r) => s + r.totalDiarias, 0);
+  const totalGeralValorDiarias = pdfItems.reduce((s, r) => s + r.valorDiariasTotal, 0);
+  const totalGeralCustos = pdfItems.reduce((s, r) => s + r.totalCustos, 0);
+  const totalGeral = pdfItems.reduce((s, r) => s + r.valorTotal, 0);
 
   // Unique equipment types from equipamentos
   const tiposEquipamento = useMemo(() => {
@@ -270,8 +289,12 @@ export const MedicaoAgregadoTab = () => {
     }
 
     // Summary table
+    const selectedIds = selectedEquips.size > 0 ? selectedEquips : new Set(sortedSummary.map(r => r.equipId));
+    const exportItems = sortedSummary.filter(r => selectedIds.has(r.equipId));
+    const exportCustos = filteredCustos.filter(c => selectedIds.has(c.equipamento_id));
+
     const headers = ["Equipamento", "Tag/Placa", "Nº Série", "Diárias", "V/Diária", "Total Diárias", "Custos", "Valor Total"];
-    const rows = sortedSummary.map(r => [
+    const rows = exportItems.map(r => [
       `${r.tipo} ${r.modelo}`,
       r.tag,
       r.serie,
@@ -281,6 +304,11 @@ export const MedicaoAgregadoTab = () => {
       `R$ ${fmt(r.totalCustos)}`,
       `R$ ${fmt(r.valorTotal)}`,
     ]);
+
+    const expDiarias = exportItems.reduce((s, r) => s + r.totalDiarias, 0);
+    const expValDiarias = exportItems.reduce((s, r) => s + r.valorDiariasTotal, 0);
+    const expCustos = exportItems.reduce((s, r) => s + r.totalCustos, 0);
+    const expTotal = exportItems.reduce((s, r) => s + r.valorTotal, 0);
 
     autoTable(doc, {
       head: [headers],
@@ -296,7 +324,7 @@ export const MedicaoAgregadoTab = () => {
         7: { halign: "right", fontStyle: "bold" },
       },
       alternateRowStyles: { fillColor: [245, 247, 250] },
-      foot: [["TOTAL GERAL", "", "", String(totalGeralDiarias), "", `R$ ${fmt(totalGeralValorDiarias)}`, `R$ ${fmt(totalGeralCustos)}`, `R$ ${fmt(totalGeral)}`]],
+      foot: [["TOTAL GERAL", "", "", String(expDiarias), "", `R$ ${fmt(expValDiarias)}`, `R$ ${fmt(expCustos)}`, `R$ ${fmt(expTotal)}`]],
       footStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center", fontSize: 9 },
       theme: "grid",
       margin: { left: marginLeft, right: marginRight },
@@ -305,7 +333,7 @@ export const MedicaoAgregadoTab = () => {
     y = (doc as any).lastAutoTable.finalY + 10;
 
     // Detail: custos per equipment (if any)
-    if (filteredCustos.length > 0) {
+    if (exportCustos.length > 0) {
       if (y > pageH - 60) { doc.addPage(); y = 20; }
 
       doc.setFontSize(10);
@@ -315,7 +343,7 @@ export const MedicaoAgregadoTab = () => {
       y += 3;
 
       const custosHeaders = ["Equipamento", "Data", "OS / Nº Compra", "Valor", "Observações"];
-      const custosRows = filteredCustos.map(c => {
+      const custosRows = exportCustos.map(c => {
         const eq = equipamentos.find(e => e.id === c.equipamento_id);
         return [
           eq ? `${eq.tipo} ${eq.modelo}` : "—",
@@ -403,8 +431,13 @@ export const MedicaoAgregadoTab = () => {
             <Settings className="h-4 w-4 mr-1" /> Valores Diária
           </Button>
           <Button variant="outline" size="sm" onClick={exportPDF}>
-            <FileDown className="h-4 w-4 mr-1" /> Exportar Medição
+            <FileDown className="h-4 w-4 mr-1" /> Exportar Medição{selectedEquips.size > 0 ? ` (${selectedEquips.size})` : ""}
           </Button>
+          {selectedEquips.size > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedEquips(new Set())} className="text-muted-foreground text-xs">
+              Limpar seleção
+            </Button>
+          )}
         </div>
       </div>
 
@@ -469,6 +502,12 @@ export const MedicaoAgregadoTab = () => {
           <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={selectedEquips.size === sortedSummary.length && sortedSummary.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
                 <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag/Placa</SortableTableHead>
                 <TableHead>Nº Série</TableHead>
@@ -481,11 +520,17 @@ export const MedicaoAgregadoTab = () => {
             </TableHeader>
             <TableBody>
               {sortedSummary.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum dado encontrado. Selecione um período.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum dado encontrado. Selecione um período.</TableCell></TableRow>
               ) : (
                 <>
                   {sortedSummary.map(row => (
-                    <TableRow key={row.equipId}>
+                    <TableRow key={row.equipId} className={selectedEquips.has(row.equipId) ? "bg-accent/10" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedEquips.has(row.equipId)}
+                          onCheckedChange={() => toggleSelectEquip(row.equipId)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{row.tipo} {row.modelo}</TableCell>
                       <TableCell className="font-mono text-sm">{row.tag}</TableCell>
                       <TableCell className="text-sm">{row.serie}</TableCell>
@@ -498,9 +543,9 @@ export const MedicaoAgregadoTab = () => {
                       <TableCell className="text-right font-bold text-primary">R$ {fmt(row.valorTotal)}</TableCell>
                     </TableRow>
                   ))}
-                  {/* Total row */}
                   <TableRow className="bg-muted/50 font-bold border-t-2">
-                    <TableCell colSpan={3} className="font-bold">TOTAL GERAL</TableCell>
+                    <TableCell />
+                    <TableCell colSpan={3} className="font-bold">TOTAL {selectedEquips.size > 0 ? "SELECIONADOS" : "GERAL"}</TableCell>
                     <TableCell className="text-center font-bold">{totalGeralDiarias}</TableCell>
                     <TableCell />
                     <TableCell className="text-right font-bold">R$ {fmt(totalGeralValorDiarias)}</TableCell>
