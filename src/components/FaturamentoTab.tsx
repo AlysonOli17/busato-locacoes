@@ -783,6 +783,10 @@ export const FaturamentoTab = () => {
                     <TableCell>
                       <p className="font-medium text-sm">{ct?.empresas?.nome || "—"}</p>
                       <p className="text-xs text-muted-foreground font-mono">{ct?.empresas?.cnpj}</p>
+                      {f.empresa_faturamento_id && (() => {
+                        const ef = empresas.find(e => e.id === f.empresa_faturamento_id);
+                        return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}</p> : null;
+                      })()}
                     </TableCell>
                     <TableCell className="text-sm">{getEquipLabel(ct?.equipamentos)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
