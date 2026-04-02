@@ -164,6 +164,8 @@ export const FaturamentoContent = () => {
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [contasDialogOpen, setContasDialogOpen] = useState(false);
   const [formContaBancariaId, setFormContaBancariaId] = useState("");
+  const [empresasList, setEmpresasList] = useState<EmpresaFat[]>([]);
+  const [formEmpresaFaturamentoId, setFormEmpresaFaturamentoId] = useState("");
   const { toast } = useToast();
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
