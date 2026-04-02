@@ -116,7 +116,7 @@ export const CustosAgregadoTab = () => {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const handleSave = async () => {
+  const handleSave = async (keepOpen = false) => {
     if (!form.equipamento_id || !form.descricao) {
       toast({ title: "Preencha equipamento e descrição", variant: "destructive" });
       return;
@@ -140,9 +140,13 @@ export const CustosAgregadoTab = () => {
       if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Custo registrado" });
     }
-    setDialogOpen(false);
-    setEditing(null);
-    setForm(emptyForm);
+    if (keepOpen && !editing) {
+      setForm(f => ({ ...emptyForm, equipamento_id: f.equipamento_id, data: f.data, os_numero_compra: f.os_numero_compra }));
+    } else {
+      setDialogOpen(false);
+      setEditing(null);
+      setForm(emptyForm);
+    }
     fetchData();
   };
 
@@ -296,9 +300,12 @@ export const CustosAgregadoTab = () => {
               <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{editing ? "Salvar" : "Registrar"}</Button>
+            {!editing && (
+              <Button variant="secondary" onClick={() => handleSave(true)}>Registrar e Novo</Button>
+            )}
+            <Button onClick={() => handleSave(false)}>{editing ? "Salvar" : "Registrar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
