@@ -103,8 +103,9 @@ export const MedicaoAgregadoTab = () => {
   const filteredCustos = useMemo(() => {
     return custos.filter(i => {
       if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
-      if (dataInicio && i.data < format(dataInicio, "yyyy-MM-dd")) return false;
-      if (dataFim && i.data > format(dataFim, "yyyy-MM-dd")) return false;
+      const d = parseLocalDate(i.data);
+      if (dataInicio && d < dataInicio) return false;
+      if (dataFim) { const fim = new Date(dataFim); fim.setHours(23, 59, 59, 999); if (d > fim) return false; }
       return true;
     });
   }, [custos, filterEquip, dataInicio, dataFim]);
