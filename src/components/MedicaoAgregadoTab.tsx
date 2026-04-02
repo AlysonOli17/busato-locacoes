@@ -63,6 +63,7 @@ export const MedicaoAgregadoTab = () => {
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [sortCol, setSortCol] = useState<string>("equipamento");
   const [sortAsc, setSortAsc] = useState(true);
+  const [selectedEquips, setSelectedEquips] = useState<Set<string>>(new Set());
 
   // Dialog for managing valores
   const [valoresDialogOpen, setValoresDialogOpen] = useState(false);
