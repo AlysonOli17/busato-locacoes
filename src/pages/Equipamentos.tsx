@@ -65,31 +65,43 @@ const Equipamentos = () => {
 
     const rented = new Set<string>();
     const hoje = new Date().toISOString().slice(0, 10);
+
+    // Buscar equipamentos de aditivos de contratos ativos
+    const { data: aditivosAtivos } = await supabase
+      .from("contratos_aditivos")
+      .select("id, contrato_id, contratos!inner(status)")
+      .eq("contratos.status", "Ativo");
+
+    const aditivoEquipMap = new Map<string, Set<string>>(); // contrato_id -> Set<equipamento_id> com aditivo
+    if (aditivosAtivos && aditivosAtivos.length > 0) {
+      const aditivoIds = aditivosAtivos.map(a => a.id);
+      const { data: aditivosEquips } = await supabase
+        .from("aditivos_equipamentos")
+        .select("equipamento_id, data_devolucao, aditivo_id")
+        .in("aditivo_id", aditivoIds);
+
+      // Mapear quais equipamentos têm aditivos por contrato
+      (aditivosEquips || []).forEach((r: any) => {
+        const aditivo = aditivosAtivos.find(a => a.id === r.aditivo_id);
+        if (aditivo) {
+          if (!aditivoEquipMap.has(aditivo.contrato_id)) aditivoEquipMap.set(aditivo.contrato_id, new Set());
+          aditivoEquipMap.get(aditivo.contrato_id)!.add(r.equipamento_id);
+        }
+        // Se o aditivo não tem devolução ou devolução é futura, está locado
+        if (!r.data_devolucao || r.data_devolucao > hoje) {
+          rented.add(r.equipamento_id);
+        }
+      });
+    }
+
+    // Para contratos_equipamentos: só considerar locado se NÃO existe aditivo cobrindo esse equipamento nesse contrato
     (rentRes.data || []).forEach((r: any) => {
+      const contratoId = r.contratos?.id || r.contrato_id;
+      // Se existe aditivo para este equipamento neste contrato, o aditivo prevalece (já tratado acima)
+      if (aditivoEquipMap.has(contratoId) && aditivoEquipMap.get(contratoId)!.has(r.equipamento_id)) return;
       if (r.data_devolucao && r.data_devolucao <= hoje) return;
       rented.add(r.equipamento_id);
     });
-
-    // Buscar equipamentos de aditivos vigentes
-    const { data: aditivosVigentes } = await supabase
-      .from("contratos_aditivos")
-      .select("id, data_inicio, data_fim, contratos!inner(status)")
-      .eq("contratos.status", "Ativo")
-      .lte("data_inicio", hoje)
-      .gte("data_fim", hoje);
-
-    if (aditivosVigentes && aditivosVigentes.length > 0) {
-      const aditivoIds = aditivosVigentes.map(a => a.id);
-      const { data: aditivosEquips } = await supabase
-        .from("aditivos_equipamentos")
-        .select("equipamento_id, data_devolucao")
-        .in("aditivo_id", aditivoIds);
-
-      (aditivosEquips || []).forEach((r: any) => {
-        if (r.data_devolucao && r.data_devolucao <= hoje) return;
-        rented.add(r.equipamento_id);
-      });
-    }
 
     setRentedIds(rented);
 
