@@ -53,7 +53,7 @@ const Equipamentos = () => {
     const [eqRes, insRes, rentRes] = await Promise.all([
       supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
       supabase.from("apolices_equipamentos").select("equipamento_id, apolices!inner(status)").eq("apolices.status", "Vigente"),
-      supabase.from("contratos_equipamentos").select("equipamento_id, data_devolucao, contratos!inner(status)").eq("contratos.status", "Ativo"),
+      supabase.from("contratos_equipamentos").select("equipamento_id, contrato_id, data_devolucao, contratos!inner(status)").eq("contratos.status", "Ativo"),
     ]);
 
     if (eqRes.error) { toast({ title: "Erro", description: eqRes.error.message, variant: "destructive" }); return; }
