@@ -362,13 +362,11 @@ export const FaturamentoContent = () => {
           allReadings.push({ data: String(m.data), horimetro_final: Number(m.horimetro_final) });
         }
 
-        if (dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim) {
-          const result = calcularHorasInterpoladas(allReadings, inicio, dataDevolucao);
-          horasMedidas = result.totalHoras;
-        } else {
-          const result = calcularHorasInterpoladas(allReadings, inicio, fim);
-          horasMedidas = result.totalHoras;
-        }
+        // Respect effective period: use delivery date as start if within cycle
+        const inicioEfetivo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim ? dataEntrega : inicio;
+        const fimEfetivo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim ? dataDevolucao : fim;
+        const result = calcularHorasInterpoladas(allReadings, inicioEfetivo, fimEfetivo);
+        horasMedidas = result.totalHoras;
       }
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
