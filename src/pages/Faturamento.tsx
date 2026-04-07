@@ -395,7 +395,8 @@ export const FaturamentoContent = () => {
         const entregaDate = parseLocalDate(dataEntrega);
         // Use full month days (fim - inicio + 1)
         const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-        const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+        // Delivery day is displacement — billing starts next day (no +1)
+        const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)));
         const fatorEntrega = diasUsados / diasTotais;
         horasContratadas = Number((horasContratadas * fatorEntrega).toFixed(1));
         horaMinima = Number((horaMinima * fatorEntrega).toFixed(1));
