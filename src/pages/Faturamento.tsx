@@ -590,7 +590,8 @@ export const FaturamentoContent = () => {
           const fimDate = parseLocalDate(fim);
           const entregaDate = parseLocalDate(ef.data_entrega);
           const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+          // Delivery day is displacement — billing starts next day (no +1)
+          const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)));
           const fator = diasUsados / diasTotais;
           ef.horas_contratadas = Number((ef.horas_contratadas_original * fator).toFixed(1));
           ef.hora_minima = Number((ef.hora_minima_original * fator).toFixed(1));
