@@ -395,7 +395,8 @@ export const FaturamentoContent = () => {
         const entregaDate = parseLocalDate(dataEntrega);
         // Use full month days (fim - inicio + 1)
         const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-        const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+        // Delivery day is displacement — billing starts next day (no +1)
+        const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)));
         const fatorEntrega = diasUsados / diasTotais;
         horasContratadas = Number((horasContratadas * fatorEntrega).toFixed(1));
         horaMinima = Number((horaMinima * fatorEntrega).toFixed(1));
@@ -589,7 +590,8 @@ export const FaturamentoContent = () => {
           const fimDate = parseLocalDate(fim);
           const entregaDate = parseLocalDate(ef.data_entrega);
           const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+          // Delivery day is displacement — billing starts next day (no +1)
+          const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)));
           const fator = diasUsados / diasTotais;
           ef.horas_contratadas = Number((ef.horas_contratadas_original * fator).toFixed(1));
           ef.hora_minima = Number((ef.hora_minima_original * fator).toFixed(1));
@@ -972,7 +974,8 @@ export const FaturamentoContent = () => {
         const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
         if (entrega && entrega > inicio && entrega <= fim) {
           const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000) + 1);
-          const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000) + 1);
+          // Delivery day is displacement — billing starts next day (no +1)
+          const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000));
           hc = Number((hc * diasUsados / diasTotais).toFixed(1));
           hm = Number((hm * diasUsados / diasTotais).toFixed(1));
         }
