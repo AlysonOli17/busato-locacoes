@@ -974,7 +974,8 @@ export const FaturamentoContent = () => {
         const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
         if (entrega && entrega > inicio && entrega <= fim) {
           const diasTotais = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000) + 1);
-          const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000) + 1);
+          // Delivery day is displacement — billing starts next day (no +1)
+          const diasUsados = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(entrega).getTime()) / 86400000));
           hc = Number((hc * diasUsados / diasTotais).toFixed(1));
           hm = Number((hm * diasUsados / diasTotais).toFixed(1));
         }
