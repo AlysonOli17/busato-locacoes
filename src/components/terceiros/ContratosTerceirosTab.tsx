@@ -200,12 +200,12 @@ export const ContratosTerceirosTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableTableHead column="fornecedor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
-              <SortableTableHead column="data_inicio"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
-              <SortableTableHead column="data_fim"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="fornecedor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Fornecedor</SortableTableHead>
+              <SortableTableHead column="data_inicio"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Início</SortableTableHead>
+              <SortableTableHead column="data_fim"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Fim</SortableTableHead>
               <TableHead>Medição</TableHead>
               <TableHead>Equip.</TableHead>
-              <SortableTableHead column="status"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="status"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Status</SortableTableHead>
               <TableHead className="w-20">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -278,8 +278,8 @@ export const ContratosTerceirosTab = () => {
                         <Label className="text-xs">Equipamento</Label>
                         <SearchableSelect value={eq.equipamento_id} onValueChange={v => updateEquip(idx, "equipamento_id", v)} placeholder="Selecione..." options={equipamentos.map(e => ({ value: e.id, label: getLabel(e) }))} />
                       </div>
-                      <div><Label className="text-xs">{valorLabel}</Label><CurrencyInput value={eq.valor_hora} onChange={v => updateEquip(idx, "valor_hora", v)} /></div>
-                      <div><Label className="text-xs">Valor Excedente</Label><CurrencyInput value={eq.valor_hora_excedente} onChange={v => updateEquip(idx, "valor_hora_excedente", v)} /></div>
+                      <div><Label className="text-xs">{valorLabel}</Label><CurrencyInput value={eq.valor_hora} onValueChange={v => updateEquip(idx, "valor_hora", v)} /></div>
+                      <div><Label className="text-xs">Valor Excedente</Label><CurrencyInput value={eq.valor_hora_excedente} onValueChange={v => updateEquip(idx, "valor_hora_excedente", v)} /></div>
                       <div><Label className="text-xs">{horasLabel}</Label><Input type="number" step="0.1" value={eq.horas_contratadas} onChange={e => updateEquip(idx, "horas_contratadas", Number(e.target.value))} /></div>
                       <div><Label className="text-xs">{horaMinLabel}</Label><Input type="number" step="0.1" value={eq.hora_minima} onChange={e => updateEquip(idx, "hora_minima", Number(e.target.value))} /></div>
                       <div><Label className="text-xs">Entrega</Label><Input type="date" value={eq.data_entrega} onChange={e => updateEquip(idx, "data_entrega", e.target.value)} /></div>

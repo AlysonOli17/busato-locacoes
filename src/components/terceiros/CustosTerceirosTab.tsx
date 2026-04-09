@@ -147,11 +147,11 @@ export const CustosTerceirosTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableTableHead column="data"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
-              <SortableTableHead column="equipamento"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="data"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Data</SortableTableHead>
+              <SortableTableHead column="equipamento"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Equipamento</SortableTableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Tipo</TableHead>
-              <SortableTableHead column="valor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="valor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Valor</SortableTableHead>
               <TableHead className="w-20">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -185,7 +185,7 @@ export const CustosTerceirosTab = () => {
               <SearchableSelect value={form.equipamento_id} onValueChange={v => setForm(f => ({ ...f, equipamento_id: v }))} placeholder="Selecione..." options={equipamentos.map(e => ({ value: e.id, label: getLabel(e) }))} />
             </div>
             <div><Label>Data</Label><Input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} /></div>
-            <div><Label>Valor *</Label><CurrencyInput value={form.valor} onChange={v => setForm(f => ({ ...f, valor: v }))} /></div>
+            <div><Label>Valor *</Label><CurrencyInput value={form.valor} onValueChange={v => setForm(f => ({ ...f, valor: v }))} /></div>
             <div className="sm:col-span-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} /></div>
             <div>
               <Label>Tipo</Label>

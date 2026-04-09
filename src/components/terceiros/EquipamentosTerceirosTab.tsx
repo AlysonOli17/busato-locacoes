@@ -117,11 +117,11 @@ export const EquipamentosTerceirosTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableTableHead column="tipo"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
-              <SortableTableHead column="modelo"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="tipo"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Tipo</SortableTableHead>
+              <SortableTableHead column="modelo"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Modelo</SortableTableHead>
               <TableHead>Placa/Tag</TableHead>
               <TableHead>Nº Série</TableHead>
-              <SortableTableHead column="fornecedor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="fornecedor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort}>Fornecedor</SortableTableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-20">Ações</TableHead>
             </TableRow>
