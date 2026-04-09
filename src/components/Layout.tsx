@@ -18,7 +18,7 @@ const allNavItems = [
   { to: "/contratos", icon: FileText, label: "Contratos" },
   
   { to: "/medicoes", icon: Clock, label: "Medições / Faturamento" },
-  { to: "/agregados", icon: CalendarDays, label: "Agregados" },
+  { to: "/agregados", icon: CalendarDays, label: "Locação Terceiros" },
   { to: "/apolices", icon: Shield, label: "Apólices" },
   { to: "/gastos", icon: DollarSign, label: "Custos" },
   { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },

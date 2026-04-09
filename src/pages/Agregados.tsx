@@ -1,29 +1,29 @@
 import { Layout } from "@/components/Layout";
-import { AgregadoTab } from "@/components/AgregadoTab";
-import { CustosAgregadoTab } from "@/components/CustosAgregadoTab";
-import { MedicaoAgregadoTab } from "@/components/MedicaoAgregadoTab";
+import { FornecedoresTab } from "@/components/terceiros/FornecedoresTab";
+import { EquipamentosTerceirosTab } from "@/components/terceiros/EquipamentosTerceirosTab";
+import { ContratosTerceirosTab } from "@/components/terceiros/ContratosTerceirosTab";
+import { MedicoesTerceirosTab } from "@/components/terceiros/MedicoesTerceirosTab";
+import { CustosTerceirosTab } from "@/components/terceiros/CustosTerceirosTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, DollarSign, Receipt } from "lucide-react";
+import { Building2, Wrench, FileText, Clock, DollarSign } from "lucide-react";
 
-const Agregados = () => (
-  <Layout title="Agregados" subtitle="Gestão de diárias, custos e medição de equipamentos agregados">
-    <Tabs defaultValue="diarias" className="w-full">
-      <TabsList>
-        <TabsTrigger value="diarias" className="gap-1"><CalendarDays className="h-4 w-4" /> Diárias</TabsTrigger>
+const LocacaoTerceiros = () => (
+  <Layout title="Locação Terceiros" subtitle="Gestão de equipamentos locados de fornecedores">
+    <Tabs defaultValue="fornecedores" className="w-full">
+      <TabsList className="flex-wrap h-auto gap-1">
+        <TabsTrigger value="fornecedores" className="gap-1"><Building2 className="h-4 w-4" /> Fornecedores</TabsTrigger>
+        <TabsTrigger value="equipamentos" className="gap-1"><Wrench className="h-4 w-4" /> Equipamentos</TabsTrigger>
+        <TabsTrigger value="contratos" className="gap-1"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
+        <TabsTrigger value="medicoes" className="gap-1"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
         <TabsTrigger value="custos" className="gap-1"><DollarSign className="h-4 w-4" /> Custos</TabsTrigger>
-        <TabsTrigger value="medicao" className="gap-1"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>
       </TabsList>
-      <TabsContent value="diarias">
-        <AgregadoTab />
-      </TabsContent>
-      <TabsContent value="custos">
-        <CustosAgregadoTab />
-      </TabsContent>
-      <TabsContent value="medicao">
-        <MedicaoAgregadoTab />
-      </TabsContent>
+      <TabsContent value="fornecedores"><FornecedoresTab /></TabsContent>
+      <TabsContent value="equipamentos"><EquipamentosTerceirosTab /></TabsContent>
+      <TabsContent value="contratos"><ContratosTerceirosTab /></TabsContent>
+      <TabsContent value="medicoes"><MedicoesTerceirosTab /></TabsContent>
+      <TabsContent value="custos"><CustosTerceirosTab /></TabsContent>
     </Tabs>
   </Layout>
 );
 
-export default Agregados;
+export default LocacaoTerceiros;
