@@ -161,21 +161,20 @@ export const MedicaoTerceirosTab = () => {
       let horasContratadas = Number(ce.horas_contratadas);
       let horaMinima = Number(ce.hora_minima);
 
-      // Proportional for first month
+      // Check if proportional (delivery or return within the cycle)
       const temEntregaNoPeriodo = dataEntrega && dataEntrega > formMedicaoInicio && dataEntrega <= formMedicaoFim;
-      if (temEntregaNoPeriodo) {
-        const inicioDate = parseLocalDate(formMedicaoInicio);
-        const fimDate = parseLocalDate(formMedicaoFim);
-        const entregaDate = parseLocalDate(dataEntrega!);
-        const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / 86400000) + 1);
-        const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / 86400000) + 1);
-        const fator = diasUsados / diasTotais;
-        horasContratadas = Number((horasContratadas * fator).toFixed(1));
-        horaMinima = Number((horaMinima * fator).toFixed(1));
+      const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= formMedicaoInicio && dataDevolucao < formMedicaoFim;
+      const isProporcional = !!(temEntregaNoPeriodo || temDevolucaoNoPeriodo);
+
+      let horasEfetivas: number;
+      if (isProporcional) {
+        // Proportional period: charge exclusively based on actual hours worked, no minimum
+        horasEfetivas = horasMedidas;
+      } else {
+        // Full period: apply hora minima
+        horasEfetivas = horaMinima > 0 && horasMedidas < horaMinima ? horaMinima : horasMedidas;
       }
 
-      // Apply hora minima
-      const horasEfetivas = horaMinima > 0 && horasMedidas < horaMinima ? horaMinima : horasMedidas;
       const horasNormais = Number(Math.min(horasEfetivas, horasContratadas).toFixed(1));
       const horasExcedentes = Number(Math.max(0, horasEfetivas - horasContratadas).toFixed(1));
 
@@ -185,7 +184,7 @@ export const MedicaoTerceirosTab = () => {
         horas_medidas: horasMedidas, horas_normais: horasNormais, horas_excedentes: horasExcedentes,
         valor_hora: Number(ce.valor_hora), valor_hora_excedente: Number(ce.valor_hora_excedente),
         hora_minima: horaMinima, horas_contratadas: horasContratadas,
-        primeiro_mes: !!temEntregaNoPeriodo, data_entrega: dataEntrega, data_devolucao: dataDevolucao,
+        primeiro_mes: isProporcional, data_entrega: dataEntrega, data_devolucao: dataDevolucao,
       };
     });
 
@@ -377,7 +376,7 @@ export const MedicaoTerceirosTab = () => {
                             <TableCell className="font-medium">
                               <div>{ef.tipo} {ef.modelo}</div>
                               {ef.tag_placa && <span className="text-xs font-mono text-muted-foreground">{ef.tag_placa}</span>}
-                              {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">1º mês</Badge>}
+                              {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">Proporcional</Badge>}
                             </TableCell>
                             <TableCell className="text-right">{ef.horas_medidas.toFixed(1)}</TableCell>
                             <TableCell className="text-right">{ef.horas_normais.toFixed(1)}</TableCell>
