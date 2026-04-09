@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropostasContent } from "@/pages/Propostas";
@@ -160,6 +160,12 @@ const Contratos = () => {
   const [aditivoForm, setAditivoForm] = useState<AditivoForm>({ numero: 1, data_inicio: "", data_fim: "", motivo: "", observacoes: "", equipamentos: [] });
   // Aditivos por contrato (para exibição na tabela)
   const [aditivosPorContrato, setAditivosPorContrato] = useState<Record<string, Aditivo[]>>({});
+  // Prorrogação
+  const [prorrogacaoForm, setProrrogacaoForm] = useState({ nova_data_fim: "", motivo: "" });
+  // Finalizar contrato
+  const [finalizarDialogOpen, setFinalizarDialogOpen] = useState(false);
+  const [finalizarContrato, setFinalizarContrato] = useState<Contrato | null>(null);
+  const [finalizarForm, setFinalizarForm] = useState({ data_encerramento: "", motivo: "" });
   const { toast } = useToast();
   const [sortCol, setSortCol] = useState("empresa");
   const [sortAsc, setSortAsc] = useState(true);
