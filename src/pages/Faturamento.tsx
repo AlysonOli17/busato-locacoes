@@ -549,11 +549,17 @@ export const FaturamentoContent = () => {
 
   // Recalculate hours helper
   const recalcHours = (ef: EquipFormItem) => {
-    // When primeiro_mes is true, hora_minima is already proportionally reduced — still apply it
-    const applyMinima = ef.hora_minima > 0;
-    const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
-    ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
-    ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+    const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
+    if (isProporcional) {
+      // Proportional: charge exclusively based on actual hours worked, no minimum
+      ef.horas_normais = Number(Math.min(ef.horas_medidas, ef.horas_contratadas).toFixed(1));
+      ef.horas_excedentes = Number(Math.max(0, ef.horas_medidas - ef.horas_contratadas).toFixed(1));
+    } else {
+      const applyMinima = ef.hora_minima > 0;
+      const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
+      ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+      ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+    }
   };
 
   // Recalculate hours when primeiroMes toggles
@@ -562,26 +568,10 @@ export const FaturamentoContent = () => {
       const updated = [...prev];
       const ef = { ...updated[idx] };
       ef.primeiro_mes = !ef.primeiro_mes;
-      if (ef.primeiro_mes && ef.data_entrega) {
-        // Apply proportional based on data_entrega
-        const inicio = formMedicaoInicio;
-        const fim = formMedicaoFim;
-        if (inicio && fim && ef.data_entrega > inicio && ef.data_entrega <= fim) {
-          const inicioDate = parseLocalDate(inicio);
-          const fimDate = parseLocalDate(fim);
-          const entregaDate = parseLocalDate(ef.data_entrega);
-          const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          const fator = diasUsados / diasTotais;
-          ef.horas_contratadas = Number((ef.horas_contratadas_original * fator).toFixed(1));
-          ef.hora_minima = Number((ef.hora_minima_original * fator).toFixed(1));
-        }
-      } else if (!ef.primeiro_mes) {
-        // Restore original values (unless proporcional_devolucao is active)
-        if (!ef.proporcional_devolucao) {
-          ef.horas_contratadas = ef.horas_contratadas_original;
-          ef.hora_minima = ef.hora_minima_original;
-        }
+      // No longer adjust horasContratadas/horaMinima proportionally — just toggle flag
+      if (!ef.primeiro_mes && !ef.proporcional_devolucao) {
+        ef.horas_contratadas = ef.horas_contratadas_original;
+        ef.hora_minima = ef.hora_minima_original;
       }
       recalcHours(ef);
       updated[idx] = ef;
@@ -595,22 +585,8 @@ export const FaturamentoContent = () => {
       const updated = [...prev];
       const ef = { ...updated[idx] };
       ef.proporcional_devolucao = !ef.proporcional_devolucao;
-      if (ef.proporcional_devolucao && ef.data_devolucao) {
-        // Apply proportional
-        const inicio = formMedicaoInicio;
-        const fim = formMedicaoFim;
-        if (inicio && fim) {
-          const inicioDate = parseLocalDate(inicio);
-          const fimDate = parseLocalDate(fim);
-          const devolucaoDate = parseLocalDate(ef.data_devolucao);
-          const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          const diasUsados = Math.max(1, Math.round((devolucaoDate.getTime() - inicioDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          const fator = diasUsados / diasTotais;
-          ef.horas_contratadas = Number((ef.horas_contratadas_original * fator).toFixed(1));
-          ef.hora_minima = Number((ef.hora_minima_original * fator).toFixed(1));
-        }
-      } else {
-        // Restore original values
+      // No longer adjust horasContratadas/horaMinima proportionally — just toggle flag
+      if (!ef.proporcional_devolucao && !ef.primeiro_mes) {
         ef.horas_contratadas = ef.horas_contratadas_original;
         ef.hora_minima = ef.hora_minima_original;
       }
