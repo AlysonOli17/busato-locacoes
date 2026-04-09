@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropostasContent } from "@/pages/Propostas";
@@ -160,6 +160,12 @@ const Contratos = () => {
   const [aditivoForm, setAditivoForm] = useState<AditivoForm>({ numero: 1, data_inicio: "", data_fim: "", motivo: "", observacoes: "", equipamentos: [] });
   // Aditivos por contrato (para exibição na tabela)
   const [aditivosPorContrato, setAditivosPorContrato] = useState<Record<string, Aditivo[]>>({});
+  // Prorrogação
+  const [prorrogacaoForm, setProrrogacaoForm] = useState({ nova_data_fim: "", motivo: "" });
+  // Finalizar contrato
+  const [finalizarDialogOpen, setFinalizarDialogOpen] = useState(false);
+  const [finalizarContrato, setFinalizarContrato] = useState<Contrato | null>(null);
+  const [finalizarForm, setFinalizarForm] = useState({ data_encerramento: "", motivo: "" });
   const { toast } = useToast();
   const [sortCol, setSortCol] = useState("empresa");
   const [sortAsc, setSortAsc] = useState(true);
@@ -1396,6 +1402,52 @@ const Contratos = () => {
     }));
   };
 
+  // --- Prorrogação ---
+  const handleProrrogacao = async () => {
+    if (!ajustesContrato || !prorrogacaoForm.nova_data_fim) {
+      toast({ title: "Erro", description: "Informe a nova data de término.", variant: "destructive" });
+      return;
+    }
+    if (prorrogacaoForm.nova_data_fim <= ajustesContrato.data_fim) {
+      toast({ title: "Erro", description: "A nova data deve ser posterior à data atual de término.", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("contratos").update({
+      data_fim: prorrogacaoForm.nova_data_fim,
+      observacoes: ajustesContrato.observacoes
+        ? `${ajustesContrato.observacoes}\n[Prorrogação] De ${parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR")} para ${parseLocalDate(prorrogacaoForm.nova_data_fim).toLocaleDateString("pt-BR")}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`
+        : `[Prorrogação] De ${parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR")} para ${parseLocalDate(prorrogacaoForm.nova_data_fim).toLocaleDateString("pt-BR")}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`,
+    }).eq("id", ajustesContrato.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Sucesso", description: "Contrato prorrogado com sucesso!" });
+    setProrrogacaoForm({ nova_data_fim: "", motivo: "" });
+    setAjustesOpen(false);
+    fetchData();
+  };
+
+  // --- Finalizar Contrato ---
+  const openFinalizar = (item: Contrato) => {
+    setFinalizarContrato(item);
+    setFinalizarForm({ data_encerramento: new Date().toISOString().slice(0, 10), motivo: "" });
+    setFinalizarDialogOpen(true);
+  };
+
+  const handleFinalizar = async () => {
+    if (!finalizarContrato) return;
+    const obs = finalizarContrato.observacoes || "";
+    const encerramento = finalizarForm.data_encerramento || new Date().toISOString().slice(0, 10);
+    const newObs = `${obs}\n[Encerrado em ${parseLocalDate(encerramento).toLocaleDateString("pt-BR")}]${finalizarForm.motivo ? ` — ${finalizarForm.motivo}` : ""}`.trim();
+    const { error } = await supabase.from("contratos").update({
+      status: "Encerrado",
+      data_fim: encerramento,
+      observacoes: newObs,
+    }).eq("id", finalizarContrato.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Sucesso", description: "Contrato finalizado com sucesso!" });
+    setFinalizarDialogOpen(false);
+    fetchData();
+  };
+
   // Summary totals for dashboard
   const dashboardTotals = {
     totalContratado: equipUsages.reduce((s, u) => s + u.custo_contratado, 0),
@@ -1554,13 +1606,18 @@ const Contratos = () => {
                       <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Ajustes e Aditivos">
+                          <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Gestão do Contrato">
                             <Settings2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openDashboard(item)} title="Dashboard de uso">
                             <BarChart3 className="h-4 w-4 text-accent" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                          {item.status === "Ativo" && (
+                            <Button variant="ghost" size="icon" onClick={() => openFinalizar(item)} title="Finalizar Contrato">
+                              <Ban className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </TableCell>
@@ -1874,7 +1931,7 @@ const Contratos = () => {
               Gestão do Contrato — {ajustesContrato?.empresas?.nome}
             </DialogTitle>
             <DialogDescription>
-              Gerencie ajustes temporários e aditivos contratuais.
+              Gerencie ajustes temporários, aditivos e prorrogações.
             </DialogDescription>
           </DialogHeader>
 
@@ -1882,6 +1939,7 @@ const Contratos = () => {
             <TabsList className="w-full">
               <TabsTrigger value="ajustes" className="flex-1">Ajustes Temporários</TabsTrigger>
               <TabsTrigger value="aditivos" className="flex-1">Aditivos</TabsTrigger>
+              <TabsTrigger value="prorrogacao" className="flex-1">Prorrogação</TabsTrigger>
             </TabsList>
 
             <TabsContent value="ajustes" className="space-y-4 mt-4">
@@ -2112,6 +2170,62 @@ const Contratos = () => {
                   );
                 })}
               </div>
+            </TabsContent>
+
+            <TabsContent value="prorrogacao" className="space-y-4 mt-4">
+              {ajustesContrato && ajustesContrato.status === "Encerrado" ? (
+                <div className="text-center py-8">
+                  <Ban className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Este contrato está encerrado e não pode ser prorrogado.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-lg border p-4 bg-muted/30 space-y-2">
+                    <p className="text-sm font-medium">Dados Atuais do Contrato</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Início:</span>{" "}
+                        <span className="font-medium">{ajustesContrato ? parseLocalDate(ajustesContrato.data_inicio).toLocaleDateString("pt-BR") : "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Término atual:</span>{" "}
+                        <span className="font-medium">{ajustesContrato ? parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR") : "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Nova Data de Término</Label>
+                      <Input
+                        type="date"
+                        value={prorrogacaoForm.nova_data_fim}
+                        min={ajustesContrato ? ajustesContrato.data_fim : ""}
+                        onChange={(e) => setProrrogacaoForm(prev => ({ ...prev, nova_data_fim: e.target.value }))}
+                      />
+                      {prorrogacaoForm.nova_data_fim && ajustesContrato && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Prorrogação de {Math.ceil((parseLocalDate(prorrogacaoForm.nova_data_fim).getTime() - parseLocalDate(ajustesContrato.data_fim).getTime()) / (1000 * 60 * 60 * 24))} dias
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Motivo da Prorrogação</Label>
+                      <Input
+                        value={prorrogacaoForm.motivo}
+                        onChange={(e) => setProrrogacaoForm(prev => ({ ...prev, motivo: e.target.value }))}
+                        placeholder="Ex: Extensão de prazo por necessidade do cliente"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={handleProrrogacao} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                      <CalendarPlus className="h-4 w-4 mr-2" /> Prorrogar Contrato
+                    </Button>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </DialogContent>
@@ -2379,6 +2493,53 @@ const Contratos = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAditivoFormOpen(false)}>Cancelar</Button>
             <Button onClick={handleSaveAditivo} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar Aditivo</Button>
+          </DialogFooter>
+        </DialogContent>
+       </Dialog>
+
+      {/* Finalizar Contrato Dialog */}
+      <Dialog open={finalizarDialogOpen} onOpenChange={setFinalizarDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-destructive" />
+              Finalizar Contrato
+            </DialogTitle>
+            <DialogDescription>
+              Ao finalizar, o contrato será marcado como "Encerrado" e não aparecerá mais como ativo no sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {finalizarContrato && (
+              <div className="rounded-lg border p-3 bg-muted/30 space-y-1">
+                <p className="text-sm font-medium">{finalizarContrato.empresas?.nome}</p>
+                <p className="text-xs text-muted-foreground">
+                  Período original: {parseLocalDate(finalizarContrato.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(finalizarContrato.data_fim).toLocaleDateString("pt-BR")}
+                </p>
+              </div>
+            )}
+            <div>
+              <Label>Data de Encerramento</Label>
+              <Input
+                type="date"
+                value={finalizarForm.data_encerramento}
+                onChange={(e) => setFinalizarForm(prev => ({ ...prev, data_encerramento: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Motivo do Encerramento</Label>
+              <Input
+                value={finalizarForm.motivo}
+                onChange={(e) => setFinalizarForm(prev => ({ ...prev, motivo: e.target.value }))}
+                placeholder="Ex: Término natural do contrato"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalizarDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleFinalizar} variant="destructive">
+              <Ban className="h-4 w-4 mr-2" /> Finalizar Contrato
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
