@@ -2562,7 +2562,7 @@ const Contratos = () => {
 
       {/* Finalizar Contrato Dialog */}
       <Dialog open={finalizarDialogOpen} onOpenChange={setFinalizarDialogOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[95vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Ban className="h-5 w-5 text-destructive" />
@@ -2572,7 +2572,7 @@ const Contratos = () => {
               Ao finalizar, o contrato será marcado como "Encerrado" e não aparecerá mais como ativo no sistema.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
             {finalizarContrato && (
               <div className="rounded-lg border p-3 bg-muted/30 space-y-1">
                 <p className="text-sm font-medium">{finalizarContrato.empresas?.nome}</p>
@@ -2593,39 +2593,56 @@ const Contratos = () => {
                   <p className="text-xs text-muted-foreground">Resolva as pendências abaixo antes de encerrar, ou prossiga ciente dos itens em aberto.</p>
                 </div>
 
-                {finalizarPendencias.faturasPendentes.length > 0 && (
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <p className="text-sm font-medium text-destructive">Faturas Pendentes ({finalizarPendencias.faturasPendentes.length})</p>
-                    {finalizarPendencias.faturasPendentes.map(f => (
-                      <div key={f.id} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
-                        <span>{f.periodo} — <Badge variant="outline" className="text-[10px]">{f.status}</Badge></span>
-                        <span>R$ {f.valor_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {finalizarPendencias.equipsSemDevolucao.length > 0 && (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <p className="text-sm font-medium text-destructive flex items-center gap-1.5">
+                        <Package className="h-3.5 w-3.5" /> Equipamentos sem Devolução ({finalizarPendencias.equipsSemDevolucao.length})
+                      </p>
+                      <p className="text-xs text-muted-foreground">Estes equipamentos não possuem data de devolução registrada no contrato.</p>
+                      {finalizarPendencias.equipsSemDevolucao.map((eq, i) => (
+                        <div key={i} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
+                          <span className="font-medium">{eq.label}</span>
+                          <span>Entrega: {eq.data_entrega ? parseLocalDate(eq.data_entrega).toLocaleDateString("pt-BR") : "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                {finalizarPendencias.medicoesAbertas.length > 0 && (
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <p className="text-sm font-medium text-destructive">Medições sem Fatura ({finalizarPendencias.medicoesAbertas.length})</p>
-                    <p className="text-xs text-muted-foreground">Existem {finalizarPendencias.medicoesAbertas.length} registros de horímetro nos últimos 60 dias que não foram cobertos por faturas aprovadas.</p>
-                  </div>
-                )}
+                  {finalizarPendencias.faturasPendentes.length > 0 && (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <p className="text-sm font-medium text-destructive">Faturas Pendentes ({finalizarPendencias.faturasPendentes.length})</p>
+                      {finalizarPendencias.faturasPendentes.map(f => (
+                        <div key={f.id} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
+                          <span>{f.periodo} — <Badge variant="outline" className="text-[10px]">{f.status}</Badge></span>
+                          <span>R$ {f.valor_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                {finalizarPendencias.gastosNaoFaturados.length > 0 && (
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <p className="text-sm font-medium text-destructive">Gastos não Faturados ({finalizarPendencias.gastosNaoFaturados.length})</p>
-                    {finalizarPendencias.gastosNaoFaturados.slice(0, 5).map(g => (
-                      <div key={g.id} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
-                        <span>{g.descricao} — {parseLocalDate(g.data).toLocaleDateString("pt-BR")}</span>
-                        <span>R$ {g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    ))}
-                    {finalizarPendencias.gastosNaoFaturados.length > 5 && (
-                      <p className="text-xs text-muted-foreground">... e mais {finalizarPendencias.gastosNaoFaturados.length - 5} itens</p>
-                    )}
-                  </div>
-                )}
+                  {finalizarPendencias.medicoesAbertas.length > 0 && (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <p className="text-sm font-medium text-destructive">Medições sem Fatura ({finalizarPendencias.medicoesAbertas.length})</p>
+                      <p className="text-xs text-muted-foreground">Existem {finalizarPendencias.medicoesAbertas.length} registros de horímetro nos últimos 60 dias que não foram cobertos por faturas aprovadas.</p>
+                    </div>
+                  )}
+
+                  {finalizarPendencias.gastosNaoFaturados.length > 0 && (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <p className="text-sm font-medium text-destructive">Gastos não Faturados ({finalizarPendencias.gastosNaoFaturados.length})</p>
+                      {finalizarPendencias.gastosNaoFaturados.slice(0, 5).map(g => (
+                        <div key={g.id} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
+                          <span>{g.descricao} — {parseLocalDate(g.data).toLocaleDateString("pt-BR")}</span>
+                          <span>R$ {g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      ))}
+                      {finalizarPendencias.gastosNaoFaturados.length > 5 && (
+                        <p className="text-xs text-muted-foreground">... e mais {finalizarPendencias.gastosNaoFaturados.length - 5} itens</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             ) : !finalizarLoading && (
               <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3">
@@ -2636,21 +2653,23 @@ const Contratos = () => {
               </div>
             )}
 
-            <div>
-              <Label>Data de Encerramento</Label>
-              <Input
-                type="date"
-                value={finalizarForm.data_encerramento}
-                onChange={(e) => setFinalizarForm(prev => ({ ...prev, data_encerramento: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Motivo do Encerramento</Label>
-              <Input
-                value={finalizarForm.motivo}
-                onChange={(e) => setFinalizarForm(prev => ({ ...prev, motivo: e.target.value }))}
-                placeholder="Ex: Término natural do contrato"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Data de Encerramento</Label>
+                <Input
+                  type="date"
+                  value={finalizarForm.data_encerramento}
+                  onChange={(e) => setFinalizarForm(prev => ({ ...prev, data_encerramento: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Motivo do Encerramento</Label>
+                <Input
+                  value={finalizarForm.motivo}
+                  onChange={(e) => setFinalizarForm(prev => ({ ...prev, motivo: e.target.value }))}
+                  placeholder="Ex: Término natural do contrato"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
