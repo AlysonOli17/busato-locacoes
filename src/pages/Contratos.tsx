@@ -1426,11 +1426,64 @@ const Contratos = () => {
   };
 
   // --- Finalizar Contrato ---
-  const openFinalizar = (item: Contrato) => {
+  const [finalizarPendencias, setFinalizarPendencias] = useState<{
+    faturasPendentes: Array<{ id: string; periodo: string; status: string; valor_total: number }>;
+    medicoesAbertas: Array<{ id: string; data: string; equipamento_id: string }>;
+    gastosNaoFaturados: Array<{ id: string; descricao: string; valor: number; data: string }>;
+  }>({ faturasPendentes: [], medicoesAbertas: [], gastosNaoFaturados: [] });
+  const [finalizarLoading, setFinalizarLoading] = useState(false);
+
+  const openFinalizar = async (item: Contrato) => {
     setFinalizarContrato(item);
     setFinalizarForm({ data_encerramento: new Date().toISOString().slice(0, 10), motivo: "" });
+    setFinalizarLoading(true);
     setFinalizarDialogOpen(true);
+
+    // Buscar pendências do contrato
+    const equipIds = (item.contratos_equipamentos || []).map(ce => ce.equipamento_id);
+
+    const [fatRes, gastosRes] = await Promise.all([
+      supabase.from("faturamento").select("id, periodo, status, valor_total").eq("contrato_id", item.id).in("status", ["Pendente", "Medido"]),
+      equipIds.length > 0
+        ? supabase.from("gastos").select("id, descricao, valor, data, equipamento_id").in("equipamento_id", equipIds)
+        : Promise.resolve({ data: [] as any[], error: null }),
+    ]);
+
+    // Gastos não faturados: verificar quais não estão em faturamento_gastos
+    let gastosNaoFaturados: Array<{ id: string; descricao: string; valor: number; data: string }> = [];
+    if (gastosRes.data && gastosRes.data.length > 0) {
+      const gastoIds = gastosRes.data.map((g: any) => g.id);
+      const { data: faturados } = await supabase.from("faturamento_gastos").select("gasto_id").in("gasto_id", gastoIds);
+      const faturadoSet = new Set((faturados || []).map((f: any) => f.gasto_id));
+      gastosNaoFaturados = gastosRes.data.filter((g: any) => !faturadoSet.has(g.id)).map((g: any) => ({ id: g.id, descricao: g.descricao, valor: g.valor, data: g.data }));
+    }
+
+    // Medições recentes sem fatura (últimos 60 dias para os equipamentos do contrato)
+    let medicoesAbertas: Array<{ id: string; data: string; equipamento_id: string }> = [];
+    if (equipIds.length > 0) {
+      const dLimite = new Date();
+      dLimite.setDate(dLimite.getDate() - 60);
+      const { data: meds } = await supabase.from("medicoes").select("id, data, equipamento_id").in("equipamento_id", equipIds).gte("data", dLimite.toISOString().slice(0, 10));
+
+      // Verificar se existem faturas aprovadas cobrindo essas medições
+      const { data: faturasAprovadas } = await supabase.from("faturamento").select("periodo_medicao_inicio, periodo_medicao_fim").eq("contrato_id", item.id).in("status", ["Aprovado", "Pago"]);
+
+      if (meds && meds.length > 0) {
+        medicoesAbertas = meds.filter((m: any) => {
+          return !(faturasAprovadas || []).some((f: any) => f.periodo_medicao_inicio && f.periodo_medicao_fim && m.data >= f.periodo_medicao_inicio && m.data <= f.periodo_medicao_fim);
+        });
+      }
+    }
+
+    setFinalizarPendencias({
+      faturasPendentes: (fatRes.data || []) as any[],
+      medicoesAbertas,
+      gastosNaoFaturados,
+    });
+    setFinalizarLoading(false);
   };
+
+  const temPendencias = finalizarPendencias.faturasPendentes.length > 0 || finalizarPendencias.medicoesAbertas.length > 0 || finalizarPendencias.gastosNaoFaturados.length > 0;
 
   const handleFinalizar = async () => {
     if (!finalizarContrato) return;
