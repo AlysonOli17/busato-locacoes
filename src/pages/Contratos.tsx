@@ -2552,7 +2552,7 @@ const Contratos = () => {
 
       {/* Finalizar Contrato Dialog */}
       <Dialog open={finalizarDialogOpen} onOpenChange={setFinalizarDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-3xl max-h-[95vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Ban className="h-5 w-5 text-destructive" />
