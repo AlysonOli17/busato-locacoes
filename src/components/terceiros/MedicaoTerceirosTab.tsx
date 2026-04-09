@@ -72,7 +72,7 @@ export const MedicaoTerceirosTab = () => {
       supabase.from("contratos_terceiros")
         .select("*, fornecedores(id, nome, cnpj), contratos_terceiros_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)")
         .eq("status", "Ativo").order("created_at", { ascending: false }),
-      supabase.from("medicoes_terceiros_faturamento")
+      (supabase.from as any)("medicoes_terceiros_faturamento")
         .select("*, contratos_terceiros(fornecedores(id, nome, cnpj))")
         .order("created_at", { ascending: false }),
     ]);
