@@ -125,8 +125,8 @@ export const FornecedoresTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableTableHead column="nome" label="Nome" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
-              <SortableTableHead column="cnpj" label="CNPJ" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
+              <SortableTableHead column="nome"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="cnpj"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
               <TableHead>Contato</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Status</TableHead>

@@ -200,12 +200,12 @@ export const ContratosTerceirosTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableTableHead column="fornecedor" label="Fornecedor" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
-              <SortableTableHead column="data_inicio" label="Início" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
-              <SortableTableHead column="data_fim" label="Fim" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
+              <SortableTableHead column="fornecedor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="data_inicio"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="data_fim"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
               <TableHead>Medição</TableHead>
               <TableHead>Equip.</TableHead>
-              <SortableTableHead column="status" label="Status" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
+              <SortableTableHead column="status"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
               <TableHead className="w-20">Ações</TableHead>
             </TableRow>
           </TableHeader>

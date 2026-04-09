@@ -166,11 +166,11 @@ export const MedicoesTerceirosTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableTableHead column="data" label="Data" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
-              <SortableTableHead column="equipamento" label="Equipamento" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
+              <SortableTableHead column="data"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="equipamento"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
               <TableHead>Hor. Inicial</TableHead>
-              <SortableTableHead column="horimetro_final" label="Hor. Final" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
-              <SortableTableHead column="horas_trabalhadas" label="Horas" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
+              <SortableTableHead column="horimetro_final"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="horas_trabalhadas"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
               <TableHead>Tipo</TableHead>
               <TableHead>Obs.</TableHead>
               <TableHead className="w-20">Ações</TableHead>

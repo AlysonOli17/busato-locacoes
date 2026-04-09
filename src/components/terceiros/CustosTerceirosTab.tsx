@@ -147,11 +147,11 @@ export const CustosTerceirosTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableTableHead column="data" label="Data" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
-              <SortableTableHead column="equipamento" label="Equipamento" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
+              <SortableTableHead column="data"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
+              <SortableTableHead column="equipamento"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
               <TableHead>Descrição</TableHead>
               <TableHead>Tipo</TableHead>
-              <SortableTableHead column="valor" label="Valor" sortColumn={sortCol} sortDirection={sortDir} onSort={toggleSort} />
+              <SortableTableHead column="valor"  sortCol={sortCol} sortAsc={sortDir === "asc"} onSort={toggleSort} />
               <TableHead className="w-20">Ações</TableHead>
             </TableRow>
           </TableHeader>
