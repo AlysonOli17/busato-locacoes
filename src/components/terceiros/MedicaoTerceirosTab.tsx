@@ -376,7 +376,7 @@ export const MedicaoTerceirosTab = () => {
                             <TableCell className="font-medium">
                               <div>{ef.tipo} {ef.modelo}</div>
                               {ef.tag_placa && <span className="text-xs font-mono text-muted-foreground">{ef.tag_placa}</span>}
-                              {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">1º mês</Badge>}
+                              {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">Proporcional</Badge>}
                             </TableCell>
                             <TableCell className="text-right">{ef.horas_medidas.toFixed(1)}</TableCell>
                             <TableCell className="text-right">{ef.horas_normais.toFixed(1)}</TableCell>
