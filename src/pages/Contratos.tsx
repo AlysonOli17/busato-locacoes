@@ -2495,6 +2495,53 @@ const Contratos = () => {
             <Button onClick={handleSaveAditivo} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar Aditivo</Button>
           </DialogFooter>
         </DialogContent>
+       </Dialog>
+
+      {/* Finalizar Contrato Dialog */}
+      <Dialog open={finalizarDialogOpen} onOpenChange={setFinalizarDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-destructive" />
+              Finalizar Contrato
+            </DialogTitle>
+            <DialogDescription>
+              Ao finalizar, o contrato será marcado como "Encerrado" e não aparecerá mais como ativo no sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {finalizarContrato && (
+              <div className="rounded-lg border p-3 bg-muted/30 space-y-1">
+                <p className="text-sm font-medium">{finalizarContrato.empresas?.nome}</p>
+                <p className="text-xs text-muted-foreground">
+                  Período original: {parseLocalDate(finalizarContrato.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(finalizarContrato.data_fim).toLocaleDateString("pt-BR")}
+                </p>
+              </div>
+            )}
+            <div>
+              <Label>Data de Encerramento</Label>
+              <Input
+                type="date"
+                value={finalizarForm.data_encerramento}
+                onChange={(e) => setFinalizarForm(prev => ({ ...prev, data_encerramento: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Motivo do Encerramento</Label>
+              <Input
+                value={finalizarForm.motivo}
+                onChange={(e) => setFinalizarForm(prev => ({ ...prev, motivo: e.target.value }))}
+                placeholder="Ex: Término natural do contrato"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalizarDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleFinalizar} variant="destructive">
+              <Ban className="h-4 w-4 mr-2" /> Finalizar Contrato
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
         </TabsContent>
         <TabsContent value="propostas">
