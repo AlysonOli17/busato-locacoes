@@ -1390,6 +1390,53 @@ export type Database = {
           },
         ]
       }
+      medicoes_terceiros_faturamento: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          detalhes: Json | null
+          id: string
+          periodo: string
+          periodo_fim: string
+          periodo_inicio: string
+          status: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          detalhes?: Json | null
+          id?: string
+          periodo?: string
+          periodo_fim: string
+          periodo_inicio: string
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          detalhes?: Json | null
+          id?: string
+          periodo?: string
+          periodo_fim?: string
+          periodo_inicio?: string
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medicoes_terceiros_faturamento_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_terceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notificacoes: {
         Row: {
           created_at: string
