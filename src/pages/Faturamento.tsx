@@ -420,10 +420,17 @@ export const FaturamentoContent = () => {
 
     // Calculate hours for each equipment
     newEquipForms.forEach(ef => {
-      const applyMinima = ef.hora_minima > 0;
-      const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
-      ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
-      ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+      const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
+      if (isProporcional) {
+        // Proportional: charge exclusively based on actual hours worked, no minimum
+        ef.horas_normais = Number(Math.min(ef.horas_medidas, ef.horas_contratadas).toFixed(1));
+        ef.horas_excedentes = Number(Math.max(0, ef.horas_medidas - ef.horas_contratadas).toFixed(1));
+      } else {
+        const applyMinima = ef.hora_minima > 0;
+        const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
+        ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+        ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+      }
     });
 
     setEquipForms(newEquipForms);
