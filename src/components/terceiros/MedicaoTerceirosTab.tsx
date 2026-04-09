@@ -161,21 +161,20 @@ export const MedicaoTerceirosTab = () => {
       let horasContratadas = Number(ce.horas_contratadas);
       let horaMinima = Number(ce.hora_minima);
 
-      // Proportional for first month
+      // Check if proportional (delivery or return within the cycle)
       const temEntregaNoPeriodo = dataEntrega && dataEntrega > formMedicaoInicio && dataEntrega <= formMedicaoFim;
-      if (temEntregaNoPeriodo) {
-        const inicioDate = parseLocalDate(formMedicaoInicio);
-        const fimDate = parseLocalDate(formMedicaoFim);
-        const entregaDate = parseLocalDate(dataEntrega!);
-        const diasTotais = Math.max(1, Math.round((fimDate.getTime() - inicioDate.getTime()) / 86400000) + 1);
-        const diasUsados = Math.max(1, Math.round((fimDate.getTime() - entregaDate.getTime()) / 86400000) + 1);
-        const fator = diasUsados / diasTotais;
-        horasContratadas = Number((horasContratadas * fator).toFixed(1));
-        horaMinima = Number((horaMinima * fator).toFixed(1));
+      const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= formMedicaoInicio && dataDevolucao < formMedicaoFim;
+      const isProporcional = !!(temEntregaNoPeriodo || temDevolucaoNoPeriodo);
+
+      let horasEfetivas: number;
+      if (isProporcional) {
+        // Proportional period: charge exclusively based on actual hours worked, no minimum
+        horasEfetivas = horasMedidas;
+      } else {
+        // Full period: apply hora minima
+        horasEfetivas = horaMinima > 0 && horasMedidas < horaMinima ? horaMinima : horasMedidas;
       }
 
-      // Apply hora minima
-      const horasEfetivas = horaMinima > 0 && horasMedidas < horaMinima ? horaMinima : horasMedidas;
       const horasNormais = Number(Math.min(horasEfetivas, horasContratadas).toFixed(1));
       const horasExcedentes = Number(Math.max(0, horasEfetivas - horasContratadas).toFixed(1));
 
