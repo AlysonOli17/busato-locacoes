@@ -1402,6 +1402,52 @@ const Contratos = () => {
     }));
   };
 
+  // --- Prorrogação ---
+  const handleProrrogacao = async () => {
+    if (!ajustesContrato || !prorrogacaoForm.nova_data_fim) {
+      toast({ title: "Erro", description: "Informe a nova data de término.", variant: "destructive" });
+      return;
+    }
+    if (prorrogacaoForm.nova_data_fim <= ajustesContrato.data_fim) {
+      toast({ title: "Erro", description: "A nova data deve ser posterior à data atual de término.", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("contratos").update({
+      data_fim: prorrogacaoForm.nova_data_fim,
+      observacoes: ajustesContrato.observacoes
+        ? `${ajustesContrato.observacoes}\n[Prorrogação] De ${parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR")} para ${parseLocalDate(prorrogacaoForm.nova_data_fim).toLocaleDateString("pt-BR")}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`
+        : `[Prorrogação] De ${parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR")} para ${parseLocalDate(prorrogacaoForm.nova_data_fim).toLocaleDateString("pt-BR")}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`,
+    }).eq("id", ajustesContrato.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Sucesso", description: "Contrato prorrogado com sucesso!" });
+    setProrrogacaoForm({ nova_data_fim: "", motivo: "" });
+    setAjustesOpen(false);
+    fetchData();
+  };
+
+  // --- Finalizar Contrato ---
+  const openFinalizar = (item: Contrato) => {
+    setFinalizarContrato(item);
+    setFinalizarForm({ data_encerramento: new Date().toISOString().slice(0, 10), motivo: "" });
+    setFinalizarDialogOpen(true);
+  };
+
+  const handleFinalizar = async () => {
+    if (!finalizarContrato) return;
+    const obs = finalizarContrato.observacoes || "";
+    const encerramento = finalizarForm.data_encerramento || new Date().toISOString().slice(0, 10);
+    const newObs = `${obs}\n[Encerrado em ${parseLocalDate(encerramento).toLocaleDateString("pt-BR")}]${finalizarForm.motivo ? ` — ${finalizarForm.motivo}` : ""}`.trim();
+    const { error } = await supabase.from("contratos").update({
+      status: "Encerrado",
+      data_fim: encerramento,
+      observacoes: newObs,
+    }).eq("id", finalizarContrato.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Sucesso", description: "Contrato finalizado com sucesso!" });
+    setFinalizarDialogOpen(false);
+    fetchData();
+  };
+
   // Summary totals for dashboard
   const dashboardTotals = {
     totalContratado: equipUsages.reduce((s, u) => s + u.custo_contratado, 0),
