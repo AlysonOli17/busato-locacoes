@@ -1606,13 +1606,18 @@ const Contratos = () => {
                       <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Ajustes e Aditivos">
+                          <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Gestão do Contrato">
                             <Settings2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openDashboard(item)} title="Dashboard de uso">
                             <BarChart3 className="h-4 w-4 text-accent" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                          {item.status === "Ativo" && (
+                            <Button variant="ghost" size="icon" onClick={() => openFinalizar(item)} title="Finalizar Contrato">
+                              <Ban className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </TableCell>
@@ -1926,7 +1931,7 @@ const Contratos = () => {
               Gestão do Contrato — {ajustesContrato?.empresas?.nome}
             </DialogTitle>
             <DialogDescription>
-              Gerencie ajustes temporários e aditivos contratuais.
+              Gerencie ajustes temporários, aditivos e prorrogações.
             </DialogDescription>
           </DialogHeader>
 
@@ -1934,6 +1939,7 @@ const Contratos = () => {
             <TabsList className="w-full">
               <TabsTrigger value="ajustes" className="flex-1">Ajustes Temporários</TabsTrigger>
               <TabsTrigger value="aditivos" className="flex-1">Aditivos</TabsTrigger>
+              <TabsTrigger value="prorrogacao" className="flex-1">Prorrogação</TabsTrigger>
             </TabsList>
 
             <TabsContent value="ajustes" className="space-y-4 mt-4">
@@ -2164,6 +2170,62 @@ const Contratos = () => {
                   );
                 })}
               </div>
+            </TabsContent>
+
+            <TabsContent value="prorrogacao" className="space-y-4 mt-4">
+              {ajustesContrato && ajustesContrato.status === "Encerrado" ? (
+                <div className="text-center py-8">
+                  <Ban className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Este contrato está encerrado e não pode ser prorrogado.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-lg border p-4 bg-muted/30 space-y-2">
+                    <p className="text-sm font-medium">Dados Atuais do Contrato</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Início:</span>{" "}
+                        <span className="font-medium">{ajustesContrato ? parseLocalDate(ajustesContrato.data_inicio).toLocaleDateString("pt-BR") : "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Término atual:</span>{" "}
+                        <span className="font-medium">{ajustesContrato ? parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR") : "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Nova Data de Término</Label>
+                      <Input
+                        type="date"
+                        value={prorrogacaoForm.nova_data_fim}
+                        min={ajustesContrato ? ajustesContrato.data_fim : ""}
+                        onChange={(e) => setProrrogacaoForm(prev => ({ ...prev, nova_data_fim: e.target.value }))}
+                      />
+                      {prorrogacaoForm.nova_data_fim && ajustesContrato && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Prorrogação de {Math.ceil((parseLocalDate(prorrogacaoForm.nova_data_fim).getTime() - parseLocalDate(ajustesContrato.data_fim).getTime()) / (1000 * 60 * 60 * 24))} dias
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Motivo da Prorrogação</Label>
+                      <Input
+                        value={prorrogacaoForm.motivo}
+                        onChange={(e) => setProrrogacaoForm(prev => ({ ...prev, motivo: e.target.value }))}
+                        placeholder="Ex: Extensão de prazo por necessidade do cliente"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={handleProrrogacao} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                      <CalendarPlus className="h-4 w-4 mr-2" /> Prorrogar Contrato
+                    </Button>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </DialogContent>
