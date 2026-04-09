@@ -1426,11 +1426,64 @@ const Contratos = () => {
   };
 
   // --- Finalizar Contrato ---
-  const openFinalizar = (item: Contrato) => {
+  const [finalizarPendencias, setFinalizarPendencias] = useState<{
+    faturasPendentes: Array<{ id: string; periodo: string; status: string; valor_total: number }>;
+    medicoesAbertas: Array<{ id: string; data: string; equipamento_id: string }>;
+    gastosNaoFaturados: Array<{ id: string; descricao: string; valor: number; data: string }>;
+  }>({ faturasPendentes: [], medicoesAbertas: [], gastosNaoFaturados: [] });
+  const [finalizarLoading, setFinalizarLoading] = useState(false);
+
+  const openFinalizar = async (item: Contrato) => {
     setFinalizarContrato(item);
     setFinalizarForm({ data_encerramento: new Date().toISOString().slice(0, 10), motivo: "" });
+    setFinalizarLoading(true);
     setFinalizarDialogOpen(true);
+
+    // Buscar pendências do contrato
+    const equipIds = (item.contratos_equipamentos || []).map(ce => ce.equipamento_id);
+
+    const [fatRes, gastosRes] = await Promise.all([
+      supabase.from("faturamento").select("id, periodo, status, valor_total").eq("contrato_id", item.id).in("status", ["Pendente", "Medido"]),
+      equipIds.length > 0
+        ? supabase.from("gastos").select("id, descricao, valor, data, equipamento_id").in("equipamento_id", equipIds)
+        : Promise.resolve({ data: [] as any[], error: null }),
+    ]);
+
+    // Gastos não faturados: verificar quais não estão em faturamento_gastos
+    let gastosNaoFaturados: Array<{ id: string; descricao: string; valor: number; data: string }> = [];
+    if (gastosRes.data && gastosRes.data.length > 0) {
+      const gastoIds = gastosRes.data.map((g: any) => g.id);
+      const { data: faturados } = await supabase.from("faturamento_gastos").select("gasto_id").in("gasto_id", gastoIds);
+      const faturadoSet = new Set((faturados || []).map((f: any) => f.gasto_id));
+      gastosNaoFaturados = gastosRes.data.filter((g: any) => !faturadoSet.has(g.id)).map((g: any) => ({ id: g.id, descricao: g.descricao, valor: g.valor, data: g.data }));
+    }
+
+    // Medições recentes sem fatura (últimos 60 dias para os equipamentos do contrato)
+    let medicoesAbertas: Array<{ id: string; data: string; equipamento_id: string }> = [];
+    if (equipIds.length > 0) {
+      const dLimite = new Date();
+      dLimite.setDate(dLimite.getDate() - 60);
+      const { data: meds } = await supabase.from("medicoes").select("id, data, equipamento_id").in("equipamento_id", equipIds).gte("data", dLimite.toISOString().slice(0, 10));
+
+      // Verificar se existem faturas aprovadas cobrindo essas medições
+      const { data: faturasAprovadas } = await supabase.from("faturamento").select("periodo_medicao_inicio, periodo_medicao_fim").eq("contrato_id", item.id).in("status", ["Aprovado", "Pago"]);
+
+      if (meds && meds.length > 0) {
+        medicoesAbertas = meds.filter((m: any) => {
+          return !(faturasAprovadas || []).some((f: any) => f.periodo_medicao_inicio && f.periodo_medicao_fim && m.data >= f.periodo_medicao_inicio && m.data <= f.periodo_medicao_fim);
+        });
+      }
+    }
+
+    setFinalizarPendencias({
+      faturasPendentes: (fatRes.data || []) as any[],
+      medicoesAbertas,
+      gastosNaoFaturados,
+    });
+    setFinalizarLoading(false);
   };
+
+  const temPendencias = finalizarPendencias.faturasPendentes.length > 0 || finalizarPendencias.medicoesAbertas.length > 0 || finalizarPendencias.gastosNaoFaturados.length > 0;
 
   const handleFinalizar = async () => {
     if (!finalizarContrato) return;
@@ -2509,7 +2562,7 @@ const Contratos = () => {
               Ao finalizar, o contrato será marcado como "Encerrado" e não aparecerá mais como ativo no sistema.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
             {finalizarContrato && (
               <div className="rounded-lg border p-3 bg-muted/30 space-y-1">
                 <p className="text-sm font-medium">{finalizarContrato.empresas?.nome}</p>
@@ -2518,6 +2571,61 @@ const Contratos = () => {
                 </p>
               </div>
             )}
+
+            {finalizarLoading ? (
+              <div className="text-center py-4 text-muted-foreground text-sm">Verificando pendências...</div>
+            ) : temPendencias ? (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 space-y-1">
+                  <div className="flex items-center gap-2 text-yellow-600 font-medium text-sm">
+                    <AlertTriangle className="h-4 w-4" /> Pendências encontradas
+                  </div>
+                  <p className="text-xs text-muted-foreground">Resolva as pendências abaixo antes de encerrar, ou prossiga ciente dos itens em aberto.</p>
+                </div>
+
+                {finalizarPendencias.faturasPendentes.length > 0 && (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-sm font-medium text-destructive">Faturas Pendentes ({finalizarPendencias.faturasPendentes.length})</p>
+                    {finalizarPendencias.faturasPendentes.map(f => (
+                      <div key={f.id} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
+                        <span>{f.periodo} — <Badge variant="outline" className="text-[10px]">{f.status}</Badge></span>
+                        <span>R$ {f.valor_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {finalizarPendencias.medicoesAbertas.length > 0 && (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-sm font-medium text-destructive">Medições sem Fatura ({finalizarPendencias.medicoesAbertas.length})</p>
+                    <p className="text-xs text-muted-foreground">Existem {finalizarPendencias.medicoesAbertas.length} registros de horímetro nos últimos 60 dias que não foram cobertos por faturas aprovadas.</p>
+                  </div>
+                )}
+
+                {finalizarPendencias.gastosNaoFaturados.length > 0 && (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-sm font-medium text-destructive">Gastos não Faturados ({finalizarPendencias.gastosNaoFaturados.length})</p>
+                    {finalizarPendencias.gastosNaoFaturados.slice(0, 5).map(g => (
+                      <div key={g.id} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
+                        <span>{g.descricao} — {parseLocalDate(g.data).toLocaleDateString("pt-BR")}</span>
+                        <span>R$ {g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                    {finalizarPendencias.gastosNaoFaturados.length > 5 && (
+                      <p className="text-xs text-muted-foreground">... e mais {finalizarPendencias.gastosNaoFaturados.length - 5} itens</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : !finalizarLoading && (
+              <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3">
+                <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+                  <CheckCircle2 className="h-4 w-4" /> Nenhuma pendência encontrada
+                </div>
+                <p className="text-xs text-muted-foreground">O contrato pode ser encerrado sem restrições.</p>
+              </div>
+            )}
+
             <div>
               <Label>Data de Encerramento</Label>
               <Input
@@ -2537,8 +2645,8 @@ const Contratos = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFinalizarDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleFinalizar} variant="destructive">
-              <Ban className="h-4 w-4 mr-2" /> Finalizar Contrato
+            <Button onClick={handleFinalizar} variant={temPendencias ? "destructive" : "default"} disabled={finalizarLoading}>
+              <Ban className="h-4 w-4 mr-2" /> {temPendencias ? "Finalizar mesmo assim" : "Finalizar Contrato"}
             </Button>
           </DialogFooter>
         </DialogContent>
