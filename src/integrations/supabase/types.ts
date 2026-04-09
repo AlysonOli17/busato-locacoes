@@ -465,6 +465,268 @@ export type Database = {
           },
         ]
       }
+      contratos_terceiros: {
+        Row: {
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          dia_medicao_fim: number
+          dia_medicao_inicio: number
+          fornecedor_id: string
+          id: string
+          observacoes: string | null
+          prazo_pagamento: number
+          status: string
+          tipo_medicao: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          dia_medicao_fim?: number
+          dia_medicao_inicio?: number
+          fornecedor_id: string
+          id?: string
+          observacoes?: string | null
+          prazo_pagamento?: number
+          status?: string
+          tipo_medicao?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          dia_medicao_fim?: number
+          dia_medicao_inicio?: number
+          fornecedor_id?: string
+          id?: string
+          observacoes?: string | null
+          prazo_pagamento?: number
+          status?: string
+          tipo_medicao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_terceiros_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos_terceiros_aditivos: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          id: string
+          motivo: string
+          numero: number
+          observacoes: string | null
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          id?: string
+          motivo?: string
+          numero?: number
+          observacoes?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          id?: string
+          motivo?: string
+          numero?: number
+          observacoes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_terceiros_aditivos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_terceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos_terceiros_aditivos_equipamentos: {
+        Row: {
+          aditivo_id: string
+          created_at: string
+          data_devolucao: string | null
+          data_entrega: string | null
+          equipamento_id: string
+          hora_minima: number
+          horas_contratadas: number
+          id: string
+          valor_hora: number
+          valor_hora_excedente: number
+        }
+        Insert: {
+          aditivo_id: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega?: string | null
+          equipamento_id: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Update: {
+          aditivo_id?: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega?: string | null
+          equipamento_id?: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_terceiros_aditivos_equipamentos_aditivo_id_fkey"
+            columns: ["aditivo_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_terceiros_aditivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_terceiros_aditivos_equipamentos_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_terceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos_terceiros_equipamentos: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          data_devolucao: string | null
+          data_entrega: string | null
+          equipamento_id: string
+          hora_minima: number
+          horas_contratadas: number
+          id: string
+          valor_hora: number
+          valor_hora_excedente: number
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega?: string | null
+          equipamento_id: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega?: string | null
+          equipamento_id?: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_terceiros_equipamentos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_terceiros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_terceiros_equipamentos_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_terceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos_terceiros_equipamentos_ajustes: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          desconto_percentual: number
+          equipamento_id: string
+          hora_minima: number
+          horas_contratadas: number
+          id: string
+          motivo: string
+          valor_hora: number
+          valor_hora_excedente: number
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          desconto_percentual?: number
+          equipamento_id: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          motivo?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          desconto_percentual?: number
+          equipamento_id?: string
+          hora_minima?: number
+          horas_contratadas?: number
+          id?: string
+          motivo?: string
+          valor_hora?: number
+          valor_hora_excedente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_terceiros_equipamentos_ajustes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_terceiros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_terceiros_equipamentos_ajustes_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_terceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custos_agregados: {
         Row: {
           created_at: string
@@ -537,6 +799,50 @@ export type Database = {
             columns: ["custo_id"]
             isOneToOne: false
             referencedRelation: "custos_agregados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custos_terceiros: {
+        Row: {
+          classificacao: string
+          created_at: string
+          data: string
+          descricao: string
+          equipamento_id: string
+          id: string
+          observacoes: string | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          classificacao?: string
+          created_at?: string
+          data?: string
+          descricao?: string
+          equipamento_id: string
+          id?: string
+          observacoes?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Update: {
+          classificacao?: string
+          created_at?: string
+          data?: string
+          descricao?: string
+          equipamento_id?: string
+          id?: string
+          observacoes?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custos_terceiros_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_terceiros"
             referencedColumns: ["id"]
           },
         ]
@@ -654,6 +960,56 @@ export type Database = {
           valor_bem?: number | null
         }
         Relationships: []
+      }
+      equipamentos_terceiros: {
+        Row: {
+          ano: number | null
+          created_at: string
+          fornecedor_id: string | null
+          id: string
+          modelo: string
+          numero_serie: string | null
+          observacoes: string | null
+          status: string
+          tag_placa: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ano?: number | null
+          created_at?: string
+          fornecedor_id?: string | null
+          id?: string
+          modelo: string
+          numero_serie?: string | null
+          observacoes?: string | null
+          status?: string
+          tag_placa?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number | null
+          created_at?: string
+          fornecedor_id?: string | null
+          id?: string
+          modelo?: string
+          numero_serie?: string | null
+          observacoes?: string | null
+          status?: string
+          tag_placa?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipamentos_terceiros_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       faturamento: {
         Row: {
@@ -839,6 +1195,72 @@ export type Database = {
           },
         ]
       }
+      fornecedores: {
+        Row: {
+          cnpj: string
+          contato: string | null
+          created_at: string
+          email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
+          id: string
+          nome: string
+          nome_fantasia: string | null
+          observacoes: string | null
+          razao_social: string | null
+          status: string
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string
+          contato?: string | null
+          created_at?: string
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          id?: string
+          nome: string
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          razao_social?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string
+          contato?: string | null
+          created_at?: string
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          id?: string
+          nome?: string
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          razao_social?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gastos: {
         Row: {
           classificacao: string
@@ -920,6 +1342,50 @@ export type Database = {
             columns: ["equipamento_id"]
             isOneToOne: false
             referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medicoes_terceiros: {
+        Row: {
+          created_at: string
+          data: string
+          equipamento_id: string
+          horas_trabalhadas: number | null
+          horimetro_final: number
+          horimetro_inicial: number
+          id: string
+          observacoes: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          equipamento_id: string
+          horas_trabalhadas?: number | null
+          horimetro_final?: number
+          horimetro_inicial?: number
+          id?: string
+          observacoes?: string | null
+          tipo?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          equipamento_id?: string
+          horas_trabalhadas?: number | null
+          horimetro_final?: number
+          horimetro_inicial?: number
+          id?: string
+          observacoes?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medicoes_terceiros_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_terceiros"
             referencedColumns: ["id"]
           },
         ]
