@@ -234,11 +234,11 @@ export const MedicaoTerceirosTab = () => {
     };
 
     if (editing) {
-      const { error } = await supabase.from("medicoes_terceiros_faturamento").update(payload).eq("id", editing);
+      const { error } = await (supabase.from as any)("medicoes_terceiros_faturamento").update(payload).eq("id", editing);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Medição atualizada" });
     } else {
-      const { error } = await supabase.from("medicoes_terceiros_faturamento").insert(payload);
+      const { error } = await (supabase.from as any)("medicoes_terceiros_faturamento").insert(payload);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Medição registrada" });
     }
@@ -248,7 +248,7 @@ export const MedicaoTerceirosTab = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await supabase.from("medicoes_terceiros_faturamento").delete().eq("id", deleteId);
+    await (supabase.from as any)("medicoes_terceiros_faturamento").delete().eq("id", deleteId);
     setDeleteId(null);
     toast({ title: "Medição excluída" });
     fetchData();
