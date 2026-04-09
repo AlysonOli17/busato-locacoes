@@ -184,7 +184,7 @@ export const MedicaoTerceirosTab = () => {
         horas_medidas: horasMedidas, horas_normais: horasNormais, horas_excedentes: horasExcedentes,
         valor_hora: Number(ce.valor_hora), valor_hora_excedente: Number(ce.valor_hora_excedente),
         hora_minima: horaMinima, horas_contratadas: horasContratadas,
-        primeiro_mes: !!temEntregaNoPeriodo, data_entrega: dataEntrega, data_devolucao: dataDevolucao,
+        primeiro_mes: isProporcional, data_entrega: dataEntrega, data_devolucao: dataDevolucao,
       };
     });
 
