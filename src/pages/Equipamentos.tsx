@@ -69,7 +69,7 @@ const Equipamentos = () => {
     // Buscar equipamentos de aditivos de contratos ativos
     const { data: aditivosAtivos } = await supabase
       .from("contratos_aditivos")
-      .select("id, contrato_id, contratos!inner(status)")
+      .select("id, contrato_id, numero, contratos!inner(status)")
       .eq("contratos.status", "Ativo");
 
     const aditivoEquipMap = new Map<string, Set<string>>(); // contrato_id -> Set<equipamento_id> com aditivo
