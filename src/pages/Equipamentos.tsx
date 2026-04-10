@@ -80,16 +80,30 @@ const Equipamentos = () => {
         .select("equipamento_id, data_devolucao, aditivo_id")
         .in("aditivo_id", aditivoIds);
 
-      // Mapear quais equipamentos têm aditivos por contrato
+      // Para cada (equipamento, contrato), manter apenas o aditivo mais recente (maior numero)
+      // Chave: `${contrato_id}::${equipamento_id}` -> { numero, data_devolucao }
+      const latestAditivoEntry = new Map<string, { numero: number; data_devolucao: string | null }>();
+
       (aditivosEquips || []).forEach((r: any) => {
         const aditivo = aditivosAtivos.find(a => a.id === r.aditivo_id);
-        if (aditivo) {
-          if (!aditivoEquipMap.has(aditivo.contrato_id)) aditivoEquipMap.set(aditivo.contrato_id, new Set());
-          aditivoEquipMap.get(aditivo.contrato_id)!.add(r.equipamento_id);
+        if (!aditivo) return;
+        
+        if (!aditivoEquipMap.has(aditivo.contrato_id)) aditivoEquipMap.set(aditivo.contrato_id, new Set());
+        aditivoEquipMap.get(aditivo.contrato_id)!.add(r.equipamento_id);
+
+        const key = `${aditivo.contrato_id}::${r.equipamento_id}`;
+        const existing = latestAditivoEntry.get(key);
+        const aditivoNumero = (aditivo as any).numero ?? 0;
+        if (!existing || aditivoNumero > existing.numero) {
+          latestAditivoEntry.set(key, { numero: aditivoNumero, data_devolucao: r.data_devolucao });
         }
-        // Se o aditivo não tem devolução ou devolução é futura, está locado
-        if (!r.data_devolucao || r.data_devolucao > hoje) {
-          rented.add(r.equipamento_id);
+      });
+
+      // Considerar locado apenas pelo aditivo mais recente
+      latestAditivoEntry.forEach((entry, key) => {
+        const equipId = key.split("::")[1];
+        if (!entry.data_devolucao || entry.data_devolucao > hoje) {
+          rented.add(equipId);
         }
       });
     }
