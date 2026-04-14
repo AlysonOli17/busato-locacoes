@@ -186,6 +186,7 @@ export const MedicaoTerceirosTab = () => {
         valor_hora: Number(ce.valor_hora), valor_hora_excedente: Number(ce.valor_hora_excedente),
         hora_minima: horaMinima, horas_contratadas: horasContratadas,
         primeiro_mes: isProporcional, data_entrega: dataEntrega, data_devolucao: dataDevolucao,
+        cobranca_parcial: "horas_trabalhadas" as const,
       };
     });
 
