@@ -416,6 +416,7 @@ export const FaturamentoContent = () => {
         ajuste,
         aditivo: !ajuste ? aditivo : null,
         aditivo_numero: !ajuste && aditivoHeader ? aditivoHeader.numero : null,
+        cobranca_parcial: "horas_trabalhadas" as const,
       };
     });
 
