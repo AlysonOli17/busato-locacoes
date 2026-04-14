@@ -395,7 +395,7 @@ export const MedicaoTerceirosTab = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {equipForms.map(ef => {
+                      {equipForms.map((ef, idx) => {
                         const sub = ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente;
                         return (
                           <TableRow key={ef.equipamento_id}>
@@ -403,6 +403,19 @@ export const MedicaoTerceirosTab = () => {
                               <div>{ef.tipo} {ef.modelo}</div>
                               {ef.tag_placa && <span className="text-xs font-mono text-muted-foreground">{ef.tag_placa}</span>}
                               {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">Proporcional</Badge>}
+                              {ef.primeiro_mes && (
+                                <div className="mt-1">
+                                  <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "media_diaria")}>
+                                    <SelectTrigger className="h-6 text-[10px] w-48">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="horas_trabalhadas">Horas Trabalhadas</SelectItem>
+                                      <SelectItem value="media_diaria">Média Diária</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">{ef.horas_medidas.toFixed(1)}</TableCell>
                             <TableCell className="text-right">{ef.horas_normais.toFixed(1)}</TableCell>
