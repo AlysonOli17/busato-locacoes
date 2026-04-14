@@ -130,6 +130,7 @@ interface EquipFormItem {
   ajuste: any | null;
   aditivo: any | null;
   aditivo_numero: number | null;
+  cobranca_parcial: "horas_trabalhadas" | "media_diaria";
 }
 
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
@@ -415,16 +416,26 @@ export const FaturamentoContent = () => {
         ajuste,
         aditivo: !ajuste ? aditivo : null,
         aditivo_numero: !ajuste && aditivoHeader ? aditivoHeader.numero : null,
+        cobranca_parcial: "horas_trabalhadas" as const,
       };
     });
 
     // Calculate hours for each equipment
+    const totalDiasCiclo = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000) + 1);
     newEquipForms.forEach(ef => {
       const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
       if (isProporcional) {
-        // Proportional: charge exclusively based on actual hours worked, no minimum
-        ef.horas_normais = Number(Math.min(ef.horas_medidas, ef.horas_contratadas).toFixed(1));
-        ef.horas_excedentes = Number(Math.max(0, ef.horas_medidas - ef.horas_contratadas).toFixed(1));
+        if (ef.cobranca_parcial === "media_diaria") {
+          const inicioEf = ef.data_entrega && ef.data_entrega > inicio && ef.data_entrega <= fim ? ef.data_entrega : inicio;
+          const fimEf = ef.data_devolucao && ef.data_devolucao >= inicio && ef.data_devolucao < fim ? ef.data_devolucao : fim;
+          const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
+          const horasEfetivas = Number(((ef.horas_contratadas_original / totalDiasCiclo) * diasProp).toFixed(1));
+          ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+          ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+        } else {
+          ef.horas_normais = Number(Math.min(ef.horas_medidas, ef.horas_contratadas).toFixed(1));
+          ef.horas_excedentes = Number(Math.max(0, ef.horas_medidas - ef.horas_contratadas).toFixed(1));
+        }
       } else {
         const applyMinima = ef.hora_minima > 0;
         const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
@@ -551,9 +562,18 @@ export const FaturamentoContent = () => {
   const recalcHours = (ef: EquipFormItem) => {
     const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
     if (isProporcional) {
-      // Proportional: charge exclusively based on actual hours worked, no minimum
-      ef.horas_normais = Number(Math.min(ef.horas_medidas, ef.horas_contratadas).toFixed(1));
-      ef.horas_excedentes = Number(Math.max(0, ef.horas_medidas - ef.horas_contratadas).toFixed(1));
+      if (ef.cobranca_parcial === "media_diaria" && formMedicaoInicio && formMedicaoFim) {
+        const totalDiasCiclo = Math.max(1, Math.round((parseLocalDate(formMedicaoFim).getTime() - parseLocalDate(formMedicaoInicio).getTime()) / 86400000) + 1);
+        const inicioEf = ef.data_entrega && ef.data_entrega > formMedicaoInicio && ef.data_entrega <= formMedicaoFim ? ef.data_entrega : formMedicaoInicio;
+        const fimEf = ef.data_devolucao && ef.data_devolucao >= formMedicaoInicio && ef.data_devolucao < formMedicaoFim ? ef.data_devolucao : formMedicaoFim;
+        const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
+        const horasEfetivas = Number(((ef.horas_contratadas_original / totalDiasCiclo) * diasProp).toFixed(1));
+        ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+        ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+      } else {
+        ef.horas_normais = Number(Math.min(ef.horas_medidas, ef.horas_contratadas).toFixed(1));
+        ef.horas_excedentes = Number(Math.max(0, ef.horas_medidas - ef.horas_contratadas).toFixed(1));
+      }
     } else {
       const applyMinima = ef.hora_minima > 0;
       const horasEfetivas = applyMinima && ef.horas_medidas < ef.hora_minima ? ef.hora_minima : ef.horas_medidas;
@@ -590,6 +610,18 @@ export const FaturamentoContent = () => {
         ef.horas_contratadas = ef.horas_contratadas_original;
         ef.hora_minima = ef.hora_minima_original;
       }
+      recalcHours(ef);
+      updated[idx] = ef;
+      return updated;
+    });
+  };
+
+  // Change cobrança parcial mode
+  const changeCobrancaParcial = (idx: number, mode: "horas_trabalhadas" | "media_diaria") => {
+    setEquipForms(prev => {
+      const updated = [...prev];
+      const ef = { ...updated[idx] };
+      ef.cobranca_parcial = mode;
       recalcHours(ef);
       updated[idx] = ef;
       return updated;
@@ -853,6 +885,10 @@ export const FaturamentoContent = () => {
       y += 4;
 
       // ──────────────── EQUIPMENT TABLE ────────────────
+      // Fetch saved equipment data (to use saved horas_normais/excedentes instead of recalculating)
+      const { data: savedFatEquips } = await supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", item.id);
+      const savedEquipMap = new Map((savedFatEquips || []).map((se: any) => [se.equipamento_id, se]));
+
       // Fetch adjustments & measurements
       const { data: pdfAjustes } = allPdfEquipIds.length > 0 && inicio && fim
         ? await supabase.from("contratos_equipamentos_ajustes").select("*")
@@ -925,20 +961,27 @@ export const FaturamentoContent = () => {
         let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
         let hm = ajuste ? Number(ajuste.hora_minima) : baseHm;
 
-        // Proportional for delivery/return
-        const entrega = ae?.data_entrega || ce?.data_entrega || null;
-        const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
-        const isProporcional = (entrega && entrega > inicio && entrega <= fim) || (devolucao && devolucao >= inicio && devolucao < fim);
-
-        let horasEfetivas: number;
-        if (isProporcional) {
-          // Proportional: charge exclusively based on actual hours worked, no minimum
-          horasEfetivas = horasMedidas;
+        // Use saved values if available (preserves cobrança parcial choice)
+        const savedEq = savedEquipMap.get(eqId);
+        let hn: number, he: number;
+        if (savedEq) {
+          hn = Number(savedEq.horas_normais);
+          he = Number(savedEq.horas_excedentes);
         } else {
-          horasEfetivas = hm > 0 && horasMedidas < hm ? hm : horasMedidas;
+          // Proportional for delivery/return
+          const entrega = ae?.data_entrega || ce?.data_entrega || null;
+          const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+          const isProporcional = (entrega && entrega > inicio && entrega <= fim) || (devolucao && devolucao >= inicio && devolucao < fim);
+
+          let horasEfetivas: number;
+          if (isProporcional) {
+            horasEfetivas = horasMedidas;
+          } else {
+            horasEfetivas = hm > 0 && horasMedidas < hm ? hm : horasMedidas;
+          }
+          hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
+          he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
         }
-        const hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
-        const he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
         const valorTotal = hn * vh + he * vhe;
         totalMedicao += valorTotal;
 
@@ -1737,6 +1780,20 @@ export const FaturamentoContent = () => {
                               : `Integral: ${ef.horas_contratadas_original}h / Mín: ${ef.hora_minima_original}h`}
                           </span>
                         </div>
+                      </div>
+                    )}
+                    {(ef.primeiro_mes || ef.proporcional_devolucao) && (
+                      <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                        <Label className="text-xs whitespace-nowrap">Cobrança parcial:</Label>
+                        <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "media_diaria")}>
+                          <SelectTrigger className="h-7 text-xs w-56">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="horas_trabalhadas">Horas Trabalhadas</SelectItem>
+                            <SelectItem value="media_diaria">Média Diária (proporcional)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (

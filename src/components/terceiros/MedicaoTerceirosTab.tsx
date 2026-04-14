@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Receipt, Pencil, Trash2, AlertTriangle, Clock, TrendingDown } from "lucide-react";
@@ -37,6 +38,7 @@ interface EquipFormItem {
   valor_hora: number; valor_hora_excedente: number; hora_minima: number;
   horas_contratadas: number; primeiro_mes: boolean;
   data_entrega: string | null; data_devolucao: string | null;
+  cobranca_parcial: "horas_trabalhadas" | "media_diaria";
 }
 
 // Saved measurement record
@@ -185,12 +187,36 @@ export const MedicaoTerceirosTab = () => {
         valor_hora: Number(ce.valor_hora), valor_hora_excedente: Number(ce.valor_hora_excedente),
         hora_minima: horaMinima, horas_contratadas: horasContratadas,
         primeiro_mes: isProporcional, data_entrega: dataEntrega, data_devolucao: dataDevolucao,
+        cobranca_parcial: "horas_trabalhadas" as const,
       };
     });
 
     setEquipForms(newEquipForms);
     setLoadingMedicoes(false);
   }, [contratos, formContratoId, formMedicaoInicio, formMedicaoFim]);
+
+  // Change cobrança parcial mode
+  const changeCobrancaParcial = (idx: number, mode: "horas_trabalhadas" | "media_diaria") => {
+    setEquipForms(prev => {
+      const updated = [...prev];
+      const ef = { ...updated[idx] };
+      ef.cobranca_parcial = mode;
+      if (mode === "media_diaria" && formMedicaoInicio && formMedicaoFim) {
+        const totalDiasCiclo = Math.max(1, Math.round((parseLocalDate(formMedicaoFim).getTime() - parseLocalDate(formMedicaoInicio).getTime()) / 86400000) + 1);
+        const inicioEf = ef.data_entrega && ef.data_entrega > formMedicaoInicio && ef.data_entrega <= formMedicaoFim ? ef.data_entrega : formMedicaoInicio;
+        const fimEf = ef.data_devolucao && ef.data_devolucao >= formMedicaoInicio && ef.data_devolucao < formMedicaoFim ? ef.data_devolucao : formMedicaoFim;
+        const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
+        const horasEfetivas = Number(((ef.horas_contratadas / totalDiasCiclo) * diasProp).toFixed(1));
+        ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+        ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+      } else {
+        ef.horas_normais = Number(Math.min(ef.horas_medidas, ef.horas_contratadas).toFixed(1));
+        ef.horas_excedentes = Number(Math.max(0, ef.horas_medidas - ef.horas_contratadas).toFixed(1));
+      }
+      updated[idx] = ef;
+      return updated;
+    });
+  };
 
   // Total calculations
   const totalNormais = equipForms.reduce((s, ef) => s + ef.horas_normais * ef.valor_hora, 0);
@@ -369,7 +395,7 @@ export const MedicaoTerceirosTab = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {equipForms.map(ef => {
+                      {equipForms.map((ef, idx) => {
                         const sub = ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente;
                         return (
                           <TableRow key={ef.equipamento_id}>
@@ -377,6 +403,19 @@ export const MedicaoTerceirosTab = () => {
                               <div>{ef.tipo} {ef.modelo}</div>
                               {ef.tag_placa && <span className="text-xs font-mono text-muted-foreground">{ef.tag_placa}</span>}
                               {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">Proporcional</Badge>}
+                              {ef.primeiro_mes && (
+                                <div className="mt-1">
+                                  <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "media_diaria")}>
+                                    <SelectTrigger className="h-6 text-[10px] w-48">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="horas_trabalhadas">Horas Trabalhadas</SelectItem>
+                                      <SelectItem value="media_diaria">Média Diária</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">{ef.horas_medidas.toFixed(1)}</TableCell>
                             <TableCell className="text-right">{ef.horas_normais.toFixed(1)}</TableCell>
