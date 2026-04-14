@@ -1771,6 +1771,20 @@ export const FaturamentoContent = () => {
                         </div>
                       </div>
                     )}
+                    {(ef.primeiro_mes || ef.proporcional_devolucao) && (
+                      <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                        <Label className="text-xs whitespace-nowrap">Cobrança parcial:</Label>
+                        <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "media_diaria")}>
+                          <SelectTrigger className="h-7 text-xs w-56">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="horas_trabalhadas">Horas Trabalhadas</SelectItem>
+                            <SelectItem value="media_diaria">Média Diária (proporcional)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
                       <div className="text-xs text-accent font-medium bg-accent/10 rounded p-1.5">
                         ⚡ Hora mínima: {ef.horas_medidas.toFixed(1)}h → cobrando {ef.hora_minima}h
