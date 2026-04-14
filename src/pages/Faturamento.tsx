@@ -885,6 +885,10 @@ export const FaturamentoContent = () => {
       y += 4;
 
       // ──────────────── EQUIPMENT TABLE ────────────────
+      // Fetch saved equipment data (to use saved horas_normais/excedentes instead of recalculating)
+      const { data: savedFatEquips } = await supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", item.id);
+      const savedEquipMap = new Map((savedFatEquips || []).map((se: any) => [se.equipamento_id, se]));
+
       // Fetch adjustments & measurements
       const { data: pdfAjustes } = allPdfEquipIds.length > 0 && inicio && fim
         ? await supabase.from("contratos_equipamentos_ajustes").select("*")
