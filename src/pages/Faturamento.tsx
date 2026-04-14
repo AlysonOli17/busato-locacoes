@@ -130,6 +130,7 @@ interface EquipFormItem {
   ajuste: any | null;
   aditivo: any | null;
   aditivo_numero: number | null;
+  cobranca_parcial: "horas_trabalhadas" | "media_diaria";
 }
 
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
