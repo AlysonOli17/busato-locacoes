@@ -961,20 +961,27 @@ export const FaturamentoContent = () => {
         let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
         let hm = ajuste ? Number(ajuste.hora_minima) : baseHm;
 
-        // Proportional for delivery/return
-        const entrega = ae?.data_entrega || ce?.data_entrega || null;
-        const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
-        const isProporcional = (entrega && entrega > inicio && entrega <= fim) || (devolucao && devolucao >= inicio && devolucao < fim);
-
-        let horasEfetivas: number;
-        if (isProporcional) {
-          // Proportional: charge exclusively based on actual hours worked, no minimum
-          horasEfetivas = horasMedidas;
+        // Use saved values if available (preserves cobrança parcial choice)
+        const savedEq = savedEquipMap.get(eqId);
+        let hn: number, he: number;
+        if (savedEq) {
+          hn = Number(savedEq.horas_normais);
+          he = Number(savedEq.horas_excedentes);
         } else {
-          horasEfetivas = hm > 0 && horasMedidas < hm ? hm : horasMedidas;
+          // Proportional for delivery/return
+          const entrega = ae?.data_entrega || ce?.data_entrega || null;
+          const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+          const isProporcional = (entrega && entrega > inicio && entrega <= fim) || (devolucao && devolucao >= inicio && devolucao < fim);
+
+          let horasEfetivas: number;
+          if (isProporcional) {
+            horasEfetivas = horasMedidas;
+          } else {
+            horasEfetivas = hm > 0 && horasMedidas < hm ? hm : horasMedidas;
+          }
+          hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
+          he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
         }
-        const hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
-        const he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
         const valorTotal = hn * vh + he * vhe;
         totalMedicao += valorTotal;
 
