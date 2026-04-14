@@ -616,6 +616,18 @@ export const FaturamentoContent = () => {
     });
   };
 
+  // Change cobrança parcial mode
+  const changeCobrancaParcial = (idx: number, mode: "horas_trabalhadas" | "media_diaria") => {
+    setEquipForms(prev => {
+      const updated = [...prev];
+      const ef = { ...updated[idx] };
+      ef.cobranca_parcial = mode;
+      recalcHours(ef);
+      updated[idx] = ef;
+      return updated;
+    });
+  };
+
   useEffect(() => {
     if (formContratoId && formMedicaoInicio && formMedicaoFim) {
       fetchMedicoesEGastos(formContratoId, formMedicaoInicio, formMedicaoFim);
