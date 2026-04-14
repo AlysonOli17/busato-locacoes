@@ -37,6 +37,7 @@ interface EquipFormItem {
   valor_hora: number; valor_hora_excedente: number; hora_minima: number;
   horas_contratadas: number; primeiro_mes: boolean;
   data_entrega: string | null; data_devolucao: string | null;
+  cobranca_parcial: "horas_trabalhadas" | "media_diaria";
 }
 
 // Saved measurement record
