@@ -272,7 +272,8 @@ export const MedicaoTerceirosTab = () => {
       if (mode === "proporcional_minimo" && formMedicaoInicio && formMedicaoFim) {
         const totalDiasCiclo = Math.max(1, Math.round((parseLocalDate(formMedicaoFim).getTime() - parseLocalDate(formMedicaoInicio).getTime()) / 86400000) + 1);
         const inicioEf = ef.data_entrega && ef.data_entrega > formMedicaoInicio && ef.data_entrega <= formMedicaoFim ? ef.data_entrega : formMedicaoInicio;
-        const fimEf = ef.data_devolucao && ef.data_devolucao >= formMedicaoInicio && ef.data_devolucao < formMedicaoFim ? ef.data_devolucao : formMedicaoFim;
+        const devRaw = ef.data_devolucao && ef.data_devolucao >= formMedicaoInicio && ef.data_devolucao < formMedicaoFim ? ef.data_devolucao : null;
+        const fimEf = devRaw ? (() => { const d = parseLocalDate(devRaw); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })() : formMedicaoFim;
         const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
         const baseMinimo = ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas;
         const propMinimo = Number(((baseMinimo / totalDiasCiclo) * diasProp).toFixed(1));
