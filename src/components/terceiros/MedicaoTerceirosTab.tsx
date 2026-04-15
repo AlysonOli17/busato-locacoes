@@ -107,39 +107,99 @@ export const MedicaoTerceirosTab = () => {
     if (!ct || !formMedicaoInicio || !formMedicaoFim) { setEquipForms([]); return; }
     setLoadingMedicoes(true);
 
+    const inicio = formMedicaoInicio;
+    const fim = formMedicaoFim;
     const ceList = ct.contratos_terceiros_equipamentos || [];
-    const equipIds = ceList
-      .filter(ce => !(ce.data_devolucao && ce.data_devolucao <= formMedicaoInicio))
-      .filter(ce => !(ce.data_entrega && ce.data_entrega > formMedicaoFim))
+
+    // Step 1: Fetch aditivos and their equipment for this contract
+    const { data: aditivosData } = await supabase.from("contratos_terceiros_aditivos")
+      .select("*").eq("contrato_id", ct.id).lte("data_inicio", fim).order("numero", { ascending: true });
+
+    const aditivoEquipMap = new Map<string, any>();
+    let aditivoExtraEquipIds: string[] = [];
+    if (aditivosData && aditivosData.length > 0) {
+      const aditivoIds = aditivosData.map(a => a.id);
+      const { data: aeData } = await supabase.from("contratos_terceiros_aditivos_equipamentos")
+        .select("*").in("aditivo_id", aditivoIds);
+      if (aeData) {
+        for (const ae of aeData) {
+          if (ae.data_entrega && ae.data_entrega > fim) continue;
+          const aditivo = aditivosData.find(a => a.id === ae.aditivo_id);
+          const existing = aditivoEquipMap.get(ae.equipamento_id);
+          const existingAditivo = existing ? aditivosData.find(a => a.id === existing.aditivo_id) : null;
+          if (!existing || (aditivo && existingAditivo && aditivo.numero > existingAditivo.numero)) {
+            aditivoEquipMap.set(ae.equipamento_id, ae);
+          }
+        }
+        aditivoExtraEquipIds = [...new Set(
+          aeData.filter(ae => !ae.data_entrega || ae.data_entrega <= fim).map(ae => ae.equipamento_id)
+        )].filter(id => {
+          const baseIds = ceList.map(c => c.equipamento_id);
+          if (baseIds.includes(id)) return false;
+          const ae = aditivoEquipMap.get(id);
+          if (ae?.data_devolucao && ae.data_devolucao <= inicio) return false;
+          return true;
+        });
+      }
+    }
+
+    // Combine base + addendum equipment
+    const baseEquipIds = ceList
+      .filter(ce => !(ce.data_devolucao && ce.data_devolucao <= inicio))
+      .filter(ce => !(ce.data_entrega && ce.data_entrega > fim))
       .map(ce => ce.equipamento_id);
+    const allEquipIds = [...new Set([...baseEquipIds, ...aditivoExtraEquipIds])];
 
-    if (equipIds.length === 0) { setEquipForms([]); setLoadingMedicoes(false); return; }
+    if (allEquipIds.length === 0) { setEquipForms([]); setLoadingMedicoes(false); return; }
 
-    const [equipRes, custosRes] = await Promise.all([
-      supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").in("id", equipIds),
+    // Step 2: Fetch equipment details, costs, and adjustments
+    const [equipRes, custosRes, ajustesRes] = await Promise.all([
+      supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allEquipIds),
       supabase.from("custos_terceiros").select("id, descricao, tipo, valor, data, equipamento_id, classificacao")
-        .in("equipamento_id", equipIds).gte("data", formMedicaoInicio).lte("data", formMedicaoFim),
+        .in("equipamento_id", allEquipIds).gte("data", inicio).lte("data", fim),
+      supabase.from("contratos_terceiros_equipamentos_ajustes").select("*")
+        .eq("contrato_id", ct.id).in("equipamento_id", allEquipIds).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
 
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
     setCustos((custosRes.data || []) as CustoTerceiro[]);
+    const ajustesData = ajustesRes.data || [];
 
     // Fetch measurements per equipment
-    const medPromises = equipIds.map(eqId => Promise.all([
+    const medPromises = allEquipIds.map(eqId => Promise.all([
       supabase.from("medicoes_terceiros").select("equipamento_id, horimetro_final, data")
         .eq("equipamento_id", eqId).eq("tipo", "Trabalho")
-        .lt("data", formMedicaoInicio).order("data", { ascending: false }).limit(1),
+        .lt("data", inicio).order("data", { ascending: false }).limit(1),
       supabase.from("medicoes_terceiros").select("equipamento_id, horas_trabalhadas, tipo, horimetro_final, data")
-        .eq("equipamento_id", eqId).gte("data", formMedicaoInicio).lte("data", formMedicaoFim),
+        .eq("equipamento_id", eqId).gte("data", inicio).lte("data", fim),
     ]));
     const medResults = await Promise.all(medPromises);
 
-    const newEquipForms: EquipFormItem[] = equipIds.map((eqId, idx) => {
-      const ce = ceList.find(c => c.equipamento_id === eqId)!;
+    // Filter: exclude equipment returned before period
+    const filteredEquipIds = allEquipIds.filter(eqId => {
+      const ce = ceList.find(c => c.equipamento_id === eqId);
+      const ae = aditivoEquipMap.get(eqId);
+      const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
+      if (dataDevolucao && dataDevolucao <= inicio) return false;
+      const dataEntrega = ae?.data_entrega || ce?.data_entrega || null;
+      if (dataEntrega && dataEntrega > fim) return false;
+      return true;
+    });
+
+    const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
+      const ceIdx = allEquipIds.indexOf(eqId);
+      const ce = ceList.find(c => c.equipamento_id === eqId);
       const eq = equipMap.get(eqId);
-      const [baselineRes, periodRes] = medResults[idx];
-      const dataEntrega = ce.data_entrega;
-      const dataDevolucao = ce.data_devolucao;
+      const aditivo = aditivoEquipMap.get(eqId) || null;
+      const [baselineRes, periodRes] = medResults[ceIdx];
+      const dataEntrega = aditivo?.data_entrega || ce?.data_entrega || null;
+      const dataDevolucao = aditivo?.data_devolucao || ce?.data_devolucao || null;
+
+      // Find most specific ajuste for this equipment
+      const ajustesEquip = ajustesData.filter(a => a.equipamento_id === eqId);
+      const ajuste = ajustesEquip.length > 0
+        ? ajustesEquip.sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0]
+        : null;
 
       let horasMedidas = 0;
       if (ct.tipo_medicao === "diarias") {
@@ -154,26 +214,34 @@ export const MedicaoTerceirosTab = () => {
         for (const m of trabalho) {
           allReadings.push({ data: String(m.data), horimetro_final: Number(m.horimetro_final) });
         }
-        const inicioEfetivo = dataEntrega && dataEntrega > formMedicaoInicio && dataEntrega <= formMedicaoFim ? dataEntrega : formMedicaoInicio;
-        const fimEfetivo = dataDevolucao && dataDevolucao >= formMedicaoInicio && dataDevolucao < formMedicaoFim ? dataDevolucao : formMedicaoFim;
+        const inicioEfetivo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim ? dataEntrega : inicio;
+        const fimEfetivo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim ? dataDevolucao : fim;
         const result = calcularHorasInterpoladas(allReadings, inicioEfetivo, fimEfetivo);
         horasMedidas = result.totalHoras;
       }
 
-      let horasContratadas = Number(ce.horas_contratadas);
-      let horaMinima = Number(ce.hora_minima);
+      // Priority: ajuste > aditivo > contrato_equipamento
+      const baseValorHora = aditivo ? Number(aditivo.valor_hora) : ce ? Number(ce.valor_hora) : 0;
+      const baseValorExcedente = aditivo ? Number(aditivo.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : 0;
+      const baseHorasContratadas = aditivo ? Number(aditivo.horas_contratadas) : ce ? Number(ce.horas_contratadas) : 0;
+      const baseHoraMinima = aditivo ? Number(aditivo.hora_minima) : ce ? Number(ce.hora_minima) : 0;
+
+      const descontoPerc = ajuste ? Number((ajuste as any).desconto_percentual || 0) : 0;
+      const fatorDesconto = descontoPerc > 0 ? (1 - descontoPerc / 100) : 1;
+      const valorHora = (ajuste ? Number(ajuste.valor_hora) : baseValorHora) * fatorDesconto;
+      const valorExcedente = (ajuste ? Number(ajuste.valor_hora_excedente) : baseValorExcedente) * fatorDesconto;
+      const horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : baseHorasContratadas;
+      const horaMinima = ajuste ? Number(ajuste.hora_minima) : baseHoraMinima;
 
       // Check if proportional (delivery or return within the cycle)
-      const temEntregaNoPeriodo = dataEntrega && dataEntrega > formMedicaoInicio && dataEntrega <= formMedicaoFim;
-      const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= formMedicaoInicio && dataDevolucao < formMedicaoFim;
+      const temEntregaNoPeriodo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim;
+      const temDevolucaoNoPeriodo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim;
       const isProporcional = !!(temEntregaNoPeriodo || temDevolucaoNoPeriodo);
 
       let horasEfetivas: number;
       if (isProporcional) {
-        // Proportional period: charge exclusively based on actual hours worked, no minimum
         horasEfetivas = horasMedidas;
       } else {
-        // Full period: apply hora minima
         horasEfetivas = horaMinima > 0 && horasMedidas < horaMinima ? horaMinima : horasMedidas;
       }
 
@@ -184,7 +252,7 @@ export const MedicaoTerceirosTab = () => {
         equipamento_id: eqId,
         tipo: eq?.tipo || "", modelo: eq?.modelo || "", tag_placa: eq?.tag_placa || null,
         horas_medidas: horasMedidas, horas_normais: horasNormais, horas_excedentes: horasExcedentes,
-        valor_hora: Number(ce.valor_hora), valor_hora_excedente: Number(ce.valor_hora_excedente),
+        valor_hora: valorHora, valor_hora_excedente: valorExcedente,
         hora_minima: horaMinima, horas_contratadas: horasContratadas,
         primeiro_mes: isProporcional, data_entrega: dataEntrega, data_devolucao: dataDevolucao,
         cobranca_parcial: "horas_trabalhadas" as const,
