@@ -1809,7 +1809,7 @@ export const FaturamentoContent = () => {
                         Base usada no cálculo: <span className="font-medium text-foreground">{ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas}h</span>{ef.ajuste ? " do ajuste vigente" : ef.aditivo ? " do aditivo vigente" : " do contrato"}.
                       </div>
                     )}
-                    {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
+                    {ef.hora_minima > 0 && !ef.primeiro_mes && !ef.proporcional_devolucao && ef.horas_medidas < ef.hora_minima && (
                       <div className="text-xs text-accent font-medium bg-accent/10 rounded p-1.5">
                         ⚡ Hora mínima: {ef.horas_medidas.toFixed(1)}h → cobrando {ef.hora_minima}h
                       </div>
