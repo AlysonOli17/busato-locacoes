@@ -421,7 +421,6 @@ export const FaturamentoContent = () => {
     });
 
     // Calculate hours for each equipment
-    const totalDiasCiclo = Math.max(1, Math.round((parseLocalDate(fim).getTime() - parseLocalDate(inicio).getTime()) / 86400000) + 1);
     newEquipForms.forEach(ef => {
       const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
       if (isProporcional) {
@@ -431,7 +430,7 @@ export const FaturamentoContent = () => {
           const fimEf = devRaw ? (() => { const d = parseLocalDate(devRaw); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })() : fim;
           const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
           const baseMinimo = ef.hora_minima_original > 0 ? ef.hora_minima_original : ef.horas_contratadas_original;
-          const propMinimo = Number(((baseMinimo / totalDiasCiclo) * diasProp).toFixed(1));
+          const propMinimo = Number(((baseMinimo / 30) * diasProp).toFixed(1));
           const horasEfetivas = Math.max(propMinimo, ef.horas_medidas);
           ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
           ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
