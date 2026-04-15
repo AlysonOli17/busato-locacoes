@@ -1780,7 +1780,9 @@ export const FaturamentoContent = () => {
                           </Label>
                           <span className="text-xs text-muted-foreground ml-auto">
                             {ef.proporcional_devolucao
-                              ? `Proporcional: ${ef.horas_contratadas}h / Mín: ${ef.hora_minima}h`
+                              ? (ef.cobranca_parcial === "proporcional_minimo"
+                                  ? `Base proporcional: ${ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas}h${ef.ajuste ? " (ajuste)" : ef.aditivo ? " (aditivo)" : ""}`
+                                  : `Proporcional: ${ef.horas_contratadas}h / Mín: ${ef.hora_minima}h`)
                               : `Integral: ${ef.horas_contratadas_original}h / Mín: ${ef.hora_minima_original}h`}
                           </span>
                         </div>
@@ -1798,6 +1800,11 @@ export const FaturamentoContent = () => {
                             <SelectItem value="proporcional_minimo">Proporcional Mínimo</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                    )}
+                    {ef.cobranca_parcial === "proporcional_minimo" && (ef.primeiro_mes || ef.proporcional_devolucao) && (
+                      <div className="text-xs text-muted-foreground bg-muted/40 rounded p-1.5">
+                        Base usada no cálculo: <span className="font-medium text-foreground">{ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas}h</span>{ef.ajuste ? " do ajuste vigente" : ef.aditivo ? " do aditivo vigente" : " do contrato"}.
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && ef.horas_medidas < ef.hora_minima && (
