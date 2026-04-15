@@ -130,7 +130,7 @@ interface EquipFormItem {
   ajuste: any | null;
   aditivo: any | null;
   aditivo_numero: number | null;
-  cobranca_parcial: "horas_trabalhadas" | "media_diaria";
+  cobranca_parcial: "horas_trabalhadas" | "proporcional_minimo";
 }
 
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
@@ -425,11 +425,12 @@ export const FaturamentoContent = () => {
     newEquipForms.forEach(ef => {
       const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
       if (isProporcional) {
-        if (ef.cobranca_parcial === "media_diaria") {
+        if (ef.cobranca_parcial === "proporcional_minimo") {
           const inicioEf = ef.data_entrega && ef.data_entrega > inicio && ef.data_entrega <= fim ? ef.data_entrega : inicio;
           const fimEf = ef.data_devolucao && ef.data_devolucao >= inicio && ef.data_devolucao < fim ? ef.data_devolucao : fim;
           const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
-          const horasEfetivas = Number(((ef.horas_contratadas_original / totalDiasCiclo) * diasProp).toFixed(1));
+          const propMinimo = Number(((ef.horas_contratadas_original / totalDiasCiclo) * diasProp).toFixed(1));
+          const horasEfetivas = Math.max(propMinimo, ef.horas_medidas);
           ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
           ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
         } else {
@@ -562,12 +563,13 @@ export const FaturamentoContent = () => {
   const recalcHours = (ef: EquipFormItem) => {
     const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
     if (isProporcional) {
-      if (ef.cobranca_parcial === "media_diaria" && formMedicaoInicio && formMedicaoFim) {
+      if (ef.cobranca_parcial === "proporcional_minimo" && formMedicaoInicio && formMedicaoFim) {
         const totalDiasCiclo = Math.max(1, Math.round((parseLocalDate(formMedicaoFim).getTime() - parseLocalDate(formMedicaoInicio).getTime()) / 86400000) + 1);
         const inicioEf = ef.data_entrega && ef.data_entrega > formMedicaoInicio && ef.data_entrega <= formMedicaoFim ? ef.data_entrega : formMedicaoInicio;
         const fimEf = ef.data_devolucao && ef.data_devolucao >= formMedicaoInicio && ef.data_devolucao < formMedicaoFim ? ef.data_devolucao : formMedicaoFim;
         const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
-        const horasEfetivas = Number(((ef.horas_contratadas_original / totalDiasCiclo) * diasProp).toFixed(1));
+        const propMinimo = Number(((ef.horas_contratadas_original / totalDiasCiclo) * diasProp).toFixed(1));
+        const horasEfetivas = Math.max(propMinimo, ef.horas_medidas);
         ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
         ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
       } else {
@@ -617,7 +619,7 @@ export const FaturamentoContent = () => {
   };
 
   // Change cobrança parcial mode
-  const changeCobrancaParcial = (idx: number, mode: "horas_trabalhadas" | "media_diaria") => {
+  const changeCobrancaParcial = (idx: number, mode: "horas_trabalhadas" | "proporcional_minimo") => {
     setEquipForms(prev => {
       const updated = [...prev];
       const ef = { ...updated[idx] };
@@ -1785,13 +1787,13 @@ export const FaturamentoContent = () => {
                     {(ef.primeiro_mes || ef.proporcional_devolucao) && (
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
                         <Label className="text-xs whitespace-nowrap">Cobrança parcial:</Label>
-                        <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "media_diaria")}>
+                        <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "proporcional_minimo")}>
                           <SelectTrigger className="h-7 text-xs w-56">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="horas_trabalhadas">Horas Trabalhadas</SelectItem>
-                            <SelectItem value="media_diaria">Média Diária (proporcional)</SelectItem>
+                            <SelectItem value="proporcional_minimo">Proporcional Mínimo</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
