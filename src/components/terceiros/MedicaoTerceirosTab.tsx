@@ -38,7 +38,7 @@ interface EquipFormItem {
   valor_hora: number; valor_hora_excedente: number; hora_minima: number;
   horas_contratadas: number; primeiro_mes: boolean;
   data_entrega: string | null; data_devolucao: string | null;
-  cobranca_parcial: "horas_trabalhadas" | "media_diaria";
+  cobranca_parcial: "horas_trabalhadas" | "proporcional_minimo";
 }
 
 // Saved measurement record
@@ -196,17 +196,18 @@ export const MedicaoTerceirosTab = () => {
   }, [contratos, formContratoId, formMedicaoInicio, formMedicaoFim]);
 
   // Change cobrança parcial mode
-  const changeCobrancaParcial = (idx: number, mode: "horas_trabalhadas" | "media_diaria") => {
+  const changeCobrancaParcial = (idx: number, mode: "horas_trabalhadas" | "proporcional_minimo") => {
     setEquipForms(prev => {
       const updated = [...prev];
       const ef = { ...updated[idx] };
       ef.cobranca_parcial = mode;
-      if (mode === "media_diaria" && formMedicaoInicio && formMedicaoFim) {
+      if (mode === "proporcional_minimo" && formMedicaoInicio && formMedicaoFim) {
         const totalDiasCiclo = Math.max(1, Math.round((parseLocalDate(formMedicaoFim).getTime() - parseLocalDate(formMedicaoInicio).getTime()) / 86400000) + 1);
         const inicioEf = ef.data_entrega && ef.data_entrega > formMedicaoInicio && ef.data_entrega <= formMedicaoFim ? ef.data_entrega : formMedicaoInicio;
         const fimEf = ef.data_devolucao && ef.data_devolucao >= formMedicaoInicio && ef.data_devolucao < formMedicaoFim ? ef.data_devolucao : formMedicaoFim;
         const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
-        const horasEfetivas = Number(((ef.horas_contratadas / totalDiasCiclo) * diasProp).toFixed(1));
+        const propMinimo = Number(((ef.horas_contratadas / totalDiasCiclo) * diasProp).toFixed(1));
+        const horasEfetivas = Math.max(propMinimo, ef.horas_medidas);
         ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
         ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
       } else {
@@ -405,13 +406,13 @@ export const MedicaoTerceirosTab = () => {
                               {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">Proporcional</Badge>}
                               {ef.primeiro_mes && (
                                 <div className="mt-1">
-                                  <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "media_diaria")}>
+                                  <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "proporcional_minimo")}>
                                     <SelectTrigger className="h-6 text-[10px] w-48">
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="horas_trabalhadas">Horas Trabalhadas</SelectItem>
-                                      <SelectItem value="media_diaria">Média Diária</SelectItem>
+                                      <SelectItem value="proporcional_minimo">Proporcional Mínimo</SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>
