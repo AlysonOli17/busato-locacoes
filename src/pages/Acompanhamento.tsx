@@ -112,18 +112,23 @@ const Acompanhamento = () => {
     return "Pendente";
   };
 
-  const calcCurrentPeriod = (ct: Contrato) => {
-    const now = new Date();
+  // calcCurrentPeriod removed - using calcPeriodForMonth instead
+
+  const contratosAtivos = useMemo(() => {
+    return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
+  }, [contratos, filtroEmpresa]);
+
+  const calcPeriodForMonth = (ct: Contrato, year: number, month: number) => {
     const diaInicio = ct.dia_medicao_inicio || 1;
     const diaFim = ct.dia_medicao_fim || 30;
-    let mesInicio = now.getMonth();
-    let anoInicio = now.getFullYear();
-    let mesFim = mesInicio;
-    let anoFim = anoInicio;
+    let mesInicio = month;
+    let anoInicio = year;
+    let mesFim = month;
+    let anoFim = year;
     if (diaFim < diaInicio) {
-      mesFim = mesInicio;
-      anoFim = anoInicio;
-      mesInicio = mesInicio - 1;
+      mesFim = month;
+      anoFim = year;
+      mesInicio = month - 1;
       if (mesInicio < 0) { mesInicio = 11; anoInicio--; }
     }
     const lastDayInicio = new Date(anoInicio, mesInicio + 1, 0).getDate();
@@ -134,27 +139,56 @@ const Acompanhamento = () => {
     return { inicio, fim };
   };
 
-  const contratosAtivos = useMemo(() => {
-    return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
-  }, [contratos, filtroEmpresa]);
-
   const alertasPendentes = useMemo(() => {
     const hoje = new Date();
-    return contratosAtivos.map(ct => {
+    type Alerta = {
+      contrato: Contrato;
+      period: { inicio: string; fim: string };
+      tipo: "medicao" | "faturamento";
+    };
+    const alertas: Alerta[] = [];
+
+    contratosAtivos.forEach(ct => {
       const dataInicio = parseLocalDate(ct.data_inicio);
-      if (hoje < dataInicio) return null;
-      const period = calcCurrentPeriod(ct);
-      if (period.inicio < ct.data_inicio) return null;
-      const faturado = faturas.some(f =>
-        f.contrato_id === ct.id &&
-        f.periodo_medicao_inicio === period.inicio &&
-        f.periodo_medicao_fim === period.fim
-      );
-      const periodEnd = new Date(period.fim);
-      const periodoEncerrado = hoje > periodEnd;
-      return { contrato: ct, period, faturado, periodoEncerrado };
-    }).filter((a): a is NonNullable<typeof a> => a !== null && !a.faturado && a.periodoEncerrado);
-  }, [contratosAtivos, faturas]);
+      if (hoje < dataInicio) return;
+
+      // Check if this contract has at least one previous billing
+      const jaFaturou = faturas.some(f => f.contrato_id === ct.id);
+      if (!jaFaturou) return; // Only alert after first billing
+
+      // Check current and up to 3 past periods
+      for (let offset = 0; offset <= 3; offset++) {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth() - offset, 1);
+        const period = calcPeriodForMonth(ct, d.getFullYear(), d.getMonth());
+
+        if (period.inicio < ct.data_inicio) continue;
+        const periodEnd = parseLocalDate(period.fim);
+        if (hoje <= periodEnd) continue; // Period not yet ended
+
+        const faturado = faturas.some(f =>
+          f.contrato_id === ct.id &&
+          f.periodo_medicao_inicio === period.inicio &&
+          f.periodo_medicao_fim === period.fim
+        );
+        if (faturado) continue;
+
+        // Check if there are horímetro readings for this contract's equipment in this period
+        const ctEquipId = ct.equipamento_id;
+        const temMedicao = medicoes.some(m => {
+          if (m.equipamento_id !== ctEquipId) return false;
+          return m.data >= period.inicio && m.data <= period.fim;
+        });
+
+        if (!temMedicao) {
+          alertas.push({ contrato: ct, period, tipo: "medicao" });
+        } else {
+          alertas.push({ contrato: ct, period, tipo: "faturamento" });
+        }
+      }
+    });
+
+    return alertas;
+  }, [contratosAtivos, faturas, medicoes]);
 
   const faturasFiltered = useMemo(() => {
     if (filtroEmpresa === "all") return faturas;
@@ -294,50 +328,96 @@ const Acompanhamento = () => {
               </Card>
             </div>
 
-            {(() => {
-              const empresasComAlerta = empresas.filter(emp => {
-                if (filtroEmpresa !== "all" && emp.id !== filtroEmpresa) return false;
-                return alertasPendentes.some(a => a.contrato.empresa_id === emp.id);
-              });
-              if (empresasComAlerta.length === 0 && alertasPendentes.length === 0) return null;
-              return (
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                    <CalendarClock className="h-5 w-5 text-warning" />
-                    Empresas com Faturamento Pendente ({empresasComAlerta.length})
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {empresasComAlerta.map(emp => {
-                      const alertasEmp = alertasPendentes.filter(a => a.contrato.empresa_id === emp.id);
-                      return (
-                        <Card key={emp.id} className="border-warning/50 bg-warning/5">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <AlertTriangle className="h-4 w-4 text-warning" />
-                              {emp.nome}
-                            </CardTitle>
-                            <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            {alertasEmp.map((a, i) => (
-                              <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
-                                <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
-                                </p>
-                                <Badge className="bg-warning text-warning-foreground text-xs">
-                                  Pendente de Emissão
-                                </Badge>
-                              </div>
-                            ))}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+              {(() => {
+                const empresasComAlerta = empresas.filter(emp => {
+                  if (filtroEmpresa !== "all" && emp.id !== filtroEmpresa) return false;
+                  return alertasPendentes.some(a => a.contrato.empresa_id === emp.id);
+                });
+                if (empresasComAlerta.length === 0) return null;
+
+                const alertasMedicao = alertasPendentes.filter(a => a.tipo === "medicao");
+                const alertasFat = alertasPendentes.filter(a => a.tipo === "faturamento");
+
+                return (
+                  <div className="space-y-6">
+                    {alertasMedicao.length > 0 && (
+                      <div className="space-y-4">
+                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                          Pendente de Medição ({alertasMedicao.length})
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {empresasComAlerta.filter(emp => alertasMedicao.some(a => a.contrato.empresa_id === emp.id)).map(emp => {
+                            const alertasEmp = alertasMedicao.filter(a => a.contrato.empresa_id === emp.id);
+                            return (
+                              <Card key={`med-${emp.id}`} className="border-destructive/50 bg-destructive/5">
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                                    {emp.nome}
+                                  </CardTitle>
+                                  <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                  {alertasEmp.map((a, i) => (
+                                    <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
+                                      <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
+                                      </p>
+                                      <Badge className="bg-destructive text-destructive-foreground text-xs">
+                                        Sem Medição Registrada
+                                      </Badge>
+                                    </div>
+                                  ))}
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {alertasFat.length > 0 && (
+                      <div className="space-y-4">
+                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                          <CalendarClock className="h-5 w-5 text-warning" />
+                          Pendente de Faturamento ({alertasFat.length})
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {empresasComAlerta.filter(emp => alertasFat.some(a => a.contrato.empresa_id === emp.id)).map(emp => {
+                            const alertasEmp = alertasFat.filter(a => a.contrato.empresa_id === emp.id);
+                            return (
+                              <Card key={`fat-${emp.id}`} className="border-warning/50 bg-warning/5">
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-warning" />
+                                    {emp.nome}
+                                  </CardTitle>
+                                  <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                  {alertasEmp.map((a, i) => (
+                                    <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
+                                      <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
+                                      </p>
+                                      <Badge className="bg-warning text-warning-foreground text-xs">
+                                        Pendente de Emissão
+                                      </Badge>
+                                    </div>
+                                  ))}
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
 
             <Card>
               <CardHeader>
