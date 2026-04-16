@@ -1724,7 +1724,14 @@ export const FaturamentoContent = () => {
                   <Clock className="h-4 w-4 text-accent" />
                   Horas por Equipamento
                 </div>
-                {equipForms.map((ef, idx) => (
+                {equipForms.map((ef, idx) => {
+                  const equipGastos = gastosEquip.filter(g => g.equipamento_id === ef.equipamento_id && g.tipo !== "Mobilização" && g.tipo !== "Desmobilização");
+                  const equipGastosCobrar = equipGastos.filter(g => selectedGastos.has(g.id) && (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+                  const equipGastosReembolsar = equipGastos.filter(g => selectedGastos.has(g.id) && g.classificacao === "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+                  const equipGastosLiquido = equipGastosCobrar - equipGastosReembolsar;
+                  const valorEquip = ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente;
+
+                  return (
                   <div key={ef.equipamento_id} className={`p-3 rounded-lg border space-y-2 ${ef.horas_excedentes > 0 ? "border-warning bg-warning/5" : "border-success bg-success/5"}`}>
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
@@ -1759,7 +1766,7 @@ export const FaturamentoContent = () => {
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>V/h: R$ {ef.valor_hora.toFixed(2)} | V/h exc: R$ {ef.valor_hora_excedente.toFixed(2)}{ef.hora_minima > 0 ? ` | Mín: ${ef.hora_minima}h` : ""}</span>
-                      <span className="font-semibold text-foreground">R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="font-semibold text-foreground">R$ {valorEquip.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                       {ef.hora_minima > 0 && (
                       <div className="flex items-center gap-2 pt-1 border-t border-border/50">
@@ -1849,8 +1856,58 @@ export const FaturamentoContent = () => {
                       <span>📦 Entrega: {ef.data_entrega ? parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR") : "Não informada"}</span>
                       {ef.data_devolucao && <span>🔙 Devolução: {parseLocalDate(ef.data_devolucao).toLocaleDateString("pt-BR")}</span>}
                     </div>
+
+                    {/* Custos deste equipamento (exceto Mobilização/Desmobilização) */}
+                    {equipGastos.length > 0 && (
+                      <div className="pt-2 border-t border-accent/30 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-accent flex items-center gap-1">
+                            <TrendingDown className="h-3 w-3" /> Custos deste Equipamento
+                          </p>
+                          <Button variant="ghost" size="sm" className="text-[10px] h-5 px-1.5" onClick={() => {
+                            const allIds = equipGastos.map(g => g.id);
+                            const allSelected = allIds.every(id => selectedGastos.has(id));
+                            setSelectedGastos(prev => {
+                              const n = new Set(prev);
+                              allIds.forEach(id => allSelected ? n.delete(id) : n.add(id));
+                              return n;
+                            });
+                          }}>
+                            {equipGastos.every(g => selectedGastos.has(g.id)) ? "Desmarcar" : "Selecionar todos"}
+                          </Button>
+                        </div>
+                        {equipGastos.map(g => (
+                          <div key={g.id} className="flex items-center gap-2 text-xs">
+                            <Checkbox checked={selectedGastos.has(g.id)} onCheckedChange={() => toggleGasto(g.id)} className="shrink-0" />
+                            <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
+                              {parseLocalDate(g.data).toLocaleDateString("pt-BR")} — {g.descricao}
+                              <Badge variant="outline" className="text-[10px] ml-1">{g.tipo}</Badge>
+                              <Badge className={`text-[10px] ml-1 ${g.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0"}`}>
+                                {g.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                              </Badge>
+                            </span>
+                            <span className={`font-semibold shrink-0 ${g.classificacao === "A Reembolsar ao Cliente" ? "text-destructive" : selectedGastos.has(g.id) ? "text-accent" : "text-muted-foreground"}`}>
+                              {g.classificacao === "A Reembolsar ao Cliente" ? "−" : "+"} R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ))}
+                        {equipGastos.some(g => selectedGastos.has(g.id)) && (
+                          <div className="flex items-center justify-between text-xs font-semibold pt-1 border-t border-accent/20">
+                            <span>Subtotal Custos</span>
+                            <span className={equipGastosLiquido >= 0 ? "text-accent" : "text-destructive"}>
+                              {equipGastosLiquido >= 0 ? "+" : "−"} R$ {Math.abs(equipGastosLiquido).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-xs font-bold pt-1 border-t border-border/40">
+                          <span>Total Equipamento (Medição {equipGastosLiquido !== 0 ? (equipGastosLiquido > 0 ? "+ Custos" : "- Reembolso") : ""})</span>
+                          <span className="text-foreground">R$ {(valorEquip + equipGastosLiquido).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
                 {loadingMedicoes && <p className="text-xs text-muted-foreground">Calculando...</p>}
               </div>
             )}
@@ -1861,45 +1918,49 @@ export const FaturamentoContent = () => {
               </div>
             )}
 
-            {/* Custos Adicionais */}
-            {gastosEquip.length > 0 && (
-              <div className="p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-medium text-accent">
-                    <TrendingDown className="h-4 w-4" />
-                    Custos dos Equipamentos no Período
+            {/* Mobilização/Desmobilização Custos (global section) */}
+            {(() => {
+              const mobGastos = gastosEquip.filter(g => g.tipo === "Mobilização" || g.tipo === "Desmobilização");
+              if (mobGastos.length === 0) return null;
+              return (
+                <div className="p-4 rounded-lg border border-warning/30 bg-warning/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium text-warning">
+                      <Truck className="h-4 w-4" />
+                      Mobilização / Desmobilização
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => {
+                      const mobIds = mobGastos.map(g => g.id);
+                      const allSelected = mobIds.every(id => selectedGastos.has(id));
+                      setSelectedGastos(prev => {
+                        const n = new Set(prev);
+                        mobIds.forEach(id => allSelected ? n.delete(id) : n.add(id));
+                        return n;
+                      });
+                    }}>
+                      {mobGastos.every(g => selectedGastos.has(g.id)) ? "Desmarcar todos" : "Selecionar todos"}
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={toggleAllGastos}>
-                    {selectedGastos.size === gastosEquip.length ? "Desmarcar todos" : "Selecionar todos"}
-                  </Button>
-                </div>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {gastosEquip.map(g => {
-                    const eq = equipForms.find(ef => ef.equipamento_id === g.equipamento_id);
-                    return (
-                      <div key={g.id} className="flex items-center gap-2 text-sm">
-                        <Checkbox checked={selectedGastos.has(g.id)} onCheckedChange={() => toggleGasto(g.id)} className="shrink-0" />
-                        <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
-                          {parseLocalDate(g.data).toLocaleDateString("pt-BR")} — {eq ? `${eq.tipo} ${eq.modelo}` : ""} — {g.descricao} <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
-                          <Badge className={`text-[10px] ml-1 ${g.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0"}`}>
-                            {g.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
-                          </Badge>
-                        </span>
-                        <span className={`font-semibold shrink-0 ${g.classificacao === "A Reembolsar ao Cliente" ? "text-destructive" : selectedGastos.has(g.id) ? "text-accent" : "text-muted-foreground"}`}>
-                          {g.classificacao === "A Reembolsar ao Cliente" ? "−" : "+"} R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {selectedGastos.size > 0 && (
-                  <div className="flex items-center justify-between pt-2 border-t border-accent/20 font-bold text-sm">
-                    <span>Total Líquido Custos ({selectedGastos.size}/{gastosEquip.length})</span>
-                    <span className={totalGastos >= 0 ? "text-accent" : "text-destructive"}>{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {mobGastos.map(g => {
+                      const eq = equipForms.find(ef => ef.equipamento_id === g.equipamento_id);
+                      return (
+                        <div key={g.id} className="flex items-center gap-2 text-sm">
+                          <Checkbox checked={selectedGastos.has(g.id)} onCheckedChange={() => toggleGasto(g.id)} className="shrink-0" />
+                          <span className={`flex-1 ${selectedGastos.has(g.id) ? "text-foreground" : "text-muted-foreground"}`}>
+                            {parseLocalDate(g.data).toLocaleDateString("pt-BR")} — {eq ? `${eq.tipo} ${eq.modelo}` : ""} — {g.descricao}
+                            <Badge variant="outline" className="text-xs ml-1">{g.tipo}</Badge>
+                          </span>
+                          <span className={`font-semibold shrink-0 ${selectedGastos.has(g.id) ? "text-accent" : "text-muted-foreground"}`}>
+                            + R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -1948,20 +2009,29 @@ export const FaturamentoContent = () => {
             {/* Totals */}
             {equipForms.length > 0 && (
               <div className="p-4 rounded-lg bg-accent/10 space-y-2">
-                {equipForms.map(ef => (
-                  <div key={ef.equipamento_id} className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{ef.tipo} {ef.modelo}</span>
-                    <span>R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                ))}
+                {equipForms.map(ef => {
+                  const eqGastos = gastosEquip.filter(g => g.equipamento_id === ef.equipamento_id && g.tipo !== "Mobilização" && g.tipo !== "Desmobilização");
+                  const eqCobrar = eqGastos.filter(g => selectedGastos.has(g.id) && (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+                  const eqReembolsar = eqGastos.filter(g => selectedGastos.has(g.id) && g.classificacao === "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+                  const eqCustosLiq = eqCobrar - eqReembolsar;
+                  const valorEquip = ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente;
+                  return (
+                    <div key={ef.equipamento_id} className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
+                      <span>R$ {(valorEquip + eqCustosLiq).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {eqCustosLiq !== 0 && <span className="text-accent ml-1">({eqCustosLiq > 0 ? "+" : ""}{eqCustosLiq.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} custos)</span>}
+                      </span>
+                    </div>
+                  );
+                })}
                 <div className="flex items-center justify-between text-sm pt-1 border-t border-accent/20">
                   <span className="text-muted-foreground">Valor Bruto ({totalHorasNormais.toFixed(1)}h + {totalHorasExcedentes.toFixed(1)}h exc.)</span>
                   <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                {totalGastos > 0 && (
+                {totalGastos !== 0 && (
                   <div className="flex items-center justify-between text-sm text-accent">
                     <span>Custos Adicionais</span>
-                    <span className="font-semibold">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="font-semibold">{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-accent/20">
