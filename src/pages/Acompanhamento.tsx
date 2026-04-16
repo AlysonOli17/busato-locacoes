@@ -112,27 +112,7 @@ const Acompanhamento = () => {
     return "Pendente";
   };
 
-  const calcCurrentPeriod = (ct: Contrato) => {
-    const now = new Date();
-    const diaInicio = ct.dia_medicao_inicio || 1;
-    const diaFim = ct.dia_medicao_fim || 30;
-    let mesInicio = now.getMonth();
-    let anoInicio = now.getFullYear();
-    let mesFim = mesInicio;
-    let anoFim = anoInicio;
-    if (diaFim < diaInicio) {
-      mesFim = mesInicio;
-      anoFim = anoInicio;
-      mesInicio = mesInicio - 1;
-      if (mesInicio < 0) { mesInicio = 11; anoInicio--; }
-    }
-    const lastDayInicio = new Date(anoInicio, mesInicio + 1, 0).getDate();
-    const lastDayFim = new Date(anoFim, mesFim + 1, 0).getDate();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const inicio = `${anoInicio}-${pad(mesInicio + 1)}-${pad(Math.min(diaInicio, lastDayInicio))}`;
-    const fim = `${anoFim}-${pad(mesFim + 1)}-${pad(Math.min(diaFim, lastDayFim))}`;
-    return { inicio, fim };
-  };
+  // calcCurrentPeriod removed - using calcPeriodForMonth instead
 
   const contratosAtivos = useMemo(() => {
     return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
