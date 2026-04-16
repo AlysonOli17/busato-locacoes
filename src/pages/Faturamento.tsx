@@ -930,6 +930,29 @@ export const FaturamentoContent = () => {
       // Calculate total
       let totalMedicao = 0;
 
+      // ──── Fetch all costs linked to this invoice ────
+      const { data: fgData } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
+      let allGastosData: any[] = [];
+      let gastoEqMap = new Map<string, string>();
+      if (fgData && fgData.length > 0) {
+        const gastoIds = fgData.map((fg: any) => fg.gasto_id);
+        const { data: gastosData } = await supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id, classificacao").in("id", gastoIds);
+        allGastosData = gastosData || [];
+        const gastoEquipIds = [...new Set(allGastosData.map((g: any) => g.equipamento_id).filter(Boolean))];
+        if (gastoEquipIds.length > 0) {
+          const { data: geData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").in("id", gastoEquipIds);
+          if (geData) {
+            for (const e of geData) {
+              gastoEqMap.set(e.id, `${e.tipo} ${e.modelo}${e.tag_placa ? ` - ${e.tag_placa}` : ""}`);
+            }
+          }
+        }
+      }
+
+      // Separate mobilization costs from operational costs
+      const mobilizacaoGastos = allGastosData.filter((g: any) => g.tipo === "Mobilização" || g.tipo === "Desmobilização");
+      const operacionalGastos = allGastosData.filter((g: any) => g.tipo !== "Mobilização" && g.tipo !== "Desmobilização");
+
       const eqRows = allPdfEquipIds.map(eqId => {
         const eq = eqMap.get(eqId);
         const ce = ceList.find(c => c.equipamento_id === eqId);
@@ -965,18 +988,16 @@ export const FaturamentoContent = () => {
         let hc = ajuste ? Number(ajuste.horas_contratadas) : baseHc;
         let hm = ajuste ? Number(ajuste.hora_minima) : baseHm;
 
-        // Use saved values if available (preserves cobrança parcial choice)
+        // Use saved values if available
         const savedEq = savedEquipMap.get(eqId);
         let hn: number, he: number;
         if (savedEq) {
           hn = Number(savedEq.horas_normais);
           he = Number(savedEq.horas_excedentes);
         } else {
-          // Proportional for delivery/return
           const entrega = ae?.data_entrega || ce?.data_entrega || null;
           const devolucao = ae?.data_devolucao || ce?.data_devolucao || null;
           const isProporcional = (entrega && entrega > inicio && entrega <= fim) || (devolucao && devolucao >= inicio && devolucao < fim);
-
           let horasEfetivas: number;
           if (isProporcional) {
             horasEfetivas = horasMedidas;
@@ -986,213 +1007,227 @@ export const FaturamentoContent = () => {
           hn = Number(Math.min(horasEfetivas, hc).toFixed(1));
           he = Number(Math.max(0, horasEfetivas - hc).toFixed(1));
         }
-        const valorTotal = hn * vh + he * vhe;
-        totalMedicao += valorTotal;
+        const valorMedicao = hn * vh + he * vhe;
+        totalMedicao += valorMedicao;
 
-        const itemDesc = `${(eq?.tipo || "").toUpperCase()} ${(eq?.modelo || "").toUpperCase()}`;
-        const tagPlaca = eq?.tag_placa || "—";
-        const numSerie = eq?.numero_serie || "—";
+        // Equipment costs (operational only, no mobilization)
+        const equipGastosCobrar = operacionalGastos.filter((g: any) => g.equipamento_id === eqId && (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
+        const equipGastosReembolsar = operacionalGastos.filter((g: any) => g.equipamento_id === eqId && g.classificacao === "A Reembolsar ao Cliente");
+        const totalEquipCobrar = equipGastosCobrar.reduce((a: number, g: any) => a + Number(g.valor), 0);
+        const totalEquipReembolsar = equipGastosReembolsar.reduce((a: number, g: any) => a + Number(g.valor), 0);
+        const subtotalEquip = valorMedicao + totalEquipCobrar - totalEquipReembolsar;
 
-        // Determine type label (Mobilização, Desmobilização, Proporcional, etc.)
+        // Determine type label
         const tipoLabels: string[] = [];
         const entregaDate = ae?.data_entrega || ce?.data_entrega || null;
         const devolucaoDate = ae?.data_devolucao || ce?.data_devolucao || null;
-        if (entregaDate && entregaDate > inicio && entregaDate <= fim) {
-          tipoLabels.push("Mobilização (Proporcional)");
-        }
-        if (devolucaoDate && devolucaoDate >= inicio && devolucaoDate < fim) {
-          tipoLabels.push("Desmobilização (Proporcional)");
-        }
+        if (entregaDate && entregaDate > inicio && entregaDate <= fim) tipoLabels.push("Mobilização (Proporcional)");
+        if (devolucaoDate && devolucaoDate >= inicio && devolucaoDate < fim) tipoLabels.push("Desmobilização (Proporcional)");
         if (ajuste) {
           const ajusteDesc = ajuste.motivo || "S/ descrição";
-          if (descontoPerc > 0) {
-            tipoLabels.push(`Ajuste: ${ajusteDesc} (Desconto ${descontoPerc}%)`);
-          } else {
-            tipoLabels.push(`Ajuste: ${ajusteDesc}`);
-          }
+          if (descontoPerc > 0) tipoLabels.push(`Ajuste: ${ajusteDesc} (Desconto ${descontoPerc}%)`);
+          else tipoLabels.push(`Ajuste: ${ajusteDesc}`);
         }
-        const tipoStr = tipoLabels.length > 0 ? tipoLabels.join(" / ") : "";
 
-        // Period measured for this specific equipment
         const periodoEqInicio = parseLocalDate(iEf).toLocaleDateString("pt-BR");
         const periodoEqFim = parseLocalDate(fEf).toLocaleDateString("pt-BR");
-        const periodoEqStr = `${periodoEqInicio} a ${periodoEqFim}`;
-
-        // Build sub-line text (Tipo + Período) to show below equipment
-        const subParts: string[] = [];
-        if (tipoStr) subParts.push(tipoStr);
-        subParts.push(`Período: ${periodoEqStr}`);
-        const subLineText = subParts.join("  •  ");
 
         return {
-          mainRow: [
-            itemDesc,
-            tagPlaca,
-            numSerie,
-            fmtBRL(vh),
-            fmtBRL(vhe),
-            `${fmt(hm)}h`,
-            `${fmt(horasMedidas)}h`,
-            `${fmt(horasIndisponiveis)}h`,
-            fmtBRL(valorTotal),
-          ],
-          subLineText,
+          eqId,
+          eq,
+          vh, vhe, hm, hn, he, horasMedidas, horasIndisponiveis, valorMedicao,
+          equipGastosCobrar, equipGastosReembolsar, totalEquipCobrar, totalEquipReembolsar, subtotalEquip,
+          tipoLabels,
+          periodoEqStr: `${periodoEqInicio} a ${periodoEqFim}`,
         };
       });
 
-      // Build body rows: each equipment gets a main row + a sub-row spanning all columns
-      const tableBody: any[][] = [];
-      for (const { mainRow, subLineText } of eqRows) {
-        tableBody.push(mainRow);
-        tableBody.push([{ content: subLineText, colSpan: 9, styles: { fontSize: 6, fontStyle: "italic", textColor: [100, 100, 100], fillColor: [250, 250, 250], cellPadding: { top: 1, bottom: 1, left: 4, right: 2 } } }]);
-      }
-
-      // Table with all contract info columns — auto-expand to fill page
+      // ──────────────── RENDER PER-EQUIPMENT BLOCKS ────────────────
       const tableMargin = { left: mL, right: mR };
-      autoTable(doc, {
-        startY: y,
-        margin: tableMargin,
-        head: [["Equipamento", "Tag", "Nº Série", "V/h", "V/h Exc", "Mínima", "Horas Trabalhadas", "Indisponível", "Valor Total R$"]],
-        body: tableBody,
-        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold", halign: "center" },
-        alternateRowStyles: {},
-        columnStyles: {
-          1: { halign: "center" },
-          2: { halign: "center" },
-          3: { halign: "right" },
-          4: { halign: "right" },
-          5: { halign: "center" },
-          6: { halign: "center" },
-          7: { halign: "center" },
-          8: { halign: "right" },
-        },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY;
 
-      // Medição Total - right aligned with proper spacing
-      y += 6;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Medição Total:", pageW - mR - 40, y, { align: "right" });
-      doc.text(fmtBRL(totalMedicao), pageW - mR, y, { align: "right" });
-      doc.setTextColor(0, 0, 0);
-      y += 12;
+      for (const row of eqRows) {
+        // Check page space
+        if (y > pageH - 80) { doc.addPage(); y = 15; }
 
-      // ──────────────── CUSTOS ADICIONAIS ────────────────
-      let totalCobrar = 0;
-      let totalReembolsar = 0;
+        const itemDesc = `${(row.eq?.tipo || "").toUpperCase()} ${(row.eq?.modelo || "").toUpperCase()}`;
+        const tagPlaca = row.eq?.tag_placa || "—";
+        const numSerie = row.eq?.numero_serie || "—";
 
-      {
-        const { data: fgData } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
-        if (fgData && fgData.length > 0) {
-          const gastoIds = fgData.map((fg: any) => fg.gasto_id);
-          const { data: gastosData } = await supabase.from("gastos").select("descricao, tipo, valor, data, equipamento_id, classificacao").in("id", gastoIds);
-          if (gastosData && gastosData.length > 0) {
-            // Fetch equipment names for cost rows
-            const gastoEquipIds = [...new Set(gastosData.map((g: any) => g.equipamento_id).filter(Boolean))];
-            let gastoEqMap = new Map<string, string>();
-            if (gastoEquipIds.length > 0) {
-              const { data: geData } = await supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").in("id", gastoEquipIds);
-              if (geData) {
-                for (const e of geData) {
-                  gastoEqMap.set(e.id, `${e.tipo} ${e.modelo}${e.tag_placa ? ` - ${e.tag_placa}` : ""}`);
+        // Equipment header bar
+        doc.setFillColor(41, 128, 185);
+        doc.rect(mL, y - 3, contentW, 6, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`${itemDesc}  |  Tag: ${tagPlaca}  |  NS: ${numSerie}`, mL + 2, y);
+        doc.setTextColor(0, 0, 0);
+        y += 6;
+
+        // Sub-info line (period + tipo labels)
+        const subParts: string[] = [];
+        if (row.tipoLabels.length > 0) subParts.push(row.tipoLabels.join(" / "));
+        subParts.push(`Período: ${row.periodoEqStr}`);
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 100, 100);
+        doc.text(subParts.join("  •  "), mL + 2, y + 1);
+        doc.setTextColor(0, 0, 0);
+        y += 5;
+
+        // Equipment measurement table (single row)
+        autoTable(doc, {
+          startY: y,
+          margin: tableMargin,
+          head: [["V/h", "V/h Exc", "Mínima", "Horas Medidas", "Indisponível", "Horas Normais", "Horas Excedentes", "Valor Medição"]],
+          body: [[
+            fmtBRL(row.vh),
+            fmtBRL(row.vhe),
+            `${fmt(row.hm)}h`,
+            `${fmt(row.horasMedidas)}h`,
+            `${fmt(row.horasIndisponiveis)}h`,
+            `${fmt(row.hn)}h`,
+            `${fmt(row.he)}h`,
+            fmtBRL(row.valorMedicao),
+          ]],
+          styles: { fontSize: 7, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.2 },
+          headStyles: { fillColor: [235, 235, 235], textColor: [60, 60, 60], fontStyle: "bold", halign: "center", fontSize: 6.5 },
+          columnStyles: {
+            0: { halign: "right" }, 1: { halign: "right" }, 2: { halign: "center" },
+            3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" },
+            6: { halign: "center" }, 7: { halign: "right", fontStyle: "bold" },
+          },
+          theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY;
+
+        // Equipment costs (if any)
+        const allEquipGastos = [...row.equipGastosCobrar, ...row.equipGastosReembolsar];
+        if (allEquipGastos.length > 0) {
+          const costRows = allEquipGastos.map((g: any) => [
+            parseLocalDate(g.data).toLocaleDateString("pt-BR"),
+            g.descricao,
+            g.tipo,
+            g.classificacao === "A Reembolsar ao Cliente" ? "Reembolso" : "A Cobrar",
+            g.classificacao === "A Reembolsar ao Cliente" ? `- ${fmtBRL(Number(g.valor))}` : fmtBRL(Number(g.valor)),
+          ]);
+
+          autoTable(doc, {
+            startY: y,
+            margin: tableMargin,
+            head: [["Data", "Descrição", "Tipo", "Classificação", "Valor"]],
+            body: costRows,
+            styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+            headStyles: { fillColor: [245, 245, 245], textColor: [80, 80, 80], fontStyle: "bold", fontSize: 6 },
+            columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
+            theme: "grid",
+            didParseCell: (data: any) => {
+              if (data.section === "body" && data.column.index === 4) {
+                const raw = data.cell.raw as string;
+                if (raw.startsWith("-")) {
+                  data.cell.styles.textColor = [192, 57, 43];
                 }
               }
-            }
-
-            const gastosCobrar = gastosData.filter((g: any) => (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
-            const gastosReembolsar = gastosData.filter((g: any) => g.classificacao === "A Reembolsar ao Cliente");
-
-            totalCobrar = gastosCobrar.reduce((a: number, g: any) => a + Number(g.valor), 0);
-            totalReembolsar = gastosReembolsar.reduce((a: number, g: any) => a + Number(g.valor), 0);
-
-            const formatGastoRow = (g: any) => [
-              parseLocalDate(g.data).toLocaleDateString("pt-BR"),
-              gastoEqMap.get(g.equipamento_id) || "—",
-              g.descricao,
-              g.tipo,
-              fmtBRL(Number(g.valor)),
-            ];
-
-            // Table: Custos a Cobrar do Cliente
-            if (gastosCobrar.length > 0) {
-              if (y > 230) { doc.addPage(); y = 15; }
-              doc.setFillColor(235, 235, 235);
-              doc.rect(mL, y - 3, contentW, 5, "F");
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(8);
-              doc.setTextColor(0, 0, 0);
-              doc.text("Custos Adicionais — A Cobrar do Cliente", mL + 1, y);
-              y += 4;
-
-              autoTable(doc, {
-                startY: y,
-                margin: tableMargin,
-                head: [["Data", "Equipamento", "Descrição", "Tipo", "Valor"]],
-                body: gastosCobrar.map(formatGastoRow),
-                styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
-                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-                alternateRowStyles: { fillColor: [240, 246, 252] },
-                columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
-                theme: "grid",
-              });
-              y = (doc as any).lastAutoTable.finalY + 4;
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(10);
-              doc.setTextColor(41, 128, 185);
-              doc.text("Total a Cobrar:", pageW - mR - 40, y, { align: "right" });
-              doc.text(fmtBRL(totalCobrar), pageW - mR, y, { align: "right" });
-              doc.setTextColor(0, 0, 0);
-              y += 10;
-            }
-
-            // Table: Custos a Reembolsar ao Cliente
-            if (gastosReembolsar.length > 0) {
-              if (y > 230) { doc.addPage(); y = 15; }
-              doc.setFillColor(235, 235, 235);
-              doc.rect(mL, y - 3, contentW, 5, "F");
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(8);
-              doc.setTextColor(0, 0, 0);
-              doc.text("Créditos ao Cliente — A Reembolsar", mL + 1, y);
-              y += 4;
-
-              autoTable(doc, {
-                startY: y,
-                margin: tableMargin,
-                head: [["Data", "Equipamento", "Descrição", "Tipo", "Valor"]],
-                body: gastosReembolsar.map(formatGastoRow),
-                styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
-                headStyles: { fillColor: [192, 57, 43], textColor: 255 },
-                alternateRowStyles: { fillColor: [252, 240, 240] },
-                columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
-                theme: "grid",
-              });
-              y = (doc as any).lastAutoTable.finalY + 4;
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(10);
-              doc.setTextColor(192, 57, 43);
-              doc.text("Total a Reembolsar:", pageW - mR - 40, y, { align: "right" });
-              doc.text(`- ${fmtBRL(totalReembolsar)}`, pageW - mR, y, { align: "right" });
-              doc.setTextColor(0, 0, 0);
-              y += 10;
-            }
-          }
+            },
+          });
+          y = (doc as any).lastAutoTable.finalY;
         }
+
+        // Equipment subtotal
+        const hasEquipCosts = row.totalEquipCobrar > 0 || row.totalEquipReembolsar > 0;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        y += 2;
+        if (hasEquipCosts) {
+          doc.setTextColor(60, 60, 60);
+          doc.text(`Medição: ${fmtBRL(row.valorMedicao)}`, pageW - mR - 70, y, { align: "right" });
+          if (row.totalEquipCobrar > 0) doc.text(`(+) Custos: ${fmtBRL(row.totalEquipCobrar)}`, pageW - mR - 35, y, { align: "right" });
+          if (row.totalEquipReembolsar > 0) {
+            y += 4;
+            doc.setTextColor(192, 57, 43);
+            doc.text(`(−) Reembolso: ${fmtBRL(row.totalEquipReembolsar)}`, pageW - mR - 35, y, { align: "right" });
+          }
+          y += 4;
+          doc.setTextColor(41, 128, 185);
+          doc.text(`Subtotal Equipamento: ${fmtBRL(row.subtotalEquip)}`, pageW - mR, y, { align: "right" });
+        } else {
+          doc.setTextColor(41, 128, 185);
+          doc.text(`Subtotal: ${fmtBRL(row.valorMedicao)}`, pageW - mR, y, { align: "right" });
+        }
+        doc.setTextColor(0, 0, 0);
+        y += 8;
+      }
+
+      // ──────────────── MOBILIZAÇÃO / DESMOBILIZAÇÃO ────────────────
+      let totalMobCobrar = 0;
+      let totalMobReembolsar = 0;
+
+      if (mobilizacaoGastos.length > 0) {
+        if (y > pageH - 60) { doc.addPage(); y = 15; }
+
+        doc.setFillColor(41, 128, 185);
+        doc.rect(mL, y - 3, contentW, 6, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text("MOBILIZAÇÃO / DESMOBILIZAÇÃO", mL + 2, y);
+        doc.setTextColor(0, 0, 0);
+        y += 6;
+
+        const mobCobrar = mobilizacaoGastos.filter((g: any) => (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
+        const mobReembolsar = mobilizacaoGastos.filter((g: any) => g.classificacao === "A Reembolsar ao Cliente");
+        totalMobCobrar = mobCobrar.reduce((a: number, g: any) => a + Number(g.valor), 0);
+        totalMobReembolsar = mobReembolsar.reduce((a: number, g: any) => a + Number(g.valor), 0);
+
+        const mobRows = mobilizacaoGastos.map((g: any) => [
+          parseLocalDate(g.data).toLocaleDateString("pt-BR"),
+          gastoEqMap.get(g.equipamento_id) || "—",
+          g.descricao,
+          g.tipo,
+          g.classificacao === "A Reembolsar ao Cliente" ? "Reembolso" : "A Cobrar",
+          g.classificacao === "A Reembolsar ao Cliente" ? `- ${fmtBRL(Number(g.valor))}` : fmtBRL(Number(g.valor)),
+        ]);
+
+        autoTable(doc, {
+          startY: y,
+          margin: tableMargin,
+          head: [["Data", "Equipamento", "Descrição", "Tipo", "Classificação", "Valor"]],
+          body: mobRows,
+          styles: { fontSize: 7, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.2 },
+          headStyles: { fillColor: [235, 235, 235], textColor: [60, 60, 60], fontStyle: "bold" },
+          columnStyles: { 0: { halign: "center" }, 5: { halign: "right" } },
+          theme: "grid",
+          didParseCell: (data: any) => {
+            if (data.section === "body" && data.column.index === 5) {
+              const raw = data.cell.raw as string;
+              if (raw.startsWith("-")) data.cell.styles.textColor = [192, 57, 43];
+            }
+          },
+        });
+        y = (doc as any).lastAutoTable.finalY + 4;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(41, 128, 185);
+        const totalMob = totalMobCobrar - totalMobReembolsar;
+        doc.text(`Total Mobilização: ${fmtBRL(totalMob)}`, pageW - mR, y, { align: "right" });
+        doc.setTextColor(0, 0, 0);
+        y += 10;
       }
 
       // ──────────────── RESUMO TOTAL ────────────────
-      const grandTotal = totalMedicao + totalCobrar - totalReembolsar;
-      if (y > 240) { doc.addPage(); y = 15; }
+      const totalOperacionalCobrar = eqRows.reduce((a, r) => a + r.totalEquipCobrar, 0);
+      const totalOperacionalReembolsar = eqRows.reduce((a, r) => a + r.totalEquipReembolsar, 0);
+      const grandTotal = totalMedicao + totalOperacionalCobrar - totalOperacionalReembolsar + totalMobCobrar - totalMobReembolsar;
+
+      if (y > pageH - 50) { doc.addPage(); y = 15; }
 
       const resumoBody: string[][] = [
         ["Medição (Equipamentos)", fmtBRL(totalMedicao)],
       ];
-      if (totalCobrar > 0) resumoBody.push(["(+) Custos a Cobrar do Cliente", fmtBRL(totalCobrar)]);
-      if (totalReembolsar > 0) resumoBody.push(["(−) Créditos ao Cliente", `- ${fmtBRL(totalReembolsar)}`]);
+      if (totalOperacionalCobrar > 0) resumoBody.push(["(+) Custos Operacionais a Cobrar", fmtBRL(totalOperacionalCobrar)]);
+      if (totalOperacionalReembolsar > 0) resumoBody.push(["(−) Custos Operacionais a Reembolsar", `- ${fmtBRL(totalOperacionalReembolsar)}`]);
+      if (totalMobCobrar > 0) resumoBody.push(["(+) Mobilização / Desmobilização", fmtBRL(totalMobCobrar)]);
+      if (totalMobReembolsar > 0) resumoBody.push(["(−) Mobilização / Desmobilização (Reembolso)", `- ${fmtBRL(totalMobReembolsar)}`]);
       resumoBody.push(["VALOR TOTAL DA MEDIÇÃO", fmtBRL(grandTotal)]);
 
       const lastIdx = resumoBody.length - 1;
