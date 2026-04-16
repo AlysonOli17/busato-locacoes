@@ -2009,20 +2009,29 @@ export const FaturamentoContent = () => {
             {/* Totals */}
             {equipForms.length > 0 && (
               <div className="p-4 rounded-lg bg-accent/10 space-y-2">
-                {equipForms.map(ef => (
-                  <div key={ef.equipamento_id} className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{ef.tipo} {ef.modelo}</span>
-                    <span>R$ {(ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                ))}
+                {equipForms.map(ef => {
+                  const eqGastos = gastosEquip.filter(g => g.equipamento_id === ef.equipamento_id && g.tipo !== "Mobilização" && g.tipo !== "Desmobilização");
+                  const eqCobrar = eqGastos.filter(g => selectedGastos.has(g.id) && (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+                  const eqReembolsar = eqGastos.filter(g => selectedGastos.has(g.id) && g.classificacao === "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
+                  const eqCustosLiq = eqCobrar - eqReembolsar;
+                  const valorEquip = ef.horas_normais * ef.valor_hora + ef.horas_excedentes * ef.valor_hora_excedente;
+                  return (
+                    <div key={ef.equipamento_id} className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
+                      <span>R$ {(valorEquip + eqCustosLiq).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {eqCustosLiq !== 0 && <span className="text-accent ml-1">({eqCustosLiq > 0 ? "+" : ""}{eqCustosLiq.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} custos)</span>}
+                      </span>
+                    </div>
+                  );
+                })}
                 <div className="flex items-center justify-between text-sm pt-1 border-t border-accent/20">
                   <span className="text-muted-foreground">Valor Bruto ({totalHorasNormais.toFixed(1)}h + {totalHorasExcedentes.toFixed(1)}h exc.)</span>
                   <span className="font-semibold">R$ {valorBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                {totalGastos > 0 && (
+                {totalGastos !== 0 && (
                   <div className="flex items-center justify-between text-sm text-accent">
                     <span>Custos Adicionais</span>
-                    <span className="font-semibold">+ R$ {totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="font-semibold">{totalGastos >= 0 ? "+" : "−"} R$ {Math.abs(totalGastos).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-accent/20">
