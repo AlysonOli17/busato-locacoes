@@ -1055,24 +1055,24 @@ export const FaturamentoContent = () => {
 
         // Equipment header bar
         doc.setFillColor(41, 128, 185);
-        doc.rect(mL, y - 3, contentW, 6, "F");
+        doc.rect(mL, y - 3, contentW, 7, "F");
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
+        doc.setFontSize(9);
         doc.setTextColor(255, 255, 255);
-        doc.text(`${itemDesc}  |  Tag: ${tagPlaca}  |  NS: ${numSerie}`, mL + 2, y);
+        doc.text(`${itemDesc}  |  Tag: ${tagPlaca}  |  NS: ${numSerie}`, mL + 2, y + 1);
         doc.setTextColor(0, 0, 0);
-        y += 6;
+        y += 7;
 
         // Sub-info line (period + tipo labels)
         const subParts: string[] = [];
         if (row.tipoLabels.length > 0) subParts.push(row.tipoLabels.join(" / "));
         subParts.push(`Período: ${row.periodoEqStr}`);
         doc.setFont("helvetica", "italic");
-        doc.setFontSize(6.5);
+        doc.setFontSize(7.5);
         doc.setTextColor(100, 100, 100);
         doc.text(subParts.join("  •  "), mL + 2, y + 1);
         doc.setTextColor(0, 0, 0);
-        y += 5;
+        y += 6;
 
         // Equipment measurement table (single row)
         autoTable(doc, {
@@ -1089,8 +1089,8 @@ export const FaturamentoContent = () => {
             `${fmt(row.he)}h`,
             fmtBRL(row.valorMedicao),
           ]],
-          styles: { fontSize: 7, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.2 },
-          headStyles: { fillColor: [235, 235, 235], textColor: [60, 60, 60], fontStyle: "bold", halign: "center", fontSize: 6.5 },
+          styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
+          headStyles: { fillColor: [235, 235, 235], textColor: [60, 60, 60], fontStyle: "bold", halign: "center", fontSize: 7.5 },
           columnStyles: {
             0: { halign: "right" }, 1: { halign: "right" }, 2: { halign: "center" },
             3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" },
@@ -1116,8 +1116,8 @@ export const FaturamentoContent = () => {
             margin: tableMargin,
             head: [["Data", "Descrição", "Tipo", "Classificação", "Valor"]],
             body: costRows,
-            styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
-            headStyles: { fillColor: [245, 245, 245], textColor: [80, 80, 80], fontStyle: "bold", fontSize: 6 },
+            styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+            headStyles: { fillColor: [245, 245, 245], textColor: [80, 80, 80], fontStyle: "bold", fontSize: 7 },
             columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
             theme: "grid",
             didParseCell: (data: any) => {
@@ -1132,29 +1132,43 @@ export const FaturamentoContent = () => {
           y = (doc as any).lastAutoTable.finalY;
         }
 
-        // Equipment subtotal
-        const hasEquipCosts = row.totalEquipCobrar > 0 || row.totalEquipReembolsar > 0;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
+        // Equipment subtotal - aligned in columns using a mini table
         y += 2;
+        const subtotalRows: string[][] = [];
+        const hasEquipCosts = row.totalEquipCobrar > 0 || row.totalEquipReembolsar > 0;
+
         if (hasEquipCosts) {
-          doc.setTextColor(60, 60, 60);
-          doc.text(`Medição: ${fmtBRL(row.valorMedicao)}`, pageW - mR - 70, y, { align: "right" });
-          if (row.totalEquipCobrar > 0) doc.text(`(+) Custos: ${fmtBRL(row.totalEquipCobrar)}`, pageW - mR - 35, y, { align: "right" });
-          if (row.totalEquipReembolsar > 0) {
-            y += 4;
-            doc.setTextColor(192, 57, 43);
-            doc.text(`(−) Reembolso: ${fmtBRL(row.totalEquipReembolsar)}`, pageW - mR - 35, y, { align: "right" });
-          }
-          y += 4;
-          doc.setTextColor(41, 128, 185);
-          doc.text(`Subtotal Equipamento: ${fmtBRL(row.subtotalEquip)}`, pageW - mR, y, { align: "right" });
+          subtotalRows.push(["Medição:", fmtBRL(row.valorMedicao)]);
+          if (row.totalEquipCobrar > 0) subtotalRows.push(["(+) Custos:", fmtBRL(row.totalEquipCobrar)]);
+          if (row.totalEquipReembolsar > 0) subtotalRows.push(["(−) Reembolso:", `- ${fmtBRL(row.totalEquipReembolsar)}`]);
+          subtotalRows.push(["Subtotal Equipamento:", fmtBRL(row.subtotalEquip)]);
         } else {
-          doc.setTextColor(41, 128, 185);
-          doc.text(`Subtotal: ${fmtBRL(row.valorMedicao)}`, pageW - mR, y, { align: "right" });
+          subtotalRows.push(["Subtotal:", fmtBRL(row.valorMedicao)]);
         }
-        doc.setTextColor(0, 0, 0);
-        y += 8;
+
+        const subtotalLastIdx = subtotalRows.length - 1;
+        autoTable(doc, {
+          startY: y,
+          margin: { left: pageW - mR - 90, right: mR },
+          body: subtotalRows,
+          styles: { fontSize: 8, cellPadding: 1.5, lineWidth: 0 },
+          columnStyles: {
+            0: { halign: "right", fontStyle: "bold", cellWidth: 45 },
+            1: { halign: "right", cellWidth: 45 },
+          },
+          theme: "plain",
+          didParseCell: (data: any) => {
+            if (data.section === "body" && data.row.index === subtotalLastIdx) {
+              data.cell.styles.textColor = [41, 128, 185];
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.fontSize = 9;
+            }
+            if (data.section === "body" && data.cell.raw && String(data.cell.raw).startsWith("-")) {
+              data.cell.styles.textColor = [192, 57, 43];
+            }
+          },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
       }
 
       // ──────────────── MOBILIZAÇÃO / DESMOBILIZAÇÃO ────────────────
