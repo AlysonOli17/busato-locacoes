@@ -1010,12 +1010,10 @@ export const FaturamentoContent = () => {
         const valorMedicao = hn * vh + he * vhe;
         totalMedicao += valorMedicao;
 
-        // Equipment costs (operational only, no mobilization)
-        const equipGastosCobrar = operacionalGastos.filter((g: any) => g.equipamento_id === eqId && (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
-        const equipGastosReembolsar = operacionalGastos.filter((g: any) => g.equipamento_id === eqId && g.classificacao === "A Reembolsar ao Cliente");
-        const totalEquipCobrar = equipGastosCobrar.reduce((a: number, g: any) => a + Number(g.valor), 0);
-        const totalEquipReembolsar = equipGastosReembolsar.reduce((a: number, g: any) => a + Number(g.valor), 0);
-        const subtotalEquip = valorMedicao + totalEquipCobrar - totalEquipReembolsar;
+        // Equipment costs removed from PDF per user request
+        const totalEquipCobrar = 0;
+        const totalEquipReembolsar = 0;
+        const subtotalEquip = valorMedicao;
 
         // Determine type label
         const tipoLabels: string[] = [];
@@ -1036,7 +1034,7 @@ export const FaturamentoContent = () => {
           eqId,
           eq,
           vh, vhe, hm, hn, he, horasMedidas, horasIndisponiveis, valorMedicao,
-          equipGastosCobrar, equipGastosReembolsar, totalEquipCobrar, totalEquipReembolsar, subtotalEquip,
+          totalEquipCobrar, totalEquipReembolsar, subtotalEquip,
           tipoLabels,
           periodoEqStr: `${periodoEqInicio} a ${periodoEqFim}`,
         };
@@ -1100,53 +1098,12 @@ export const FaturamentoContent = () => {
         });
         y = (doc as any).lastAutoTable.finalY;
 
-        // Equipment costs (if any)
-        const allEquipGastos = [...row.equipGastosCobrar, ...row.equipGastosReembolsar];
-        if (allEquipGastos.length > 0) {
-          const costRows = allEquipGastos.map((g: any) => [
-            parseLocalDate(g.data).toLocaleDateString("pt-BR"),
-            g.descricao,
-            g.tipo,
-            g.classificacao === "A Reembolsar ao Cliente" ? "Reembolso" : "A Cobrar",
-            g.classificacao === "A Reembolsar ao Cliente" ? `- ${fmtBRL(Number(g.valor))}` : fmtBRL(Number(g.valor)),
-          ]);
-
-          autoTable(doc, {
-            startY: y,
-            margin: tableMargin,
-            head: [["Data", "Descrição", "Tipo", "Classificação", "Valor"]],
-            body: costRows,
-            styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
-            headStyles: { fillColor: [245, 245, 245], textColor: [80, 80, 80], fontStyle: "bold", fontSize: 7 },
-            columnStyles: { 0: { halign: "center" }, 4: { halign: "right" } },
-            theme: "grid",
-            didParseCell: (data: any) => {
-              if (data.section === "body" && data.column.index === 4) {
-                const raw = data.cell.raw as string;
-                if (raw.startsWith("-")) {
-                  data.cell.styles.textColor = [192, 57, 43];
-                }
-              }
-            },
-          });
-          y = (doc as any).lastAutoTable.finalY;
-        }
-
-        // Equipment subtotal - aligned in columns using a mini table
+        // Equipment subtotal - simplified (no costs)
         y += 2;
-        const subtotalRows: string[][] = [];
-        const hasEquipCosts = row.totalEquipCobrar > 0 || row.totalEquipReembolsar > 0;
+        const subtotalRows: string[][] = [
+          ["Subtotal:", fmtBRL(row.valorMedicao)]
+        ];
 
-        if (hasEquipCosts) {
-          subtotalRows.push(["Medição:", fmtBRL(row.valorMedicao)]);
-          if (row.totalEquipCobrar > 0) subtotalRows.push(["(+) Custos:", fmtBRL(row.totalEquipCobrar)]);
-          if (row.totalEquipReembolsar > 0) subtotalRows.push(["(−) Reembolso:", `- ${fmtBRL(row.totalEquipReembolsar)}`]);
-          subtotalRows.push(["Subtotal Equipamento:", fmtBRL(row.subtotalEquip)]);
-        } else {
-          subtotalRows.push(["Subtotal:", fmtBRL(row.valorMedicao)]);
-        }
-
-        const subtotalLastIdx = subtotalRows.length - 1;
         autoTable(doc, {
           startY: y,
           margin: { left: pageW - mR - 90, right: mR },
@@ -1158,13 +1115,10 @@ export const FaturamentoContent = () => {
           },
           theme: "plain",
           didParseCell: (data: any) => {
-            if (data.section === "body" && data.row.index === subtotalLastIdx) {
+            if (data.section === "body") {
               data.cell.styles.textColor = [41, 128, 185];
               data.cell.styles.fontStyle = "bold";
               data.cell.styles.fontSize = 9;
-            }
-            if (data.section === "body" && data.cell.raw && String(data.cell.raw).startsWith("-")) {
-              data.cell.styles.textColor = [192, 57, 43];
             }
           },
         });
@@ -1229,17 +1183,14 @@ export const FaturamentoContent = () => {
       }
 
       // ──────────────── RESUMO TOTAL ────────────────
-      const totalOperacionalCobrar = eqRows.reduce((a, r) => a + r.totalEquipCobrar, 0);
-      const totalOperacionalReembolsar = eqRows.reduce((a, r) => a + r.totalEquipReembolsar, 0);
-      const grandTotal = totalMedicao + totalOperacionalCobrar - totalOperacionalReembolsar + totalMobCobrar - totalMobReembolsar;
+      // Custos operacionais removidos do PDF por solicitação do usuário
+      const grandTotal = totalMedicao + totalMobCobrar - totalMobReembolsar;
 
       if (y > pageH - 50) { doc.addPage(); y = 15; }
 
       const resumoBody: string[][] = [
         ["Medição (Equipamentos)", fmtBRL(totalMedicao)],
       ];
-      if (totalOperacionalCobrar > 0) resumoBody.push(["(+) Custos Operacionais a Cobrar", fmtBRL(totalOperacionalCobrar)]);
-      if (totalOperacionalReembolsar > 0) resumoBody.push(["(−) Custos Operacionais a Reembolsar", `- ${fmtBRL(totalOperacionalReembolsar)}`]);
       if (totalMobCobrar > 0) resumoBody.push(["(+) Mobilização / Desmobilização", fmtBRL(totalMobCobrar)]);
       if (totalMobReembolsar > 0) resumoBody.push(["(−) Mobilização / Desmobilização (Reembolso)", `- ${fmtBRL(totalMobReembolsar)}`]);
       resumoBody.push(["VALOR TOTAL DA MEDIÇÃO", fmtBRL(grandTotal)]);
