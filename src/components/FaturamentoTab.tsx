@@ -547,19 +547,7 @@ export const FaturamentoTab = () => {
       y += lineH;
     }
 
-    // Additional costs
-    const allGastos = faturaGastos.get(fatura.id) || [];
-    if (allGastos.length > 0) {
-      y += 3;
-      doc.setFont("helvetica", "bold");
-      doc.text("Custos Adicionais:", mLeft + 1.5, y);
-      y += lineH;
-      doc.setFont("helvetica", "normal");
-      allGastos.forEach(g => {
-        doc.text(`• ${g.tipo} — ${g.descricao}: R$ ${fmt(g.valor)}`, mLeft + 1.5, y);
-        y += lineH;
-      });
-    }
+    // (Custos adicionais removidos da fatura a pedido do usuário — manter apenas observações)
 
     // Observações
     const obs = (fatura as any).observacoes;
