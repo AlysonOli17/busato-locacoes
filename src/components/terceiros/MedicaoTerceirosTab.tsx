@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Receipt, Pencil, Trash2, AlertTriangle, Clock, TrendingDown } from "lucide-react";
+import { Plus, Receipt, Pencil, Trash2, AlertTriangle, Clock, TrendingDown, FileDown } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { calcularHorasInterpoladas, getEquipLabel } from "@/lib/utils";
 
@@ -44,8 +44,8 @@ interface EquipFormItem {
 // Saved measurement record
 interface MedicaoSalva {
   id: string; contrato_id: string; periodo: string; periodo_inicio: string; periodo_fim: string;
-  valor_total: number; status: string; created_at: string;
-  contratos_terceiros: { fornecedores: Fornecedor };
+  valor_total: number; status: string; created_at: string; detalhes: any;
+  contratos_terceiros: { tipo_medicao?: string; fornecedores: Fornecedor };
 }
 
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
@@ -75,7 +75,7 @@ export const MedicaoTerceirosTab = () => {
         .select("*, fornecedores(id, nome, cnpj), contratos_terceiros_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)")
         .eq("status", "Ativo").order("created_at", { ascending: false }),
       (supabase.from as any)("medicoes_terceiros_faturamento")
-        .select("*, contratos_terceiros(fornecedores(id, nome, cnpj))")
+        .select("*, contratos_terceiros(tipo_medicao, fornecedores(id, nome, cnpj))")
         .order("created_at", { ascending: false }),
     ]);
     if (ctRes.data) setContratos(ctRes.data as unknown as Contrato[]);
