@@ -602,6 +602,47 @@ const Acompanhamento = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={vincularDialog.open} onOpenChange={(o) => !o && setVincularDialog({ open: false, alerta: null, faturaId: "" })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vincular Fatura ao Período</DialogTitle>
+          </DialogHeader>
+          {vincularDialog.alerta && (
+            <div className="space-y-4">
+              <div className="text-sm space-y-1">
+                <p><span className="text-muted-foreground">Empresa:</span> <span className="font-medium">{vincularDialog.alerta.contrato.empresas?.nome}</span></p>
+                <p><span className="text-muted-foreground">Equipamento:</span> {vincularDialog.alerta.contrato.equipamentos?.tipo} {vincularDialog.alerta.contrato.equipamentos?.modelo}</p>
+                <p><span className="text-muted-foreground">Período:</span> {parseLocalDate(vincularDialog.alerta.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(vincularDialog.alerta.period.fim).toLocaleDateString("pt-BR")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Selecione a fatura existente que cobre este período:</label>
+                <Select value={vincularDialog.faturaId} onValueChange={(v) => setVincularDialog(prev => ({ ...prev, faturaId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha uma fatura..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {faturas
+                      .filter(f => f.contrato_id === vincularDialog.alerta.contrato.id)
+                      .sort((a, b) => b.emissao.localeCompare(a.emissao))
+                      .map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.numero_nota ? `Nº ${f.numero_nota}` : "(sem número)"} — {parseLocalDate(f.emissao).toLocaleDateString("pt-BR")} — R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          {f.periodo_medicao_inicio && f.periodo_medicao_fim ? ` [${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")}-${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}]` : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">O período de medição da fatura selecionada será atualizado para este intervalo, removendo o alerta.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVincularDialog({ open: false, alerta: null, faturaId: "" })}>Cancelar</Button>
+            <Button onClick={vincularFaturaAoPeriodo} disabled={!vincularDialog.faturaId}>Vincular</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
