@@ -174,10 +174,13 @@ const Acompanhamento = () => {
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue; // Period not yet ended
 
-        const faturado = faturasContrato.some(f =>
-          f.periodo_medicao_inicio === period.inicio &&
-          f.periodo_medicao_fim === period.fim
-        );
+        // Considera faturado se houver fatura cujo período se sobrepõe ao período calculado
+        // (evita falsos alertas por diferença de 1 dia no fim do ciclo)
+        const faturado = faturasContrato.some(f => {
+          if (!f.periodo_medicao_inicio || !f.periodo_medicao_fim) return false;
+          // Sobreposição de intervalos
+          return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
+        });
         if (faturado) continue;
 
         // Check if there are horímetro readings for this contract's equipment in this period
