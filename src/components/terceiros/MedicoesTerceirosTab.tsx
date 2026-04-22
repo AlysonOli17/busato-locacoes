@@ -13,7 +13,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock, AlertTriangle, CalendarDays } from "lucide-react";
 import { calcularHorasInterpoladas, cn, getEquipLabel } from "@/lib/utils";
 
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
@@ -152,17 +152,25 @@ export const MedicoesTerceirosTab = () => {
   };
 
   const handleSave = async () => {
-    if (!form.equipamento_id || form.horimetro <= 0) {
-      toast({ title: "Campos obrigatórios", description: "Selecione um equipamento e informe o horímetro.", variant: "destructive" });
+    if (!form.equipamento_id) {
+      toast({ title: "Selecione um equipamento", variant: "destructive" });
       return;
     }
     const isIndisp = form.tipo === "Indisponível";
-    const hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
-    const horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
+    const isDiaria = form.tipo === "Diária";
+
+    if (!isDiaria && form.horimetro <= 0) {
+      toast({ title: "Informe o horímetro", variant: "destructive" });
+      return;
+    }
+
+    const hInicial = isDiaria ? 0 : (isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior);
+    const hFinal = isDiaria ? 0 : form.horimetro;
+    const horasTrabalhadas = isDiaria ? 0 : (isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial));
 
     const payload = {
       equipamento_id: form.equipamento_id, data: form.data,
-      horimetro_inicial: hInicial, horimetro_final: form.horimetro,
+      horimetro_inicial: hInicial, horimetro_final: hFinal,
       horas_trabalhadas: horasTrabalhadas, tipo: form.tipo,
       observacoes: form.observacoes || null,
     };
@@ -170,11 +178,11 @@ export const MedicoesTerceirosTab = () => {
     if (editingId) {
       const { error } = await supabase.from("medicoes_terceiros").update(payload).eq("id", editingId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Horímetro atualizado" });
+      toast({ title: "Lançamento atualizado" });
     } else {
       const { error } = await supabase.from("medicoes_terceiros").insert(payload);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Horímetro registrado" });
+      toast({ title: "Lançamento registrado" });
     }
     setDialogOpen(false);
     setEditingId(null);
@@ -192,7 +200,7 @@ export const MedicoesTerceirosTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Atualizar Horímetro</Button>
+        <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Lançamento</Button>
         <div className="flex-1" />
         <SearchableSelect value={filtroEquip} onValueChange={setFiltroEquip} placeholder="Todos equipamentos" options={[{ value: "", label: "Todos" }, ...equipamentos.map(e => ({ value: e.id, label: getEquipLabel(e) }))]} />
         <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="w-36 h-9" />
@@ -242,11 +250,13 @@ export const MedicoesTerceirosTab = () => {
                 <TableCell>
                   {item.tipo === "Indisponível" ? (
                     <Badge variant="destructive" className="text-xs gap-1"><AlertTriangle className="h-3 w-3" /> Indisponível</Badge>
+                  ) : item.tipo === "Diária" ? (
+                    <Badge className="bg-primary/10 text-primary border-0 text-xs gap-1"><CalendarDays className="h-3 w-3" /> Diária</Badge>
                   ) : (
                     <Badge className="bg-accent/10 text-accent border-0 text-xs">Trabalho</Badge>
                   )}
                 </TableCell>
-                <TableCell className="font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
+                <TableCell className="font-medium">{item.tipo === "Diária" ? "—" : Number(item.horimetro_final).toFixed(1)}</TableCell>
                 <TableCell>
                   {item.tipo === "Indisponível" ? (
                     <Badge className="font-semibold border-0 bg-destructive/10 text-destructive">
@@ -273,7 +283,7 @@ export const MedicoesTerceirosTab = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-accent" />
-              {editingId ? "Editar Horímetro" : "Atualizar Horímetro"}
+              {editingId ? "Editar Lançamento" : "Novo Lançamento"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -292,10 +302,14 @@ export const MedicoesTerceirosTab = () => {
             </div>
             <div>
               <Label>Tipo de Lançamento</Label>
-              <RadioGroup value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))} className="flex gap-4 mt-2">
+              <RadioGroup value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))} className="flex flex-wrap gap-4 mt-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Trabalho" id="terc-tipo-trabalho" />
                   <Label htmlFor="terc-tipo-trabalho" className="cursor-pointer">Trabalho</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Diária" id="terc-tipo-diaria" />
+                  <Label htmlFor="terc-tipo-diaria" className="cursor-pointer">Diária</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Indisponível" id="terc-tipo-indisponivel" />
@@ -308,6 +322,13 @@ export const MedicoesTerceirosTab = () => {
               <div>
                 <Label>Horímetro Atual</Label>
                 <Input type="number" step="0.1" value={form.horimetro || ""} onChange={e => setForm(f => ({ ...f, horimetro: Number(e.target.value) }))} placeholder="Ex: 189.5" />
+              </div>
+            )}
+
+            {form.tipo === "Diária" && (
+              <div>
+                <Label>Observações</Label>
+                <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Ex: O.S, local, atividade..." rows={3} />
               </div>
             )}
 
