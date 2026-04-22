@@ -15,7 +15,7 @@ const LocacaoTerceiros = () => (
         <TabsTrigger value="fornecedores" className="gap-1"><Building2 className="h-4 w-4" /> Fornecedores</TabsTrigger>
         <TabsTrigger value="equipamentos" className="gap-1"><Wrench className="h-4 w-4" /> Equipamentos</TabsTrigger>
         <TabsTrigger value="contratos" className="gap-1"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
-        <TabsTrigger value="horimetro" className="gap-1"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
+        <TabsTrigger value="horimetro" className="gap-1"><Clock className="h-4 w-4" /> Lançamento</TabsTrigger>
         <TabsTrigger value="medicao" className="gap-1"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>
         <TabsTrigger value="custos" className="gap-1"><DollarSign className="h-4 w-4" /> Custos</TabsTrigger>
       </TabsList>
