@@ -439,9 +439,19 @@ const Acompanhamento = () => {
                                       <p className="text-xs text-muted-foreground">
                                         Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
                                       </p>
-                                      <Badge className="bg-warning text-warning-foreground text-xs">
-                                        Pendente de Emissão
-                                      </Badge>
+                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <Badge className="bg-warning text-warning-foreground text-xs">
+                                          Pendente de Emissão
+                                        </Badge>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => setVincularDialog({ open: true, alerta: a, faturaId: "" })}
+                                        >
+                                          <Link2 className="h-3 w-3 mr-1" /> Vincular Fatura
+                                        </Button>
+                                      </div>
                                     </div>
                                   ))}
                                 </CardContent>
