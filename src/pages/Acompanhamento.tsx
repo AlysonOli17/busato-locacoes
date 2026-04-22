@@ -75,6 +75,29 @@ const Acompanhamento = () => {
   const [sortCol, setSortCol] = useState("emissao");
   const [sortAsc, setSortAsc] = useState(false);
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
+  const { toast } = useToast();
+  const [vincularDialog, setVincularDialog] = useState<{ open: boolean; alerta: any | null; faturaId: string }>({ open: false, alerta: null, faturaId: "" });
+
+  const refreshFaturas = async () => {
+    const { data } = await supabase.from("faturamento").select("*, contratos(id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento)").order("emissao", { ascending: false });
+    if (data) setFaturas(data as unknown as Fatura[]);
+  };
+
+  const vincularFaturaAoPeriodo = async () => {
+    if (!vincularDialog.alerta || !vincularDialog.faturaId) return;
+    const { alerta, faturaId } = vincularDialog;
+    const { error } = await supabase
+      .from("faturamento")
+      .update({ periodo_medicao_inicio: alerta.period.inicio, periodo_medicao_fim: alerta.period.fim })
+      .eq("id", faturaId);
+    if (error) {
+      toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Período vinculado", description: "Fatura associada ao período corretamente." });
+    setVincularDialog({ open: false, alerta: null, faturaId: "" });
+    await refreshFaturas();
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
