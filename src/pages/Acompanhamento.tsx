@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, Receipt, Building2, FileDown, FileSpreadsheet, TrendingUp, TrendingDown, CalendarClock, LayoutDashboard } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Receipt, Building2, FileDown, FileSpreadsheet, TrendingUp, TrendingDown, CalendarClock, LayoutDashboard, Link2 } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface Empresa {
   id: string;
@@ -73,6 +75,29 @@ const Acompanhamento = () => {
   const [sortCol, setSortCol] = useState("emissao");
   const [sortAsc, setSortAsc] = useState(false);
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
+  const { toast } = useToast();
+  const [vincularDialog, setVincularDialog] = useState<{ open: boolean; alerta: any | null; faturaId: string }>({ open: false, alerta: null, faturaId: "" });
+
+  const refreshFaturas = async () => {
+    const { data } = await supabase.from("faturamento").select("*, contratos(id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento)").order("emissao", { ascending: false });
+    if (data) setFaturas(data as unknown as Fatura[]);
+  };
+
+  const vincularFaturaAoPeriodo = async () => {
+    if (!vincularDialog.alerta || !vincularDialog.faturaId) return;
+    const { alerta, faturaId } = vincularDialog;
+    const { error } = await supabase
+      .from("faturamento")
+      .update({ periodo_medicao_inicio: alerta.period.inicio, periodo_medicao_fim: alerta.period.fim })
+      .eq("id", faturaId);
+    if (error) {
+      toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Período vinculado", description: "Fatura associada ao período corretamente." });
+    setVincularDialog({ open: false, alerta: null, faturaId: "" });
+    await refreshFaturas();
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -414,9 +439,19 @@ const Acompanhamento = () => {
                                       <p className="text-xs text-muted-foreground">
                                         Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
                                       </p>
-                                      <Badge className="bg-warning text-warning-foreground text-xs">
-                                        Pendente de Emissão
-                                      </Badge>
+                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <Badge className="bg-warning text-warning-foreground text-xs">
+                                          Pendente de Emissão
+                                        </Badge>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => setVincularDialog({ open: true, alerta: a, faturaId: "" })}
+                                        >
+                                          <Link2 className="h-3 w-3 mr-1" /> Vincular Fatura
+                                        </Button>
+                                      </div>
                                     </div>
                                   ))}
                                 </CardContent>
@@ -567,6 +602,47 @@ const Acompanhamento = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={vincularDialog.open} onOpenChange={(o) => !o && setVincularDialog({ open: false, alerta: null, faturaId: "" })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vincular Fatura ao Período</DialogTitle>
+          </DialogHeader>
+          {vincularDialog.alerta && (
+            <div className="space-y-4">
+              <div className="text-sm space-y-1">
+                <p><span className="text-muted-foreground">Empresa:</span> <span className="font-medium">{vincularDialog.alerta.contrato.empresas?.nome}</span></p>
+                <p><span className="text-muted-foreground">Equipamento:</span> {vincularDialog.alerta.contrato.equipamentos?.tipo} {vincularDialog.alerta.contrato.equipamentos?.modelo}</p>
+                <p><span className="text-muted-foreground">Período:</span> {parseLocalDate(vincularDialog.alerta.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(vincularDialog.alerta.period.fim).toLocaleDateString("pt-BR")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Selecione a fatura existente que cobre este período:</label>
+                <Select value={vincularDialog.faturaId} onValueChange={(v) => setVincularDialog(prev => ({ ...prev, faturaId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha uma fatura..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {faturas
+                      .filter(f => f.contrato_id === vincularDialog.alerta.contrato.id)
+                      .sort((a, b) => b.emissao.localeCompare(a.emissao))
+                      .map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.numero_nota ? `Nº ${f.numero_nota}` : "(sem número)"} — {parseLocalDate(f.emissao).toLocaleDateString("pt-BR")} — R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          {f.periodo_medicao_inicio && f.periodo_medicao_fim ? ` [${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")}-${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}]` : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">O período de medição da fatura selecionada será atualizado para este intervalo, removendo o alerta.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVincularDialog({ open: false, alerta: null, faturaId: "" })}>Cancelar</Button>
+            <Button onClick={vincularFaturaAoPeriodo} disabled={!vincularDialog.faturaId}>Vincular</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
