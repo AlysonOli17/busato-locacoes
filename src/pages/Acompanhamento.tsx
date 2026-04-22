@@ -152,9 +152,16 @@ const Acompanhamento = () => {
       const dataInicio = parseLocalDate(ct.data_inicio);
       if (hoje < dataInicio) return;
 
-      // Check if this contract has at least one previous billing
-      const jaFaturou = faturas.some(f => f.contrato_id === ct.id);
-      if (!jaFaturou) return; // Only alert after first billing
+      // Get all billings for this contract
+      const faturasContrato = faturas.filter(f => f.contrato_id === ct.id);
+      if (faturasContrato.length === 0) return; // Only alert after first billing
+
+      // Find the earliest billed period start - we only alert from this point forward
+      const primeiraMedicao = faturasContrato
+        .map(f => f.periodo_medicao_inicio)
+        .filter((p): p is string => !!p)
+        .sort()[0];
+      if (!primeiraMedicao) return;
 
       // Check current and up to 3 past periods
       for (let offset = 0; offset <= 3; offset++) {
@@ -162,11 +169,12 @@ const Acompanhamento = () => {
         const period = calcPeriodForMonth(ct, d.getFullYear(), d.getMonth());
 
         if (period.inicio < ct.data_inicio) continue;
+        // Skip periods earlier than the first billed measurement
+        if (period.inicio < primeiraMedicao) continue;
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue; // Period not yet ended
 
-        const faturado = faturas.some(f =>
-          f.contrato_id === ct.id &&
+        const faturado = faturasContrato.some(f =>
           f.periodo_medicao_inicio === period.inicio &&
           f.periodo_medicao_fim === period.fim
         );
