@@ -610,7 +610,7 @@ export const MedicaoTerceirosTab = () => {
     doc.save(`medicao_terceiros_${(fornecedor?.nome || "fornecedor").replace(/\s+/g, "_")}_${inicio || ""}.pdf`);
   };
 
-
+  const filteredSaved = savedItems.filter(item => {
     if (filterFornecedor !== "all" && item.contratos_terceiros?.fornecedores?.id !== filterFornecedor) return false;
     return true;
   });
