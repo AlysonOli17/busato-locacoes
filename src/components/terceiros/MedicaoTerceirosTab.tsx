@@ -657,6 +657,7 @@ export const MedicaoTerceirosTab = () => {
                 <TableCell>{new Date(item.created_at).toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportPDF(item)} title="Baixar PDF"><FileDown className="h-3.5 w-3.5" /></Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </TableCell>
