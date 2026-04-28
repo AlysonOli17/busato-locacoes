@@ -245,8 +245,14 @@ export const MedicaoTerceirosTab = () => {
         horasEfetivas = horaMinima > 0 && horasMedidas < horaMinima ? horaMinima : horasMedidas;
       }
 
-      const horasNormais = Number(Math.min(horasEfetivas, horasContratadas).toFixed(1));
-      const horasExcedentes = Number(Math.max(0, horasEfetivas - horasContratadas).toFixed(1));
+      // For "diarias" contracts: all measured days are billed at valor/diária (no excedente logic)
+      const isDiarias = ct.tipo_medicao === "diarias";
+      const horasNormais = isDiarias
+        ? Number(horasMedidas.toFixed(1))
+        : Number(Math.min(horasEfetivas, horasContratadas).toFixed(1));
+      const horasExcedentes = isDiarias
+        ? 0
+        : Number(Math.max(0, horasEfetivas - horasContratadas).toFixed(1));
 
       return {
         equipamento_id: eqId,
@@ -711,18 +717,21 @@ export const MedicaoTerceirosTab = () => {
             )}
 
             {/* Equipment measurement results */}
-            {equipForms.length > 0 && (
+            {equipForms.length > 0 && (() => {
+              const contratoSel = contratos.find(c => c.id === formContratoId);
+              const isDiariasSel = (contratoSel as any)?.tipo_medicao === "diarias";
+              return (
               <>
                 <div className="rounded-md border overflow-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Equipamento</TableHead>
-                        <TableHead className="text-right">Horas Medidas</TableHead>
-                        <TableHead className="text-right">H. Normais</TableHead>
-                        <TableHead className="text-right">H. Excedentes</TableHead>
-                        <TableHead className="text-right">Valor/Hora</TableHead>
-                        <TableHead className="text-right">Val. Excedente</TableHead>
+                        <TableHead className="text-right">{isDiariasSel ? "Diárias Medidas" : "Horas Medidas"}</TableHead>
+                        {!isDiariasSel && <TableHead className="text-right">H. Normais</TableHead>}
+                        {!isDiariasSel && <TableHead className="text-right">H. Excedentes</TableHead>}
+                        <TableHead className="text-right">{isDiariasSel ? "Valor/Diária" : "Valor/Hora"}</TableHead>
+                        {!isDiariasSel && <TableHead className="text-right">Val. Excedente</TableHead>}
                         <TableHead className="text-right">Subtotal</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -735,7 +744,7 @@ export const MedicaoTerceirosTab = () => {
                               <div>{ef.tipo} {ef.modelo}</div>
                               {ef.tag_placa && <span className="text-xs font-mono text-muted-foreground">{ef.tag_placa}</span>}
                               {ef.primeiro_mes && <Badge variant="outline" className="ml-1 text-[10px]">Proporcional</Badge>}
-                              {ef.primeiro_mes && (
+                              {ef.primeiro_mes && !isDiariasSel && (
                                 <div className="mt-1">
                                   <Select value={ef.cobranca_parcial} onValueChange={(v) => changeCobrancaParcial(idx, v as "horas_trabalhadas" | "proporcional_minimo")}>
                                     <SelectTrigger className="h-6 text-[10px] w-48">
@@ -750,14 +759,16 @@ export const MedicaoTerceirosTab = () => {
                               )}
                             </TableCell>
                             <TableCell className="text-right">{ef.horas_medidas.toFixed(1)}</TableCell>
-                            <TableCell className="text-right">{ef.horas_normais.toFixed(1)}</TableCell>
-                            <TableCell className="text-right">
-                              {ef.horas_excedentes > 0 ? (
-                                <Badge variant="destructive" className="text-xs">{ef.horas_excedentes.toFixed(1)}</Badge>
-                              ) : "0.0"}
-                            </TableCell>
+                            {!isDiariasSel && <TableCell className="text-right">{ef.horas_normais.toFixed(1)}</TableCell>}
+                            {!isDiariasSel && (
+                              <TableCell className="text-right">
+                                {ef.horas_excedentes > 0 ? (
+                                  <Badge variant="destructive" className="text-xs">{ef.horas_excedentes.toFixed(1)}</Badge>
+                                ) : "0.0"}
+                              </TableCell>
+                            )}
                             <TableCell className="text-right">R$ {fmt(ef.valor_hora)}</TableCell>
-                            <TableCell className="text-right">R$ {fmt(ef.valor_hora_excedente)}</TableCell>
+                            {!isDiariasSel && <TableCell className="text-right">R$ {fmt(ef.valor_hora_excedente)}</TableCell>}
                             <TableCell className="text-right font-bold">R$ {fmt(sub)}</TableCell>
                           </TableRow>
                         );
@@ -799,16 +810,18 @@ export const MedicaoTerceirosTab = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <Card>
                     <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground">Horas Normais</p>
+                      <p className="text-xs text-muted-foreground">{isDiariasSel ? "Diárias" : "Horas Normais"}</p>
                       <p className="text-lg font-bold">R$ {fmt(totalNormais)}</p>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground">Horas Excedentes</p>
-                      <p className="text-lg font-bold text-destructive">R$ {fmt(totalExcedentes)}</p>
-                    </CardContent>
-                  </Card>
+                  {!isDiariasSel && (
+                    <Card>
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">Horas Excedentes</p>
+                        <p className="text-lg font-bold text-destructive">R$ {fmt(totalExcedentes)}</p>
+                      </CardContent>
+                    </Card>
+                  )}
                   <Card>
                     <CardContent className="p-3">
                       <p className="text-xs text-muted-foreground">Custos</p>
@@ -823,7 +836,8 @@ export const MedicaoTerceirosTab = () => {
                   </Card>
                 </div>
               </>
-            )}
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
