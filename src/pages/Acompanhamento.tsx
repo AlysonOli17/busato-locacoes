@@ -35,11 +35,13 @@ interface Contrato {
   status: string;
   empresas: { nome: string; cnpj: string };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
+  contratos_equipamentos?: { equipamento_id: string }[];
 }
 
 interface Fatura {
   id: string;
   contrato_id: string;
+  periodo: string;
   emissao: string;
   numero_nota: string | null;
   status: string;
@@ -62,6 +64,21 @@ interface Fatura {
 }
 
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const monthKey = (dateStr: string) => dateStr.slice(0, 7);
+const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.inicio);
+const formatCompetencia = (key: string) => {
+  const [year, month] = key.split("-").map(Number);
+  return `${meses[(month || 1) - 1]}/${year}`;
+};
+const parsePeriodoKey = (periodo?: string | null) => {
+  if (!periodo) return null;
+  const normalized = periodo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const monthIndex = meses.findIndex(m => normalized.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()));
+  const year = periodo.match(/\b(20\d{2}|19\d{2})\b/)?.[1];
+  if (monthIndex < 0 || !year) return null;
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+};
 
 const Acompanhamento = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -103,7 +120,7 @@ const Acompanhamento = () => {
     const fetchAll = async () => {
       const [empRes, ctRes, fatRes, eqRes, gastRes, medRes] = await Promise.all([
         supabase.from("empresas").select("id, nome, cnpj").order("nome"),
-        supabase.from("contratos").select("*, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa)").order("created_at", { ascending: false }),
+        supabase.from("contratos").select("*, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), contratos_equipamentos(equipamento_id)").order("created_at", { ascending: false }),
         supabase.from("faturamento").select("*, contratos(id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento)").order("emissao", { ascending: false }),
         supabase.from("equipamentos").select("*").order("tipo"),
         supabase.from("gastos").select("*").order("data", { ascending: false }),
@@ -183,7 +200,10 @@ const Acompanhamento = () => {
 
       // Find the earliest billed period start - we only alert from this point forward
       const primeiraMedicao = faturasContrato
-        .map(f => f.periodo_medicao_inicio)
+        .map(f => f.periodo_medicao_inicio || (() => {
+          const periodoKey = parsePeriodoKey(f.periodo);
+          return periodoKey ? `${periodoKey}-01` : null;
+        })())
         .filter((p): p is string => !!p)
         .sort()[0];
       if (!primeiraMedicao) return;
@@ -199,19 +219,25 @@ const Acompanhamento = () => {
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue; // Period not yet ended
 
-        // Considera faturado se houver fatura cujo período se sobrepõe ao período calculado
-        // (evita falsos alertas por diferença de 1 dia no fim do ciclo)
+        const competencias = new Set([monthKey(period.inicio), monthKey(period.fim)]);
+
+        // Considera faturado se a fatura/medição pertence à mesma competência do contrato,
+        // mesmo quando o período gravado está parcial ou não fecha exatamente o ciclo.
         const faturado = faturasContrato.some(f => {
-          if (!f.periodo_medicao_inicio || !f.periodo_medicao_fim) return false;
-          // Sobreposição de intervalos
-          return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
+          const periodoKey = parsePeriodoKey(f.periodo);
+          if (f.periodo_medicao_inicio && f.periodo_medicao_fim) {
+            return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
+          }
+          if (f.periodo_medicao_inicio) return f.periodo_medicao_inicio >= period.inicio && f.periodo_medicao_inicio <= period.fim;
+          if (f.periodo_medicao_fim) return f.periodo_medicao_fim >= period.inicio && f.periodo_medicao_fim <= period.fim;
+          return !!periodoKey && competencias.has(periodoKey);
         });
         if (faturado) continue;
 
-        // Check if there are horímetro readings for this contract's equipment in this period
-        const ctEquipId = ct.equipamento_id;
+        // Medição é validada no nível do contrato: qualquer equipamento do contrato no período resolve a competência.
+        const contratoEquipIds = new Set([ct.equipamento_id, ...(ct.contratos_equipamentos || []).map(e => e.equipamento_id)]);
         const temMedicao = medicoes.some(m => {
-          if (m.equipamento_id !== ctEquipId) return false;
+          if (!contratoEquipIds.has(m.equipamento_id)) return false;
           return m.data >= period.inicio && m.data <= period.fim;
         });
 
@@ -397,12 +423,12 @@ const Acompanhamento = () => {
                                 <CardContent className="space-y-2">
                                   {alertasEmp.map((a, i) => (
                                     <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
-                                      <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
+                                      <p className="font-medium">Competência: {formatCompetencia(competenciaFromPeriod(a.period))}</p>
                                       <p className="text-xs text-muted-foreground">
                                         Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
                                       </p>
                                       <Badge className="bg-destructive text-destructive-foreground text-xs">
-                                        Sem Medição Registrada
+                                        Contrato sem medição registrada
                                       </Badge>
                                     </div>
                                   ))}
@@ -435,13 +461,13 @@ const Acompanhamento = () => {
                                 <CardContent className="space-y-2">
                                   {alertasEmp.map((a, i) => (
                                     <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
-                                      <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
+                                      <p className="font-medium">Competência: {formatCompetencia(competenciaFromPeriod(a.period))}</p>
                                       <p className="text-xs text-muted-foreground">
                                         Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
                                       </p>
                                       <div className="flex items-center justify-between gap-2 flex-wrap">
                                         <Badge className="bg-warning text-warning-foreground text-xs">
-                                          Pendente de Emissão
+                                          Contrato com faturamento pendente
                                         </Badge>
                                         <Button
                                           size="sm"
