@@ -119,7 +119,7 @@ const Acompanhamento = () => {
     const fetchAll = async () => {
       const [empRes, ctRes, fatRes, eqRes, gastRes, medRes] = await Promise.all([
         supabase.from("empresas").select("id, nome, cnpj").order("nome"),
-        supabase.from("contratos").select("*, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa)").order("created_at", { ascending: false }),
+        supabase.from("contratos").select("*, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), contratos_equipamentos(equipamento_id)").order("created_at", { ascending: false }),
         supabase.from("faturamento").select("*, contratos(id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento)").order("emissao", { ascending: false }),
         supabase.from("equipamentos").select("*").order("tipo"),
         supabase.from("gastos").select("*").order("data", { ascending: false }),
@@ -215,19 +215,24 @@ const Acompanhamento = () => {
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue; // Period not yet ended
 
-        // Considera faturado se houver fatura cujo período se sobrepõe ao período calculado
-        // (evita falsos alertas por diferença de 1 dia no fim do ciclo)
+        const competencia = competenciaFromPeriod(period);
+
+        // Considera faturado se a fatura/medição pertence à mesma competência do contrato,
+        // mesmo quando o período gravado está parcial ou não fecha exatamente o ciclo.
         const faturado = faturasContrato.some(f => {
+          const periodoKey = parsePeriodoKey(f.periodo);
+          if (periodoKey === competencia) return true;
+          if (f.periodo_medicao_fim && monthKey(f.periodo_medicao_fim) === competencia) return true;
+          if (f.periodo_medicao_inicio && monthKey(f.periodo_medicao_inicio) === competencia) return true;
           if (!f.periodo_medicao_inicio || !f.periodo_medicao_fim) return false;
-          // Sobreposição de intervalos
           return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
         });
         if (faturado) continue;
 
-        // Check if there are horímetro readings for this contract's equipment in this period
-        const ctEquipId = ct.equipamento_id;
+        // Medição é validada no nível do contrato: qualquer equipamento do contrato no período resolve a competência.
+        const contratoEquipIds = new Set([ct.equipamento_id, ...(ct.contratos_equipamentos || []).map(e => e.equipamento_id)]);
         const temMedicao = medicoes.some(m => {
-          if (m.equipamento_id !== ctEquipId) return false;
+          if (!contratoEquipIds.has(m.equipamento_id)) return false;
           return m.data >= period.inicio && m.data <= period.fim;
         });
 
