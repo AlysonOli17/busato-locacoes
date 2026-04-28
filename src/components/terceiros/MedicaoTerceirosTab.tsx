@@ -810,16 +810,18 @@ export const MedicaoTerceirosTab = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <Card>
                     <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground">Horas Normais</p>
+                      <p className="text-xs text-muted-foreground">{isDiariasSel ? "Diárias" : "Horas Normais"}</p>
                       <p className="text-lg font-bold">R$ {fmt(totalNormais)}</p>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground">Horas Excedentes</p>
-                      <p className="text-lg font-bold text-destructive">R$ {fmt(totalExcedentes)}</p>
-                    </CardContent>
-                  </Card>
+                  {!isDiariasSel && (
+                    <Card>
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">Horas Excedentes</p>
+                        <p className="text-lg font-bold text-destructive">R$ {fmt(totalExcedentes)}</p>
+                      </CardContent>
+                    </Card>
+                  )}
                   <Card>
                     <CardContent className="p-3">
                       <p className="text-xs text-muted-foreground">Custos</p>
@@ -834,7 +836,8 @@ export const MedicaoTerceirosTab = () => {
                   </Card>
                 </div>
               </>
-            )}
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
