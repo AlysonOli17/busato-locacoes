@@ -66,7 +66,8 @@ interface Fatura {
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const monthKey = (dateStr: string) => dateStr.slice(0, 7);
-const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.fim);
+const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.inicio);
+const competenciaKeysFromPeriod = (period: { inicio: string; fim: string }) => new Set([monthKey(period.inicio), monthKey(period.fim)]);
 const formatCompetencia = (key: string) => {
   const [year, month] = key.split("-").map(Number);
   return `${meses[(month || 1) - 1]}/${year}`;
