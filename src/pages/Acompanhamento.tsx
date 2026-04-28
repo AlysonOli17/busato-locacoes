@@ -41,6 +41,7 @@ interface Contrato {
 interface Fatura {
   id: string;
   contrato_id: string;
+  periodo: string;
   emissao: string;
   numero_nota: string | null;
   status: string;
