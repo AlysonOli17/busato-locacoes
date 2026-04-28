@@ -419,12 +419,12 @@ const Acompanhamento = () => {
                                 <CardContent className="space-y-2">
                                   {alertasEmp.map((a, i) => (
                                     <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
-                                      <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
+                                      <p className="font-medium">Competência: {formatCompetencia(competenciaFromPeriod(a.period))}</p>
                                       <p className="text-xs text-muted-foreground">
                                         Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
                                       </p>
                                       <Badge className="bg-destructive text-destructive-foreground text-xs">
-                                        Sem Medição Registrada
+                                        Contrato sem medição registrada
                                       </Badge>
                                     </div>
                                   ))}
@@ -457,13 +457,13 @@ const Acompanhamento = () => {
                                 <CardContent className="space-y-2">
                                   {alertasEmp.map((a, i) => (
                                     <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
-                                      <p className="font-medium">{a.contrato.equipamentos?.tipo} {a.contrato.equipamentos?.modelo}</p>
+                                      <p className="font-medium">Competência: {formatCompetencia(competenciaFromPeriod(a.period))}</p>
                                       <p className="text-xs text-muted-foreground">
                                         Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
                                       </p>
                                       <div className="flex items-center justify-between gap-2 flex-wrap">
                                         <Badge className="bg-warning text-warning-foreground text-xs">
-                                          Pendente de Emissão
+                                          Contrato com faturamento pendente
                                         </Badge>
                                         <Button
                                           size="sm"
