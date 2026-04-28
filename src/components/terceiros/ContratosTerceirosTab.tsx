@@ -279,11 +279,11 @@ export const ContratosTerceirosTab = () => {
                         <SearchableSelect value={eq.equipamento_id} onValueChange={v => updateEquip(idx, "equipamento_id", v)} placeholder="Selecione..." options={equipamentos.map(e => ({ value: e.id, label: getLabel(e) }))} />
                       </div>
                       <div><Label className="text-xs">{valorLabel}</Label><CurrencyInput value={eq.valor_hora} onValueChange={v => updateEquip(idx, "valor_hora", v)} /></div>
-                      <div><Label className="text-xs">Valor Excedente</Label><CurrencyInput value={eq.valor_hora_excedente} onValueChange={v => updateEquip(idx, "valor_hora_excedente", v)} /></div>
-                      <div><Label className="text-xs">{horasLabel}</Label><Input type="number" step="0.1" value={eq.horas_contratadas} onChange={e => updateEquip(idx, "horas_contratadas", Number(e.target.value))} /></div>
-                      <div><Label className="text-xs">{horaMinLabel}</Label><Input type="number" step="0.1" value={eq.hora_minima} onChange={e => updateEquip(idx, "hora_minima", Number(e.target.value))} /></div>
                       {form.tipo_medicao !== "diarias" && (
                         <>
+                          <div><Label className="text-xs">Valor Excedente</Label><CurrencyInput value={eq.valor_hora_excedente} onValueChange={v => updateEquip(idx, "valor_hora_excedente", v)} /></div>
+                          <div><Label className="text-xs">{horasLabel}</Label><Input type="number" step="0.1" value={eq.horas_contratadas} onChange={e => updateEquip(idx, "horas_contratadas", Number(e.target.value))} /></div>
+                          <div><Label className="text-xs">{horaMinLabel}</Label><Input type="number" step="0.1" value={eq.hora_minima} onChange={e => updateEquip(idx, "hora_minima", Number(e.target.value))} /></div>
                           <div><Label className="text-xs">Entrega</Label><Input type="date" value={eq.data_entrega} onChange={e => updateEquip(idx, "data_entrega", e.target.value)} /></div>
                           <div><Label className="text-xs">Devolução</Label><Input type="date" value={eq.data_devolucao} onChange={e => updateEquip(idx, "data_devolucao", e.target.value)} /></div>
                         </>
