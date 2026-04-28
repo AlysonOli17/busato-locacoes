@@ -245,8 +245,14 @@ export const MedicaoTerceirosTab = () => {
         horasEfetivas = horaMinima > 0 && horasMedidas < horaMinima ? horaMinima : horasMedidas;
       }
 
-      const horasNormais = Number(Math.min(horasEfetivas, horasContratadas).toFixed(1));
-      const horasExcedentes = Number(Math.max(0, horasEfetivas - horasContratadas).toFixed(1));
+      // For "diarias" contracts: all measured days are billed at valor/diária (no excedente logic)
+      const isDiarias = ct.tipo_medicao === "diarias";
+      const horasNormais = isDiarias
+        ? Number(horasMedidas.toFixed(1))
+        : Number(Math.min(horasEfetivas, horasContratadas).toFixed(1));
+      const horasExcedentes = isDiarias
+        ? 0
+        : Number(Math.max(0, horasEfetivas - horasContratadas).toFixed(1));
 
       return {
         equipamento_id: eqId,
