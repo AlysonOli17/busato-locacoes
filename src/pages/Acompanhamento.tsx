@@ -216,19 +216,18 @@ const Acompanhamento = () => {
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue; // Period not yet ended
 
-        const competencia = competenciaFromPeriod(period);
+        const competencias = new Set([monthKey(period.inicio), monthKey(period.fim)]);
 
         // Considera faturado se a fatura/medição pertence à mesma competência do contrato,
         // mesmo quando o período gravado está parcial ou não fecha exatamente o ciclo.
         const faturado = faturasContrato.some(f => {
           const periodoKey = parsePeriodoKey(f.periodo);
-          if (periodoKey === competencia) return true;
           if (f.periodo_medicao_inicio && f.periodo_medicao_fim) {
             return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
           }
           if (f.periodo_medicao_inicio) return f.periodo_medicao_inicio >= period.inicio && f.periodo_medicao_inicio <= period.fim;
           if (f.periodo_medicao_fim) return f.periodo_medicao_fim >= period.inicio && f.periodo_medicao_fim <= period.fim;
-          return false;
+          return !!periodoKey && competencias.has(periodoKey);
         });
         if (faturado) continue;
 
