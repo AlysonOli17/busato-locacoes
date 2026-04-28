@@ -200,7 +200,10 @@ const Acompanhamento = () => {
 
       // Find the earliest billed period start - we only alert from this point forward
       const primeiraMedicao = faturasContrato
-        .map(f => f.periodo_medicao_inicio)
+        .map(f => f.periodo_medicao_inicio || (() => {
+          const periodoKey = parsePeriodoKey(f.periodo);
+          return periodoKey ? `${periodoKey}-01` : null;
+        })())
         .filter((p): p is string => !!p)
         .sort()[0];
       if (!primeiraMedicao) return;
