@@ -35,6 +35,7 @@ interface Contrato {
   status: string;
   empresas: { nome: string; cnpj: string };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
+  contratos_equipamentos?: { equipamento_id: string }[];
 }
 
 interface Fatura {
@@ -62,6 +63,21 @@ interface Fatura {
 }
 
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const monthKey = (dateStr: string) => dateStr.slice(0, 7);
+const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.fim);
+const formatCompetencia = (key: string) => {
+  const [year, month] = key.split("-").map(Number);
+  return `${meses[(month || 1) - 1]}/${year}`;
+};
+const parsePeriodoKey = (periodo?: string | null) => {
+  if (!periodo) return null;
+  const normalized = periodo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const monthIndex = meses.findIndex(m => normalized.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()));
+  const year = periodo.match(/\b(20\d{2}|19\d{2})\b/)?.[1];
+  if (monthIndex < 0 || !year) return null;
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+};
 
 const Acompanhamento = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
