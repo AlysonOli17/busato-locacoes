@@ -67,7 +67,6 @@ const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const monthKey = (dateStr: string) => dateStr.slice(0, 7);
 const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.inicio);
-const competenciaKeysFromPeriod = (period: { inicio: string; fim: string }) => new Set([monthKey(period.inicio), monthKey(period.fim)]);
 const formatCompetencia = (key: string) => {
   const [year, month] = key.split("-").map(Number);
   return `${meses[(month || 1) - 1]}/${year}`;
@@ -217,17 +216,19 @@ const Acompanhamento = () => {
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue; // Period not yet ended
 
-        const competencias = competenciaKeysFromPeriod(period);
+        const competencia = competenciaFromPeriod(period);
 
         // Considera faturado se a fatura/medição pertence à mesma competência do contrato,
         // mesmo quando o período gravado está parcial ou não fecha exatamente o ciclo.
         const faturado = faturasContrato.some(f => {
           const periodoKey = parsePeriodoKey(f.periodo);
-          if (periodoKey && competencias.has(periodoKey)) return true;
-          if (f.periodo_medicao_fim && competencias.has(monthKey(f.periodo_medicao_fim))) return true;
-          if (f.periodo_medicao_inicio && competencias.has(monthKey(f.periodo_medicao_inicio))) return true;
-          if (!f.periodo_medicao_inicio || !f.periodo_medicao_fim) return false;
-          return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
+          if (periodoKey === competencia) return true;
+          if (f.periodo_medicao_inicio && f.periodo_medicao_fim) {
+            return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
+          }
+          if (f.periodo_medicao_inicio) return f.periodo_medicao_inicio >= period.inicio && f.periodo_medicao_inicio <= period.fim;
+          if (f.periodo_medicao_fim) return f.periodo_medicao_fim >= period.inicio && f.periodo_medicao_fim <= period.fim;
+          return false;
         });
         if (faturado) continue;
 
