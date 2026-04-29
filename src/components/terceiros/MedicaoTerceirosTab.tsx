@@ -574,8 +574,8 @@ export const MedicaoTerceirosTab = () => {
     const resumoBody: string[][] = [
       [isDiarias ? "Medição (Diárias)" : "Medição (Horas)", fmtBRL(totalMedicao)],
     ];
-    if (totalCustos > 0) resumoBody.push(["(+) Custos no Período", fmtBRL(totalCustos)]);
-    const grandTotal = totalMedicao + totalCustos;
+    if (totalCustos > 0) resumoBody.push(["(-) Custos no Período", fmtBRL(totalCustos)]);
+    const grandTotal = totalMedicao - totalCustos;
     resumoBody.push(["VALOR TOTAL DA MEDIÇÃO", fmtBRL(grandTotal)]);
     const lastIdx = resumoBody.length - 1;
 
