@@ -86,7 +86,7 @@ export const MedicaoTerceirosTab = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Auto-fill period dates from contract
+  // Auto-fill period dates from contract (handles cycles wrapping months, e.g., 21 -> 20)
   const onContratoChange = (contratoId: string) => {
     setFormContratoId(contratoId);
     const ct = contratos.find(c => c.id === contratoId);
@@ -94,8 +94,12 @@ export const MedicaoTerceirosTab = () => {
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth(); // 0-indexed
+      const wraps = ct.dia_medicao_fim < ct.dia_medicao_inicio;
+      // Period start in current month, end in next month if cycle wraps
       const inicio = new Date(year, month, ct.dia_medicao_inicio);
-      const fim = new Date(year, month, Math.min(ct.dia_medicao_fim, new Date(year, month + 1, 0).getDate()));
+      const fimMonth = wraps ? month + 1 : month;
+      const lastDayFimMonth = new Date(year, fimMonth + 1, 0).getDate();
+      const fim = new Date(year, fimMonth, Math.min(ct.dia_medicao_fim, lastDayFimMonth));
       setFormMedicaoInicio(inicio.toISOString().slice(0, 10));
       setFormMedicaoFim(fim.toISOString().slice(0, 10));
     }
