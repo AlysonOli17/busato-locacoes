@@ -313,7 +313,7 @@ export const MedicaoTerceirosTab = () => {
   const totalNormais = equipForms.reduce((s, ef) => s + ef.horas_normais * ef.valor_hora, 0);
   const totalExcedentes = equipForms.reduce((s, ef) => s + ef.horas_excedentes * ef.valor_hora_excedente, 0);
   const totalCustos = custos.reduce((s, c) => s + Number(c.valor), 0);
-  const valorTotal = totalNormais + totalExcedentes + totalCustos;
+  const valorTotal = totalNormais + totalExcedentes - totalCustos;
 
   const openNew = () => {
     setEditing(null);
@@ -574,8 +574,8 @@ export const MedicaoTerceirosTab = () => {
     const resumoBody: string[][] = [
       [isDiarias ? "Medição (Diárias)" : "Medição (Horas)", fmtBRL(totalMedicao)],
     ];
-    if (totalCustos > 0) resumoBody.push(["(+) Custos no Período", fmtBRL(totalCustos)]);
-    const grandTotal = totalMedicao + totalCustos;
+    if (totalCustos > 0) resumoBody.push(["(-) Custos no Período", fmtBRL(totalCustos)]);
+    const grandTotal = totalMedicao - totalCustos;
     resumoBody.push(["VALOR TOTAL DA MEDIÇÃO", fmtBRL(grandTotal)]);
     const lastIdx = resumoBody.length - 1;
 
@@ -839,8 +839,8 @@ export const MedicaoTerceirosTab = () => {
                   )}
                   <Card>
                     <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground">Custos</p>
-                      <p className="text-lg font-bold">R$ {fmt(totalCustos)}</p>
+                      <p className="text-xs text-muted-foreground">(-) Custos</p>
+                      <p className="text-lg font-bold text-destructive">R$ {fmt(totalCustos)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-accent/30 bg-accent/5">
