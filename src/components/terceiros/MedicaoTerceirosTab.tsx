@@ -313,7 +313,7 @@ export const MedicaoTerceirosTab = () => {
   const totalNormais = equipForms.reduce((s, ef) => s + ef.horas_normais * ef.valor_hora, 0);
   const totalExcedentes = equipForms.reduce((s, ef) => s + ef.horas_excedentes * ef.valor_hora_excedente, 0);
   const totalCustos = custos.reduce((s, c) => s + Number(c.valor), 0);
-  const valorTotal = totalNormais + totalExcedentes + totalCustos;
+  const valorTotal = totalNormais + totalExcedentes - totalCustos;
 
   const openNew = () => {
     setEditing(null);
