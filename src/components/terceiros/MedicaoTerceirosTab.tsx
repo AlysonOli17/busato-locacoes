@@ -839,8 +839,8 @@ export const MedicaoTerceirosTab = () => {
                   )}
                   <Card>
                     <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground">Custos</p>
-                      <p className="text-lg font-bold">R$ {fmt(totalCustos)}</p>
+                      <p className="text-xs text-muted-foreground">(-) Custos</p>
+                      <p className="text-lg font-bold text-destructive">R$ {fmt(totalCustos)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-accent/30 bg-accent/5">
