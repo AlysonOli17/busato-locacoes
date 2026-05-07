@@ -1,0 +1,31 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Não reescrever arquivos estáticos (assets, imagens, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Não reescrever a pasta assets
+  RewriteRule ^assets/ - [L]
+
+  # Redirecionar tudo o resto para index.html (SPA)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Garantir MIME types corretos
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType image/svg+xml .svg
+  AddType application/json .json
+  AddType application/wasm .wasm
+</IfModule>
+
+# Cache de assets com hash no nome (imutáveis)
+<IfModule mod_headers.c>
+  <FilesMatch "\.[0-9a-f]{8}\.(js|css|woff2?|ttf|svg|png|jpg|webp)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>

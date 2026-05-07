@@ -1,1 +1,0 @@
-ALTER TABLE public.equipamentos ADD COLUMN ano integer, ADD COLUMN valor_bem numeric DEFAULT 0;

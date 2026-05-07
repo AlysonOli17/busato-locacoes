@@ -1,1 +1,0 @@
-ALTER TABLE public.apolices ADD COLUMN renovacao_automatica boolean NOT NULL DEFAULT false;
