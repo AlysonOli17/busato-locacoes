@@ -344,7 +344,3 @@ export const VisaoGeralTab = ({ empresas, contratos, faturas, equipamentos, gast
     </div>
   );
 };
-     </section>
-    </div>
-  );
-};
