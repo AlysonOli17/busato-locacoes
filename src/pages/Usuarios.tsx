@@ -185,7 +185,7 @@ const Usuarios = () => {
         toast({ title: "Usuário criado com sucesso" });
       }
       setDialogOpen(false);
-      fetchUsers();
+      setTimeout(() => fetchUsers(), 500);
     } catch (e: any) {
       const msg = e.message || "Erro desconhecido";
       const description = msg.includes("already been registered")
@@ -200,7 +200,7 @@ const Usuarios = () => {
     try {
       await callManageUser({ action: "delete", user_id: userId });
       toast({ title: "Usuário removido" });
-      fetchUsers();
+      setTimeout(() => fetchUsers(), 500);
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
@@ -211,7 +211,7 @@ const Usuarios = () => {
     try {
       await callManageUser({ action: "update", user_id: item.user_id, status: newStatus });
       toast({ title: `Usuário ${newStatus === "Ativo" ? "desbloqueado" : "bloqueado"}` });
-      fetchUsers();
+      setTimeout(() => fetchUsers(), 500);
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     }

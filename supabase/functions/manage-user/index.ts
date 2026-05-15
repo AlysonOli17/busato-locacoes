@@ -78,8 +78,18 @@ Deno.serve(async (req) => {
       });
       if (error) throw error;
 
-      await supabaseAdmin.from("profiles").update({ nome: validated.nome, status: "Ativo" }).eq("user_id", authUser.user.id);
-      await supabaseAdmin.from("user_roles").insert({ user_id: authUser.user.id, role: validated.role });
+      // Use upsert to handle potential race condition with the database trigger
+      await supabaseAdmin.from("profiles").upsert({ 
+        user_id: authUser.user.id, 
+        nome: validated.nome, 
+        email: validated.email,
+        status: "Ativo" 
+      }, { onConflict: 'user_id' });
+      
+      await supabaseAdmin.from("user_roles").upsert({ 
+        user_id: authUser.user.id, 
+        role: validated.role 
+      }, { onConflict: 'user_id,role' });
 
       return new Response(JSON.stringify({ success: true, user_id: authUser.user.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -112,6 +122,9 @@ Deno.serve(async (req) => {
 
     if (action === "delete") {
       const validated = DeleteUserSchema.parse(body);
+      // Explicitly delete from tables first to ensure immediate reflection in queries
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", validated.user_id);
+      await supabaseAdmin.from("profiles").delete().eq("user_id", validated.user_id);
       await supabaseAdmin.auth.admin.deleteUser(validated.user_id);
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -129,7 +142,7 @@ Deno.serve(async (req) => {
       }));
       
       return new Response(JSON.stringify(users), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
       });
     }
 
