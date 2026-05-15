@@ -65,9 +65,22 @@ const Usuarios = () => {
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const callManageUser = async (body: any) => {
-    const res = await supabase.functions.invoke("manage-user", { body });
-    if (res.error) throw new Error(res.error.message || "Erro na operação");
-    return res.data;
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-user", { body });
+      
+      if (error) {
+        console.error("Erro na Edge Function:", error);
+        // Se o erro for de rede ou a função não existir
+        if (error.message?.includes("Failed to send a request")) {
+          throw new Error("A função 'manage-user' não foi encontrada ou o servidor está fora do ar. Verifique se ela foi implantada no Supabase.");
+        }
+        throw new Error(error.message || "Erro na operação");
+      }
+      return data;
+    } catch (e: any) {
+      console.error("Erro ao invocar função:", e);
+      throw e;
+    }
   };
 
   const fetchUsers = async () => {
