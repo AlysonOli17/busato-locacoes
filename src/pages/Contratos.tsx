@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { getEquipLabel } from "@/lib/utils";
+import { getEquipLabel, parseLocalDate } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -23,62 +23,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
+import { exportToExcel } from "@/lib/exportUtils";
 
-interface Empresa { id: string; nome: string; cnpj: string; razao_social: string; nome_fantasia: string; inscricao_estadual: string; inscricao_municipal: string; endereco_logradouro: string; endereco_numero: string; endereco_complemento: string; endereco_bairro: string; endereco_cidade: string; endereco_uf: string; endereco_cep: string; contato: string | null; telefone: string | null; email: string; atividade_principal: string; }
-interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
-interface ContratoEquipamento { id: string; equipamento_id: string; valor_hora: number; horas_contratadas: number; valor_hora_excedente: number; hora_minima: number; data_entrega: string | null; data_devolucao: string | null; equipamentos: Equipamento; }
-interface Contrato {
-  id: string;
-  empresa_id: string;
-  equipamento_id: string;
-  valor_hora: number;
-  horas_contratadas: number;
-  data_inicio: string;
-  data_fim: string;
-  observacoes: string | null;
-  status: string;
-  empresas: Empresa;
-  equipamentos: Equipamento;
-  contratos_equipamentos?: ContratoEquipamento[];
-}
-
-interface FormEquipItem {
-  equipamento_id: string;
-  valor_hora: number;
-  horas_contratadas: number;
-  valor_hora_excedente: number;
-  hora_minima: number;
-  data_entrega: string;
-  data_devolucao: string;
-}
-
-interface EquipUsage {
-  equipamento_id: string;
-  equipamento: Equipamento;
-  valor_hora: number;
-  horas_contratadas: number;
-  horas_utilizadas: number;
-  custo_real: number;
-  custo_contratado: number;
-  percentual: number;
-  origem: string; // "Contrato" or "Aditivo #N"
-}
-
-interface AjusteTemporario {
-  id: string;
-  contrato_id: string;
-  equipamento_id: string;
-  valor_hora: number;
-  valor_hora_excedente: number;
-  hora_minima: number;
-  horas_contratadas: number;
-  data_inicio: string;
-  data_fim: string;
-  motivo: string;
-  created_at: string;
-  desconto_percentual: number;
-}
+import { 
+  Empresa, Equipamento, ContratoEquipamento, Contrato, 
+  FormEquipItem, EquipUsage, AjusteTemporario, Aditivo, AditivoEquipamento 
+} from "@/types/contracts";
 
 interface AjusteForm {
   equipamento_ids: string[];
@@ -92,30 +42,6 @@ interface AjusteForm {
   desconto_percentual: number;
 }
 
-interface Aditivo {
-  id: string;
-  contrato_id: string;
-  numero: number;
-  data_inicio: string;
-  data_fim: string;
-  motivo: string;
-  observacoes: string;
-  created_at: string;
-  aditivos_equipamentos?: AditivoEquipamento[];
-}
-
-interface AditivoEquipamento {
-  id: string;
-  aditivo_id: string;
-  equipamento_id: string;
-  valor_hora: number;
-  horas_contratadas: number;
-  valor_hora_excedente: number;
-  hora_minima: number;
-  data_entrega: string | null;
-  data_devolucao: string | null;
-}
-
 interface AditivoForm {
   numero: number;
   data_inicio: string;
@@ -126,8 +52,6 @@ interface AditivoForm {
 }
 
 const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30, tipo_medicao: "horas" };
-
-const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
 const Contratos = () => {
   const [items, setItems] = useState<Contrato[]>([]);
@@ -434,8 +358,8 @@ const Contratos = () => {
           ce.equipamentos.tag_placa || "—",
           Number(ce.valor_hora).toFixed(2),
           String(ce.horas_contratadas),
-          parseLocalDate(i.data_inicio).toLocaleDateString("pt-BR"),
-          parseLocalDate(i.data_fim).toLocaleDateString("pt-BR"),
+          i.data_inicio,
+          i.data_fim,
           i.status,
         ]);
       });
@@ -443,533 +367,18 @@ const Contratos = () => {
     return { title: "Relatório de Contratos", headers, rows, filename: `contratos_${new Date().toISOString().slice(0,10)}` };
   };
 
-  const exportSimplePDF = async () => {
+  const exportSimplePDFWrapper = async () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
     if (data.length === 0) return;
-
-    const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
-
-    const doc = new jsPDF({ orientation: "landscape" });
-    const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-    const hoje = new Date().toISOString().slice(0, 10);
-
-    let y = await addLetterhead(doc, "Relatório de Contratos");
-
-    // --- Pre-fetch all aditivos equipment to build global devolucao map per contract ---
-    const globalDevolucaoByContrato: Record<string, Record<string, string | null>> = {};
-
-    for (const item of data) {
-      const globalDev: Record<string, string | null> = {};
-      // From base contract equipment
-      const ces = getContratoEquipamentos(item);
-      for (const ce of ces) {
-        if (ce.data_devolucao) {
-          const existing = globalDev[ce.equipamento_id];
-          if (!existing || ce.data_devolucao > existing) globalDev[ce.equipamento_id] = ce.data_devolucao;
-        }
-      }
-      // From aditivos
-      const { data: adData } = await supabase.from("contratos_aditivos").select("id").eq("contrato_id", item.id);
-      if (adData && adData.length > 0) {
-        const { data: aeData } = await supabase.from("aditivos_equipamentos").select("equipamento_id, data_devolucao").in("aditivo_id", adData.map(a => a.id));
-        for (const ae of (aeData || [])) {
-          if (ae.data_devolucao) {
-            const existing = globalDev[ae.equipamento_id];
-            if (!existing || ae.data_devolucao > existing) globalDev[ae.equipamento_id] = ae.data_devolucao;
-          }
-        }
-      }
-      globalDevolucaoByContrato[item.id] = globalDev;
-    }
-
-    // --- Tabela principal de contratos ---
-    const mainRows: string[][] = [];
-    
-    data.forEach(i => {
-      const ces = getContratoEquipamentos(i);
-      const globalDev = globalDevolucaoByContrato[i.id] || {};
-      ces.forEach(ce => {
-        const devDate = globalDev[ce.equipamento_id] || null;
-        // Skip equipment already returned (devolução before today)
-        if (devDate && devDate < hoje) return;
-        mainRows.push([
-          i.empresas?.nome || "",
-          i.empresas?.cnpj || "",
-          `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}`,
-          ce.equipamentos.tag_placa || "—",
-          fmt(Number(ce.valor_hora)),
-          String(ce.horas_contratadas),
-          ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
-          devDate ? parseLocalDate(devDate).toLocaleDateString("pt-BR") : "—",
-          parseLocalDate(i.data_inicio).toLocaleDateString("pt-BR"),
-          parseLocalDate(i.data_fim).toLocaleDateString("pt-BR"),
-          i.status,
-        ]);
-      });
-    });
-
-    autoTable(doc, {
-      startY: y,
-      head: [["Empresa", "CNPJ", "Equipamento", "Tag", "Valor/Hora", "Horas", "Entrega", "Devolução", "Início", "Fim", "Status"]],
-      body: mainRows,
-      styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-    });
-    y = (doc as any).lastAutoTable.finalY + 10;
-
-    // --- Resumo de modificações por contrato ---
-    for (const item of data) {
-      const globalDev = globalDevolucaoByContrato[item.id] || {};
-      const { data: aditivosData } = await supabase
-        .from("contratos_aditivos")
-        .select("*")
-        .eq("contrato_id", item.id)
-        .order("numero", { ascending: true });
-
-      const { data: ajustesData } = await supabase
-        .from("contratos_equipamentos_ajustes")
-        .select("*")
-        .eq("contrato_id", item.id)
-        .order("data_inicio", { ascending: true });
-
-      const hasModifs = (aditivosData && aditivosData.length > 0) || (ajustesData && ajustesData.length > 0);
-      if (!hasModifs) continue;
-
-      if (y > 160) { doc.addPage(); y = 20; }
-
-      doc.setFontSize(10);
-      doc.setTextColor(60, 60, 60);
-      doc.text(`Modificações — ${item.empresas?.nome || ""} (${item.empresas?.cnpj || ""})`, 14, y);
-      y += 4;
-
-      const modRows: string[][] = [];
-
-      // Aditivos
-      if (aditivosData && aditivosData.length > 0) {
-        let allAeqs: any[] = [];
-        const aditivoIds = aditivosData.map(a => a.id);
-        const { data: aeqs } = await supabase.from("aditivos_equipamentos").select("*").in("aditivo_id", aditivoIds);
-        allAeqs = aeqs || [];
-
-        for (const ad of aditivosData) {
-          // Filter out equipment returned before this aditivo started
-          const adEqs = allAeqs.filter(ae => {
-            if (ae.aditivo_id !== ad.id) return false;
-            const devDate = globalDev[ae.equipamento_id];
-            if (devDate && devDate < ad.data_inicio) return false;
-            return true;
-          });
-          const eqCount = adEqs.length;
-          // Count devolvidos: equipment returned within this aditivo's period
-          const devolvidos = adEqs.filter(ae => {
-            const devDate = globalDev[ae.equipamento_id];
-            return devDate && devDate >= ad.data_inicio && devDate <= ad.data_fim;
-          }).length;
-          const statusAd = ad.data_fim < hoje ? "Encerrado" : ad.data_inicio > hoje ? "Futuro" : "Vigente";
-          modRows.push([
-            `Aditivo #${ad.numero}`,
-            `${parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}`,
-            statusAd,
-            `${eqCount} equip.${devolvidos > 0 ? ` (${devolvidos} devolvido${devolvidos > 1 ? "s" : ""})` : ""}`,
-            ad.motivo || "—",
-          ]);
-        }
-      }
-
-      // Ajustes
-      if (ajustesData && ajustesData.length > 0) {
-        for (const aj of ajustesData) {
-          const eq = equipamentos.find(e => e.id === aj.equipamento_id);
-          const statusAj = aj.data_fim < hoje ? "Encerrado" : aj.data_inicio > hoje ? "Futuro" : "Vigente";
-          modRows.push([
-            "Ajuste Temporário",
-            `${parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}`,
-            statusAj,
-            eq ? `${eq.tipo} ${eq.modelo}` : "—",
-            aj.motivo || "—",
-          ]);
-        }
-      }
-
-      autoTable(doc, {
-        startY: y,
-        head: [["Tipo", "Vigência", "Status", "Detalhes", "Motivo"]],
-        body: modRows,
-        styles: { fontSize: 7, cellPadding: 2 },
-        headStyles: { fillColor: [142, 68, 173], textColor: 255 },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-    }
-
-    doc.save(`contratos_${new Date().toISOString().slice(0, 10)}.pdf`);
+    const { exportSimplePDF } = await import("@/lib/contractExportUtils");
+    await exportSimplePDF(data, equipamentos);
   };
 
-  const exportDetailedPDF = async () => {
+  const exportDetailedPDFWrapper = async () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
     if (data.length === 0) return;
-
-    const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
-
-    const doc = new jsPDF({ orientation: "portrait" });
-    const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-    const hoje = new Date().toISOString().slice(0, 10);
-    for (let idx = 0; idx < data.length; idx++) {
-      const item = data[idx];
-      if (idx > 0) doc.addPage();
-      const emp = item.empresas;
-      const ces = getContratoEquipamentos(item);
-
-      const startY = await addLetterhead(doc, "Contrato Detalhado");
-
-      let y = startY;
-
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Dados da Empresa", 14, y);
-      y += 2;
-      const enderecoCompleto = [emp?.endereco_logradouro, emp?.endereco_numero, emp?.endereco_complemento].filter(Boolean).join(", ");
-      const cidadeUf = [emp?.endereco_bairro, emp?.endereco_cidade, emp?.endereco_uf].filter(Boolean).join(" - ");
-      autoTable(doc, {
-        startY: y,
-        head: [["Campo", "Valor"]],
-        body: [
-          ["Razão Social", emp?.razao_social || emp?.nome || "—"],
-          ["Nome Fantasia", emp?.nome_fantasia || "—"],
-          ["CNPJ", emp?.cnpj || "—"],
-          ["Inscrição Estadual", emp?.inscricao_estadual || "—"],
-          ["Inscrição Municipal", emp?.inscricao_municipal || "—"],
-          ["Atividade Principal", emp?.atividade_principal || "—"],
-          ["Endereço", enderecoCompleto || "—"],
-          ["Bairro / Cidade / UF", cidadeUf || "—"],
-          ["CEP", emp?.endereco_cep || "—"],
-          ["Contato", emp?.contato || "—"],
-          ["Telefone", emp?.telefone || "—"],
-          ["E-mail", emp?.email || "—"],
-        ],
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-
-      // --- Fetch ALL aditivos + their equipment upfront to build global devolucao map ---
-      const { data: aditivosData } = await supabase
-        .from("contratos_aditivos")
-        .select("*")
-        .eq("contrato_id", item.id)
-        .order("numero", { ascending: true });
-
-      let allAditivosEquips: any[] = [];
-      if (aditivosData && aditivosData.length > 0) {
-        const aditivoIds = aditivosData.map(a => a.id);
-        const { data: aditivosEquips } = await supabase
-          .from("aditivos_equipamentos")
-          .select("*")
-          .in("aditivo_id", aditivoIds);
-        allAditivosEquips = aditivosEquips || [];
-      }
-
-      // Build a global map: for each equipamento_id, find the actual data_devolucao
-      // from ANY source (base contract equips OR any aditivo equip)
-      const globalDevolucao: Record<string, string | null> = {};
-      for (const ce of ces) {
-        if (ce.data_devolucao) {
-          const existing = globalDevolucao[ce.equipamento_id];
-          if (!existing || ce.data_devolucao > existing) {
-            globalDevolucao[ce.equipamento_id] = ce.data_devolucao;
-          }
-        }
-      }
-      for (const ae of allAditivosEquips) {
-        if (ae.data_devolucao) {
-          const existing = globalDevolucao[ae.equipamento_id];
-          if (!existing || ae.data_devolucao > existing) {
-            globalDevolucao[ae.equipamento_id] = ae.data_devolucao;
-          }
-        }
-      }
-
-      // Filter base contract equipment: exclude already-returned items
-      
-      const activeCes = ces.filter(ce => {
-        const devDate = globalDevolucao[ce.equipamento_id] || null;
-        if (devDate && devDate < hoje) return false;
-        return true;
-      });
-
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text(`Equipamentos (${activeCes.length})`, 14, y);
-      y += 2;
-      const equipHeaders = ["Tipo", "Modelo", "Tag/Placa", "Nº Série", "Valor/Hora", "Horas Contrat.", "Entrega", "Devolução"];
-      autoTable(doc, {
-        startY: y,
-        head: [equipHeaders],
-        body: activeCes.map(ce => {
-          const devDate = globalDevolucao[ce.equipamento_id] || null;
-          const devDentro = devDate && devDate >= item.data_inicio && devDate <= item.data_fim;
-          return [
-            ce.equipamentos.tipo || "—",
-            ce.equipamentos.modelo || "—",
-            ce.equipamentos.tag_placa || "—",
-            ce.equipamentos.numero_serie || "—",
-            fmt(Number(ce.valor_hora)),
-            `${ce.horas_contratadas}h`,
-            ce.data_entrega ? parseLocalDate(ce.data_entrega).toLocaleDateString("pt-BR") : "—",
-            devDentro ? parseLocalDate(devDate!).toLocaleDateString("pt-BR") : "—",
-          ];
-        }),
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-
-      if (y > 220) { doc.addPage(); y = 20; }
-      doc.setFontSize(12);
-      doc.setTextColor(41, 128, 185);
-      doc.text("Dados do Contrato", 14, y);
-      y += 2;
-      const totalHoras = ces.reduce((s, ce) => s + Number(ce.horas_contratadas), 0);
-      const valorEstimado = ces.reduce((s, ce) => s + Number(ce.valor_hora) * Number(ce.horas_contratadas), 0);
-        autoTable(doc, {
-        startY: y,
-        head: [["Campo", "Valor"]],
-        body: [
-          ["Total Horas Contratadas", `${totalHoras}h`],
-          ["Valor Total Estimado", fmt(valorEstimado)],
-          ["Período", `${parseLocalDate(item.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(item.data_fim).toLocaleDateString("pt-BR")}`],
-          ["Status", item.status],
-          ["Observações", item.observacoes || "—"],
-        ],
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-        columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-
-      // --- Ajustes Temporários ---
-      const { data: ajustesData } = await supabase
-        .from("contratos_equipamentos_ajustes")
-        .select("*")
-        .eq("contrato_id", item.id)
-        .order("data_inicio", { ascending: true });
-
-      if (ajustesData && ajustesData.length > 0) {
-        if (y > 220) { doc.addPage(); y = 20; }
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text("Ajustes Temporários", 14, y);
-        y += 2;
-        autoTable(doc, {
-          startY: y,
-          head: [["Equipamento", "Período", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Motivo"]],
-          body: ajustesData.map(aj => {
-            const eq = equipamentos.find(e => e.id === aj.equipamento_id);
-            return [
-              eq ? `${eq.tipo} - ${eq.modelo}` : aj.equipamento_id,
-              `${parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}`,
-              fmt(Number(aj.valor_hora)),
-              fmt(Number(aj.valor_hora_excedente)),
-              `${aj.horas_contratadas}h`,
-              `${aj.hora_minima}h`,
-              aj.motivo || "—",
-            ];
-          }),
-          styles: { fontSize: 8, cellPadding: 2 },
-          headStyles: { fillColor: [230, 126, 34], textColor: 255 },
-          theme: "grid",
-        });
-        y = (doc as any).lastAutoTable.finalY + 8;
-      }
-
-      // --- Aditivos ---
-      if (aditivosData && aditivosData.length > 0) {
-        for (const aditivo of aditivosData) {
-          if (y > 220) { doc.addPage(); y = 20; }
-          const now = new Date();
-          const inicio = parseLocalDate(aditivo.data_inicio);
-          const fim = parseLocalDate(aditivo.data_fim);
-          const statusAd = now < inicio ? "Futuro" : now > fim ? "Encerrado" : "Vigente";
-
-          doc.setFontSize(12);
-          doc.setTextColor(142, 68, 173);
-          doc.text(`Aditivo #${aditivo.numero} — ${statusAd}`, 14, y);
-          y += 2;
-          autoTable(doc, {
-            startY: y,
-            head: [["Campo", "Valor"]],
-            body: [
-              ["Vigência", `${inicio.toLocaleDateString("pt-BR")} - ${fim.toLocaleDateString("pt-BR")}`],
-              ["Motivo", aditivo.motivo || "—"],
-              ["Observações", aditivo.observacoes || "—"],
-            ],
-            styles: { fontSize: 9, cellPadding: 3 },
-            headStyles: { fillColor: [142, 68, 173], textColor: 255 },
-            columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-            theme: "grid",
-          });
-          y = (doc as any).lastAutoTable.finalY + 4;
-
-          // Filter out equipment that was returned BEFORE or ON the start of this aditivo
-          const eqs = allAditivosEquips.filter(ae => {
-            if (ae.aditivo_id !== aditivo.id) return false;
-            // Check both the record's own devolucao AND the global map
-            const devFromRecord = ae.data_devolucao || null;
-            const devFromGlobal = globalDevolucao[ae.equipamento_id] || null;
-            const devDate = devFromRecord || devFromGlobal;
-            // If equipment was returned before this aditivo started, exclude it
-            if (devDate && devDate < aditivo.data_inicio) return false;
-            return true;
-          });
-          if (eqs.length > 0) {
-            autoTable(doc, {
-              startY: y,
-              head: [["Equipamento", "Tag", "Valor/Hora", "Hora Exc.", "Horas Contr.", "Hora Mín.", "Entrega", "Devolução"]],
-              body: eqs.map(ae => {
-                const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                const devDate = globalDevolucao[ae.equipamento_id] || null;
-                const devDentro = devDate && devDate >= aditivo.data_inicio && devDate <= aditivo.data_fim;
-                return [
-                  eq ? `${eq.tipo} - ${eq.modelo}` : ae.equipamento_id,
-                  eq?.tag_placa || "—",
-                  fmt(Number(ae.valor_hora)),
-                  fmt(Number(ae.valor_hora_excedente)),
-                  `${ae.horas_contratadas}h`,
-                  `${ae.hora_minima}h`,
-                  ae.data_entrega ? parseLocalDate(ae.data_entrega).toLocaleDateString("pt-BR") : "—",
-                  devDentro ? parseLocalDate(devDate!).toLocaleDateString("pt-BR") : "—",
-                ];
-              }),
-              styles: { fontSize: 8, cellPadding: 2 },
-              headStyles: { fillColor: [142, 68, 173], textColor: 255 },
-              theme: "grid",
-            });
-            y = (doc as any).lastAutoTable.finalY + 8;
-          }
-        }
-      }
-      // --- Valor Previsto Final (consolidado com todas as modificações) ---
-      if (y > 220) { doc.addPage(); y = 20; }
-      
-      // Build final consolidated equipment map: latest values per equipment
-      // Only show currently ACTIVE equipment (not returned)
-      
-      const consolidado: Record<string, { tipo: string; modelo: string; tag: string; valor_hora: number; horas_contratadas: number; hora_minima: number; valor_hora_excedente: number; origem: string }> = {};
-      
-      // Track the latest data_devolucao per equipment across all sources
-      const latestDevolucao: Record<string, string | null> = {};
-      
-      // Start with base contract equipment
-      for (const ce of ces) {
-        latestDevolucao[ce.equipamento_id] = ce.data_devolucao || null;
-        consolidado[ce.equipamento_id] = {
-          tipo: ce.equipamentos.tipo,
-          modelo: ce.equipamentos.modelo,
-          tag: ce.equipamentos.tag_placa || "—",
-          valor_hora: Number(ce.valor_hora),
-          horas_contratadas: Number(ce.horas_contratadas),
-          hora_minima: Number(ce.hora_minima || 0),
-          valor_hora_excedente: Number(ce.valor_hora_excedente || 0),
-          origem: "Contrato",
-        };
-      }
-      
-      // Override with aditivos (sorted by numero, so last one wins)
-      if (aditivosData && aditivosData.length > 0) {
-        const sortedAditivos = [...aditivosData].sort((a, b) => a.numero - b.numero);
-        for (const aditivo of sortedAditivos) {
-          if (aditivo.data_fim < hoje) continue;
-          const aeqs = allAditivosEquips.filter(ae => ae.aditivo_id === aditivo.id);
-          for (const ae of aeqs) {
-            // Update devolucao tracking — latest aditivo's value takes precedence
-            latestDevolucao[ae.equipamento_id] = ae.data_devolucao || null;
-            const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-            consolidado[ae.equipamento_id] = {
-              tipo: eq?.tipo || "—",
-              modelo: eq?.modelo || "—",
-              tag: eq?.tag_placa || "—",
-              valor_hora: Number(ae.valor_hora),
-              horas_contratadas: Number(ae.horas_contratadas),
-              hora_minima: Number(ae.hora_minima || 0),
-              valor_hora_excedente: Number(ae.valor_hora_excedente || 0),
-              origem: `Aditivo #${aditivo.numero}`,
-            };
-          }
-        }
-      }
-      
-      // Remove all equipment that has been returned (data_devolucao <= hoje)
-      for (const eqId of Object.keys(consolidado)) {
-        const dev = latestDevolucao[eqId];
-        if (dev && dev <= hoje) {
-          delete consolidado[eqId];
-        }
-      }
-      
-      // Override with ajustes vigentes
-      if (ajustesData && ajustesData.length > 0) {
-        for (const aj of ajustesData) {
-          if (aj.data_fim < hoje || aj.data_inicio > hoje) continue;
-          const existing = consolidado[aj.equipamento_id];
-          if (existing) {
-            existing.valor_hora = Number(aj.valor_hora);
-            existing.horas_contratadas = Number(aj.horas_contratadas);
-            existing.hora_minima = Number(aj.hora_minima);
-            existing.valor_hora_excedente = Number(aj.valor_hora_excedente);
-            existing.origem += " + Ajuste";
-          }
-        }
-      }
-      
-      const consolidadoList = Object.values(consolidado);
-      const totalHorasFinal = consolidadoList.reduce((s, c) => s + c.horas_contratadas, 0);
-      const valorPrevistoFinal = consolidadoList.reduce((s, c) => s + c.valor_hora * c.horas_contratadas, 0);
-      
-      doc.setFontSize(12);
-      doc.setTextColor(39, 174, 96);
-      doc.text("Valor Previsto Atual (com todas as modificações)", 14, y);
-      y += 2;
-      autoTable(doc, {
-        startY: y,
-        head: [["Equipamento", "Tag", "Valor/Hora", "Horas Contr.", "Subtotal", "Origem"]],
-        body: consolidadoList.map(c => [
-          `${c.tipo} - ${c.modelo}`,
-          c.tag,
-          fmt(c.valor_hora),
-          `${c.horas_contratadas}h`,
-          fmt(c.valor_hora * c.horas_contratadas),
-          c.origem,
-        ]),
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-        theme: "grid",
-      });
-      y = (doc as any).lastAutoTable.finalY + 4;
-      
-      autoTable(doc, {
-        startY: y,
-        head: [["", ""]],
-        body: [
-          ["Total Horas", `${totalHorasFinal}h`],
-          ["Valor Mensal Previsto", fmt(valorPrevistoFinal)],
-        ],
-        styles: { fontSize: 10, cellPadding: 4, fontStyle: "bold" },
-        headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-        columnStyles: { 0: { cellWidth: 60 } },
-        theme: "grid",
-        showHead: false,
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-    }
-
-    doc.save(`contratos_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+    const { exportDetailedPDF } = await import("@/lib/contractExportUtils");
+    await exportDetailedPDF(data, equipamentos);
   };
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setFormEquipamentos([]); setDialogOpen(true); };
@@ -1531,10 +940,10 @@ const Contratos = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportDetailedPDF}>
+            <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper}>
               <FileDown className="h-4 w-4 mr-1" /> Movimentação
             </Button>
-            <Button variant="outline" size="sm" onClick={exportSimplePDF}>
+            <Button variant="outline" size="sm" onClick={exportSimplePDFWrapper}>
               <FileDown className="h-4 w-4 mr-1" /> PDF Simples
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>

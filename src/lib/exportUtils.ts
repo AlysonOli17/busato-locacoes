@@ -1,6 +1,7 @@
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import ExcelJS from "exceljs";
+// jspdf and exceljs are now imported dynamically within export functions to reduce bundle size
+import type jsPDF from "jspdf";
+import type ExcelJS from "exceljs";
+
 
 interface ExportConfig {
   title: string;
@@ -79,6 +80,9 @@ export async function addLetterhead(doc: jsPDF, title: string): Promise<number> 
 }
 
 export async function exportToPDF({ title, headers, rows, filename }: ExportConfig) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  
   const doc = new jsPDF({ orientation: rows[0]?.length > 6 ? "landscape" : "portrait" });
 
   const startY = await addLetterhead(doc, title);
@@ -96,6 +100,7 @@ export async function exportToPDF({ title, headers, rows, filename }: ExportConf
 }
 
 export async function exportToExcel({ title, headers, rows, filename }: ExportConfig) {
+  const ExcelJS = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(title.substring(0, 31));
 

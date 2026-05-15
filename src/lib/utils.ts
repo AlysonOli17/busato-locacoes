@@ -106,3 +106,5 @@ export function getEquipLabel(eq: {
   if (eq.numero_serie) label += ` - NS: ${eq.numero_serie}`;
   return label || fallback;
 }
+
+export const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");

@@ -15,8 +15,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+// jsPDF is now imported dynamically to reduce bundle size
+import type jsPDF from "jspdf";
+
 
 interface Empresa {
   id: string;
@@ -307,6 +308,7 @@ export const FaturamentoTab = () => {
     const busatoCnpj = busatoData?.cnpj || "";
     const busatoIE = busatoData?.inscricao_estadual || "";
 
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
@@ -603,6 +605,8 @@ export const FaturamentoTab = () => {
   }, [faturas, contratos, empresas]);
 
   const exportRelatorioFinanceiro = async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
     const logo = await loadLogo();
     const doc = new jsPDF({ orientation: "landscape" });
     const pageW = doc.internal.pageSize.getWidth();
