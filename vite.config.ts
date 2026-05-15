@@ -18,4 +18,15 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-ui': ['@radix-ui/react-accordion', '@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-popover', '@radix-ui/react-dropdown-menu'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-utils': ['date-fns', 'recharts', 'jspdf', 'exceljs'],
+        }
+      }
+    }
+  }
 }));
