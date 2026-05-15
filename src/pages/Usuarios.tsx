@@ -85,10 +85,27 @@ const Usuarios = () => {
 
   const fetchUsers = async () => {
     try {
+      // Tenta primeiro via Edge Function (método completo)
       const data = await callManageUser({ action: "list" });
       setUsers(data as UserItem[]);
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      console.warn("Edge Function falhou, tentando busca direta no banco:", e.message);
+      
+      // Fallback: Busca direta nas tabelas de perfis
+      const { data: profiles, error: pError } = await supabase.from("profiles").select("*").order("created_at");
+      const { data: roles, error: rError } = await supabase.from("user_roles").select("*");
+      
+      if (pError) {
+        toast({ title: "Erro ao carregar usuários", description: pError.message, variant: "destructive" });
+        return;
+      }
+
+      const mergedUsers = (profiles || []).map(p => ({
+        ...p,
+        role: roles?.find(r => r.user_id === p.user_id)?.role || null,
+      }));
+      
+      setUsers(mergedUsers as UserItem[]);
     }
     setLoading(false);
   };
