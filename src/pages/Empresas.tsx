@@ -108,90 +108,51 @@ const Empresas = () => {
     });
   }, [filtered, sortCol, sortAsc]);
 
-  const handleImportCNPJ = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+  const handleFetchCNPJ = async () => {
+    const cleanCNPJ = form.cnpj.replace(/\D/g, "");
+    if (cleanCNPJ.length !== 14) {
       toast({
-        title: "Arquivo inválido",
-        description: "Use uma imagem (PNG, JPG, WEBP) ou PDF do Cartão CNPJ.",
+        title: "CNPJ inválido",
+        description: "Digite os 14 dígitos do CNPJ para consultar.",
         variant: "destructive",
       });
-      e.target.value = "";
       return;
     }
 
     setImporting(true);
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const [prefix, base64] = dataUrl.split(",");
-      const mimeMatch = prefix?.match(/^data:(.*);base64$/);
-      const mimeType = mimeMatch?.[1] || file.type || "image/png";
-
-      if (!base64) {
-        throw new Error("Não foi possível ler a imagem selecionada.");
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
+      if (!response.ok) {
+        throw new Error("Não foi possível encontrar este CNPJ. Verifique se o número está correto.");
       }
 
-      const { data, error } = await supabase.functions.invoke("extract-cnpj", {
-        body: {
-          image_base64: base64,
-          image_mime_type: mimeType,
-          image_data_url: dataUrl,
-        },
-      });
-
-      if (error) {
-        let detail = error.message;
-        const context = (error as any)?.context;
-
-        if (context) {
-          try {
-            const payload = await context.json();
-            if (payload?.error) detail = payload.error;
-          } catch {
-            // fallback para error.message
-          }
-        }
-
-        throw new Error(detail || "Não foi possível extrair os dados.");
-      }
+      const data = await response.json();
 
       setForm((prev) => ({
         ...prev,
-        cnpj: data.cnpj ? formatCNPJ(data.cnpj) : prev.cnpj,
         razao_social: data.razao_social || prev.razao_social,
         nome_fantasia: data.nome_fantasia || prev.nome_fantasia,
-        atividade_principal: data.atividade_principal || prev.atividade_principal,
-        inscricao_estadual: data.inscricao_estadual || prev.inscricao_estadual,
-        inscricao_municipal: data.inscricao_municipal || prev.inscricao_municipal,
-        endereco_logradouro: data.endereco_logradouro || prev.endereco_logradouro,
-        endereco_numero: data.endereco_numero || prev.endereco_numero,
-        endereco_complemento: data.endereco_complemento || prev.endereco_complemento,
-        endereco_bairro: data.endereco_bairro || prev.endereco_bairro,
-        endereco_cidade: data.endereco_cidade || prev.endereco_cidade,
-        endereco_uf: data.endereco_uf || prev.endereco_uf,
-        endereco_cep: data.endereco_cep ? formatCEP(data.endereco_cep) : prev.endereco_cep,
+        atividade_principal: data.cnae_fiscal_descricao || prev.atividade_principal,
+        endereco_logradouro: data.logradouro || prev.endereco_logradouro,
+        endereco_numero: data.numero || prev.endereco_numero,
+        endereco_complemento: data.complemento || prev.endereco_complemento,
+        endereco_bairro: data.bairro || prev.endereco_bairro,
+        endereco_cidade: data.municipio || prev.endereco_cidade,
+        endereco_uf: data.uf || prev.endereco_uf,
+        endereco_cep: data.cep ? formatCEP(data.cep) : prev.endereco_cep,
         email: data.email || prev.email,
-        telefone: data.telefone ? formatPhone(data.telefone) : prev.telefone,
+        telefone: data.ddd_telefone_1 ? formatPhone(data.ddd_telefone_1) : prev.telefone,
       }));
 
-      toast({ title: "Importado!", description: "Dados do Cartão CNPJ extraídos com sucesso. Revise os campos." });
+      toast({ title: "Dados encontrados!", description: "Os campos foram preenchidos automaticamente." });
     } catch (err: any) {
       toast({
-        title: "Erro na importação",
-        description: err?.message || "Não foi possível extrair os dados.",
+        title: "Erro na consulta",
+        description: err?.message || "Erro ao buscar dados do CNPJ.",
         variant: "destructive",
       });
     } finally {
       setImporting(false);
-      e.target.value = "";
     }
   };
 
@@ -307,29 +268,18 @@ const Empresas = () => {
             {/* Dados Principais */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-accent">Dados Principais (Cartão CNPJ)</p>
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={handleImportCNPJ}
-                    disabled={importing}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    disabled={importing}
-                    asChild
-                  >
-                    <span>
-                      {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      {importing ? "Importando..." : "Importar Cartão CNPJ"}
-                    </span>
-                  </Button>
-                </label>
+                <p className="text-sm font-semibold text-accent">Dados da Empresa</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-accent border-accent hover:bg-accent/10"
+                  onClick={handleFetchCNPJ}
+                  disabled={importing || form.cnpj.length < 18}
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {importing ? "Consultando..." : "Consultar CNPJ (Grátis)"}
+                </Button>
               </div>
               <div className="h-px bg-border" />
             </div>

@@ -70,26 +70,35 @@ Deno.serve(async (req) => {
 
     if (action === "create") {
       const validated = CreateUserSchema.parse(body);
+      console.log(`Creating user in Auth: ${validated.email}`);
       const { data: authUser, error } = await supabaseAdmin.auth.admin.createUser({
         email: validated.email,
         password: validated.password,
         email_confirm: true,
         user_metadata: { nome: validated.nome },
       });
-      if (error) throw error;
+      if (error) {
+        console.error("Auth.admin.createUser error:", error);
+        throw error;
+      }
+      console.log("Auth user created:", authUser.user.id);
 
       // Use upsert to handle potential race condition with the database trigger
-      await supabaseAdmin.from("profiles").upsert({ 
+      console.log("Upserting profile...");
+      const { error: pError } = await supabaseAdmin.from("profiles").upsert({ 
         user_id: authUser.user.id, 
         nome: validated.nome, 
         email: validated.email,
         status: "Ativo" 
       }, { onConflict: 'user_id' });
+      if (pError) console.error("Profile upsert error:", pError);
       
-      await supabaseAdmin.from("user_roles").upsert({ 
+      console.log("Upserting role...");
+      const { error: rError } = await supabaseAdmin.from("user_roles").upsert({ 
         user_id: authUser.user.id, 
         role: validated.role 
       }, { onConflict: 'user_id,role' });
+      if (rError) console.error("Role upsert error:", rError);
 
       return new Response(JSON.stringify({ success: true, user_id: authUser.user.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

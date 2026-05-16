@@ -34,19 +34,31 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const geminiApiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_API_KEY");
+    
+    if (!lovableApiKey && !geminiApiKey) {
+      throw new Error("API Key não configurada. Configure LOVABLE_API_KEY ou GEMINI_API_KEY nos segredos do Supabase.");
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+    let apiKey = lovableApiKey;
+    let model = "google/gemini-2.5-flash";
+
+    if (!lovableApiKey && geminiApiKey) {
+      apiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+      apiKey = geminiApiKey;
+      model = "gemini-1.5-flash"; // Use a confirmed stable model name for direct Google API
+    }
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: model,
         messages: [
           {
             role: "system",
