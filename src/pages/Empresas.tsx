@@ -183,7 +183,9 @@ const Empresas = () => {
       const { error } = await supabase.from("empresas").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      const { error } = await supabase.from("empresas").insert(payload);
+      // Garantir que temos um ID se o banco estiver sem default
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("empresas").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
     setDialogOpen(false);
