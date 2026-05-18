@@ -527,9 +527,8 @@ export const FaturamentoContent = () => {
       tipo: e.evento,
       valor: mobValues[`${e.equipamento_id}_${e.evento}`],
       data: e.data,
-      classificacao: "A Cobrar do Cliente",
     }));
-    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id, classificacao");
+    const { data, error } = await supabase.from("gastos").insert(rows).select();
     if (error) {
       toast({ title: "Erro ao criar custos", description: error.message, variant: "destructive" });
     } else if (data) {
@@ -554,9 +553,8 @@ export const FaturamentoContent = () => {
       tipo: e.evento,
       valor: 0,
       data: e.data,
-      classificacao: "A Cobrar do Cliente",
     }));
-    const { data, error } = await supabase.from("gastos").insert(rows).select("id, descricao, tipo, valor, data, equipamento_id, classificacao");
+    const { data, error } = await supabase.from("gastos").insert(rows).select();
     if (error) {
       toast({ title: "Erro ao registrar", description: error.message, variant: "destructive" });
     } else if (data) {
