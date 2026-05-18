@@ -98,8 +98,8 @@ const Contratos = () => {
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes, ceRes] = await Promise.all([
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal, status"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie, status"),
       supabase.from("contratos_equipamentos").select("*")
     ]);
 
@@ -469,7 +469,7 @@ const Contratos = () => {
     return "bg-warning text-warning-foreground";
   };
 
-  const availableEquipamentos = equipamentos.filter(e => !formEquipamentos.some(fe => fe.equipamento_id === e.id));
+  const availableEquipamentos = equipamentos.filter(e => e.status === "Ativo" && !formEquipamentos.some(fe => fe.equipamento_id === e.id));
 
   const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
