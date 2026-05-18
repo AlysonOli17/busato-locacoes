@@ -179,19 +179,46 @@ export const FaturamentoContent = () => {
   const [creatingMob, setCreatingMob] = useState(false);
 
   const fetchData = async () => {
-    const [fatRes, ctRes, contasRes, empListRes] = await Promise.all([
-      supabase.from("faturamento").select("*, contratos(id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao))").order("numero_sequencial", { ascending: false }),
-      supabase.from("contratos").select("id, empresa_id, valor_hora, horas_contratadas, equipamento_id, data_inicio, data_fim, observacoes, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento, tipo_medicao, empresas(nome, cnpj, contato, telefone), equipamentos(tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)").eq("status", "Ativo").order("created_at", { ascending: false }),
+    const [fatRes, ctAllRes, ctAtivoRes, contasRes, empListRes, eqRes, ceRes] = await Promise.all([
+      supabase.from("faturamento").select("*").order("numero_sequencial", { ascending: false }),
+      supabase.from("contratos").select("*"),
+      supabase.from("contratos").select("*").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal").order("nome"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone").order("nome"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
+      supabase.from("contratos_equipamentos").select("*")
     ]);
-    if (fatRes.data) setItems(fatRes.data as unknown as Fatura[]);
+
+    const empresasMap = new Map((empListRes.data || []).map(e => [e.id, e]));
+    const equipMap = new Map((eqRes.data || []).map(e => [e.id, e]));
+    const ceList = (ceRes.data || []).map(ce => ({
+      ...ce,
+      equipamentos: equipMap.get(ce.equipamento_id) || null
+    }));
+
+    const buildContrato = (c: any) => ({
+      ...c,
+      empresas: empresasMap.get(c.empresa_id) || null,
+      equipamentos: equipMap.get(c.equipamento_id) || null,
+      contratos_equipamentos: ceList.filter(ce => ce.contrato_id === c.id)
+    });
+
+    const ctAllMap = new Map((ctAllRes.data || []).map(c => [c.id, buildContrato(c)]));
+    const ctAtivoData = (ctAtivoRes.data || []).map(c => buildContrato(c));
+
+    if (fatRes.data) {
+      const fatMapped = fatRes.data.map(f => ({
+        ...f,
+        contratos: ctAllMap.get(f.contrato_id) || null
+      }));
+      setItems(fatMapped as unknown as Fatura[]);
+    }
+
     if (empListRes.data) setEmpresasList(empListRes.data as unknown as EmpresaFat[]);
-    const ctData = ctRes.data as unknown as ContratoRef[] || [];
-    if (ctData.length > 0) {
-      setContratos(ctData);
-      // Fetch aditivos for all active contracts to compute equipment count
-      const ctIds = ctData.map(c => c.id);
+    
+    if (ctAtivoData.length > 0) {
+      setContratos(ctAtivoData as unknown as ContratoRef[]);
+      const ctIds = ctAtivoData.map(c => c.id);
       const { data: adData } = await supabase.from("contratos_aditivos").select("id, contrato_id, numero, data_inicio, data_fim, aditivos_equipamentos(equipamento_id, data_devolucao)").in("contrato_id", ctIds);
       const adMap: Record<string, any[]> = {};
       for (const ad of (adData || [])) {

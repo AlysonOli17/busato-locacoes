@@ -96,42 +96,52 @@ const Contratos = () => {
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
-    const [contratosRes, empresasRes, equipRes] = await Promise.all([
-      supabase.from("contratos").select("*, empresas(id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal), equipamentos(id, tipo, modelo, tag_placa, numero_serie), contratos_equipamentos(id, equipamento_id, valor_hora, horas_contratadas, valor_hora_excedente, hora_minima, data_entrega, data_devolucao, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
-      supabase.from("empresas").select("id, nome, cnpj").eq("status", "Ativa").order("nome") as any,
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
+    const [contratosRes, empresasRes, equipRes, ceRes] = await Promise.all([
+      supabase.from("contratos").select("*").order("created_at", { ascending: false }),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
+      supabase.from("contratos_equipamentos").select("*")
     ]);
-    if (contratosRes.data) setItems(contratosRes.data as unknown as Contrato[]);
-    if (empresasRes.data) setEmpresas(empresasRes.data);
-    if (equipRes.data) setEquipamentos(equipRes.data as Equipamento[]);
 
-    // Carregar aditivos com equipamentos para todos os contratos
-    if (contratosRes.data && contratosRes.data.length > 0) {
-      const contratoIds = contratosRes.data.map((c: any) => c.id);
-      const { data: allAditivos } = await supabase
-        .from("contratos_aditivos")
-        .select("*")
-        .in("contrato_id", contratoIds)
-        .order("numero", { ascending: true });
+    const empresasMap = new Map((empresasRes.data || []).map(e => [e.id, e]));
+    const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
 
-      if (allAditivos && allAditivos.length > 0) {
-        const aditivoIds = allAditivos.map(a => a.id);
-        const { data: allAditivosEquips } = await supabase
-          .from("aditivos_equipamentos")
-          .select("*")
-          .in("aditivo_id", aditivoIds);
+    const ceList = (ceRes.data || []).map(ce => ({
+      ...ce,
+      equipamentos: equipMap.get(ce.equipamento_id) || null
+    }));
 
-        const grouped: Record<string, Aditivo[]> = {};
-        for (const ad of allAditivos) {
-          const eqs = (allAditivosEquips || []).filter(ae => ae.aditivo_id === ad.id);
-          const aditivo: Aditivo = { ...ad, observacoes: ad.observacoes || "", aditivos_equipamentos: eqs };
-          if (!grouped[ad.contrato_id]) grouped[ad.contrato_id] = [];
-          grouped[ad.contrato_id].push(aditivo);
-        }
-        setAditivosPorContrato(grouped);
-      } else {
-        setAditivosPorContrato({});
+    const contratosData = (contratosRes.data || []).map(c => ({
+      ...c,
+      empresas: empresasMap.get(c.empresa_id) || null,
+      equipamentos: equipMap.get(c.equipamento_id) || null,
+      contratos_equipamentos: ceList.filter(ce => ce.contrato_id === c.id)
+    }));
+
+    setItems(contratosData as unknown as Contrato[]);
+    setEmpresas((empresasRes.data || []).filter(e => e.status === "Ativa") as any);
+    setEquipamentos(equipRes.data as Equipamento[]);
+
+    if (contratosData.length > 0) {
+      const contratoIds = contratosData.map((c: any) => c.id);
+      const [aditivosRes, aeRes] = await Promise.all([
+        supabase.from("contratos_aditivos").select("*").in("contrato_id", contratoIds).order("numero", { ascending: true }),
+        supabase.from("aditivos_equipamentos").select("*")
+      ]);
+
+      const allAditivos = aditivosRes.data || [];
+      const allAditivosEquips = aeRes.data || [];
+
+      const grouped: Record<string, Aditivo[]> = {};
+      for (const ad of allAditivos) {
+        const eqs = allAditivosEquips.filter(ae => ae.aditivo_id === ad.id);
+        const aditivo: Aditivo = { ...ad, observacoes: ad.observacoes || "", aditivos_equipamentos: eqs };
+        if (!grouped[ad.contrato_id]) grouped[ad.contrato_id] = [];
+        grouped[ad.contrato_id].push(aditivo);
       }
+      setAditivosPorContrato(grouped);
+    } else {
+      setAditivosPorContrato({});
     }
 
     setLoading(false);

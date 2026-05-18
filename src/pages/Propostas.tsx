@@ -167,13 +167,22 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const { role, user } = useAuth();
 
   const fetchData = async () => {
-    const [propRes, empRes, contasRes, eqCadRes] = await Promise.all([
-      supabase.from("propostas").select("*, propostas_equipamentos(quantidade)").order("numero_sequencial", { ascending: false }),
+    const [propRes, empRes, contasRes, eqCadRes, peRes] = await Promise.all([
+      supabase.from("propostas").select("*").order("numero_sequencial", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status").eq("status", "Ativo").order("tipo"),
+      supabase.from("propostas_equipamentos").select("*")
     ]);
-    if (propRes.data) setItems(propRes.data as unknown as Proposta[]);
+
+    if (propRes.data) {
+      const peList = peRes.data || [];
+      const propostasData = propRes.data.map(p => ({
+        ...p,
+        propostas_equipamentos: peList.filter(pe => pe.proposta_id === p.id)
+      }));
+      setItems(propostasData as unknown as Proposta[]);
+    }
     if (empRes.data) setEmpresas(empRes.data as Empresa[]);
     if (contasRes.data) setContas(contasRes.data as ContaBancaria[]);
     if (eqCadRes.data) setEquipamentosCadastro(eqCadRes.data as Equipamento[]);
