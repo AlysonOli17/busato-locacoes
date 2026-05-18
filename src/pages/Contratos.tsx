@@ -1324,11 +1324,18 @@ const Contratos = () => {
                             <Input type="date" value={fe.data_devolucao || ""} onChange={(e) => updateEquipItemStr(fe.equipamento_id, "data_devolucao", e.target.value)} className="h-8 text-sm" />
                           </div>
                         </div>
-                        {fe.hora_minima > 0 && (
-                          <div className="mt-1">
-                            <p className="text-xs text-muted-foreground">Se trabalhar menos de <strong>{fe.hora_minima}h</strong>, será cobrado o valor de {fe.hora_minima}h</p>
+                        <div className="mt-2 p-3 bg-background/50 rounded-md border border-border/50">
+                          <div className="flex flex-col gap-1">
+                            {fe.hora_minima > 0 ? (
+                              <>
+                                <p className="text-xs text-muted-foreground">Se {form.tipo_medicao === "diarias" ? "trabalhar menos de" : "trabalhar menos de"} <strong>{fe.hora_minima}{form.tipo_medicao === "diarias" ? " diárias" : "h"}</strong>, será cobrado o valor de {fe.hora_minima}{form.tipo_medicao === "diarias" ? " diárias" : "h"}</p>
+                                <p className="text-sm font-semibold text-primary">Valor Mensal Mínimo Garantido: {fmt(fe.valor_hora * fe.hora_minima)}</p>
+                              </>
+                            ) : (
+                              <p className="text-sm font-semibold text-primary">Valor Mensal Estimado ({fe.horas_contratadas || 0}{form.tipo_medicao === "diarias" ? "d" : "h"}): {fmt(fe.valor_hora * (fe.horas_contratadas || 0))}</p>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
