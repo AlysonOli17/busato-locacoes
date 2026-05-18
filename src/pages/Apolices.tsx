@@ -114,21 +114,50 @@ const Apolices = () => {
   const [sinistroDetailItem, setSinistroDetailItem] = useState<Sinistro | null>(null);
 
   const fetchData = async () => {
-    const [apolicesRes, equipRes] = await Promise.all([
-      supabase.from("apolices").select("*, apolices_equipamentos(id, equipamento_id, equipamentos(id, tipo, modelo, tag_placa, numero_serie))").order("created_at", { ascending: false }),
+    const [apolicesRes, equipRes, apolicesEqRes] = await Promise.all([
+      supabase.from("apolices").select("*").order("created_at", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
+      supabase.from("apolices_equipamentos").select("*")
     ]);
-    if (apolicesRes.data) setItems(apolicesRes.data as unknown as Apolice[]);
+    
     if (equipRes.data) setEquipamentos(equipRes.data);
+
+    if (apolicesRes.data && equipRes.data) {
+      const equipMap = new Map((equipRes.data || []).map((e: any) => [e.id, e]));
+      const apolicesEqMap = new Map<string, any[]>();
+      (apolicesEqRes.data || []).forEach((ae: any) => {
+        const list = apolicesEqMap.get(ae.apolice_id) || [];
+        list.push({ ...ae, equipamentos: equipMap.get(ae.equipamento_id) || null });
+        apolicesEqMap.set(ae.apolice_id, list);
+      });
+
+      const mapped = apolicesRes.data.map((a: any) => ({
+        ...a,
+        apolices_equipamentos: apolicesEqMap.get(a.id) || []
+      }));
+      setItems(mapped as unknown as Apolice[]);
+    }
     setLoading(false);
   };
 
   const fetchSinistros = async () => {
-    const { data } = await supabase
-      .from("sinistros")
-      .select("*, apolices(seguradora), equipamentos(id, tipo, modelo, tag_placa, numero_serie)")
-      .order("created_at", { ascending: false });
-    if (data) setSinistros(data as unknown as Sinistro[]);
+    const [sinistrosRes, apolicesRes, equipRes] = await Promise.all([
+      supabase.from("sinistros").select("*").order("created_at", { ascending: false }),
+      supabase.from("apolices").select("id, seguradora"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie")
+    ]);
+
+    if (sinistrosRes.data && apolicesRes.data && equipRes.data) {
+      const apolicesMap = new Map(apolicesRes.data.map((a: any) => [a.id, a]));
+      const equipMap = new Map(equipRes.data.map((e: any) => [e.id, e]));
+      
+      const mapped = sinistrosRes.data.map((s: any) => ({
+        ...s,
+        apolices: apolicesMap.get(s.apolice_id) || null,
+        equipamentos: equipMap.get(s.equipamento_id) || null
+      }));
+      setSinistros(mapped as unknown as Sinistro[]);
+    }
   };
 
   useEffect(() => { fetchData(); fetchSinistros(); }, []);

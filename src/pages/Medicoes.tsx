@@ -61,11 +61,23 @@ const Medicoes = () => {
 
   const fetchData = async () => {
     const [medRes, equipRes] = await Promise.all([
-    supabase.from("medicoes").select("*, equipamentos(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
-    supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo")]
-    );
-    if (medRes.data) setItems(medRes.data as unknown as Medicao[]);
+      supabase.from("medicoes").select("*").order("data", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo")
+    ]);
+    
     if (equipRes.data) setEquipamentos(equipRes.data);
+    
+    if (medRes.data && equipRes.data) {
+      const equipMap = new Map(equipRes.data.map((e: any) => [e.id, e]));
+      const mapped = medRes.data.map((m: any) => ({
+        ...m,
+        equipamentos: equipMap.get(m.equipamento_id) || null
+      }));
+      setItems(mapped as unknown as Medicao[]);
+    } else if (medRes.data) {
+      setItems(medRes.data as unknown as Medicao[]);
+    }
+    
     setLoading(false);
   };
 

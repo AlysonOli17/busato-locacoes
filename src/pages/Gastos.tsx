@@ -57,35 +57,41 @@ const Gastos = () => {
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
-    const [gastosRes, equipRes, fatGastosRes] = await Promise.all([
-      supabase.from("gastos").select("*, equipamentos(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
+    const [gastosRes, equipRes, fatGastosRes, fatRes] = await Promise.all([
+      supabase.from("gastos").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
-      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id, faturamento(numero_sequencial, numero_nota, status, periodo)"),
+      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id"),
+      supabase.from("faturamento").select("id, numero_sequencial, numero_nota, status, periodo")
     ]);
 
     const fatMap = new Map<string, FaturaRef>();
-    if (fatGastosRes.data) {
+    if (fatGastosRes.data && fatRes.data) {
+      const faturamentoMap = new Map(fatRes.data.map(f => [f.id, f]));
       for (const fg of fatGastosRes.data as any[]) {
-        if (fg.faturamento) {
+        const fat = faturamentoMap.get(fg.faturamento_id) as any;
+        if (fat) {
           fatMap.set(fg.gasto_id, {
             faturamento_id: fg.faturamento_id,
-            numero_sequencial: fg.faturamento.numero_sequencial,
-            numero_nota: fg.faturamento.numero_nota || null,
-            status: fg.faturamento.status,
-            periodo: fg.faturamento.periodo,
+            numero_sequencial: fat.numero_sequencial,
+            numero_nota: fat.numero_nota || null,
+            status: fat.status,
+            periodo: fat.periodo,
           });
         }
       }
     }
 
-    if (gastosRes.data) {
-      const withFatura = (gastosRes.data as unknown as Gasto[]).map(g => ({
+    if (equipRes.data) setEquipamentos(equipRes.data);
+
+    if (gastosRes.data && equipRes.data) {
+      const equipMap = new Map(equipRes.data.map((e: any) => [e.id, e]));
+      const mapped = gastosRes.data.map((g: any) => ({
         ...g,
+        equipamentos: equipMap.get(g.equipamento_id) || null,
         fatura: fatMap.get(g.id) || null,
       }));
-      setItems(withFatura);
+      setItems(mapped as unknown as Gasto[]);
     }
-    if (equipRes.data) setEquipamentos(equipRes.data);
     setLoading(false);
   };
 

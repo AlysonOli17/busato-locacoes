@@ -50,41 +50,45 @@ const Equipamentos = () => {
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
-    const [eqRes, insRes, rentRes] = await Promise.all([
+    const [eqRes, apolicesRes, apolicesEqRes, contratosRes, ceRes, aditivosRes, aeRes] = await Promise.all([
       supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
-      supabase.from("apolices_equipamentos").select("equipamento_id, apolices!inner(status)").eq("apolices.status", "Vigente"),
-      supabase.from("contratos_equipamentos").select("equipamento_id, contrato_id, data_devolucao, contratos!inner(status)").eq("contratos.status", "Ativo"),
+      supabase.from("apolices").select("id, status"),
+      supabase.from("apolices_equipamentos").select("equipamento_id, apolice_id"),
+      supabase.from("contratos").select("id, status"),
+      supabase.from("contratos_equipamentos").select("equipamento_id, contrato_id, data_devolucao"),
+      supabase.from("contratos_aditivos").select("id, contrato_id, numero"),
+      supabase.from("aditivos_equipamentos").select("equipamento_id, data_devolucao, aditivo_id")
     ]);
 
     if (eqRes.error) { toast({ title: "Erro", description: eqRes.error.message, variant: "destructive" }); return; }
     setItems(eqRes.data || []);
 
+    const vigentesSet = new Set((apolicesRes.data || []).filter((a: any) => a.status === "Vigente").map((a: any) => a.id));
     const insured = new Set<string>();
-    (insRes.data || []).forEach((r: any) => insured.add(r.equipamento_id));
+    (apolicesEqRes.data || []).forEach((r: any) => {
+      if (vigentesSet.has(r.apolice_id)) insured.add(r.equipamento_id);
+    });
     setInsuredIds(insured);
 
     const rented = new Set<string>();
     const hoje = new Date().toISOString().slice(0, 10);
 
-    // Buscar equipamentos de aditivos de contratos ativos
-    const { data: aditivosAtivos } = await supabase
-      .from("contratos_aditivos")
-      .select("id, contrato_id, numero, contratos!inner(status)")
-      .eq("contratos.status", "Ativo");
+    const ativosSet = new Set((contratosRes.data || []).filter((c: any) => c.status === "Ativo").map((c: any) => c.id));
+    
+    // Contratos Ativos
+    const ceList = (ceRes.data || []).filter((ce: any) => ativosSet.has(ce.contrato_id));
+    
+    // Aditivos Ativos
+    const aditivosAtivos = (aditivosRes.data || []).filter((a: any) => ativosSet.has(a.contrato_id));
 
     const aditivoEquipMap = new Map<string, Set<string>>(); // contrato_id -> Set<equipamento_id> com aditivo
-    if (aditivosAtivos && aditivosAtivos.length > 0) {
-      const aditivoIds = aditivosAtivos.map(a => a.id);
-      const { data: aditivosEquips } = await supabase
-        .from("aditivos_equipamentos")
-        .select("equipamento_id, data_devolucao, aditivo_id")
-        .in("aditivo_id", aditivoIds);
+    const latestAditivoEntry = new Map<string, { numero: number; data_devolucao: string | null }>();
 
-      // Para cada (equipamento, contrato), manter apenas o aditivo mais recente (maior numero)
-      // Chave: `${contrato_id}::${equipamento_id}` -> { numero, data_devolucao }
-      const latestAditivoEntry = new Map<string, { numero: number; data_devolucao: string | null }>();
+    if (aditivosAtivos.length > 0) {
+      const aditivoIds = new Set(aditivosAtivos.map(a => a.id));
+      const aditivosEquips = (aeRes.data || []).filter((ae: any) => aditivoIds.has(ae.aditivo_id));
 
-      (aditivosEquips || []).forEach((r: any) => {
+      aditivosEquips.forEach((r: any) => {
         const aditivo = aditivosAtivos.find(a => a.id === r.aditivo_id);
         if (!aditivo) return;
         
@@ -109,8 +113,8 @@ const Equipamentos = () => {
     }
 
     // Para contratos_equipamentos: só considerar locado se NÃO existe aditivo cobrindo esse equipamento nesse contrato
-    (rentRes.data || []).forEach((r: any) => {
-      const contratoId = r.contratos?.id || r.contrato_id;
+    ceList.forEach((r: any) => {
+      const contratoId = r.contrato_id;
       // Se existe aditivo para este equipamento neste contrato, o aditivo prevalece (já tratado acima)
       if (aditivoEquipMap.has(contratoId) && aditivoEquipMap.get(contratoId)!.has(r.equipamento_id)) return;
       if (r.data_devolucao && r.data_devolucao <= hoje) return;

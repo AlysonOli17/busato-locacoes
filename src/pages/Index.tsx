@@ -32,19 +32,34 @@ const Index = () => {
   useEffect(() => {
     const fetchDash = async () => {
       const [eqRes, empRes, ctRes, fatRes, medRes] = await Promise.all([
-        supabase.from("equipamentos").select("id", { count: "exact", head: true }),
-        supabase.from("empresas").select("id", { count: "exact", head: true }),
-        supabase.from("contratos").select("*, empresas(nome), equipamentos(tipo, modelo, tag_placa)").order("created_at", { ascending: false }).limit(5),
-        supabase.from("faturamento").select("id, status, valor_total, emissao, contrato_id, contratos(prazo_faturamento)").in("status", ["Pendente"]),
-        supabase.from("medicoes").select("*, equipamentos(tipo, modelo, tag_placa)").order("data", { ascending: false }).limit(5),
+        supabase.from("equipamentos").select("*"),
+        supabase.from("empresas").select("*"),
+        supabase.from("contratos").select("*").order("created_at", { ascending: false }),
+        supabase.from("faturamento").select("*").in("status", ["Pendente", "Em Atraso"]),
+        supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(5),
       ]);
 
-      const contratosAtivos = (ctRes.data || []).filter((c: any) => c.status === "Ativo").length;
+      const equipamentosArray = eqRes.data || [];
+      const empresasArray = empRes.data || [];
+      const contratosArray = ctRes.data || [];
+      const faturamentosArray = fatRes.data || [];
+      const medicoesArray = medRes.data || [];
+
+      const empMap = new Map(empresasArray.map((e: any) => [e.id, e]));
+      const eqMap = new Map(equipamentosArray.map((e: any) => [e.id, e]));
+      const ctMap = new Map(contratosArray.map((c: any) => ({
+        ...c,
+        empresas: empMap.get(c.empresa_id) || null,
+        equipamentos: eqMap.get(c.equipamento_id) || null
+      })).map(c => [c.id, c]));
+
+      const contratosAtivos = contratosArray.filter((c: any) => c.status === "Ativo").length;
 
       let pendente = 0;
       let atrasadas = 0;
-      (fatRes.data || []).forEach((f: any) => {
-        const prazo = f.contratos?.prazo_faturamento || 30;
+      faturamentosArray.forEach((f: any) => {
+        const ct = ctMap.get(f.contrato_id);
+        const prazo = ct?.prazo_faturamento || 30;
         const venc = new Date(f.emissao);
         venc.setDate(venc.getDate() + prazo);
         if (new Date() > venc) {
@@ -54,31 +69,52 @@ const Index = () => {
         }
       });
 
-      setStats({ equipamentos: eqRes.count || 0, contratosAtivos, empresas: empRes.count || 0, pendente, atrasadas });
-      setRecentContratos((ctRes.data || []).slice(0, 4));
-      setRecentMedicoes(medRes.data || []);
+      const recentContratosMapped = contratosArray.slice(0, 4).map((c: any) => ({
+        ...c,
+        empresas: empMap.get(c.empresa_id) || null,
+        equipamentos: eqMap.get(c.equipamento_id) || null
+      }));
+
+      const recentMedicoesMapped = medicoesArray.map((m: any) => ({
+        ...m,
+        equipamentos: eqMap.get(m.equipamento_id) || null
+      }));
+
+      setStats({ equipamentos: equipamentosArray.length, contratosAtivos, empresas: empresasArray.length, pendente, atrasadas });
+      setRecentContratos(recentContratosMapped);
+      setRecentMedicoes(recentMedicoesMapped);
       setLoading(false);
     };
 
     const fetchVencimentos = async () => {
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
-      const alertaDias = 30; // alert for items expiring within 30 days
+      const alertaDias = 30; 
       const items: VencimentoItem[] = [];
 
-      // 1. Contratos ativos
-      const { data: contratos } = await supabase
-        .from("contratos")
-        .select("id, data_fim, empresas(nome)")
-        .eq("status", "Ativo");
+      const [ctRes, adtRes, ajRes, empRes, eqRes] = await Promise.all([
+        supabase.from("contratos").select("*").eq("status", "Ativo"),
+        supabase.from("contratos_aditivos").select("*").order("data_fim", { ascending: true }),
+        supabase.from("contratos_equipamentos_ajustes").select("*").order("data_fim", { ascending: true }),
+        supabase.from("empresas").select("id, nome"),
+        supabase.from("equipamentos").select("id, tipo, modelo")
+      ]);
 
-      (contratos || []).forEach((c: any) => {
+      const empMap = new Map((empRes.data || []).map((e: any) => [e.id, e]));
+      const eqMap = new Map((eqRes.data || []).map((e: any) => [e.id, e]));
+      const ctMap = new Map((ctRes.data || []).map((c: any) => ({
+        ...c,
+        empresas: empMap.get(c.empresa_id) || null
+      })).map(c => [c.id, c]));
+
+      (ctRes.data || []).forEach((c: any) => {
+        const emp = empMap.get(c.empresa_id);
         const fim = parseLocalDate(c.data_fim);
         const diff = Math.ceil((fim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
         if (diff <= alertaDias) {
           items.push({
             tipo: "Contrato",
-            descricao: `${c.empresas?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
+            descricao: `${emp?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
             data_fim: c.data_fim,
             dias_restantes: diff,
             status: diff < 0 ? "vencido" : diff <= 7 ? "critico" : "alerta",
@@ -86,20 +122,15 @@ const Index = () => {
         }
       });
 
-      // 2. Aditivos
-      const { data: aditivos } = await supabase
-        .from("contratos_aditivos")
-        .select("id, numero, data_fim, contratos(status, empresas(nome))")
-        .order("data_fim", { ascending: true });
-
-      (aditivos || []).forEach((a: any) => {
-        if (a.contratos?.status !== "Ativo") return;
+      (adtRes.data || []).forEach((a: any) => {
+        const ct = ctMap.get(a.contrato_id);
+        if (!ct) return;
         const fim = parseLocalDate(a.data_fim);
         const diff = Math.ceil((fim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
         if (diff <= alertaDias) {
           items.push({
             tipo: "Aditivo",
-            descricao: `Aditivo #${a.numero} - ${a.contratos?.empresas?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
+            descricao: `Aditivo #${a.numero} - ${ct.empresas?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
             data_fim: a.data_fim,
             dias_restantes: diff,
             status: diff < 0 ? "vencido" : diff <= 7 ? "critico" : "alerta",
@@ -107,20 +138,16 @@ const Index = () => {
         }
       });
 
-      // 3. Ajustes temporários
-      const { data: ajustes } = await supabase
-        .from("contratos_equipamentos_ajustes")
-        .select("id, data_fim, motivo, contratos(status, empresas(nome)), equipamentos(tipo, modelo)")
-        .order("data_fim", { ascending: true });
-
-      (ajustes || []).forEach((aj: any) => {
-        if (aj.contratos?.status !== "Ativo") return;
+      (ajRes.data || []).forEach((aj: any) => {
+        const ct = ctMap.get(aj.contrato_id);
+        if (!ct) return;
+        const eq = eqMap.get(aj.equipamento_id);
         const fim = parseLocalDate(aj.data_fim);
         const diff = Math.ceil((fim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
         if (diff <= alertaDias) {
           items.push({
             tipo: "Ajuste Temporário",
-            descricao: `${aj.equipamentos?.tipo || ""} ${aj.equipamentos?.modelo || ""} - ${aj.contratos?.empresas?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
+            descricao: `${eq?.tipo || ""} ${eq?.modelo || ""} - ${ct.empresas?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
             data_fim: aj.data_fim,
             dias_restantes: diff,
             status: diff < 0 ? "vencido" : diff <= 7 ? "critico" : "alerta",
@@ -128,7 +155,6 @@ const Index = () => {
         }
       });
 
-      // Sort: vencidos first, then by dias_restantes
       items.sort((a, b) => a.dias_restantes - b.dias_restantes);
       setVencimentos(items);
 

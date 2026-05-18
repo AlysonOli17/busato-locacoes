@@ -96,8 +96,28 @@ const Acompanhamento = () => {
   const [vincularDialog, setVincularDialog] = useState<{ open: boolean; alerta: any | null; faturaId: string }>({ open: false, alerta: null, faturaId: "" });
 
   const refreshFaturas = async () => {
-    const { data } = await supabase.from("faturamento").select("*, contratos(id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento)").order("emissao", { ascending: false });
-    if (data) setFaturas(data as unknown as Fatura[]);
+    const [fatRes, ctRes, empRes, eqRes] = await Promise.all([
+      supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
+      supabase.from("contratos").select("id, empresa_id, equipamento_id, horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento"),
+      supabase.from("empresas").select("id, nome, cnpj"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa")
+    ]);
+
+    if (fatRes.data && ctRes.data && empRes.data && eqRes.data) {
+      const empMap = new Map(empRes.data.map((e: any) => [e.id, e]));
+      const eqMap = new Map(eqRes.data.map((e: any) => [e.id, e]));
+      const ctMap = new Map(ctRes.data.map((c: any) => ({
+        ...c,
+        empresas: empMap.get(c.empresa_id) || null,
+        equipamentos: eqMap.get(c.equipamento_id) || null
+      })).map(c => [c.id, c]));
+
+      const mappedFaturas = fatRes.data.map((f: any) => ({
+        ...f,
+        contratos: ctMap.get(f.contrato_id) || null
+      }));
+      setFaturas(mappedFaturas as unknown as Fatura[]);
+    }
   };
 
   const vincularFaturaAoPeriodo = async () => {
@@ -118,20 +138,51 @@ const Acompanhamento = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [empRes, ctRes, fatRes, eqRes, gastRes, medRes] = await Promise.all([
+      const [empRes, ctRes, ceRes, fatRes, eqRes, gastRes, medRes] = await Promise.all([
         supabase.from("empresas").select("id, nome, cnpj").order("nome"),
-        supabase.from("contratos").select("*, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), contratos_equipamentos(equipamento_id)").order("created_at", { ascending: false }),
-        supabase.from("faturamento").select("*, contratos(id, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa), horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento)").order("emissao", { ascending: false }),
+        supabase.from("contratos").select("*").order("created_at", { ascending: false }),
+        supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id"),
+        supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
         supabase.from("equipamentos").select("*").order("tipo"),
         supabase.from("gastos").select("*").order("data", { ascending: false }),
         supabase.from("medicoes").select("*").order("data", { ascending: false }),
       ]);
+      
       if (empRes.data) setEmpresas(empRes.data as Empresa[]);
-      if (ctRes.data) setContratos(ctRes.data as unknown as Contrato[]);
-      if (fatRes.data) setFaturas(fatRes.data as unknown as Fatura[]);
       if (eqRes.data) setEquipamentos(eqRes.data);
       if (gastRes.data) setGastos(gastRes.data);
       if (medRes.data) setMedicoes(medRes.data);
+
+      if (empRes.data && eqRes.data && ctRes.data) {
+        const empMap = new Map(empRes.data.map((e: any) => [e.id, e]));
+        const eqMap = new Map(eqRes.data.map((e: any) => [e.id, e]));
+        
+        const ceMap = new Map<string, any[]>();
+        if (ceRes.data) {
+          ceRes.data.forEach((ce: any) => {
+            const list = ceMap.get(ce.contrato_id) || [];
+            list.push(ce);
+            ceMap.set(ce.contrato_id, list);
+          });
+        }
+
+        const mappedContratos = ctRes.data.map((c: any) => ({
+          ...c,
+          empresas: empMap.get(c.empresa_id) || null,
+          equipamentos: eqMap.get(c.equipamento_id) || null,
+          contratos_equipamentos: ceMap.get(c.id) || []
+        }));
+        setContratos(mappedContratos as unknown as Contrato[]);
+
+        if (fatRes.data) {
+          const ctMap = new Map(mappedContratos.map(c => [c.id, c]));
+          const mappedFaturas = fatRes.data.map((f: any) => ({
+            ...f,
+            contratos: ctMap.get(f.contrato_id) || null
+          }));
+          setFaturas(mappedFaturas as unknown as Fatura[]);
+        }
+      }
       setLoading(false);
     };
     fetchAll();
