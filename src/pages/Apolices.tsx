@@ -197,7 +197,8 @@ const Apolices = () => {
       const { error } = await supabase.from("sinistros").update(payload).eq("id", editingSinistro.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      const { error } = await supabase.from("sinistros").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("sinistros").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
 
@@ -357,12 +358,13 @@ const Apolices = () => {
       apoliceId = editing.id;
       await supabase.from("apolices_equipamentos").delete().eq("apolice_id", editing.id);
     } else {
-      const { data, error } = await supabase.from("apolices").insert(payload).select("id").single();
+      const newApoliceId = crypto.randomUUID();
+      const { data, error } = await supabase.from("apolices").insert({ ...payload, id: newApoliceId }).select("id").single();
       if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar", variant: "destructive" }); return; }
       apoliceId = data.id;
     }
 
-    const links = form.equipamento_ids.map(eid => ({ apolice_id: apoliceId, equipamento_id: eid }));
+    const links = form.equipamento_ids.map(eid => ({ id: crypto.randomUUID(), apolice_id: apoliceId, equipamento_id: eid }));
     const { error: linkError } = await supabase.from("apolices_equipamentos").insert(links);
     if (linkError) { toast({ title: "Erro", description: linkError.message, variant: "destructive" }); return; }
 
@@ -480,7 +482,8 @@ const Apolices = () => {
 
       for (const row of dataRows) {
         const { equipRef, ...payload } = row;
-        const { data: apolice, error } = await supabase.from("apolices").insert(payload).select("id").single();
+        const newApoliceId = crypto.randomUUID();
+        const { data: apolice, error } = await supabase.from("apolices").insert({ ...payload, id: newApoliceId }).select("id").single();
         if (error || !apolice) continue;
 
         if (equipRef) {
@@ -492,7 +495,7 @@ const Apolices = () => {
               return tag === ref.toLowerCase() || label === ref.toLowerCase();
             });
             if (match) {
-              await supabase.from("apolices_equipamentos").insert({ apolice_id: apolice.id, equipamento_id: match.id });
+              await supabase.from("apolices_equipamentos").insert({ id: crypto.randomUUID(), apolice_id: apolice.id, equipamento_id: match.id });
             }
           }
         }

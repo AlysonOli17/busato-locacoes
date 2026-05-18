@@ -149,7 +149,8 @@ const Gastos = () => {
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Custo atualizado com sucesso" });
     } else {
-      const { error } = await supabase.from("gastos").insert([payload]);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("gastos").insert([payloadWithId]);
       if (error) { toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Custo cadastrado com sucesso" });
     }

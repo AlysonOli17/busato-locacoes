@@ -237,6 +237,7 @@ const Medicoes = () => {
       if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     } else {
       const { error } = await supabase.from("medicoes").insert({
+        id: crypto.randomUUID(),
         equipamento_id: form.equipamento_id,
         data: form.data,
         horimetro_inicial: hInicial,

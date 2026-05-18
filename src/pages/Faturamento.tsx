@@ -521,6 +521,7 @@ export const FaturamentoContent = () => {
       return;
     }
     const rows = toCreate.map(e => ({
+      id: crypto.randomUUID(),
       equipamento_id: e.equipamento_id,
       descricao: `${e.evento} — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
       tipo: e.evento,
@@ -547,6 +548,7 @@ export const FaturamentoContent = () => {
   const handleNaoCobrarMob = async () => {
     setCreatingMob(true);
     const rows = mobAlerts.map(e => ({
+      id: crypto.randomUUID(),
       equipamento_id: e.equipamento_id,
       descricao: `${e.evento} (não cobrado) — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
       tipo: e.evento,
@@ -878,7 +880,8 @@ export const FaturamentoContent = () => {
         supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", faturaId),
       ]);
     } else {
-      const { data, error } = await supabase.from("faturamento").insert(payload).select("id").single();
+      const newFaturaId = crypto.randomUUID();
+      const { data, error } = await supabase.from("faturamento").insert({ ...payload, id: newFaturaId }).select("id").single();
       if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar fatura", variant: "destructive" }); return; }
       faturaId = data.id;
     }
@@ -886,6 +889,7 @@ export const FaturamentoContent = () => {
     // Save per-equipment details
     if (equipForms.length > 0) {
       const equipRows = equipForms.map(ef => ({
+        id: crypto.randomUUID(),
         faturamento_id: faturaId,
         equipamento_id: ef.equipamento_id,
         horas_normais: ef.horas_normais,
@@ -902,6 +906,7 @@ export const FaturamentoContent = () => {
     // Save selected gastos
     if (selectedGastos.size > 0) {
       const gastoRows = Array.from(selectedGastos).map(gastoId => ({
+        id: crypto.randomUUID(),
         faturamento_id: faturaId,
         gasto_id: gastoId,
       }));
