@@ -423,12 +423,14 @@ const Contratos = () => {
       contratoId = editing.id;
       await supabase.from("contratos_equipamentos").delete().eq("contrato_id", contratoId);
     } else {
-      const { data, error } = await supabase.from("contratos").insert(payload).select("id").single();
-      if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar contrato", variant: "destructive" }); return; }
-      contratoId = data.id;
+      const newId = crypto.randomUUID();
+      const { data, error } = await supabase.from("contratos").insert({ ...payload, id: newId }).select("id").single();
+      if (error || (!data && !newId)) { toast({ title: "Erro", description: error?.message || "Erro ao criar contrato", variant: "destructive" }); return; }
+      contratoId = data?.id || newId;
     }
 
     const junctionRows = formEquipamentos.map(fe => ({
+      id: crypto.randomUUID(),
       contrato_id: contratoId,
       equipamento_id: fe.equipamento_id,
       valor_hora: Number(fe.valor_hora),
@@ -609,6 +611,7 @@ const Contratos = () => {
       }
 
       const rows = Array.from(equipMap.entries()).map(([eqId, vals]) => ({
+        id: crypto.randomUUID(),
         contrato_id: ajustesContrato.id,
         equipamento_id: eqId,
         valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : vals.valor_hora,
@@ -632,6 +635,7 @@ const Contratos = () => {
         const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
         const origHorasContratadas = ce ? Number(ce.horas_contratadas) : 0;
         return {
+          id: crypto.randomUUID(),
           contrato_id: ajustesContrato.id,
           equipamento_id: eqId,
           valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : origValorHora,
@@ -763,12 +767,14 @@ const Contratos = () => {
       aditivoId = editingAditivo.id;
       await supabase.from("aditivos_equipamentos").delete().eq("aditivo_id", aditivoId);
     } else {
-      const { data, error } = await supabase.from("contratos_aditivos").insert(payload).select("id").single();
-      if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar aditivo", variant: "destructive" }); return; }
-      aditivoId = data.id;
+      const newId = crypto.randomUUID();
+      const { data, error } = await supabase.from("contratos_aditivos").insert({ ...payload, id: newId }).select("id").single();
+      if (error || (!data && !newId)) { toast({ title: "Erro", description: error?.message || "Erro ao criar aditivo", variant: "destructive" }); return; }
+      aditivoId = data?.id || newId;
     }
 
     const eqRows = aditivoForm.equipamentos.map(fe => ({
+      id: crypto.randomUUID(),
       aditivo_id: aditivoId,
       equipamento_id: fe.equipamento_id,
       valor_hora: Number(fe.valor_hora),
