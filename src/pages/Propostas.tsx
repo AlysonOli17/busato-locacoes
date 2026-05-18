@@ -303,17 +303,18 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       propostaId = editing.id;
       numSeq = editing.numero_sequencial;
     } else {
-      const { data, error } = await supabase.from("propostas").insert(payload).select("id, numero_sequencial").single();
-      if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro", variant: "destructive" }); return; }
-      propostaId = data.id;
-      numSeq = data.numero_sequencial;
+      const newId = crypto.randomUUID();
+      const { data, error } = await supabase.from("propostas").insert({ ...payload, id: newId }).select("id, numero_sequencial").single();
+      if (error || (!data && !newId)) { toast({ title: "Erro", description: error?.message || "Erro", variant: "destructive" }); return; }
+      propostaId = data?.id || newId;
+      numSeq = data?.numero_sequencial || 0;
     }
 
     // Save equipamentos
     await supabase.from("propostas_equipamentos").delete().eq("proposta_id", propostaId);
     if (equipamentos.length > 0) {
       await supabase.from("propostas_equipamentos").insert(
-        equipamentos.map(e => ({ proposta_id: propostaId, equipamento_tipo: e.equipamento_tipo, quantidade: e.quantidade, valor_hora: e.valor_hora, franquia_mensal: e.franquia_mensal }))
+        equipamentos.map(e => ({ id: crypto.randomUUID(), proposta_id: propostaId, equipamento_tipo: e.equipamento_tipo, quantidade: e.quantidade, valor_hora: e.valor_hora, franquia_mensal: e.franquia_mensal }))
       );
     }
 
@@ -321,7 +322,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     await supabase.from("propostas_responsabilidades").delete().eq("proposta_id", propostaId);
     if (responsabilidades.length > 0) {
       await supabase.from("propostas_responsabilidades").insert(
-        responsabilidades.map(r => ({ proposta_id: propostaId, atividade: r.atividade, responsavel_busato: r.responsavel_busato, responsavel_cliente: r.responsavel_cliente }))
+        responsabilidades.map(r => ({ id: crypto.randomUUID(), proposta_id: propostaId, atividade: r.atividade, responsavel_busato: r.responsavel_busato, responsavel_cliente: r.responsavel_cliente }))
       );
     }
 
@@ -386,14 +387,17 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       tipo_medicao: (item as any).tipo_medicao || "horas",
     };
 
-    const { data: newProp, error } = await supabase.from("propostas").insert(payload).select("id").single();
-    if (error || !newProp) { toast({ title: "Erro", description: error?.message, variant: "destructive" }); return; }
+    const newId = crypto.randomUUID();
+    const { data: newProp, error } = await supabase.from("propostas").insert({ ...payload, id: newId }).select("id").single();
+    if (error || (!newProp && !newId)) { toast({ title: "Erro", description: error?.message, variant: "destructive" }); return; }
+
+    const finalId = newProp?.id || newId;
 
     if (eqs && eqs.length > 0) {
-      await supabase.from("propostas_equipamentos").insert(eqs.map(e => ({ proposta_id: newProp.id, equipamento_tipo: e.equipamento_tipo, quantidade: e.quantidade, valor_hora: e.valor_hora, franquia_mensal: e.franquia_mensal })));
+      await supabase.from("propostas_equipamentos").insert(eqs.map(e => ({ id: crypto.randomUUID(), proposta_id: finalId, equipamento_tipo: e.equipamento_tipo, quantidade: e.quantidade, valor_hora: e.valor_hora, franquia_mensal: e.franquia_mensal })));
     }
     if (resps && resps.length > 0) {
-      await supabase.from("propostas_responsabilidades").insert(resps.map(r => ({ proposta_id: newProp.id, atividade: r.atividade, responsavel_busato: r.responsavel_busato, responsavel_cliente: r.responsavel_cliente })));
+      await supabase.from("propostas_responsabilidades").insert(resps.map(r => ({ id: crypto.randomUUID(), proposta_id: finalId, atividade: r.atividade, responsavel_busato: r.responsavel_busato, responsavel_cliente: r.responsavel_cliente })));
     }
 
     toast({ title: "Proposta duplicada" });
