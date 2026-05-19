@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
       ? "Invalid input: " + error.errors.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(", ")
       : (error as Error).message;
     return new Response(JSON.stringify({ error: message }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

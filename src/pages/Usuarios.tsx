@@ -70,12 +70,16 @@ const Usuarios = () => {
       
       if (error) {
         console.error("Erro na Edge Function:", error);
-        // Se o erro for de rede ou a função não existir
         if (error.message?.includes("Failed to send a request")) {
           throw new Error("A função 'manage-user' não foi encontrada ou o servidor está fora do ar. Verifique se ela foi implantada no Supabase.");
         }
         throw new Error(error.message || "Erro na operação");
       }
+
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+
       return data;
     } catch (e: any) {
       console.error("Erro ao invocar função:", e);
