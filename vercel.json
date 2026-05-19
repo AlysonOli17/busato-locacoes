@@ -1,7 +1,7 @@
 {
   "cleanUrls": true,
-  "buildCommand": null,
-  "installCommand": null,
+  "buildCommand": "echo 'No build needed'",
+  "installCommand": "echo 'No install needed'",
   "outputDirectory": ".",
   "rewrites": [
     {
