@@ -78,6 +78,9 @@ export const MedicaoTerceirosTab = () => {
         .select("*, contratos_terceiros(tipo_medicao, fornecedores(id, nome, cnpj))")
         .order("created_at", { ascending: false }),
     ]);
+    if (ctRes.error) {
+      toast({ title: "Erro ao buscar contratos", description: ctRes.error.message, variant: "destructive" });
+    }
     if (ctRes.data) setContratos(ctRes.data as unknown as Contrato[]);
     if (savedRes.data) setSavedItems(savedRes.data as unknown as MedicaoSalva[]);
     // If error on savedRes (table may not exist yet), just set empty

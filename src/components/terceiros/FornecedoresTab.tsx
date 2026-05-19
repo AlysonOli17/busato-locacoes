@@ -60,7 +60,11 @@ export const FornecedoresTab = () => {
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const { data } = await supabase.from("fornecedores").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("fornecedores").select("*").order("created_at", { ascending: false });
+    if (error) {
+      toast({ title: "Erro ao buscar fornecedores", description: error.message, variant: "destructive" });
+      return;
+    }
     if (data) setItems(data as any);
   };
 

@@ -66,6 +66,16 @@ export const ContratosTerceirosTab = () => {
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
 
+    if (cRes.error) {
+      toast({ title: "Erro ao buscar contratos", description: cRes.error.message, variant: "destructive" });
+    }
+    if (fRes.error) {
+      toast({ title: "Erro ao buscar fornecedores", description: fRes.error.message, variant: "destructive" });
+    }
+    if (eqRes.error) {
+      toast({ title: "Erro ao buscar equipamentos", description: eqRes.error.message, variant: "destructive" });
+    }
+
     let contratos: Contrato[] = [];
     if (cRes.data) {
       contratos = cRes.data.map((c: any) => ({ ...c, fornecedor: c.fornecedores }));

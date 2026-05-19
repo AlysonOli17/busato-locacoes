@@ -47,6 +47,12 @@ export const MedicoesTerceirosTab = () => {
       supabase.from("medicoes_terceiros").select("*, equipamentos_terceiros(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
+    if (medRes.error) {
+      toast({ title: "Erro ao buscar medições", description: medRes.error.message, variant: "destructive" });
+    }
+    if (eqRes.error) {
+      toast({ title: "Erro ao buscar equipamentos", description: eqRes.error.message, variant: "destructive" });
+    }
     if (medRes.data) setItems(medRes.data as unknown as Medicao[]);
     if (eqRes.data) setEquipamentos(eqRes.data);
   };

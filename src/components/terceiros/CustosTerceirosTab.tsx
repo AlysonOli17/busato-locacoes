@@ -56,6 +56,12 @@ export const CustosTerceirosTab = () => {
       supabase.from("custos_terceiros").select("*, equipamentos_terceiros(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
+    if (cRes.error) {
+      toast({ title: "Erro ao buscar custos", description: cRes.error.message, variant: "destructive" });
+    }
+    if (eqRes.error) {
+      toast({ title: "Erro ao buscar equipamentos", description: eqRes.error.message, variant: "destructive" });
+    }
     if (cRes.data) setItems(cRes.data.map((c: any) => ({ ...c, equipment: c.equipamentos_terceiros })));
     if (eqRes.data) setEquipamentos(eqRes.data);
   };
@@ -102,7 +108,7 @@ export const CustosTerceirosTab = () => {
     if (!form.equipamento_id || !form.descricao.trim()) { toast({ title: "Equipamento e descrição obrigatórios", variant: "destructive" }); return; }
     const payload: any = {
       equipamento_id: form.equipamento_id, data: form.data, valor: form.valor,
-      descricao: form.descricao, tipo: form.tipo, classificacao: form.classificacao,
+      descricao: form.descricao, tipo: form.tipo,
       observacoes: form.observacoes || null,
     };
     if (editing) {
