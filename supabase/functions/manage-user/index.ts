@@ -42,6 +42,11 @@ const UpdatePermissionsSchema = z.object({
   permissions: z.array(z.string().max(255)),
 });
 
+const RepairAuthSchema = z.object({
+  action: z.literal("repair_auth"),
+  email: z.string().email(),
+});
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -84,20 +89,31 @@ Deno.serve(async (req) => {
       console.log("Auth user created:", authUser.user.id);
 
       // Use upsert to handle potential race condition with the database trigger
-      console.log("Upserting profile...");
-      const { error: pError } = await supabaseAdmin.from("profiles").upsert({ 
+      console.log("Inserting profile...");
+      const { error: pError } = await supabaseAdmin.from("profiles").insert({ 
+        id: crypto.randomUUID(),
         user_id: authUser.user.id, 
         nome: validated.nome, 
         email: validated.email,
         status: "Ativo" 
-      }, { onConflict: 'user_id' });
-      if (pError) console.error("Profile upsert error:", pError);
+      });
+      if (pError) {
+        console.error("Profile insert error:", pError);
+        // Fallback: If it already exists due to trigger, just update it
+        if (pError.code === '23505') {
+          await supabaseAdmin.from("profiles").update({ 
+            nome: validated.nome, 
+            status: "Ativo" 
+          }).eq("user_id", authUser.user.id);
+        }
+      }
       
-      console.log("Upserting role...");
-      const { error: rError } = await supabaseAdmin.from("user_roles").upsert({ 
+      console.log("Inserting role...");
+      const { error: rError } = await supabaseAdmin.from("user_roles").insert({ 
+        id: crypto.randomUUID(),
         user_id: authUser.user.id, 
         role: validated.role 
-      }, { onConflict: 'user_id,role' });
+      });
       if (rError) console.error("Role upsert error:", rError);
 
       return new Response(JSON.stringify({ success: true, user_id: authUser.user.id }), {
@@ -172,6 +188,24 @@ Deno.serve(async (req) => {
         );
       }
       return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "repair_auth") {
+      const validated = RepairAuthSchema.parse(body);
+      // Retrieve all users (paginated, but usually enough for small apps)
+      const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+      if (listError) throw listError;
+      
+      const userToFix = usersData.users.find(u => u.email === validated.email);
+      if (userToFix) {
+        await supabaseAdmin.auth.admin.deleteUser(userToFix.id);
+        return new Response(JSON.stringify({ success: true, message: "Usuário limpo do Auth." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: false, message: "Usuário não encontrado no Auth." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
