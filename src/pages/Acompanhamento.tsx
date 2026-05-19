@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, Receipt, Building2, FileDown, FileSpreadsheet, TrendingUp, TrendingDown, CalendarClock, LayoutDashboard, Link2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Receipt, Building2, FileDown, FileSpreadsheet, TrendingUp, TrendingDown, CalendarClock, LayoutDashboard, Link2, LayoutGrid } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
@@ -393,6 +393,9 @@ const Acompanhamento = () => {
             <TabsTrigger value="acompanhamento" className="flex items-center gap-1">
               <LayoutDashboard className="h-4 w-4" /> Acompanhamento
             </TabsTrigger>
+            <TabsTrigger value="modulos" className="flex items-center gap-1">
+              <LayoutGrid className="h-4 w-4" /> Módulos
+            </TabsTrigger>
             <TabsTrigger value="faturamento" className="flex items-center gap-1">
               <Receipt className="h-4 w-4" /> Faturamento
             </TabsTrigger>
@@ -400,6 +403,26 @@ const Acompanhamento = () => {
 
           <TabsContent value="acompanhamento" className="mt-6">
             <VisaoGeralTab
+              mode="dashboard"
+              empresas={empresas}
+              contratos={contratos}
+              faturas={faturas}
+              equipamentos={equipamentos}
+              gastos={gastos}
+              medicoes={medicoes}
+              apolices={apolices}
+              apolicesEquipamentos={apolicesEquipamentos}
+              contratosAditivos={contratosAditivos}
+              aditivosEquipamentos={aditivosEquipamentos}
+              sinistros={sinistros}
+              faturamentoGastos={faturamentoGastos}
+              contratosEquipamentos={contratosEquipamentos}
+            />
+          </TabsContent>
+
+          <TabsContent value="modulos" className="mt-6">
+            <VisaoGeralTab
+              mode="modules"
               empresas={empresas}
               contratos={contratos}
               faturas={faturas}

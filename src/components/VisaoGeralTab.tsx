@@ -38,6 +38,7 @@ interface VisaoGeralTabProps {
   sinistros?: Array<any>;
   faturamentoGastos?: Array<any>;
   contratosEquipamentos?: Array<any>;
+  mode?: "dashboard" | "modules";
 }
 
 export const VisaoGeralTab = ({
@@ -53,7 +54,8 @@ export const VisaoGeralTab = ({
   aditivosEquipamentos = [],
   sinistros = [],
   faturamentoGastos = [],
-  contratosEquipamentos = []
+  contratosEquipamentos = [],
+  mode = "dashboard"
 }: VisaoGeralTabProps) => {
   const navigate = useNavigate();
   const [dataInicio, setDataInicio] = useState(() => {
@@ -276,21 +278,24 @@ export const VisaoGeralTab = ({
 
   return (
     <div className="space-y-8">
-      {/* HEADER EXECUTIVO */}
-      <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-sidebar">Painel de Acompanhamento Geral</h2>
-          <p className="text-muted-foreground text-sm">Resumo operacional e financeiro consolidado de todo o sistema.</p>
+      {mode === "dashboard" && (
+        /* HEADER EXECUTIVO */
+        <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-sidebar">Painel de Acompanhamento Geral</h2>
+            <p className="text-muted-foreground text-sm">Resumo operacional e financeiro consolidado de todo o sistema.</p>
+          </div>
+          <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg border">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium">Período: {new Date(dataInicio).toLocaleDateString()} - {new Date(dataFim).toLocaleDateString()}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg border">
-          <CalendarClock className="h-4 w-4 text-primary" />
-          <span className="text-xs font-medium">Período: {new Date(dataInicio).toLocaleDateString()} - {new Date(dataFim).toLocaleDateString()}</span>
-        </div>
-      </div>
+      )}
 
-      {/* ============ SECTIONS OF MULTI-PAGE CARDS (CLICKABLE) ============ */}
-      <div className="space-y-6">
-        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Acompanhamento por Módulos</h3>
+      {mode === "modules" && (
+        /* ============ SECTIONS OF MULTI-PAGE CARDS (CLICKABLE) ============ */
+        <div className="space-y-6">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Acompanhamento por Módulos</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Module: Frota */}
@@ -528,9 +533,11 @@ export const VisaoGeralTab = ({
           </div>
         </div>
       </div>
+      )}
 
-      <div className="border-t border-border pt-6 space-y-6">
-        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Métricas de Performance Operacional</h3>
+      {mode === "dashboard" && (
+        <div className="space-y-6">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Métricas de Performance Operacional</h3>
 
         {/* KPI CARDS - NÍVEL EXECUTIVO */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -741,6 +748,7 @@ export const VisaoGeralTab = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
