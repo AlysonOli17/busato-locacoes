@@ -557,105 +557,44 @@ const Apolices = () => {
         </TabsList>
         <TabsContent value="apolices">
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
-              <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
-            </Button>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Nova Apólice
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative max-w-sm flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar apólices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-          </div>
-          <div className="flex gap-1">
-            {filterButtons.map(({ key, label }) => (
-              <Button
-                key={key}
-                variant={statusFilter === key ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter(key)}
-                className={statusFilter === key ? "bg-accent text-accent-foreground" : ""}
-              >
-                {label}
-                {key === "Vence30" && vencendoEm30.length > 0 && (
-                  <Badge className="ml-1 bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0">{vencendoEm30.length}</Badge>
-                )}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="flex flex-col">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <Shield className="h-3.5 w-3.5" /> Apólices Vigentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0">
-              <p className="text-lg font-bold text-foreground">{vigentes.length}</p>
-              <p className="text-[10px] text-muted-foreground">de {items.length} cadastradas</p>
-            </CardContent>
-          </Card>
-          <Card className={`flex flex-col ${vencendoEm30.length > 0 ? "border-destructive/50 bg-destructive/5" : ""}`}>
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <AlertTriangle className={`h-3.5 w-3.5 ${vencendoEm30.length > 0 ? "text-destructive" : ""}`} /> Venc. / Renovação
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0 max-h-[72px]">
-              <p className={`text-lg font-bold ${vencendoEm30.length > 0 ? "text-destructive" : "text-foreground"}`}>{vencendoEm30.length}</p>
-              <p className="text-[10px] text-muted-foreground">próximos 30 dias</p>
-              {vencendoEm30.length > 0 && (
-                <div className="mt-1 space-y-0.5">
-                  {vencendoEm30.map(a => (
-                    <div key={a.id} className="text-[10px] flex justify-between items-center">
-                      <span className="font-medium text-foreground truncate mr-1">{getEquipLabels(a)}</span>
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        {a.renovacao_automatica && <RefreshCw className="h-2.5 w-2.5 text-success" />}
-                        <Badge variant="outline" className="text-destructive border-destructive/30 text-[9px] px-1 py-0">
-                          {new Date(a.vigencia_fim).toLocaleDateString("pt-BR")}
-                        </Badge>
-                      </div>
-                    </div>
+            {/* Action Bar */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Buscar apólices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {filterButtons.map(({ key, label }) => (
+                    <Button
+                      key={key}
+                      variant={statusFilter === key ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter(key)}
+                      className={statusFilter === key ? "bg-accent text-accent-foreground" : "bg-background"}
+                    >
+                      {label}
+                      {key === "Vence30" && vencendoEm30.length > 0 && (
+                        <Badge className="ml-1 bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0">{vencendoEm30.length}</Badge>
+                      )}
+                    </Button>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <CalendarClock className="h-3.5 w-3.5" /> Custo Mensal
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <p className="text-lg font-bold text-foreground">R$ {fmt(totalMensal)}</p>
-              <p className="text-[10px] text-muted-foreground">Estimativa mensal das vigentes</p>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <DollarSign className="h-3.5 w-3.5" /> Total Anual
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <p className="text-lg font-bold text-foreground">R$ {fmt(totalAnual)}</p>
-              <p className="text-[10px] text-muted-foreground">Soma das apólices vigentes</p>
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())} className="bg-background">
+                    <FileDown className="h-4 w-4 mr-1 text-primary" /> PDF
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background">
+                    <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
+                  </Button>
+                </div>
+                <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+                  <Plus className="h-4 w-4 mr-2" /> Nova Apólice
+                </Button>
+              </div>
+            </div>
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">

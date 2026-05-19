@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban, Briefcase, Activity } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropostasContent } from "@/pages/Propostas";
@@ -946,37 +946,43 @@ const Contratos = () => {
   };
 
   return (
-    <Layout title="Contratos" subtitle={`${items.length} contratos cadastrados`}>
+    <Layout title="Contratos" subtitle="Gestão de contratos e locações">
       <Tabs defaultValue="contratos" className="space-y-6">
         <TabsList>
           <TabsTrigger value="contratos" className="gap-2"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
           <TabsTrigger value="propostas" className="gap-2"><FileSignature className="h-4 w-4" /> Propostas Comerciais</TabsTrigger>
         </TabsList>
         <TabsContent value="contratos">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper}>
-              <FileDown className="h-4 w-4 mr-1" /> Movimentação
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportSimplePDFWrapper}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF Simples
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
-              <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
-            </Button>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Novo Contrato
-            </Button>
-          </div>
-        </div>
+          <div className="space-y-6">
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar contratos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
 
-        <Card>
+            {/* Action Bar */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+                <div className="relative w-full sm:w-80">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Buscar contratos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper} className="bg-background">
+                    <FileDown className="h-4 w-4 mr-1 text-primary" /> Movimentação
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportSimplePDFWrapper} className="bg-background">
+                    <FileDown className="h-4 w-4 mr-1 text-destructive" /> PDF Simples
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background">
+                    <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
+                  </Button>
+                </div>
+                <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+                  <Plus className="h-4 w-4 mr-2" /> Novo
+                </Button>
+              </div>
+            </div>
+
+            <Card className="shadow-sm border-border overflow-hidden">
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[900px]">
               <TableHeader>
@@ -993,12 +999,17 @@ const Contratos = () => {
                 {sorted.map((item) => {
                   const ces = getContratoEquipamentos(item);
                   return (
-                    <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
+                    <TableRow key={item.id} className={`${selected.has(item.id) ? "bg-accent/5" : ""} hover:bg-muted/30 transition-colors`}>
                       <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{item.empresas?.nome}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{item.empresas?.cnpj}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                            <Briefcase className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm leading-none">{item.empresas?.nome}</p>
+                            <p className="text-xs text-muted-foreground mt-1 font-mono">{item.empresas?.cnpj}</p>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>

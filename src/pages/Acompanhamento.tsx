@@ -87,6 +87,13 @@ const Acompanhamento = () => {
   const [equipamentos, setEquipamentos] = useState<any[]>([]);
   const [gastos, setGastos] = useState<any[]>([]);
   const [medicoes, setMedicoes] = useState<any[]>([]);
+  const [apolices, setApolices] = useState<any[]>([]);
+  const [apolicesEquipamentos, setApolicesEquipamentos] = useState<any[]>([]);
+  const [contratosAditivos, setContratosAditivos] = useState<any[]>([]);
+  const [aditivosEquipamentos, setAditivosEquipamentos] = useState<any[]>([]);
+  const [sinistros, setSinistros] = useState<any[]>([]);
+  const [faturamentoGastos, setFaturamentoGastos] = useState<any[]>([]);
+  const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
   const [filtroEmpresa, setFiltroEmpresa] = useState("all");
   const [loading, setLoading] = useState(true);
   const [sortCol, setSortCol] = useState("emissao");
@@ -138,20 +145,47 @@ const Acompanhamento = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [empRes, ctRes, ceRes, fatRes, eqRes, gastRes, medRes] = await Promise.all([
-        supabase.from("empresas").select("id, nome, cnpj").order("nome"),
+      const [
+        empRes, 
+        ctRes, 
+        ceRes, 
+        fatRes, 
+        eqRes, 
+        gastRes, 
+        medRes,
+        apolRes,
+        apolEqRes,
+        aditivosRes,
+        aditivosEqRes,
+        sinistrosRes,
+        fatGastosRes
+      ] = await Promise.all([
+        supabase.from("empresas").select("*").order("nome"),
         supabase.from("contratos").select("*").order("created_at", { ascending: false }),
-        supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id"),
+        supabase.from("contratos_equipamentos").select("*"),
         supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
         supabase.from("equipamentos").select("*").order("tipo"),
         supabase.from("gastos").select("*").order("data", { ascending: false }),
         supabase.from("medicoes").select("*").order("data", { ascending: false }),
+        supabase.from("apolices").select("*"),
+        supabase.from("apolices_equipamentos").select("*"),
+        supabase.from("contratos_aditivos").select("*"),
+        supabase.from("aditivos_equipamentos").select("*"),
+        supabase.from("sinistros").select("*"),
+        supabase.from("faturamento_gastos").select("*")
       ]);
       
       if (empRes.data) setEmpresas(empRes.data as Empresa[]);
       if (eqRes.data) setEquipamentos(eqRes.data);
       if (gastRes.data) setGastos(gastRes.data);
       if (medRes.data) setMedicoes(medRes.data);
+      if (apolRes.data) setApolices(apolRes.data);
+      if (apolEqRes.data) setApolicesEquipamentos(apolEqRes.data);
+      if (aditivosRes.data) setContratosAditivos(aditivosRes.data);
+      if (aditivosEqRes.data) setAditivosEquipamentos(aditivosEqRes.data);
+      if (sinistrosRes.data) setSinistros(sinistrosRes.data);
+      if (fatGastosRes.data) setFaturamentoGastos(fatGastosRes.data);
+      if (ceRes.data) setContratosEquipamentos(ceRes.data);
 
       if (empRes.data && eqRes.data && ctRes.data) {
         const empMap = new Map(empRes.data.map((e: any) => [e.id, e]));
@@ -354,17 +388,17 @@ const Acompanhamento = () => {
     <Layout title="Acompanhamento Geral" subtitle="Visão completa de faturamento, vencimentos e alertas">
       <div className="space-y-6">
 
-        <Tabs defaultValue="visao-geral" className="w-full">
+        <Tabs defaultValue="acompanhamento" className="w-full">
           <TabsList>
-            <TabsTrigger value="visao-geral" className="flex items-center gap-1">
-              <LayoutDashboard className="h-4 w-4" /> Visão Geral
+            <TabsTrigger value="acompanhamento" className="flex items-center gap-1">
+              <LayoutDashboard className="h-4 w-4" /> Acompanhamento
             </TabsTrigger>
             <TabsTrigger value="faturamento" className="flex items-center gap-1">
               <Receipt className="h-4 w-4" /> Faturamento
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="visao-geral" className="mt-6">
+          <TabsContent value="acompanhamento" className="mt-6">
             <VisaoGeralTab
               empresas={empresas}
               contratos={contratos}
@@ -372,71 +406,93 @@ const Acompanhamento = () => {
               equipamentos={equipamentos}
               gastos={gastos}
               medicoes={medicoes}
+              apolices={apolices}
+              apolicesEquipamentos={apolicesEquipamentos}
+              contratosAditivos={contratosAditivos}
+              aditivosEquipamentos={aditivosEquipamentos}
+              sinistros={sinistros}
+              faturamentoGastos={faturamentoGastos}
+              contratosEquipamentos={contratosEquipamentos}
             />
           </TabsContent>
 
           <TabsContent value="faturamento" className="mt-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
-                  <FileDown className="h-4 w-4 mr-1" /> PDF
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
-                  <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
-                </Button>
+            {/* Action Bar */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm mb-6">
+              <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+                <div className="relative w-full sm:w-80">
+                  <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Filtrar por empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Empresas</SelectItem>
+                      {empresas.map(e => (
+                        <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())} className="bg-background">
+                    <FileDown className="h-4 w-4 mr-1 text-primary" /> PDF
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background">
+                    <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <div className="max-w-sm">
-              <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Empresas</SelectItem>
-                  {empresas.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Faturado (Pago)</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-success" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-success">R$ {totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              <Card className="bg-card shadow-sm border-border">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Faturado (Pago)</p>
+                    <h3 className="text-2xl font-bold mt-1 text-success">R$ {totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Pendente</CardTitle>
-                  <Clock className="h-4 w-4 text-warning" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-warning">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+
+              <Card className="bg-card shadow-sm border-border">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Pendente</p>
+                    <h3 className="text-2xl font-bold mt-1 text-warning">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center text-warning">
+                    <Clock className="h-5 w-5" />
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Em Atraso</CardTitle>
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-destructive">R$ {totalAtraso.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
-                  {qtdAtraso > 0 && <p className="text-xs text-destructive mt-1">{qtdAtraso} fatura(s) em atraso</p>}
+
+              <Card className="bg-card shadow-sm border-border">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Em Atraso</p>
+                    <h3 className="text-2xl font-bold mt-1 text-destructive">R$ {totalAtraso.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+                    {qtdAtraso > 0 && <p className="text-xs text-destructive mt-1">{qtdAtraso} fatura(s) em atraso</p>}
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Contratos Ativos</CardTitle>
-                  <Building2 className="h-4 w-4 text-accent" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-foreground">{contratosAtivos.length}</div>
+
+              <Card className="bg-card shadow-sm border-border">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Contratos Ativos</p>
+                    <h3 className="text-2xl font-bold mt-1">{contratosAtivos.length}</h3>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                    <Building2 className="h-5 w-5" />
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -567,11 +623,16 @@ const Acompanhamento = () => {
                     {sortedFaturas.map(f => {
                       const status = getDisplayStatus(f);
                       return (
-                        <TableRow key={f.id}>
+                        <TableRow key={f.id} className="hover:bg-muted/30 transition-colors">
                           <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{f.contratos?.empresas?.nome}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{f.contratos?.empresas?.cnpj}</p>
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                <Building2 className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm leading-none">{f.contratos?.empresas?.nome}</p>
+                                <p className="text-xs text-muted-foreground mt-1 font-mono">{f.contratos?.empresas?.cnpj}</p>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="font-mono text-sm">{f.numero_nota || "—"}</TableCell>
@@ -656,11 +717,16 @@ const Acompanhamento = () => {
                         .filter(Boolean)
                         .sort((a, b) => b!.empContratos - a!.empContratos)
                         .map((row) => (
-                          <TableRow key={row!.nome}>
+                          <TableRow key={row!.nome} className="hover:bg-muted/30 transition-colors">
                             <TableCell>
-                              <div>
-                                <p className="font-medium text-sm">{row!.nome}</p>
-                                <p className="text-xs text-muted-foreground font-mono">{row!.cnpjs.join(", ")}</p>
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                  <Building2 className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm leading-none">{row!.nome}</p>
+                                  <p className="text-xs text-muted-foreground mt-1 font-mono">{row!.cnpjs.join(", ")}</p>
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-sm">{row!.empContratos}</TableCell>

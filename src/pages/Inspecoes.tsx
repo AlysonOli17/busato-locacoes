@@ -342,14 +342,10 @@ const Inspecoes = () => {
 
   return (
     <Layout title="Inspeções de Equipamentos" subtitle="Controle de qualidade e checklist">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Inspeções</h2>
-          <p className="text-muted-foreground">Registre o estado dos equipamentos locados.</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
+      {/* Action Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+          <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Buscar (Placa, tipo, data...)" 
@@ -358,65 +354,72 @@ const Inspecoes = () => {
               className="pl-9 w-full bg-background" 
             />
           </div>
+        </div>
 
-          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="hidden sm:flex">
-                <Settings2 className="mr-2 h-4 w-4" />
-                Configurar Checklists
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Itens de Inspeção por Categoria</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="flex gap-2 items-end bg-muted/30 p-4 rounded-md border">
-                  <div className="flex-1 space-y-2">
-                    <Label>Categoria</Label>
-                    <Select value={newCat} onValueChange={setNewCat}>
-                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Geral">Geral (Todos)</SelectItem>
-                        {uniqueCategories.map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-[2] space-y-2">
-                    <Label>Descrição do Item</Label>
-                    <Input placeholder="Ex: Nível de óleo do motor" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
-                  </div>
-                  <Button onClick={handleAddTemplate}>Adicionar</Button>
-                </div>
-
-                <div className="space-y-4 mt-2">
-                  {Array.from(new Set(templates.map(t => t.category))).map(cat => (
-                    <div key={cat} className="border rounded-md overflow-hidden">
-                      <div className="bg-muted px-4 py-2 font-semibold text-sm">{cat}</div>
-                      <div className="p-2">
-                        {templates.filter(t => t.category === cat).map(item => (
-                          <div key={item.id} className="flex justify-between items-center py-2 px-2 hover:bg-muted/50 rounded-md">
-                            <span className="text-sm">{item.description}</span>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteTemplate(item.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+          <div className="flex gap-2">
+            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="bg-background">
+                  <Settings2 className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Configurar Checklists</span>
+                  <span className="sm:hidden">Configurar</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Itens de Inspeção por Categoria</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="flex gap-2 items-end bg-muted/30 p-4 rounded-md border">
+                    <div className="flex-1 space-y-2">
+                      <Label>Categoria</Label>
+                      <Select value={newCat} onValueChange={setNewCat}>
+                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Geral">Geral (Todos)</SelectItem>
+                          {uniqueCategories.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  ))}
+                    <div className="flex-[2] space-y-2">
+                      <Label>Descrição do Item</Label>
+                      <Input placeholder="Ex: Nível de óleo do motor" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
+                    </div>
+                    <Button onClick={handleAddTemplate}>Adicionar</Button>
+                  </div>
+
+                  <div className="space-y-4 mt-2">
+                    {Array.from(new Set(templates.map(t => t.category))).map(cat => (
+                      <div key={cat} className="border rounded-md overflow-hidden">
+                        <div className="bg-muted px-4 py-2 font-semibold text-sm">{cat}</div>
+                        <div className="p-2">
+                          {templates.filter(t => t.category === cat).map(item => (
+                            <div key={item.id} className="flex justify-between items-center py-2 px-2 hover:bg-muted/50 rounded-md">
+                              <span className="text-sm">{item.description}</span>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteTemplate(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
 
           <Dialog open={isInspOpen} onOpenChange={setIsInspOpen}>
-            <Button onClick={openNewInspection} className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Inspeção
-            </Button>
+            <DialogTrigger asChild>
+              <Button onClick={openNewInspection} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Inspeção
+              </Button>
+            </DialogTrigger>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar Inspeção" : "Registrar Inspeção"}</DialogTitle>
@@ -493,10 +496,6 @@ const Inspecoes = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          
-          <Button variant="outline" className="sm:hidden w-full mt-2" onClick={() => setIsSettingsOpen(true)}>
-            <Settings2 className="mr-2 h-4 w-4" /> Configurar Checklists
-          </Button>
         </div>
       </div>
 

@@ -191,110 +191,41 @@ const Gastos = () => {
   return (
     <Layout title="Custos" subtitle={`${filtered.length} custo(s) no período`}>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> Novo Custo
-          </Button>
-        </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card className="flex flex-col">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <DollarSign className="h-3.5 w-3.5" /> Total de Custos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <p className="text-lg font-bold text-foreground">R$ {fmt(totalGastos)}</p>
-              <p className="text-[10px] text-muted-foreground">{gastosSemMob.length} registros (sem mob.)</p>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col border-accent/30">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-accent flex items-center gap-1.5">
-                <TrendingDown className="h-3.5 w-3.5" /> Receita Mobilização
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <p className="text-lg font-bold text-accent">R$ {fmt(totalMobilizacao)}</p>
-              <p className="text-[10px] text-muted-foreground">{gastosMob.length} mob/desmob · {mobDeduzidos.length} faturado(s)</p>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <FileCheck className="h-3.5 w-3.5" /> Incluídos em Fatura
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <p className="text-lg font-bold text-success">R$ {fmt(totalDeduzido)}</p>
-              <p className="text-[10px] text-muted-foreground">{deduzidos.length} custo(s) incluído(s)</p>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <TrendingDown className="h-3.5 w-3.5" /> Não Incluídos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <p className="text-lg font-bold text-destructive">R$ {fmt(totalNaoDeduzido)}</p>
-              <p className="text-[10px] text-muted-foreground">{naoDeduzidos.length} custo(s) sem fatura</p>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <CalendarClock className="h-3.5 w-3.5" /> Por Tipo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-3 pt-0 max-h-[72px]">
-              <div className="space-y-0.5">
-                {tiposGasto.map(t => {
-                  const total = filtered.filter(i => i.tipo === t).reduce((a, i) => a + Number(i.valor), 0);
-                  if (total === 0) return null;
-                  return (
-                    <div key={t} className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">{t}</span>
-                      <span className="font-medium text-foreground">R$ {fmt(total)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="relative max-w-sm flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar custos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+
+        {/* Action Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar custos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
+            </div>
+            <SearchableSelect
+              value={filterTag}
+              onValueChange={setFilterTag}
+              placeholder="Filtrar por Tag"
+              searchPlaceholder="Pesquisar tag..."
+              className="w-full sm:w-48 bg-background"
+              options={[
+                { value: "Todos", label: "Todas as Tags" },
+                ...uniqueTags.map((tag) => ({ value: tag, label: tag })),
+              ]}
+            />
+            <div className="flex items-center gap-2">
+              <Input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} className="w-32 bg-background" />
+              <span className="text-muted-foreground text-sm">até</span>
+              <Input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} className="w-32 bg-background" />
+              {(periodoInicio || periodoFim) && (
+                <Button variant="ghost" size="sm" onClick={() => { setPeriodoInicio(""); setPeriodoFim(""); }}>Limpar</Button>
+              )}
+            </div>
           </div>
-          <SearchableSelect
-            value={filterTag}
-            onValueChange={setFilterTag}
-            placeholder="Filtrar por Tag"
-            searchPlaceholder="Pesquisar tag..."
-            className="w-48"
-            options={[
-              { value: "Todos", label: "Todas as Tags" },
-              ...uniqueTags.map((tag) => ({ value: tag, label: tag })),
-            ]}
-          />
-          <div className="flex items-end gap-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">De</Label>
-              <Input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} className="w-36 h-9" />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Até</Label>
-              <Input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} className="w-36 h-9" />
-            </div>
-            {(periodoInicio || periodoFim) && (
-              <Button variant="ghost" size="sm" onClick={() => { setPeriodoInicio(""); setPeriodoFim(""); }}>Limpar</Button>
-            )}
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+            <div className="flex gap-2"></div>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+              <Plus className="h-4 w-4 mr-2" /> Novo
+            </Button>
           </div>
         </div>
 

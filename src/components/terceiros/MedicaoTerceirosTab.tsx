@@ -386,15 +386,24 @@ export const MedicaoTerceirosTab = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Medição</Button>
-        <div className="flex-1" />
-        <SearchableSelect
-          value={filterFornecedor}
-          onValueChange={setFilterFornecedor}
-          placeholder="Todos fornecedores"
-          options={[{ value: "all", label: "Todos" }, ...uniqueFornecedores.map(f => ({ value: f.id, label: f.nome }))]}
-        />
+      {/* Action Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+          <div className="w-full sm:w-80">
+            <SearchableSelect
+              value={filterFornecedor}
+              onValueChange={setFilterFornecedor}
+              placeholder="Todos fornecedores"
+              options={[{ value: "all", label: "Todos" }, ...uniqueFornecedores.map(f => ({ value: f.id, label: f.nome }))]}
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+          <div className="flex gap-2"></div>
+          <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+            <Plus className="h-4 w-4 mr-2" /> Nova Medição
+          </Button>
+        </div>
       </div>
 
       {/* Saved measurements list */}

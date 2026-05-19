@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle, Wrench, Activity, Tractor, Box } from "lucide-react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
@@ -276,28 +276,34 @@ const Equipamentos = () => {
   ];
 
   return (
-    <Layout title="Equipamentos" subtitle={`${items.length} equipamentos cadastrados`}>
+    <Layout title="Equipamentos" subtitle="Gestão e controle de frota">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())}>
-              <FileText className="h-4 w-4 mr-2" /> PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
-            </Button>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Novo Equipamento
+
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar por tipo, modelo ou placa..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())} className="bg-background">
+                <FileText className="h-4 w-4 mr-2 text-destructive" /> PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background">
+                <FileSpreadsheet className="h-4 w-4 mr-2 text-success" /> Excel
+              </Button>
+            </div>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+              <Plus className="h-4 w-4 mr-2" /> Novo
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar equipamentos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-          </div>
-          <div className="flex flex-wrap gap-1.5">
+        {/* Filters */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {filterButtons.map((fb) => (
               <Button
                 key={fb.value}
@@ -317,10 +323,9 @@ const Equipamentos = () => {
                 )}
               </Button>
             ))}
-          </div>
         </div>
 
-        <Card>
+        <Card className="shadow-sm border-border overflow-hidden">
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[700px]">
               <TableHeader>
@@ -344,11 +349,21 @@ const Equipamentos = () => {
                     const isRented = rentedIds.has(item.id);
                     const hasSinistro = sinistroIds.has(item.id);
                     return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.tipo}</TableCell>
-                        <TableCell className="font-mono text-sm">{item.tag_placa}</TableCell>
-                        <TableCell>{item.modelo}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{item.numero_serie}</TableCell>
+                      <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded bg-accent/10 flex items-center justify-center text-accent">
+                              <Tractor className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm leading-none">{item.tipo}</p>
+                              <p className="text-xs text-muted-foreground mt-1 hidden sm:block">{item.modelo}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{item.tag_placa || "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell">{item.modelo}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm hidden lg:table-cell">{item.numero_serie || "—"}</TableCell>
                         <TableCell>{item.ano || "—"}</TableCell>
                         <TableCell>{formatCurrency(item.valor_bem)}</TableCell>
                         <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>

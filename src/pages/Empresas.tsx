@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MapPin, CheckCircle, XCircle } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -199,20 +199,26 @@ const Empresas = () => {
   };
 
   return (
-    <Layout title="Empresas" subtitle={`${items.length} empresas cadastradas`}>
+    <Layout title="Empresas" subtitle="Gestão de clientes e fornecedores">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> Nova Empresa
-          </Button>
+
+        {/* Action Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar por nome, razão social ou CNPJ..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+            <div className="flex gap-2"></div>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+              <Plus className="h-4 w-4 mr-2" /> Nova Empresa
+            </Button>
+          </div>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nome, razão social ou CNPJ..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
-
-        <Card>
+        <Card className="shadow-sm border-border overflow-hidden">
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[600px]">
               <TableHeader>
@@ -228,10 +234,20 @@ const Empresas = () => {
               </TableHeader>
               <TableBody>
                 {sorted.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-mono text-sm">{item.cnpj}</TableCell>
-                    <TableCell className="font-medium text-sm">{item.razao_social || item.nome}</TableCell>
-                    <TableCell className="text-sm">{item.nome_fantasia || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                          <Building2 className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm leading-none">{item.razao_social || item.nome}</p>
+                          {item.nome_fantasia && <p className="text-xs text-muted-foreground mt-1 hidden sm:block">{item.nome_fantasia}</p>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm hidden md:table-cell">{item.nome_fantasia || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {item.endereco_cidade && item.endereco_uf ? `${item.endereco_cidade}/${item.endereco_uf}` : "—"}
                     </TableCell>

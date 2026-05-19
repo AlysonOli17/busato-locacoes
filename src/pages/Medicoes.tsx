@@ -15,7 +15,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle } from "lucide-react";
+import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle, Activity, PenTool } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
@@ -305,118 +305,117 @@ const Medicoes = () => {
   });
 
   return (
-    <Layout title="Medições / Faturamento">
+    <Layout title="Medições / Faturamento" subtitle="Controle de horímetros e locações">
       <Tabs defaultValue="medicoes" className="space-y-6">
         <TabsList>
           <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
           <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>
           <TabsTrigger value="faturamento-novo" className="gap-2"><DollarSign className="h-4 w-4" /> Faturamento</TabsTrigger>
-          
         </TabsList>
         <TabsContent value="medicoes">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Horímetro</h1>
-            <p className="text-sm text-muted-foreground">Lançamento diário de horímetro por equipamento</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => {
-              const headers = ["Equipamento", "Tag/Placa", "Data", "Tipo", "Horímetro Atual", "Horas Indisp."];
-              const rows = filtered.map((m) => [
-              `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
-              m.equipamentos?.tag_placa || "—",
-              parseLocalDate(m.data).toLocaleDateString("pt-BR"),
-              m.tipo || "Trabalho",
-              Number(m.horimetro_final).toFixed(1),
-              (m.tipo || "Trabalho") === "Indisponível" ? Number(m.horas_trabalhadas).toFixed(1) : "—"]
-              );
-              const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
-              exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0, 10)}` });
-            }}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF Horímetro
-            </Button>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Novo Horímetro
-            </Button>
-          </div>
-        </div>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <FileBarChart className="h-4 w-4 text-accent" /> Filtros / Relatório
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Equipamento</Label>
-                <SearchableSelect
-                  value={filterEquip}
-                  onValueChange={setFilterEquip}
-                  placeholder="Todos os Equipamentos"
-                  searchPlaceholder="Pesquisar equipamento..."
-                  className="w-64"
-                  options={[
-                    { value: "Todos", label: "Todos os Equipamentos" },
-                    ...equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) })),
-                  ]}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Data Inicial</Label>
-                <Input
-                  type="date"
-                  className="w-48"
-                  value={dataInicio ? format(dataInicio, "yyyy-MM-dd") : ""}
-                  onChange={(e) => setDataInicio(e.target.value ? parseLocalDate(e.target.value) : undefined)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Data Final</Label>
-                <Input
-                  type="date"
-                  className="w-48"
-                  value={dataFim ? format(dataFim, "yyyy-MM-dd") : ""}
-                  onChange={(e) => setDataFim(e.target.value ? parseLocalDate(e.target.value) : undefined)}
-                />
-              </div>
-              {hasFilters &&
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Limpar filtros</Button>
-              }
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* KPI Cards */}
         {hasFilters && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-accent/30 bg-accent/5">
-            <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-xs font-medium text-muted-foreground">Total Geral</CardTitle></CardHeader>
-            <CardContent className="px-3 pb-3 pt-0">
-              <div className="text-lg font-bold text-sidebar">{totalHorasGeral.toFixed(1)}h</div>
-              <p className="text-[10px] text-muted-foreground">{filtered.length} registros (filtrado)</p>
-            </CardContent>
-          </Card>
-          {Array.from(summaryMap.entries()).map(([id, data]) =>
-          <Card key={id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-1 pt-3 px-3">
-                <CardTitle className="text-xs font-medium text-muted-foreground">{data.label}</CardTitle>
-                {data.tag && <p className="text-[10px] font-mono text-muted-foreground">{data.tag}</p>}
-              </CardHeader>
-              <CardContent className="px-3 pb-3 pt-0">
-                <div className="text-lg font-bold text-accent">{data.totalHoras.toFixed(1)}h</div>
-                <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
-                {data.mediaHorasDia > 0 && (
-                  <p className="text-[10px] text-accent/70 font-medium">Média: {data.mediaHorasDia.toFixed(2)} h/dia</p>
-                )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-accent/30 bg-accent/5 shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Geral</p>
+                  <h3 className="text-2xl font-bold mt-1 text-sidebar">{totalHorasGeral.toFixed(1)}h</h3>
+                  <p className="text-[10px] text-muted-foreground mt-1">{filtered.length} registros (filtrado)</p>
+                </div>
+                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                  <Clock className="h-5 w-5" />
+                </div>
               </CardContent>
             </Card>
-          )}
-        </div>
+            {Array.from(summaryMap.entries()).map(([id, data]) =>
+              <Card key={id} className="hover:shadow-md transition-shadow bg-card shadow-sm border-border">
+                <CardContent className="p-4 flex flex-col justify-between h-full">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground line-clamp-1" title={data.label}>{data.label}</p>
+                      <h3 className="text-xl font-bold mt-1 text-accent">{data.totalHoras.toFixed(1)}h</h3>
+                      {data.tag && <p className="text-[10px] font-mono text-muted-foreground mt-1">{data.tag}</p>}
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Activity className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
+                    {data.mediaHorasDia > 0 && (
+                      <p className="text-[10px] text-accent/70 font-medium">Média: {data.mediaHorasDia.toFixed(2)} h/dia</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
 
-        <Card>
+        {/* Action Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+            <div className="flex items-center gap-2">
+              <FileBarChart className="h-4 w-4 text-accent hidden sm:block" />
+              <SearchableSelect
+                value={filterEquip}
+                onValueChange={setFilterEquip}
+                placeholder="Todos os Equipamentos"
+                searchPlaceholder="Pesquisar equipamento..."
+                className="w-full sm:w-64 bg-background"
+                options={[
+                  { value: "Todos", label: "Todos os Equipamentos" },
+                  ...equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) })),
+                ]}
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Input
+                type="date"
+                className="w-full sm:w-40 bg-background"
+                value={dataInicio ? format(dataInicio, "yyyy-MM-dd") : ""}
+                onChange={(e) => setDataInicio(e.target.value ? parseLocalDate(e.target.value) : undefined)}
+              />
+              <span className="text-muted-foreground text-sm">até</span>
+              <Input
+                type="date"
+                className="w-full sm:w-40 bg-background"
+                value={dataFim ? format(dataFim, "yyyy-MM-dd") : ""}
+                onChange={(e) => setDataFim(e.target.value ? parseLocalDate(e.target.value) : undefined)}
+              />
+            </div>
+            {hasFilters &&
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground whitespace-nowrap">Limpar filtros</Button>
+            }
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => {
+                const headers = ["Equipamento", "Tag/Placa", "Data", "Tipo", "Horímetro Atual", "Horas Indisp."];
+                const rows = filtered.map((m) => [
+                `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
+                m.equipamentos?.tag_placa || "—",
+                parseLocalDate(m.data).toLocaleDateString("pt-BR"),
+                m.tipo || "Trabalho",
+                Number(m.horimetro_final).toFixed(1),
+                (m.tipo || "Trabalho") === "Indisponível" ? Number(m.horas_trabalhadas).toFixed(1) : "—"]
+                );
+                const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
+                exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0, 10)}` });
+              }} className="bg-background">
+                <FileDown className="h-4 w-4 mr-1 text-primary" /> PDF
+              </Button>
+            </div>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+              <Plus className="h-4 w-4 mr-2" /> Novo
+            </Button>
+          </div>
+        </div>
+
+        <Card className="shadow-sm border-border overflow-hidden">
           <CardContent className="p-0 overflow-x-auto">
             <Table className="min-w-[700px]">
               <TableHeader>
@@ -432,8 +431,17 @@ const Medicoes = () => {
               </TableHeader>
               <TableBody>
                 {sorted.map((item) =>
-                <TableRow key={item.id}>
-                    <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
+                <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                          <PenTool className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm leading-none">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</p>
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
                      <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
                      <TableCell>
