@@ -354,7 +354,8 @@ export const MedicaoTerceirosTab = () => {
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Medição atualizada" });
     } else {
-      const { error } = await (supabase.from as any)("medicoes_terceiros_faturamento").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await (supabase.from as any)("medicoes_terceiros_faturamento").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Medição registrada" });
     }

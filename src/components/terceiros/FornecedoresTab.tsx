@@ -92,10 +92,19 @@ export const FornecedoresTab = () => {
     const payload = { ...form } as any;
     delete payload.id;
     if (editing) {
-      await supabase.from("fornecedores").update(payload).eq("id", form.id);
+      const { error } = await supabase.from("fornecedores").update(payload).eq("id", form.id);
+      if (error) {
+        toast({ title: "Erro ao atualizar fornecedor", description: error.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Fornecedor atualizado" });
     } else {
-      await supabase.from("fornecedores").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("fornecedores").insert(payloadWithId);
+      if (error) {
+        toast({ title: "Erro ao cadastrar fornecedor", description: error.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Fornecedor cadastrado" });
     }
     setDialogOpen(false);

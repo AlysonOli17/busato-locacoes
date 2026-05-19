@@ -123,7 +123,8 @@ export const CustosAgregadoTab = () => {
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Custo atualizado" });
     } else {
-      const { error } = await supabase.from("custos_agregados").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("custos_agregados").insert(payloadWithId);
       if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Custo registrado" });
     }

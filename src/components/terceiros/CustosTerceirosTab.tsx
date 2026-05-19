@@ -106,10 +106,19 @@ export const CustosTerceirosTab = () => {
       observacoes: form.observacoes || null,
     };
     if (editing) {
-      await supabase.from("custos_terceiros").update(payload).eq("id", form.id);
+      const { error } = await supabase.from("custos_terceiros").update(payload).eq("id", form.id);
+      if (error) {
+        toast({ title: "Erro ao atualizar custo", description: error.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Custo atualizado" });
     } else {
-      await supabase.from("custos_terceiros").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("custos_terceiros").insert(payloadWithId);
+      if (error) {
+        toast({ title: "Erro ao registrar custo", description: error.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Custo registrado" });
     }
     setDialogOpen(false);

@@ -180,7 +180,8 @@ export const MedicoesTerceirosTab = () => {
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Lançamento atualizado" });
     } else {
-      const { error } = await supabase.from("medicoes_terceiros").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("medicoes_terceiros").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Lançamento registrado" });
     }

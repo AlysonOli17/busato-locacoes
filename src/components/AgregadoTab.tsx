@@ -187,7 +187,8 @@ export const AgregadoTab = () => {
       const { error } = await supabase.from("agregados").update(payload).eq("id", editingId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      const { error } = await supabase.from("agregados").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("agregados").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
     setDialogOpen(false);
@@ -345,7 +346,7 @@ export const AgregadoTab = () => {
 
         if (!dataStr) { skipped++; return; }
 
-        rows.push({ equipamento_id: eqId, data: dataStr, os, pde, matricula, observacoes: null });
+        rows.push({ id: crypto.randomUUID(), equipamento_id: eqId, data: dataStr, os, pde, matricula, observacoes: null });
       });
 
       if (rows.length === 0) {

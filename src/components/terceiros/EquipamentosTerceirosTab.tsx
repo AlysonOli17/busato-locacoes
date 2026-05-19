@@ -77,10 +77,19 @@ export const EquipamentosTerceirosTab = () => {
       status: form.status, fornecedor_id: form.fornecedor_id || null,
     };
     if (editing) {
-      await supabase.from("equipamentos_terceiros").update(payload).eq("id", form.id);
+      const { error } = await supabase.from("equipamentos_terceiros").update(payload).eq("id", form.id);
+      if (error) {
+        toast({ title: "Erro ao atualizar equipamento", description: error.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Equipamento atualizado" });
     } else {
-      await supabase.from("equipamentos_terceiros").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("equipamentos_terceiros").insert(payloadWithId);
+      if (error) {
+        toast({ title: "Erro ao cadastrar equipamento", description: error.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Equipamento cadastrado" });
     }
     setDialogOpen(false);

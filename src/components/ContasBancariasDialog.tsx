@@ -50,7 +50,8 @@ export const ContasBancariasDialog = ({ open, onOpenChange, contas, onRefresh }:
       const { error } = await supabase.from("contas_bancarias").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      const { error } = await supabase.from("contas_bancarias").insert(payload);
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("contas_bancarias").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     }
     setFormOpen(false);

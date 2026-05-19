@@ -145,22 +145,36 @@ export const ContratosTerceirosTab = () => {
 
     let contratoId = form.id;
     if (editing) {
-      await supabase.from("contratos_terceiros").update(payload).eq("id", form.id);
+      const { error } = await supabase.from("contratos_terceiros").update(payload).eq("id", form.id);
+      if (error) {
+        toast({ title: "Erro ao atualizar contrato", description: error.message, variant: "destructive" });
+        return;
+      }
       // Re-create equipment
       await supabase.from("contratos_terceiros_equipamentos").delete().eq("contrato_id", form.id);
     } else {
-      const { data } = await supabase.from("contratos_terceiros").insert(payload).select("id").single();
-      if (!data) { toast({ title: "Erro ao criar contrato", variant: "destructive" }); return; }
-      contratoId = data.id;
+      const newId = crypto.randomUUID();
+      const payloadWithId = { ...payload, id: newId };
+      const { error } = await supabase.from("contratos_terceiros").insert(payloadWithId);
+      if (error) {
+        toast({ title: "Erro ao criar contrato", description: error.message, variant: "destructive" });
+        return;
+      }
+      contratoId = newId;
     }
 
     const eqInserts = validEquips.map(e => ({
+      id: crypto.randomUUID(),
       contrato_id: contratoId, equipamento_id: e.equipamento_id,
       valor_hora: e.valor_hora, valor_hora_excedente: e.valor_hora_excedente,
       horas_contratadas: e.horas_contratadas, hora_minima: e.hora_minima,
       data_entrega: e.data_entrega || null, data_devolucao: e.data_devolucao || null,
     }));
-    await supabase.from("contratos_terceiros_equipamentos").insert(eqInserts);
+    const { error: eqError } = await supabase.from("contratos_terceiros_equipamentos").insert(eqInserts);
+    if (eqError) {
+      toast({ title: "Erro ao vincular equipamentos", description: eqError.message, variant: "destructive" });
+      return;
+    }
 
     toast({ title: editing ? "Contrato atualizado" : "Contrato criado" });
     setDialogOpen(false);
