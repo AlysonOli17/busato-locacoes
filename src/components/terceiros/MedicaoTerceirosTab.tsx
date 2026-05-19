@@ -221,14 +221,18 @@ export const MedicaoTerceirosTab = () => {
     // Step 2: Fetch equipment details, costs, and adjustments
     const [equipRes, custosRes, ajustesRes] = await Promise.all([
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allEquipIds),
-      supabase.from("custos_terceiros").select("id, descricao, tipo, valor, data, equipamento_id, classificacao")
-        .in("equipamento_id", allEquipIds).gte("data", inicio).lte("data", fim),
+      supabase.from("custos_terceiros").select("id, descricao, tipo, valor, data, equipamento_terceiro_id, status")
+        .in("equipamento_terceiro_id", allEquipIds).gte("data", inicio).lte("data", fim),
       supabase.from("contratos_terceiros_equipamentos_ajustes").select("*")
         .eq("contrato_id", ct.id).in("equipamento_id", allEquipIds).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
 
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
-    setCustos((custosRes.data || []) as CustoTerceiro[]);
+    setCustos((custosRes.data || []).map((c: any) => ({
+      ...c,
+      equipamento_id: c.equipamento_terceiro_id,
+      classificacao: c.status
+    })) as CustoTerceiro[]);
     const ajustesData = ajustesRes.data || [];
 
     // Fetch measurements per equipment

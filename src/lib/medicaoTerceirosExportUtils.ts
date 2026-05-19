@@ -31,9 +31,13 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
   let custosPeriodo: any[] = [];
   if (equipIds.length > 0 && inicio && fim) {
     const { data } = await supabase.from("custos_terceiros")
-      .select("id, descricao, tipo, valor, data, equipamento_id, classificacao")
-      .in("equipamento_id", equipIds).gte("data", inicio).lte("data", fim);
-    custosPeriodo = data || [];
+      .select("id, descricao, tipo, valor, data, equipamento_terceiro_id, status")
+      .in("equipamento_terceiro_id", equipIds).gte("data", inicio).lte("data", fim);
+    custosPeriodo = (data || []).map((c: any) => ({
+      ...c,
+      equipamento_id: c.equipamento_terceiro_id,
+      classificacao: c.status
+    }));
   }
 
   const logo = await (async () => {

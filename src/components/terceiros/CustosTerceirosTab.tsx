@@ -66,10 +66,17 @@ export const CustosTerceirosTab = () => {
       const eqMap = new Map(eqRes.data.map(e => [e.id, e]));
       setItems(cRes.data.map((c: any) => ({
         ...c,
-        equipment: eqMap.get(c.equipamento_id) || null
+        equipamento_id: c.equipamento_terceiro_id,
+        classificacao: c.status,
+        equipment: eqMap.get(c.equipamento_terceiro_id) || null
       })));
     } else if (cRes.data) {
-      setItems(cRes.data.map((c: any) => ({ ...c, equipment: null })));
+      setItems(cRes.data.map((c: any) => ({
+        ...c,
+        equipamento_id: c.equipamento_terceiro_id,
+        classificacao: c.status,
+        equipment: null
+      })));
     }
     if (eqRes.data) setEquipamentos(eqRes.data);
   };
@@ -115,8 +122,8 @@ export const CustosTerceirosTab = () => {
   const handleSave = async () => {
     if (!form.equipamento_id || !form.descricao.trim()) { toast({ title: "Equipamento e descrição obrigatórios", variant: "destructive" }); return; }
     const payload: any = {
-      equipamento_id: form.equipamento_id, data: form.data, valor: form.valor,
-      descricao: form.descricao, tipo: form.tipo,
+      equipamento_terceiro_id: form.equipamento_id, data: form.data, valor: form.valor,
+      descricao: form.descricao, tipo: form.tipo, status: form.classificacao,
       observacoes: form.observacoes || null,
     };
     if (editing) {
