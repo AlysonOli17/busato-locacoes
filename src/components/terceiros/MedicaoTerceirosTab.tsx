@@ -70,19 +70,67 @@ export const MedicaoTerceirosTab = () => {
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [ctRes, savedRes] = await Promise.all([
-      supabase.from("contratos_terceiros")
-        .select("*, fornecedores(id, nome, cnpj), contratos_terceiros_equipamentos(equipamento_id, valor_hora, valor_hora_excedente, horas_contratadas, hora_minima, data_entrega, data_devolucao)")
-        .eq("status", "Ativo").order("created_at", { ascending: false }),
-      (supabase.from as any)("medicoes_terceiros_faturamento")
-        .select("*, contratos_terceiros(tipo_medicao, fornecedores(id, nome, cnpj))")
-        .order("created_at", { ascending: false }),
+    const [ctRes, fRes, cteRes, savedRes] = await Promise.all([
+      supabase.from("contratos_terceiros").select("*").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("fornecedores").select("id, nome, cnpj"),
+      supabase.from("contratos_terceiros_equipamentos").select("*"),
+      (supabase.from as any)("medicoes_terceiros_faturamento").select("*").order("created_at", { ascending: false }),
     ]);
+
     if (ctRes.error) {
       toast({ title: "Erro ao buscar contratos", description: ctRes.error.message, variant: "destructive" });
     }
-    if (ctRes.data) setContratos(ctRes.data as unknown as Contrato[]);
-    if (savedRes.data) setSavedItems(savedRes.data as unknown as MedicaoSalva[]);
+    if (fRes.error) {
+      toast({ title: "Erro ao buscar fornecedores", description: fRes.error.message, variant: "destructive" });
+    }
+    if (cteRes.error) {
+      toast({ title: "Erro ao buscar equipamentos de contratos", description: cteRes.error.message, variant: "destructive" });
+    }
+
+    if (ctRes.data && fRes.data && cteRes.data) {
+      const fMap = new Map(fRes.data.map(f => [f.id, f]));
+      
+      const cteByContrato = new Map<string, ContratoEquip[]>();
+      cteRes.data.forEach((cte: any) => {
+        if (!cteByContrato.has(cte.contrato_id)) cteByContrato.set(cte.contrato_id, []);
+        cteByContrato.get(cte.contrato_id)!.push(cte);
+      });
+
+      const mappedContratos = ctRes.data.map((ct: any) => ({
+        ...ct,
+        fornecedores: fMap.get(ct.fornecedor_id) || null,
+        contratos_terceiros_equipamentos: cteByContrato.get(ct.id) || []
+      }));
+      setContratos(mappedContratos as unknown as Contrato[]);
+
+      // Map saved items
+      if (savedRes.data) {
+        // Fetch all contratos for mapping (including inactive ones if they exist)
+        const { data: allCtData } = await supabase.from("contratos_terceiros").select("*");
+        const allCtMap = new Map((allCtData || []).map(c => [c.id, c]));
+
+        const mappedSaved = savedRes.data.map((s: any) => {
+          const ct = allCtMap.get(s.contrato_id);
+          const forn = ct ? fMap.get(ct.fornecedor_id) : null;
+          return {
+            ...s,
+            contratos_terceiros: {
+              tipo_medicao: ct?.tipo_medicao,
+              fornecedores: forn || null
+            }
+          };
+        });
+        setSavedItems(mappedSaved as unknown as MedicaoSalva[]);
+      }
+    } else {
+      if (ctRes.data) {
+        setContratos(ctRes.data.map((ct: any) => ({
+          ...ct,
+          fornecedores: null,
+          contratos_terceiros_equipamentos: []
+        })) as unknown as Contrato[]);
+      }
+    }
     // If error on savedRes (table may not exist yet), just set empty
     if (savedRes.error) setSavedItems([]);
   };

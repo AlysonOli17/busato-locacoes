@@ -44,7 +44,7 @@ export const MedicoesTerceirosTab = () => {
 
   const fetchData = async () => {
     const [medRes, eqRes] = await Promise.all([
-      supabase.from("medicoes_terceiros").select("*, equipamentos_terceiros(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
+      supabase.from("medicoes_terceiros").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
     if (medRes.error) {
@@ -53,7 +53,15 @@ export const MedicoesTerceirosTab = () => {
     if (eqRes.error) {
       toast({ title: "Erro ao buscar equipamentos", description: eqRes.error.message, variant: "destructive" });
     }
-    if (medRes.data) setItems(medRes.data as unknown as Medicao[]);
+    if (medRes.data && eqRes.data) {
+      const eqMap = new Map(eqRes.data.map(e => [e.id, e]));
+      setItems(medRes.data.map((m: any) => ({
+        ...m,
+        equipamentos_terceiros: eqMap.get(m.equipamento_id) || null
+      })) as unknown as Medicao[]);
+    } else if (medRes.data) {
+      setItems(medRes.data.map((m: any) => ({ ...m, equipamentos_terceiros: null })) as unknown as Medicao[]);
+    }
     if (eqRes.data) setEquipamentos(eqRes.data);
   };
 

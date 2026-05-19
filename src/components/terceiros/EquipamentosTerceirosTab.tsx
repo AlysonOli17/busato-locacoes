@@ -38,7 +38,7 @@ export const EquipamentosTerceirosTab = () => {
 
   const fetchData = async () => {
     const [eqRes, fornRes] = await Promise.all([
-      supabase.from("equipamentos_terceiros").select("*, fornecedores(id, nome)").order("created_at", { ascending: false }),
+      supabase.from("equipamentos_terceiros").select("*").order("created_at", { ascending: false }),
       supabase.from("fornecedores").select("id, nome").order("nome"),
     ]);
     if (eqRes.error) {
@@ -47,7 +47,15 @@ export const EquipamentosTerceirosTab = () => {
     if (fornRes.error) {
       toast({ title: "Erro ao buscar fornecedores", description: fornRes.error.message, variant: "destructive" });
     }
-    if (eqRes.data) setItems(eqRes.data.map((e: any) => ({ ...e, fornecedor: e.fornecedores })));
+    if (eqRes.data && fornRes.data) {
+      const fornMap = new Map(fornRes.data.map(f => [f.id, f]));
+      setItems(eqRes.data.map((e: any) => ({
+        ...e,
+        fornecedor: fornMap.get(e.fornecedor_id) || null
+      })));
+    } else if (eqRes.data) {
+      setItems(eqRes.data.map((e: any) => ({ ...e, fornecedor: null })));
+    }
     if (fornRes.data) setFornecedores(fornRes.data);
   };
 

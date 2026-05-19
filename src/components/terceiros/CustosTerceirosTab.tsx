@@ -53,7 +53,7 @@ export const CustosTerceirosTab = () => {
 
   const fetchData = async () => {
     const [cRes, eqRes] = await Promise.all([
-      supabase.from("custos_terceiros").select("*, equipamentos_terceiros(id, tipo, modelo, tag_placa, numero_serie)").order("data", { ascending: false }),
+      supabase.from("custos_terceiros").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
     if (cRes.error) {
@@ -62,7 +62,15 @@ export const CustosTerceirosTab = () => {
     if (eqRes.error) {
       toast({ title: "Erro ao buscar equipamentos", description: eqRes.error.message, variant: "destructive" });
     }
-    if (cRes.data) setItems(cRes.data.map((c: any) => ({ ...c, equipment: c.equipamentos_terceiros })));
+    if (cRes.data && eqRes.data) {
+      const eqMap = new Map(eqRes.data.map(e => [e.id, e]));
+      setItems(cRes.data.map((c: any) => ({
+        ...c,
+        equipment: eqMap.get(c.equipamento_id) || null
+      })));
+    } else if (cRes.data) {
+      setItems(cRes.data.map((c: any) => ({ ...c, equipment: null })));
+    }
     if (eqRes.data) setEquipamentos(eqRes.data);
   };
 

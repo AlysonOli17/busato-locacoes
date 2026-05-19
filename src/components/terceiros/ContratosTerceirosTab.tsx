@@ -61,7 +61,7 @@ export const ContratosTerceirosTab = () => {
 
   const fetchData = async () => {
     const [cRes, fRes, eqRes] = await Promise.all([
-      supabase.from("contratos_terceiros").select("*, fornecedores(id, nome)").order("created_at", { ascending: false }),
+      supabase.from("contratos_terceiros").select("*").order("created_at", { ascending: false }),
       supabase.from("fornecedores").select("id, nome").order("nome"),
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
@@ -77,8 +77,15 @@ export const ContratosTerceirosTab = () => {
     }
 
     let contratos: Contrato[] = [];
-    if (cRes.data) {
-      contratos = cRes.data.map((c: any) => ({ ...c, fornecedor: c.fornecedores }));
+    if (cRes.data && fRes.data) {
+      const fMap = new Map(fRes.data.map(f => [f.id, f]));
+      contratos = cRes.data.map((c: any) => ({
+        ...c,
+        fornecedor: fMap.get(c.fornecedor_id) || null
+      }));
+    } else if (cRes.data) {
+      contratos = cRes.data.map((c: any) => ({ ...c, fornecedor: null }));
+    }
       // Load equipment for each contract
       const ids = contratos.map(c => c.id);
       if (ids.length > 0) {
@@ -92,7 +99,6 @@ export const ContratosTerceirosTab = () => {
           contratos.forEach(c => { c.equipamentos = byContrato.get(c.id) || []; });
         }
       }
-    }
     setItems(contratos);
     if (fRes.data) setFornecedores(fRes.data);
     if (eqRes.data) setEquipamentos(eqRes.data);
