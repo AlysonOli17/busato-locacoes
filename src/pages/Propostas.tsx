@@ -697,38 +697,61 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                     </TableCell>
                     <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {role === "admin" && item.status === "Aguardando Aprovação" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleApprove(item)} title="Aprovar proposta" className="text-success hover:text-success">
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        )}
+                      <div className="flex items-start gap-2">
+                        {/* Seção: Proposta */}
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0.5">Proposta</span>
+                          <div className="flex gap-0.5 border border-border rounded-md px-1 py-0.5 bg-muted/30">
+                            {role === "admin" && item.status === "Aguardando Aprovação" && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-success hover:text-success" onClick={() => handleApprove(item)} title="Aprovar proposta">
+                                <CheckCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => generatePDF(item)} title="Gerar PDF da Proposta">
+                              <FileDown className="h-3.5 w-3.5 text-accent" />
+                            </Button>
+                            {item.status === "Proposta Aprovada" && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => handleSendEmail(item)} title="Enviar por e-mail">
+                                <Mail className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDuplicate(item)} title="Duplicar proposta">
+                              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)} title="Editar proposta">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Excluir proposta">
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader><AlertDialogTitle>Excluir proposta?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+
+                        {/* Seção: Contrato */}
                         {item.status === "Proposta Aprovada" && (
-                          <>
-                            <Button variant="ghost" size="icon" onClick={() => handleSendEmail(item)} title="Enviar por e-mail" className="text-primary hover:text-primary">
-                              <Mail className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => openContractDialog(item)} title="Emitir Contrato" className="text-success hover:text-success">
-                              <FileSignature className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wider leading-none mb-0.5">Contrato</span>
+                            <div className="flex gap-0.5 border border-emerald-300 rounded-md px-1 py-0.5 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
+                                onClick={() => openContractDialog(item)}
+                                title="Emitir / Reeditar Contrato"
+                              >
+                                <FileSignature className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => generatePDF(item)} title="Gerar PDF">
-                          <FileDown className="h-4 w-4 text-accent" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDuplicate(item)} title="Duplicar">
-                          <Copy className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Excluir proposta?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
