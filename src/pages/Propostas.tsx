@@ -991,6 +991,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                   value={contractEmpresaId}
                   onValueChange={v => setContractEmpresaId(v)}
                   placeholder="Selecione a empresa"
+                  disabled={true}
                 />
               </div>
               <div>
@@ -1017,7 +1018,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                 </div>
                 <div>
                   <Label className="text-xs">Prazo Faturamento (Dias)</Label>
-                  <Input type="number" value={prazoPagamentoDias} onChange={e => setPrazoPagamentoDias(Number(e.target.value))} placeholder="30" />
+                  <Input type="number" value={prazoPagamentoDias} onChange={e => setPrazoPagamentoDias(Number(e.target.value))} placeholder="30" disabled />
                 </div>
                 <div>
                   <Label className="text-xs">Multa por Atraso (%)</Label>

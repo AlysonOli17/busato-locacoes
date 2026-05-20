@@ -84,6 +84,76 @@ function percentToExtenso(p: number): string {
   }
 }
 
+function converterNumeroParaExtenso(n: number): string {
+  if (n === 0) return "";
+  if (n === 100) return "cem";
+  
+  const unidades = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const dezenasEspecial = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const dezenas = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+  if (n < 10) return unidades[n];
+  if (n >= 10 && n < 20) return dezenasEspecial[n - 10];
+  if (n < 100) {
+    const d = Math.floor(n / 10);
+    const u = n % 10;
+    return dezenas[d] + (u > 0 ? " e " + unidades[u] : "");
+  }
+  if (n < 1000) {
+    const c = Math.floor(n / 100);
+    const rest = n % 100;
+    return centenas[c] + (rest > 0 ? " e " + converterNumeroParaExtenso(rest) : "");
+  }
+  if (n < 1000000) {
+    const mil = Math.floor(n / 1000);
+    const rest = n % 1000;
+    let milText = "";
+    if (mil === 1) {
+      milText = "mil";
+    } else {
+      milText = converterNumeroParaExtenso(mil) + " mil";
+    }
+    if (rest === 0) return milText;
+    const separator = (rest < 100 || rest % 100 === 0) ? " e " : " ";
+    return milText + separator + converterNumeroParaExtenso(rest);
+  }
+  if (n < 1000000000) {
+    const milhao = Math.floor(n / 1000000);
+    const rest = n % 1000000;
+    let milhaoText = "";
+    if (milhao === 1) {
+      milhaoText = "um milhão";
+    } else {
+      milhaoText = converterNumeroParaExtenso(milhao) + " milhões";
+    }
+    if (rest === 0) return milhaoText;
+    const separator = (rest < 100 || rest % 100 === 0) ? " e " : " ";
+    return milhaoText + separator + converterNumeroParaExtenso(rest);
+  }
+  return String(n);
+}
+
+function valorExtenso(valor: number): string {
+  const valorArredondado = Math.round(valor * 100) / 100;
+  if (valorArredondado === 0) return "zero reais";
+  
+  const inteira = Math.floor(valorArredondado);
+  const centavos = Math.round((valorArredondado - inteira) * 100);
+  
+  let partes: string[] = [];
+  
+  if (inteira > 0) {
+    partes.push(converterNumeroParaExtenso(inteira) + (inteira === 1 ? " real" : " reais"));
+  }
+  
+  if (centavos > 0) {
+    partes.push(converterNumeroParaExtenso(centavos) + (centavos === 1 ? " centavo" : " centavos"));
+  }
+  
+  return partes.join(" e ");
+}
+
 export const generateContratoPDF = async (params: {
   empresa: any;
   equipamentos: {
@@ -243,7 +313,14 @@ export const generateContratoPDF = async (params: {
   // Clause 3
   printParagraph("CLÁUSULA TERCEIRA – PREÇOS", true, 4);
   const valorTotalMensal = params.equipamentos.reduce((sum, e) => sum + e.valor_mensal, 0);
-  printParagraph(`3.1. O valor global estimado do presente Contrato é de ${fmtBRL(valorTotalMensal)} mensais, calculado conforme os valores unitários e prazos indicados na Cláusula 1.1 acima. Este valor serve apenas como parâmetro orçamentário, não constituindo qualquer compromisso das Partes de virem a efetivamente utilizá-lo integralmente, sendo devido apenas o montante referente ao período em que o equipamento estiver efetivamente locado, observadas as premissas de medição estabelecidas neste instrumento.`, false, 5);
+  const dtInicioClause3 = parseLocalDate(params.data_inicio);
+  const dtFimClause3 = parseLocalDate(params.data_fim);
+  const diffTimeClause3 = Math.abs(dtFimClause3.getTime() - dtInicioClause3.getTime());
+  const diffDaysClause3 = Math.ceil(diffTimeClause3 / (1000 * 60 * 60 * 24));
+  const mesesContrato = diffDaysClause3 / 30;
+  const valorGlobalEstimado = valorTotalMensal * mesesContrato;
+  const valorGlobalEstimadoExt = valorExtenso(valorGlobalEstimado);
+  printParagraph(`3.1. O valor global estimado do presente Contrato é de ${fmtBRL(valorGlobalEstimado)} (${valorGlobalEstimadoExt}), calculado conforme os valores unitários e prazos indicados na Cláusula 1.1 acima. Este valor serve apenas como parâmetro orçamentário, não constituindo qualquer compromisso das Partes de virem a efetivamente utilizá-lo integralmente, sendo devido apenas o montante referente ao período em que o equipamento estiver efetivamente locado, observadas as premissas de medição estabelecidas neste instrumento.`, false, 5);
 
   printParagraph("3.2. Os preços unitários pactuados na Cláusula 1.1 acima serão fixos e irreajustáveis durante toda a vigência do presente Contrato ou pelo período de 12 (doze) meses. Caso o presente instrumento vigore por prazo superior a 12 (doze) meses, o valor contratado entre as Partes será reajustado monetariamente de acordo com a variação positiva do IPCA/IBGE, ou índice que vier substituí-lo em caso de variação negativa.", false, 5);
 
