@@ -20,20 +20,89 @@ async function loadLogo(): Promise<string | null> {
   }
 }
 
+// Helpers for Portuguese numbers in words (extenso)
+function dayToExtenso(dStr: string): string {
+  const d = parseInt(dStr, 10);
+  const map: Record<number, string> = {
+    1: "um", 2: "dois", 3: "três", 4: "quatro", 5: "cinco", 6: "seis", 7: "sete", 8: "oito", 9: "nove", 10: "dez",
+    11: "onze", 12: "doze", 13: "treze", 14: "catorze", 15: "quinze", 16: "dezesseis", 17: "dezessete", 18: "dezoito", 19: "dezenove", 20: "vinte",
+    21: "vinte e um", 22: "vinte e dois", 23: "vinte e três", 24: "vinte e quatro", 25: "vinte e cinco", 26: "vinte e seis", 27: "vinte e sete", 28: "vinte e oito", 29: "vinte e nove", 30: "trinta", 31: "trinta e um"
+  };
+  return map[d] || dStr;
+}
+
+function integerToExtenso(n: number): string {
+  if (n === 0) return "zero";
+  const unidades = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const dezenasEspecial = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const dezenas = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+  if (n === 100) return "cem";
+
+  let parts: string[] = [];
+
+  const c = Math.floor(n / 100);
+  const r1 = n % 100;
+  const d = Math.floor(r1 / 10);
+  const u = r1 % 10;
+
+  if (c > 0) {
+    parts.push(centenas[c]);
+  }
+
+  if (r1 > 0) {
+    if (c > 0) parts.push("e");
+    if (r1 >= 10 && r1 < 20) {
+      parts.push(dezenasEspecial[r1 - 10]);
+    } else {
+      if (d > 0) {
+        parts.push(dezenas[d]);
+        if (u > 0) {
+          parts.push("e");
+          parts.push(unidades[u]);
+        }
+      } else if (u > 0) {
+        parts.push(unidades[u]);
+      }
+    }
+  }
+
+  return parts.join(" ");
+}
+
+function percentToExtenso(p: number): string {
+  const integerPart = Math.floor(p);
+  const decimalPart = Math.round((p - integerPart) * 100);
+
+  const intWords = integerToExtenso(integerPart);
+  if (decimalPart === 0) {
+    return `${intWords} por cento`;
+  } else {
+    const decWords = integerToExtenso(decimalPart);
+    return `${intWords} vírgula ${decWords} por cento`;
+  }
+}
+
 export const generateContratoPDF = async (params: {
   empresa: any;
   equipamentos: {
-    equipamento_tipo: string;
+    equipamento_tipo: string; // Used as the model/identification text
     quantidade: number;
     valor_hora: number;
     franquia_mensal: number;
-    equipamento_fisico: any; // modelo, tag_placa, numero_serie, etc.
+    numero_serie: string;     // Explicit serial number
     valor_mensal: number;
   }[];
   data_inicio: string;
   data_fim: string;
   testemunhas: { nome1: string; cpf1: string; nome2: string; cpf2: string };
   numero_proposta: string;
+  dia_inicio_medicao: string;
+  dia_fim_medicao: string;
+  prazo_pagamento_dias: number;
+  multa_atraso_percent: number;
+  juros_atraso_percent: number;
 }) => {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
@@ -125,7 +194,7 @@ export const generateContratoPDF = async (params: {
 
   // Clause 1
   printParagraph("CLÁUSULA PRIMEIRA – OBJETO E CONDIÇÕES", true, 4);
-  const numEquips = params.equipamentos.reduce((sum, e) => sum + e.quantidade, 0);
+  const numEquips = params.equipamentos.length;
   printParagraph(`1.1. É objeto do presente Contrato a locação de ${numEquips} equipamento(s) para utilização conforme descrição abaixo:`, false, 6);
 
   // Table
@@ -136,7 +205,7 @@ export const generateContratoPDF = async (params: {
     body: params.equipamentos.map((eq, i) => [
       String(i + 1).padStart(2, "0"),
       eq.equipamento_tipo,
-      eq.equipamento_fisico?.numero_serie || "—",
+      eq.numero_serie || "—",
       eq.franquia_mensal ? `${eq.franquia_mensal} HORAS` : "—",
       fmtBRL(eq.valor_hora),
       fmtBRL(eq.valor_mensal)
@@ -165,7 +234,7 @@ export const generateContratoPDF = async (params: {
   const dtFim = parseLocalDate(params.data_fim).toLocaleDateString("pt-BR");
   const diffTime = Math.abs(new Date(params.data_fim).getTime() - new Date(params.data_inicio).getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  printParagraph(`2.1. O prazo de vigência do presente Contrato é de ${diffDays} dias, com início em ${dtInicio} e o término estimado para o dia ${dtFim}, podendo ser prorrogado automaticamente, por iguais e sucessivos períodos, até o limite máximo de 12 (doze) meses de vigência total, salvo manifestação expressa, formalizada por escrito, em sentido contrário por qualquer das partes, com antecedência mínima de 15 (quinze) dias do término de cada período de vigência.`, false, 5);
+  printParagraph(`2.1. O prazo de vigência do presente Contrato é de ${diffDays} dias, com início em ${dtInicio} e o término estimado para o dia ${dtFim}, podendo ser prorrogado automaticamente, por iguais e sucessivos períodos, até o limite máximo de 12 (doze) meses de vigência total, salvo manifestação expressa, formalizada por escrito, in sentido contrário por qualquer das partes, com antecedência mínima de 15 (quinze) dias do término de cada período de vigência.`, false, 5);
 
   printParagraph("2.2. Até 15 (quinze) dias antes do término do prazo máximo de 12 (doze) meses, as partes poderão negociar e ajustar as novas condições comerciais, mediante celebração de aditivo contratual, com nova vigência e valores, mantendo-se todas as demais condições previamente pactuadas no contrato principal.", false, 5);
 
@@ -186,7 +255,14 @@ export const generateContratoPDF = async (params: {
   printParagraph("CLÁUSULA QUARTA – MEDIÇÕES", true, 4);
   printParagraph("4.1. Para efeito de medição e pagamento, as Partes ajustam e acordam que a data inicial a ser considerada será o dia da saída do veículo/equipamento do pátio da LOCADORA.", false, 5);
 
-  printParagraph("4.2. A medição relativa à franquia mensal, compreenderá o período do dia 01 (um) do mês anterior ao dia 30 (trinta) do mês da locação, exceto quando ocorrer proporcionalidade, o que resultará também em pagamento proporcional, devendo a LOCATÁRIA encaminhar o registro constante do horímetro referente a esse período, no prazo de até 2 (dois) dias úteis.", false, 5);
+  const diaMedInicio = parseInt(params.dia_inicio_medicao || "1", 10);
+  const diaMedFim = parseInt(params.dia_fim_medicao || "30", 10);
+  const diaMedInicioStr = String(diaMedInicio).padStart(2, "0");
+  const diaMedFimStr = String(diaMedFim).padStart(2, "0");
+  const diaMedInicioExt = dayToExtenso(diaMedInicioStr);
+  const diaMedFimExt = dayToExtenso(diaMedFimStr);
+
+  printParagraph(`4.2. A medição relativa à franquia mensal, compreenderá o período do dia ${diaMedInicioStr} (${diaMedInicioExt}) do mês anterior ao dia ${diaMedFimStr} (${diaMedFimExt}) do mês da locação, exceto quando ocorrer proporcionalidade, o que resultará também em pagamento proporcional, devendo a LOCATÁRIA encaminhar o registro constante do horímetro referente a esse período, no prazo de até 2 (dois) dias úteis.`, false, 5);
 
   printParagraph("4.3. Os boletins de medição serão elaborados com base nas informações obtidas por meio da telemetria e encaminhados à LOCATÁRIA para análise e aprovação. A LOCATÁRIA terá o prazo de 05 (cinco) dias para manifestar eventual discordância, apresentando, obrigatoriamente, as evidências que comprovem a divergência. Decorrido o referido prazo sem manifestação, os boletins serão considerados aprovados, prosseguindo-se com o faturamento e envio para pagamento, conforme o prazo estipulado na Cláusula 5.1.", false, 5);
 
@@ -196,7 +272,11 @@ export const generateContratoPDF = async (params: {
 
   // Clause 5
   printParagraph("CLÁUSULA QUINTA – PAGAMENTOS", true, 4);
-  printParagraph("5.1. Pela locação do bem objeto do presente Contrato, a LOCATÁRIA pagará à LOCADORA os valores unitários descritos no quadro constante na Cláusula 1.1, em até 30 (trinta) dias após emissão da nota fiscal/fatura.", false, 5);
+
+  const prazoPgto = params.prazo_pagamento_dias || 30;
+  const prazoPgtoExt = integerToExtenso(prazoPgto);
+
+  printParagraph(`5.1. Pela locação do bem objeto do presente Contrato, a LOCATÁRIA pagará à LOCADORA os valores unitários descritos no quadro constante na Cláusula 1.1, em até ${prazoPgto} (${prazoPgtoExt}) dias após emissão da nota fiscal/fatura.`, false, 5);
 
   printParagraph("5.2. Os pagamentos deverão ocorrer através de depósito bancário/pix em conta corrente de titularidade da LOCADORA abaixo indicada ou mediante boleto, sendo proibido o endosso de duplicatas, descontos de títulos bem como a utilização do sistema de cobrança bancária.", false, 4);
 
@@ -219,7 +299,16 @@ export const generateContratoPDF = async (params: {
   doc.text("E-mail para comprovantes: financeiro@bsuatotransportes.com.br", margin + 6, y + 27);
   y += 38;
 
-  printParagraph("5.3. A impontualidade no pagamento sujeitará à CONTRATANTE, a multa de 2,00% (dois por cento) ao mês, mais 2,00% (dois por cento) referente a encargos financeiros, independentemente das demais sanções previstas em Lei.", false, 5);
+  const multaAtraso = params.multa_atraso_percent !== undefined ? params.multa_atraso_percent : 2.00;
+  const jurosAtraso = params.juros_atraso_percent !== undefined ? params.juros_atraso_percent : 2.00;
+
+  const fmtPercent = (val: number) => val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+  const multaAtrasoFmt = fmtPercent(multaAtraso);
+  const jurosAtrasoFmt = fmtPercent(jurosAtraso);
+  const multaAtrasoExt = percentToExtenso(multaAtraso);
+  const jurosAtrasoExt = percentToExtenso(jurosAtraso);
+
+  printParagraph(`5.3. A impontualidade no pagamento sujeitará à CONTRATANTE, a multa de ${multaAtrasoFmt} (${multaAtrasoExt}) ao mês, mais ${jurosAtrasoFmt} (${jurosAtrasoExt}) referente a encargos financeiros, independentemente das demais sanções previstas em Lei.`, false, 5);
 
   printParagraph("5.4. As informações sobre programações dos pagamentos e/ou comprovantes de pagamento deverão ser solicitadas à LOCATÁRIA, através do e-mail: alyson.oliveira@busatoloc.com.br, financeiro@bsuatotransportes.com.br, samara.rodrigues@busatoloc.com.br.", false, 8);
 

@@ -180,8 +180,22 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const [testemunha2Nome, setTestemunha2Nome] = useState("");
   const [testemunha2Cpf, setTestemunha2Cpf] = useState("");
 
+  // Custom clause parameters
+  const [contractEmpresaId, setContractEmpresaId] = useState("");
+  const [diaInicioMedicao, setDiaInicioMedicao] = useState("01");
+  const [diaFimMedicao, setDiaFimMedicao] = useState("30");
+  const [prazoPagamentoDias, setPrazoPagamentoDias] = useState<number>(30);
+  const [multaAtrasoPercent, setMultaAtrasoPercent] = useState<number>(2.00);
+  const [jurosAtrasoPercent, setJurosAtrasoPercent] = useState<number>(2.00);
+
   const openContractDialog = (item: Proposta) => {
     setContractProposal(item);
+    setContractEmpresaId(item.empresa_id || "");
+    setDiaInicioMedicao("01");
+    setDiaFimMedicao("30");
+    setPrazoPagamentoDias(item.prazo_pagamento || 30);
+    setMultaAtrasoPercent(2.00);
+    setJurosAtrasoPercent(2.00);
     
     const today = new Date().toISOString().slice(0, 10);
     const threeMonthsLater = new Date();
@@ -199,6 +213,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
         eqSelects.push({
           equipamento_tipo: pe.equipamento_tipo,
           equipamento_id: "", // selected physical equipment ID
+          numero_serie: "", // custom serial/chassis number
           valor_hora: pe.valor_hora,
           franquia_mensal: pe.franquia_mensal || 0,
           valor_mensal: pe.valor_hora * (pe.franquia_mensal || 0)
@@ -216,28 +231,27 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const handleExportContract = async () => {
     if (!contractProposal) return;
     
-    // Check if all equipments are selected
-    const unselected = contractEquipments.some(ce => !ce.equipamento_id);
-    if (unselected) {
-      toast({ title: "Erro", description: "Selecione o equipamento físico para todos os itens do contrato.", variant: "destructive" });
+    // Check if all equipments have a model
+    const invalid = contractEquipments.some(ce => !ce.equipamento_tipo);
+    if (invalid || contractEquipments.length === 0) {
+      toast({ title: "Erro", description: "Todos os equipamentos do contrato precisam ter um modelo/descrição informado.", variant: "destructive" });
       return;
     }
 
-    const client = empresas.find(e => e.id === contractProposal.empresa_id);
+    const client = empresas.find(e => e.id === contractEmpresaId);
     if (!client) {
-      toast({ title: "Erro", description: "Empresa cliente não encontrada.", variant: "destructive" });
+      toast({ title: "Erro", description: "Selecione uma empresa cliente válida.", variant: "destructive" });
       return;
     }
 
-    // Map equipments with physical details
+    // Map equipments with details
     const equipsWithDetails = contractEquipments.map(ce => {
-      const eqFisico = equipamentosCadastro.find(e => e.id === ce.equipamento_id);
       return {
         equipamento_tipo: ce.equipamento_tipo,
         quantidade: 1,
         valor_hora: ce.valor_hora,
         franquia_mensal: ce.franquia_mensal,
-        equipamento_fisico: eqFisico || { modelo: "—", tag_placa: "—", numero_serie: "—" },
+        numero_serie: ce.numero_serie || "—",
         valor_mensal: ce.valor_mensal
       };
     });
@@ -254,7 +268,12 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
           nome2: testemunha2Nome,
           cpf2: testemunha2Cpf
         },
-        numero_proposta: String(contractProposal.numero_sequencial).padStart(3, "0")
+        numero_proposta: String(contractProposal.numero_sequencial).padStart(3, "0"),
+        dia_inicio_medicao: diaInicioMedicao,
+        dia_fim_medicao: diaFimMedicao,
+        prazo_pagamento_dias: prazoPagamentoDias,
+        multa_atraso_percent: multaAtrasoPercent,
+        juros_atraso_percent: jurosAtrasoPercent
       });
       toast({ title: "Contrato gerado", description: "Contrato formal exportado com sucesso." });
       setContractDialogOpen(false);
@@ -954,17 +973,26 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
       {/* Dialog de emissão de contrato */}
       <Dialog open={contractDialogOpen} onOpenChange={setContractDialogOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Emitir Contrato Formal de Locação</DialogTitle>
             <DialogDescription>
-              Preencha os dados adicionais necessários para gerar as cláusulas do contrato formal em PDF.
+              Preencha e revise os dados do contrato formal em PDF. Todos os campos são editáveis.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
-            {/* Datas de vigência */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Empresa e Vigência */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>Empresa Locatária</Label>
+                <SearchableSelect
+                  options={empresas.map(e => ({ value: e.id, label: `${e.nome} (${e.cnpj})` }))}
+                  value={contractEmpresaId}
+                  onValueChange={v => setContractEmpresaId(v)}
+                  placeholder="Selecione a empresa"
+                />
+              </div>
               <div>
                 <Label>Data de Início da Locação</Label>
                 <Input type="date" value={contractStartDate} onChange={e => setContractStartDate(e.target.value)} />
@@ -975,48 +1003,128 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
               </div>
             </div>
 
+            {/* Cláusulas Customizáveis */}
+            <div className="border border-border rounded-lg p-4 bg-muted/20 space-y-3">
+              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Parâmetros das Cláusulas Contratuais</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                <div>
+                  <Label className="text-xs">Início Medição (Dia)</Label>
+                  <Input type="text" value={diaInicioMedicao} onChange={e => setDiaInicioMedicao(e.target.value)} placeholder="01" />
+                </div>
+                <div>
+                  <Label className="text-xs">Fim Medição (Dia)</Label>
+                  <Input type="text" value={diaFimMedicao} onChange={e => setDiaFimMedicao(e.target.value)} placeholder="30" />
+                </div>
+                <div>
+                  <Label className="text-xs">Prazo Faturamento (Dias)</Label>
+                  <Input type="number" value={prazoPagamentoDias} onChange={e => setPrazoPagamentoDias(Number(e.target.value))} placeholder="30" />
+                </div>
+                <div>
+                  <Label className="text-xs">Multa por Atraso (%)</Label>
+                  <Input type="number" step="0.01" value={multaAtrasoPercent} onChange={e => setMultaAtrasoPercent(Number(e.target.value))} placeholder="2.00" />
+                </div>
+                <div>
+                  <Label className="text-xs">Juros por Atraso (%)</Label>
+                  <Input type="number" step="0.01" value={jurosAtrasoPercent} onChange={e => setJurosAtrasoPercent(Number(e.target.value))} placeholder="2.00" />
+                </div>
+              </div>
+            </div>
+
             {/* Equipamentos do Contrato */}
             <div>
-              <h3 className="font-semibold text-sm mb-3">Selecione os Equipamentos Físicos</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm">Equipamentos do Contrato</h3>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setContractEquipments(prev => [
+                      ...prev,
+                      {
+                        equipamento_tipo: "",
+                        equipamento_id: "",
+                        numero_serie: "",
+                        valor_hora: 0,
+                        franquia_mensal: 0,
+                        valor_mensal: 0
+                      }
+                    ]);
+                  }}
+                  className="h-8 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Equipamento
+                </Button>
+              </div>
               <div className="space-y-4">
                 {contractEquipments.map((ce, idx) => (
-                  <div key={idx} className="border border-border rounded-lg p-4 bg-muted/40 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase text-primary">Item {String(idx + 1).padStart(2, "0")} — {ce.equipamento_tipo}</span>
+                  <div key={idx} className="border border-border rounded-lg p-4 bg-muted/40 space-y-3 relative">
+                    <div className="flex items-center justify-between border-b pb-2 mb-2">
+                      <span className="text-xs font-bold uppercase text-primary">Item {String(idx + 1).padStart(2, "0")}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 animate-fade-in"
+                        onClick={() => {
+                          setContractEquipments(prev => prev.filter((_, i) => i !== idx));
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="md:col-span-2">
-                        <Label className="text-xs">Equipamento Físico (Placa / Chassi / Série)</Label>
+                      <div>
+                        <Label className="text-xs">Vincular Equipamento Cadastrado</Label>
                         <SearchableSelect
-                          options={equipamentosCadastro
-                            .filter(e => e.tipo === ce.equipamento_tipo)
-                            .map(e => ({
-                              value: e.id,
-                              label: `${e.modelo} (Placa: ${e.tag_placa || "—"} | Série: ${e.numero_serie || "—"})`
-                            }))}
+                          options={equipamentosCadastro.map(e => ({
+                            value: e.id,
+                            label: `${e.modelo} (Placa: ${e.tag_placa || "—"} | Série: ${e.numero_serie || "—"} | ${e.tipo})`
+                          }))}
                           value={ce.equipamento_id}
                           onValueChange={v => {
-                            const newEqs = [...contractEquipments];
-                            newEqs[idx].equipamento_id = v;
-                            setContractEquipments(newEqs);
+                            const selectedEq = equipamentosCadastro.find(e => e.id === v);
+                            if (selectedEq) {
+                              const newEqs = [...contractEquipments];
+                              newEqs[idx].equipamento_id = v;
+                              newEqs[idx].equipamento_tipo = `${selectedEq.tipo} - ${selectedEq.modelo}`;
+                              newEqs[idx].numero_serie = selectedEq.numero_serie || selectedEq.tag_placa || "—";
+                              setContractEquipments(newEqs);
+                            }
                           }}
-                          placeholder="Selecione o equipamento cadastrado..."
+                          placeholder="Selecione o equipamento..."
                         />
                       </div>
+                      
                       <div>
-                        <Label className="text-xs">Valor da Hora (R$)</Label>
-                        <CurrencyInput
-                          value={ce.valor_hora}
-                          onValueChange={v => {
+                        <Label className="text-xs">Nome/Modelo no Contrato *</Label>
+                        <Input
+                          value={ce.equipamento_tipo}
+                          onChange={e => {
                             const newEqs = [...contractEquipments];
-                            newEqs[idx].valor_hora = v;
-                            newEqs[idx].valor_mensal = v * (newEqs[idx].franquia_mensal || 0);
+                            newEqs[idx].equipamento_tipo = e.target.value;
                             setContractEquipments(newEqs);
                           }}
+                          placeholder="Ex: Escavadeira Cat 320"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-xs">Chassis / Série</Label>
+                        <Input
+                          value={ce.numero_serie}
+                          onChange={e => {
+                            const newEqs = [...contractEquipments];
+                            newEqs[idx].numero_serie = e.target.value;
+                            setContractEquipments(newEqs);
+                          }}
+                          placeholder="Ex: Série 123456 / Placa ABC"
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <Label className="text-xs">Franquia Mensal (Horas)</Label>
                         <Input
@@ -1027,6 +1135,18 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                             const newEqs = [...contractEquipments];
                             newEqs[idx].franquia_mensal = val;
                             newEqs[idx].valor_mensal = newEqs[idx].valor_hora * val;
+                            setContractEquipments(newEqs);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Valor da Hora (R$)</Label>
+                        <CurrencyInput
+                          value={ce.valor_hora}
+                          onValueChange={v => {
+                            const newEqs = [...contractEquipments];
+                            newEqs[idx].valor_hora = v;
+                            newEqs[idx].valor_mensal = v * (newEqs[idx].franquia_mensal || 0);
                             setContractEquipments(newEqs);
                           }}
                         />
