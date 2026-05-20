@@ -567,10 +567,10 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
   const handleSendEmail = async (item: Proposta) => {
     const emp = empresas.find(e => e.id === item.empresa_id);
-    const numStr = String(item.numero_sequencial).padStart(3, "0");
-    const subject = encodeURIComponent(`Proposta Comercial Nº ${numStr} - BUSATO LOCAÇÕES`);
+    const numStr = parseLocalDate(item.data).toLocaleDateString("pt-BR");
+    const subject = encodeURIComponent(`Proposta Comercial ${emp?.nome ? `- ${emp.nome}` : ""} - BUSATO LOCAÇÕES`);
     const body = encodeURIComponent(
-      `Prezado(a),\n\nSegue em anexo a Proposta Comercial Nº ${numStr} para ${emp?.nome || "sua empresa"}.\n\nFicamos à disposição para esclarecimentos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
+      `Prezado(a),\n\nSegue em anexo a Proposta Comercial para ${emp?.nome || "sua empresa"}.\n\nFicamos à disposição para esclarecimentos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
     );
     // Generate PDF first
     await generatePDF(item);
@@ -585,13 +585,13 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
     // Notify the creator that the proposal was approved
     if (item.created_by) {
-      const numStr = String(item.numero_sequencial).padStart(3, "0");
       const emp = empresas.find(e => e.id === item.empresa_id);
+      const dataFmt = parseLocalDate(item.data).toLocaleDateString("pt-BR");
       await supabase.from("notificacoes").insert({
         user_id: item.created_by,
         tipo: "aprovacao",
-        titulo: `Proposta Nº ${numStr} aprovada!`,
-        mensagem: `A proposta ${numStr} para ${emp?.nome || "empresa"} foi aprovada pelo administrador e já pode ser enviada ao cliente.`,
+        titulo: `Proposta aprovada!`,
+        mensagem: `A proposta para ${emp?.nome || "empresa"} (${dataFmt}) foi aprovada pelo administrador e já pode ser enviada ao cliente.`,
         referencia_tipo: "proposta",
         referencia_id: item.id,
       });
@@ -675,9 +675,8 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
             <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nº</TableHead>
-                  <TableHead>Empresa</TableHead>
                   <TableHead>Data</TableHead>
+                  <TableHead>Empresa</TableHead>
                   <TableHead>Equipamentos</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-32">Ações</TableHead>
@@ -688,12 +687,11 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                   const empresa = empresas.find(e => e.id === item.empresa_id);
                   return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-mono font-bold">{String(item.numero_sequencial).padStart(3, "0")}</TableCell>
+                    <TableCell className="text-sm font-medium">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
                       <p className="font-medium text-sm">{empresa?.nome || "—"}</p>
                       <p className="text-xs text-muted-foreground font-mono">{empresa?.cnpj || "—"}</p>
                     </TableCell>
-                    <TableCell className="text-sm">{parseLocalDate(item.data).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {(item as any).propostas_equipamentos?.reduce((sum: number, e: any) => sum + (e.quantidade || 0), 0) || "—"}
                     </TableCell>

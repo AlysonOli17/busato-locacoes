@@ -77,14 +77,10 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
   // ===================== PAGE 1 — COVER =====================
   if (logo) doc.addImage(logo, "PNG", margin, 14, 56, 14);
 
-  doc.setFontSize(11);
-  doc.setTextColor(...darkGray);
-  doc.setFont("helvetica", "bold");
-  doc.text(`Nº ${String(item.numero_sequencial).padStart(3, "0")}`, pw - margin, 22, { align: "right" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...medGray);
-  doc.text(parseLocalDate(item.data).toLocaleDateString("pt-BR"), pw - margin, 28, { align: "right" });
+  doc.text(parseLocalDate(item.data).toLocaleDateString("pt-BR"), pw - margin, 22, { align: "right" });
 
   doc.setDrawColor(...brandBlue);
   doc.setLineWidth(0.8);
@@ -363,7 +359,7 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
     addFooter(i, totalPages);
   }
 
-  const numStr = String(item.numero_sequencial).padStart(3, "0");
+  const dateStr = parseLocalDate(item.data).toLocaleDateString("pt-BR").replace(/\//g, "-");
   const empName = (emp?.nome || "proposta").replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
-  doc.save(`${numStr}_PROPOSTA_COMERCIAL_DE_LOCAÇÃO_-_${empName}.pdf`);
+  doc.save(`PROPOSTA_COMERCIAL_${empName}_${dateStr}.pdf`);
 };
