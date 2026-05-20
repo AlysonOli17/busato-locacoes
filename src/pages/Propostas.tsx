@@ -188,43 +188,84 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const [multaAtrasoPercent, setMultaAtrasoPercent] = useState<number>(2.00);
   const [jurosAtrasoPercent, setJurosAtrasoPercent] = useState<number>(2.00);
 
+  // Cache: saves contract form data per proposal ID so re-opening reloads previous values
+  const [contractDataCache, setContractDataCache] = useState<Record<string, any>>({});
+
+  const saveContractDataToCache = (propostaId: string) => {
+    setContractDataCache(prev => ({
+      ...prev,
+      [propostaId]: {
+        equipamentos: contractEquipments,
+        startDate: contractStartDate,
+        endDate: contractEndDate,
+        diaInicioMedicao,
+        diaFimMedicao,
+        prazoPagamentoDias,
+        multaAtrasoPercent,
+        jurosAtrasoPercent,
+        testemunha1Nome,
+        testemunha1Cpf,
+        testemunha2Nome,
+        testemunha2Cpf,
+      }
+    }));
+  };
+
   const openContractDialog = (item: Proposta) => {
     setContractProposal(item);
     setContractEmpresaId(item.empresa_id || "");
-    setDiaInicioMedicao("01");
-    setDiaFimMedicao("30");
-    setPrazoPagamentoDias(item.prazo_pagamento || 30);
-    setMultaAtrasoPercent(2.00);
-    setJurosAtrasoPercent(2.00);
-    
-    const today = new Date().toISOString().slice(0, 10);
-    const threeMonthsLater = new Date();
-    threeMonthsLater.setDate(threeMonthsLater.getDate() + 90);
-    const end = threeMonthsLater.toISOString().slice(0, 10);
-    
-    setContractStartDate(today);
-    setContractEndDate(end);
-    
-    // Duplicate based on quantity
-    const peList = (item as any).propostas_equipamentos || [];
-    const eqSelects: any[] = [];
-    peList.forEach((pe: any) => {
-      for (let i = 0; i < pe.quantidade; i++) {
-        eqSelects.push({
-          equipamento_tipo: pe.equipamento_tipo,
-          equipamento_id: "", // selected physical equipment ID
-          numero_serie: "", // custom serial/chassis number
-          valor_hora: pe.valor_hora,
-          franquia_mensal: pe.franquia_mensal || 0,
-          valor_mensal: pe.valor_hora * (pe.franquia_mensal || 0)
-        });
-      }
-    });
-    setContractEquipments(eqSelects);
-    setTestemunha1Nome("");
-    setTestemunha1Cpf("");
-    setTestemunha2Nome("");
-    setTestemunha2Cpf("");
+
+    const cached = contractDataCache[item.id];
+    if (cached) {
+      // Restore previously filled contract data
+      setContractEquipments(cached.equipamentos);
+      setContractStartDate(cached.startDate);
+      setContractEndDate(cached.endDate);
+      setDiaInicioMedicao(cached.diaInicioMedicao);
+      setDiaFimMedicao(cached.diaFimMedicao);
+      setPrazoPagamentoDias(cached.prazoPagamentoDias);
+      setMultaAtrasoPercent(cached.multaAtrasoPercent);
+      setJurosAtrasoPercent(cached.jurosAtrasoPercent);
+      setTestemunha1Nome(cached.testemunha1Nome);
+      setTestemunha1Cpf(cached.testemunha1Cpf);
+      setTestemunha2Nome(cached.testemunha2Nome);
+      setTestemunha2Cpf(cached.testemunha2Cpf);
+    } else {
+      // First time opening: initialize from proposal data
+      setDiaInicioMedicao("01");
+      setDiaFimMedicao("30");
+      setPrazoPagamentoDias(item.prazo_pagamento || 30);
+      setMultaAtrasoPercent(2.00);
+      setJurosAtrasoPercent(2.00);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const threeMonthsLater = new Date();
+      threeMonthsLater.setDate(threeMonthsLater.getDate() + 90);
+      const end = threeMonthsLater.toISOString().slice(0, 10);
+      setContractStartDate(today);
+      setContractEndDate(end);
+
+      // Build equipment list from proposal items
+      const peList = (item as any).propostas_equipamentos || [];
+      const eqSelects: any[] = [];
+      peList.forEach((pe: any) => {
+        for (let i = 0; i < pe.quantidade; i++) {
+          eqSelects.push({
+            equipamento_tipo: pe.equipamento_tipo,
+            equipamento_id: "",
+            numero_serie: "",
+            valor_hora: pe.valor_hora,
+            franquia_mensal: pe.franquia_mensal || "",
+            valor_mensal: pe.valor_hora * (pe.franquia_mensal || 0)
+          });
+        }
+      });
+      setContractEquipments(eqSelects);
+      setTestemunha1Nome("");
+      setTestemunha1Cpf("");
+      setTestemunha2Nome("");
+      setTestemunha2Cpf("");
+    }
     setContractDialogOpen(true);
   };
 
@@ -277,6 +318,8 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
         tipo_medicao: contractProposal.tipo_medicao
       });
       toast({ title: "Contrato gerado", description: "Contrato formal exportado com sucesso." });
+      // Save data so re-opening restores the filled values
+      if (contractProposal) saveContractDataToCache(contractProposal.id);
       setContractDialogOpen(false);
     } catch (err: any) {
       toast({ title: "Erro ao gerar PDF", description: err.message, variant: "destructive" });
@@ -994,7 +1037,10 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       </Dialog>
 
       {/* Dialog de emissão de contrato */}
-      <Dialog open={contractDialogOpen} onOpenChange={setContractDialogOpen}>
+      <Dialog open={contractDialogOpen} onOpenChange={(open) => {
+        if (!open && contractProposal) saveContractDataToCache(contractProposal.id);
+        setContractDialogOpen(open);
+      }}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Emitir Contrato Formal de Locação</DialogTitle>
@@ -1153,13 +1199,16 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                           {contractProposal?.tipo_medicao === "diarias" ? "Franquia Mensal (Dias)" : "Franquia Mensal (Horas)"}
                         </Label>
                         <Input
-                          type="number"
-                          value={ce.franquia_mensal}
+                          type="text"
+                          inputMode="numeric"
+                          value={ce.franquia_mensal === 0 || ce.franquia_mensal === "" ? "" : String(ce.franquia_mensal)}
+                          placeholder="0"
                           onChange={e => {
-                            const val = Number(e.target.value);
+                            const raw = e.target.value;
+                            const val = raw === "" ? "" : Number(raw);
                             const newEqs = [...contractEquipments];
                             newEqs[idx].franquia_mensal = val;
-                            newEqs[idx].valor_mensal = newEqs[idx].valor_hora * val;
+                            newEqs[idx].valor_mensal = newEqs[idx].valor_hora * (Number(val) || 0);
                             setContractEquipments(newEqs);
                           }}
                         />
