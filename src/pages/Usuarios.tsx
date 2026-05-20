@@ -15,6 +15,7 @@ import { Plus, Search, Pencil, Trash2, UserCog, ShieldCheck, Lock, Unlock, KeyRo
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UserItem {
   user_id: string;
@@ -60,6 +61,7 @@ const Usuarios = () => {
   const [savingPerms, setSavingPerms] = useState(false);
 
   const { toast } = useToast();
+  const { role } = useAuth();
   const [sortCol, setSortCol] = useState("nome");
   const [sortAsc, setSortAsc] = useState(true);
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
@@ -408,7 +410,7 @@ const Usuarios = () => {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="admin" disabled={role !== 'admin'}>Administrador</SelectItem>
                     <SelectItem value="operador">Operador</SelectItem>
                     <SelectItem value="visualizador">Visualizador</SelectItem>
                   </SelectContent>

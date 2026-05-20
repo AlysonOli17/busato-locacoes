@@ -66,6 +66,7 @@ interface Proposta {
   seguro_texto: string;
   created_at: string;
   created_by: string | null;
+  contrato_dados?: string;
   empresas?: Empresa;
 }
 
@@ -159,6 +160,12 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [equipamentosCadastro, setEquipamentosCadastro] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Admin auth modal state
+  const [adminAuthOpen, setAdminAuthOpen] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminAction, setAdminAction] = useState<{type:'edit'|'delete'; item: any} | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
   const [editing, setEditing] = useState<Proposta | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [equipamentos, setEquipamentos] = useState<PropostaEquip[]>([]);
@@ -215,21 +222,33 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     setContractProposal(item);
     setContractEmpresaId(item.empresa_id || "");
 
-    const cached = contractDataCache[item.id];
+    let cached: any = null;
+    if (item.contrato_dados) {
+      try {
+        cached = JSON.parse(item.contrato_dados);
+      } catch (e) {
+        console.error("Erro ao fazer parse dos dados de contrato persistidos:", e);
+      }
+    }
+
+    if (!cached) {
+      cached = contractDataCache[item.id];
+    }
+
     if (cached) {
       // Restore previously filled contract data
-      setContractEquipments(cached.equipamentos);
-      setContractStartDate(cached.startDate);
-      setContractEndDate(cached.endDate);
-      setDiaInicioMedicao(cached.diaInicioMedicao);
-      setDiaFimMedicao(cached.diaFimMedicao);
-      setPrazoPagamentoDias(cached.prazoPagamentoDias);
-      setMultaAtrasoPercent(cached.multaAtrasoPercent);
-      setJurosAtrasoPercent(cached.jurosAtrasoPercent);
-      setTestemunha1Nome(cached.testemunha1Nome);
-      setTestemunha1Cpf(cached.testemunha1Cpf);
-      setTestemunha2Nome(cached.testemunha2Nome);
-      setTestemunha2Cpf(cached.testemunha2Cpf);
+      setContractEquipments(cached.equipamentos || []);
+      setContractStartDate(cached.startDate || "");
+      setContractEndDate(cached.endDate || "");
+      setDiaInicioMedicao(cached.diaInicioMedicao || "01");
+      setDiaFimMedicao(cached.diaFimMedicao || "30");
+      setPrazoPagamentoDias(cached.prazoPagamentoDias || item.prazo_pagamento || 30);
+      setMultaAtrasoPercent(cached.multaAtrasoPercent !== undefined ? cached.multaAtrasoPercent : 2.00);
+      setJurosAtrasoPercent(cached.jurosAtrasoPercent !== undefined ? cached.jurosAtrasoPercent : 2.00);
+      setTestemunha1Nome(cached.testemunha1Nome || "");
+      setTestemunha1Cpf(cached.testemunha1Cpf || "");
+      setTestemunha2Nome(cached.testemunha2Nome || "");
+      setTestemunha2Cpf(cached.testemunha2Cpf || "");
     } else {
       // First time opening: initialize from proposal data
       setDiaInicioMedicao("01");
@@ -317,10 +336,46 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
         juros_atraso_percent: jurosAtrasoPercent,
         tipo_medicao: contractProposal.tipo_medicao
       });
-      toast({ title: "Contrato gerado", description: "Contrato formal exportado com sucesso." });
-      // Save data so re-opening restores the filled values
-      if (contractProposal) saveContractDataToCache(contractProposal.id);
+
+      // Save contract draft to database 'observacoes' column on 'propostas' table and update status
+      const contractData = {
+        equipamentos: contractEquipments,
+        startDate: contractStartDate,
+        endDate: contractEndDate,
+        diaInicioMedicao,
+        diaFimMedicao,
+        prazoPagamentoDias,
+        multaAtrasoPercent,
+        jurosAtrasoPercent,
+        testemunha1Nome,
+        testemunha1Cpf,
+        testemunha2Nome,
+        testemunha2Cpf,
+      };
+
+      const obsJson = {
+        _isContractDraft: true,
+        observacoes_proposta: contractProposal.observacoes || "",
+        contrato_dados: contractData
+      };
+
+      const { error: updateError } = await supabase
+        .from("propostas")
+        .update({
+          status: "Contrato Emitido",
+          campo_extra_4: JSON.stringify(obsJson)
+        } as any)
+        .eq("id", contractProposal.id);
+
+      if (updateError) {
+        toast({ title: "Aviso", description: "Contrato gerado, mas erro ao salvar dados do contrato no banco: " + updateError.message, variant: "destructive" });
+      } else {
+        toast({ title: "Contrato gerado", description: "Contrato formal exportado e dados salvos com sucesso." });
+      }
+
+      saveContractDataToCache(contractProposal.id);
       setContractDialogOpen(false);
+      fetchData();
     } catch (err: any) {
       toast({ title: "Erro ao gerar PDF", description: err.message, variant: "destructive" });
     }
@@ -338,6 +393,21 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     if (propRes.data) {
       const peList = peRes.data || [];
       const propostasData = propRes.data.map((p: any) => {
+        let obsTexto = p.campo_extra_4 || "";
+        let contratoDadosJson = "";
+        
+        if (obsTexto.trim().startsWith("{")) {
+          try {
+            const parsed = JSON.parse(obsTexto);
+            if (parsed && parsed._isContractDraft) {
+              obsTexto = parsed.observacoes_proposta || "";
+              contratoDadosJson = JSON.stringify(parsed.contrato_dados) || "";
+            }
+          } catch (e) {
+            // Treat as raw string if JSON parsing fails
+          }
+        }
+
         const mapped: Proposta = {
           id: p.id,
           numero_sequencial: p.numero,
@@ -355,7 +425,8 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
           consultor_nome_2: p.campo_extra_1 || "",
           consultor_email_2: p.campo_extra_2 || "",
           consultor_telefone_2: p.campo_extra_3 || "",
-          observacoes: p.campo_extra_4 || "",
+          observacoes: obsTexto,
+          contrato_dados: contratoDadosJson,
           franquia_horas_texto: p.garantia_minima || "",
           horas_excedentes_texto: p.observacao_1 || "",
           disponibilidade_texto: p.observacao_2 || "",
@@ -465,6 +536,19 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       statusToSave = "Aguardando Aprovação";
     }
 
+    let finalCampoExtra4 = form.observacoes;
+    if (editing && editing.contrato_dados) {
+      try {
+        const contractData = JSON.parse(editing.contrato_dados);
+        const obsJson = {
+          _isContractDraft: true,
+          observacoes_proposta: form.observacoes,
+          contrato_dados: contractData
+        };
+        finalCampoExtra4 = JSON.stringify(obsJson);
+      } catch (e) {}
+    }
+
     const dbPayload: any = {
       empresa_id: form.empresa_id,
       data: form.data,
@@ -480,7 +564,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       campo_extra_1: form.consultor_nome_2,
       campo_extra_2: form.consultor_email_2,
       campo_extra_3: form.consultor_telefone_2,
-      campo_extra_4: form.observacoes,
+      campo_extra_4: finalCampoExtra4,
       garantia_minima: form.franquia_horas_texto,
       observacao_1: form.horas_excedentes_texto,
       observacao_2: form.disponibilidade_texto,
@@ -641,12 +725,206 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     }
 
     toast({ title: "Proposta aprovada", description: "O operador foi notificado." });
-    fetchData();
+    await fetchData();
+    // Open admin auth if needed
+    if (["Proposta Aprovada", "Contrato Emitido", "Contrato Aprovado", "Contrato Cancelado"].includes(item.status)) {
+      setAdminAction({ type: 'edit', item });
+      setAdminEmail('');
+      setAdminPassword('');
+      setAdminAuthOpen(true);
+    } else {
+      openContractDialog({ ...item, status: "Proposta Aprovada" });
+    }
+  };
+
+  const handleDownloadContractPDF = async (item: Proposta) => {
+    if (!item.contrato_dados) {
+      toast({ title: "Erro", description: "Não há dados de contrato salvos nesta proposta.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const cached = JSON.parse(item.contrato_dados);
+      const client = empresas.find(e => e.id === item.empresa_id);
+      if (!client) {
+        toast({ title: "Erro", description: "Empresa cliente não encontrada.", variant: "destructive" });
+        return;
+      }
+
+      const equipsWithDetails = (cached.equipamentos || []).map((ce: any) => {
+        return {
+          equipamento_tipo: ce.equipamento_tipo,
+          quantidade: 1,
+          valor_hora: ce.valor_hora,
+          franquia_mensal: ce.franquia_mensal,
+          numero_serie: ce.numero_serie || "—",
+          valor_mensal: ce.valor_mensal
+        };
+      });
+
+      await generateContratoPDF({
+        empresa: client,
+        equipamentos: equipsWithDetails,
+        data_inicio: cached.startDate,
+        data_fim: cached.endDate,
+        testemunhas: {
+          nome1: cached.testemunha1Nome || "",
+          cpf1: cached.testemunha1Cpf || "",
+          nome2: cached.testemunha2Nome || "",
+          cpf2: cached.testemunha2Cpf || ""
+        },
+        numero_proposta: String(item.numero_sequencial).padStart(3, "0"),
+        dia_inicio_medicao: cached.diaInicioMedicao || "01",
+        dia_fim_medicao: cached.diaFimMedicao || "30",
+        prazo_pagamento_dias: cached.prazoPagamentoDias || 30,
+        multa_atraso_percent: cached.multaAtrasoPercent !== undefined ? cached.multaAtrasoPercent : 2.00,
+        juros_atraso_percent: cached.jurosAtrasoPercent !== undefined ? cached.jurosAtrasoPercent : 2.00,
+        tipo_medicao: item.tipo_medicao
+      });
+      toast({ title: "Contrato gerado", description: "Contrato formal baixado com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar PDF", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleApproveContract = async (item: Proposta) => {
+    if (!item.contrato_dados) {
+      toast({ title: "Erro", description: "Não há dados de contrato salvos nesta proposta.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const contractData = JSON.parse(item.contrato_dados);
+      const { equipamentos, startDate, endDate, diaInicioMedicao, diaFimMedicao, prazoPagamentoDias } = contractData;
+
+      if (!equipamentos || equipamentos.length === 0) {
+        toast({ title: "Erro", description: "O contrato não possui equipamentos configurados.", variant: "destructive" });
+        return;
+      }
+
+      // Verificação: o primeiro equipamento precisa estar vinculado a um equipamento físico
+      const mainEquip = equipamentos[0];
+      if (!mainEquip.equipamento_id) {
+        toast({ title: "Erro", description: "O equipamento principal do contrato precisa estar vinculado a um equipamento físico cadastrado.", variant: "destructive" });
+        return;
+      }
+
+      const mainEquipId = mainEquip.equipamento_id;
+      const contratoId = crypto.randomUUID();
+
+      // Criar payload do contrato
+      const contractPayload = {
+        id: contratoId,
+        empresa_id: item.empresa_id,
+        equipamento_id: mainEquipId,
+        valor_hora: Number(mainEquip.valor_hora) || 0,
+        horas_contratadas: Number(mainEquip.franquia_mensal) || 0,
+        data_inicio: startDate,
+        data_fim: endDate,
+        status: "Ativo",
+        dia_medicao_inicio: Number(diaInicioMedicao) || 1,
+        dia_medicao_fim: Number(diaFimMedicao) || 30,
+        prazo_faturamento: Number(prazoPagamentoDias) || 30,
+        tipo_medicao: item.tipo_medicao || "horas",
+        observacoes: `Aprovado automaticamente a partir da proposta comercial #${String(item.numero_sequencial).padStart(3, "0")}`
+      };
+
+      // 1. Inserir contrato
+      const { error: cError } = await supabase.from("contratos").insert(contractPayload);
+      if (cError) {
+        toast({ title: "Erro ao criar contrato", description: cError.message, variant: "destructive" });
+        return;
+      }
+
+      // 2. Inserir equipamentos associados
+      const junctionRows = equipamentos
+        .filter((eq: any) => eq.equipamento_id) // Apenas equipamentos vinculados fisicamente
+        .map((eq: any) => ({
+          id: crypto.randomUUID(),
+          contrato_id: contratoId,
+          equipamento_id: eq.equipamento_id,
+          valor_hora: Number(eq.valor_hora) || 0,
+          horas_contratadas: Number(eq.franquia_mensal) || 0,
+          valor_hora_excedente: 0,
+          hora_minima: 0,
+          data_entrega: startDate || null,
+          data_devolucao: endDate || null
+        }));
+
+      if (junctionRows.length > 0) {
+        const { error: jError } = await supabase.from("contratos_equipamentos").insert(junctionRows);
+        if (jError) {
+          toast({ title: "Aviso", description: "Contrato criado, mas houve erro ao associar equipamentos: " + jError.message, variant: "destructive" });
+        }
+      }
+
+      // 3. Atualizar status da proposta para "Contrato Aprovado"
+      const { error: pError } = await supabase
+        .from("propostas")
+        .update({ status: "Contrato Aprovado" } as any)
+        .eq("id", item.id);
+
+      if (pError) {
+        toast({ title: "Aviso", description: "Contrato criado, mas erro ao atualizar status da proposta: " + pError.message, variant: "destructive" });
+      } else {
+        toast({ title: "Contrato Aprovado", description: "O contrato foi aprovado e as configurações foram criadas na aba de Contratos!" });
+      }
+
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro na aprovação", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleCancelContract = async (item: Proposta) => {
+    try {
+      const { error } = await supabase
+        .from("propostas")
+        .update({ status: "Contrato Cancelado" } as any)
+        .eq("id", item.id);
+
+      if (error) {
+        toast({ title: "Erro", description: "Erro ao cancelar contrato: " + error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Contrato Cancelado", description: "O status do contrato foi atualizado para Cancelado." });
+      }
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao cancelar", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleSendContractEmail = async (item: Proposta) => {
+    if (!item.contrato_dados) {
+      toast({ title: "Erro", description: "Não há dados de contrato salvos nesta proposta.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const cached = JSON.parse(item.contrato_dados);
+      const emp = empresas.find(e => e.id === item.empresa_id);
+      const subject = encodeURIComponent(`Contrato de Locação ${emp?.nome ? `- ${emp.nome}` : ""} - BUSATO LOCAÇÕES`);
+      const body = encodeURIComponent(
+        `Prezado(a),\n\nSegue em anexo o Contrato de Locação para ${emp?.nome || "sua empresa"}.\n\nFicamos no aguardo da assinatura para prosseguirmos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
+      );
+      
+      // Generate/Download PDF first
+      await handleDownloadContractPDF(item);
+      
+      // Open mailto link
+      window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+      toast({ title: "PDF do Contrato gerado", description: "Anexe o PDF baixado ao e-mail que será aberto." });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
+    }
   };
 
   const statusColor = (s: string) => {
-    if (s === "Proposta Aprovada") return "bg-success text-success-foreground";
-    if (s === "Aguardando Aprovação") return "bg-warning text-warning-foreground";
+    if (s === "Proposta Aprovada") return "bg-success text-success-foreground hover:bg-success";
+    if (s === "Aguardando Aprovação") return "bg-warning text-warning-foreground hover:bg-warning";
+    if (s === "Contrato Emitido") return "bg-blue-600 text-white hover:bg-blue-600";
+    if (s === "Contrato Aprovado") return "bg-emerald-600 text-white hover:bg-emerald-600";
+    if (s === "Contrato Cancelado") return "bg-destructive text-destructive-foreground hover:bg-destructive";
     return "bg-muted text-muted-foreground";
   };
 
@@ -738,12 +1016,34 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                     <TableCell className="text-sm text-muted-foreground">
                       {(item as any).propostas_equipamentos?.reduce((sum: number, e: any) => sum + (e.quantidade || 0), 0) || "—"}
                     </TableCell>
-                    <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                     <TableCell>
-                      <div className="flex items-start gap-2">
-                        {/* Seção: Proposta */}
-                        <div className="flex flex-col items-center gap-0.5">
+                      <div className="flex flex-col gap-1.5 justify-center">
+                        <div className="flex flex-col items-start">
                           <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0.5">Proposta</span>
+                          <Badge className={statusColor(item.status.startsWith("Contrato") ? "Proposta Aprovada" : item.status)}>
+                            {item.status.startsWith("Contrato") ? "Proposta Aprovada" : item.status}
+                          </Badge>
+                        </div>
+                        {(item.status === "Contrato Emitido" || item.status === "Contrato Aprovado" || item.status === "Contrato Cancelado") && (
+                          <div className="flex flex-col items-start border-t border-border pt-1">
+                            <span className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wider leading-none mb-0.5">Contrato</span>
+                            <Badge className={
+                              item.status === "Contrato Emitido" ? "bg-blue-600 text-white hover:bg-blue-600" :
+                              item.status === "Contrato Aprovado" ? "bg-emerald-600 text-white hover:bg-emerald-600" :
+                              "bg-destructive text-destructive-foreground hover:bg-destructive"
+                            }>
+                              {item.status === "Contrato Emitido" ? "Ag. Aprovação" :
+                               item.status === "Contrato Aprovado" ? "Aprovado" : "Cancelado"}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1.5">
+                        {/* Seção: Proposta */}
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0.5">Ações Proposta</span>
                           <div className="flex gap-0.5 border border-border rounded-md px-1 py-0.5 bg-muted/30">
                             {role === "admin" && item.status === "Aguardando Aprovação" && (
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-success hover:text-success" onClick={() => handleApprove(item)} title="Aprovar proposta">
@@ -753,15 +1053,10 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => generatePDF(item)} title="Gerar PDF da Proposta">
                               <FileDown className="h-3.5 w-3.5 text-accent" />
                             </Button>
-                            {item.status === "Proposta Aprovada" && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => handleSendEmail(item)} title="Enviar por e-mail">
-                                <Mail className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDuplicate(item)} title="Duplicar proposta">
-                              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => handleSendEmail(item)} title="Enviar por e-mail">
+                              <Mail className="h-3.5 w-3.5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)} title="Editar proposta">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => triggerEdit(item)} title="Editar proposta">
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <AlertDialog>
@@ -772,26 +1067,168 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader><AlertDialogTitle>Excluir proposta?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
+                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => triggerDelete(item)}>Excluir</AlertDialogAction></AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
                         </div>
 
                         {/* Seção: Contrato */}
-                        {item.status === "Proposta Aprovada" && (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wider leading-none mb-0.5">Contrato</span>
+                        {(item.status === "Proposta Aprovada" || item.status === "Contrato Emitido" || item.status === "Contrato Aprovado" || item.status === "Contrato Cancelado") && (
+                          <div className="flex flex-col items-start gap-0.5 border-t border-border pt-1 w-full">
+                            <span className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wider leading-none mb-0.5">Ações Contrato</span>
                             <div className="flex gap-0.5 border border-emerald-300 rounded-md px-1 py-0.5 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
-                                onClick={() => openContractDialog(item)}
-                                title="Emitir / Reeditar Contrato"
-                              >
-                                <FileSignature className="h-3.5 w-3.5" />
-                              </Button>
+                              
+                              {/* Botão de Emitir Contrato (Proposta Aprovada ou Contrato Cancelado) */}
+                              {(item.status === "Proposta Aprovada" || item.status === "Contrato Cancelado") && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
+                                  onClick={() => openContractDialog(item)}
+                                  title="Iniciar preenchimento do contrato"
+                                >
+                                  <FileSignature className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+
+                              {/* Botões de Contrato Emitido */}
+                              {item.status === "Contrato Emitido" && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    onClick={() => openContractDialog(item)}
+                                    title="Editar Contrato"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
+                                    onClick={() => handleSendContractEmail(item)}
+                                    title="Enviar Contrato por E-mail"
+                                  >
+                                    <Mail className="h-3.5 w-3.5" />
+                                  </Button>
+
+                                  {role === "admin" && (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-success hover:text-success-dark hover:bg-success/10"
+                                          title="Efetivar Contrato (Iniciar na aba Contratos)"
+                                        >
+                                          <CheckSquare className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Efetivar Contrato Comercial?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Esta ação irá efetivar o contrato comercial, criando e ativando as configurações e medições na aba de Contratos com base nas informações preenchidas. Deseja prosseguir?
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleApproveContract(item)}>Efetivar Contrato</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  )}
+
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        title="Cancelar Contrato"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Cancelar Contrato?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Esta ação definirá o status do contrato como Cancelado. Deseja prosseguir?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleCancelContract(item)}>Confirmar Cancelamento</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+
+                              {/* Botões de Contrato Aprovado */}
+                              {item.status === "Contrato Aprovado" && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    onClick={() => openContractDialog(item)}
+                                    title="Editar Contrato"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
+                                    onClick={() => handleDownloadContractPDF(item)}
+                                    title="Baixar Contrato PDF"
+                                  >
+                                    <FileDown className="h-3.5 w-3.5" />
+                                  </Button>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
+                                    onClick={() => handleSendContractEmail(item)}
+                                    title="Enviar Contrato por E-mail"
+                                  >
+                                    <Mail className="h-3.5 w-3.5" />
+                                  </Button>
+
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        title="Cancelar Contrato"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Cancelar Contrato Ativo?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Esta ação definirá o status da proposta como Cancelado. Deseja prosseguir?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleCancelContract(item)}>Confirmar Cancelamento</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+
                             </div>
                           </div>
                         )}
@@ -837,6 +1274,9 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                   <SelectContent>
                     <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
                     <SelectItem value="Proposta Aprovada">Proposta Aprovada</SelectItem>
+                    <SelectItem value="Contrato Emitido">Contrato Emitido</SelectItem>
+                    <SelectItem value="Contrato Aprovado">Contrato Aprovado</SelectItem>
+                    <SelectItem value="Contrato Cancelado">Contrato Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
