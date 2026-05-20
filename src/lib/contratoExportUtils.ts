@@ -173,6 +173,7 @@ export const generateContratoPDF = async (params: {
   prazo_pagamento_dias: number;
   multa_atraso_percent: number;
   juros_atraso_percent: number;
+  tipo_medicao?: string;
 }) => {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
@@ -268,15 +269,23 @@ export const generateContratoPDF = async (params: {
   printParagraph(`1.1. É objeto do presente Contrato a locação de ${numEquips} equipamento(s) para utilização conforme descrição abaixo:`, false, 6);
 
   // Table
+  const isDiaria = params.tipo_medicao === "diarias";
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [["ITEM", "EQUIPAMENTO", "CHASSIS / SERIE", "FRANQUIA HORA", "VALOR HORA", "VALOR TOTAL/MÊS"]],
+    head: [[
+      "ITEM",
+      "EQUIPAMENTO",
+      "CHASSIS / SERIE",
+      isDiaria ? "FRANQUIA DIÁRIA" : "FRANQUIA HORA",
+      isDiaria ? "VALOR DIÁRIA" : "VALOR HORA",
+      "VALOR TOTAL/MÊS"
+    ]],
     body: params.equipamentos.map((eq, i) => [
       String(i + 1).padStart(2, "0"),
       eq.equipamento_tipo,
       eq.numero_serie || "—",
-      eq.franquia_mensal ? `${eq.franquia_mensal} HORAS` : "—",
+      eq.franquia_mensal ? `${eq.franquia_mensal} ${isDiaria ? "DIÁRIAS" : "HORAS"}` : "—",
       fmtBRL(eq.valor_hora),
       fmtBRL(eq.valor_mensal)
     ]),
@@ -290,11 +299,18 @@ export const generateContratoPDF = async (params: {
 
   // Clause 1.2 & 1.3
   const firstEq = params.equipamentos[0];
-  const franquiaTxt = firstEq?.franquia_mensal ? `${firstEq.franquia_mensal} horas` : "conforme tabela";
+  const franquiaUnidade = isDiaria ? "diárias" : "horas";
+  const franquiaTxt = firstEq?.franquia_mensal ? `${firstEq.franquia_mensal} ${franquiaUnidade}` : "conforme tabela";
+  const valorUnitLabel = isDiaria ? "diária" : "hora";
   const valorUnitTxt = firstEq ? fmtBRL(firstEq.valor_hora) : "—";
-  printParagraph(`1.2. Fica acordado entre as Partes que o bem (ns) locado (s) constante na Cláusula 1.1 acima, possuem franquia mensal mínima de ${franquiaTxt} por veículo / equipamento, individualmente, sendo o valor unitário da hora de ${valorUnitTxt}.`, false, 5);
-  
-  printParagraph(`1.3. Nos casos de contratos de locação por HORA, será garantido à LOCADORA um mínimo de ${franquiaTxt} mensais de locação por veículo / equipamento, individualmente, e as horas extras trabalhadas ou à disposição que excedam esse limite serão acrescidas e registradas em Boletim de Medição, aplicando-se os preços unitários por hora pactuados na Cláusula 1.1 acima, assim como possíveis deduções previstas na Cláusula Quarta.`, false, 5);
+
+  if (isDiaria) {
+    printParagraph(`1.2. Fica acordado entre as Partes que o bem(ns) locado(s) constante na Cláusula 1.1 acima possuem franquia mensal mínima de ${franquiaTxt} por veículo / equipamento, individualmente, sendo o valor unitário da ${valorUnitLabel} de ${valorUnitTxt}.`, false, 5);
+    printParagraph(`1.3. Nos casos de contratos de locação por DIÁRIA, será garantido à LOCADORA um mínimo de ${franquiaTxt} mensais de locação por veículo / equipamento, individualmente, e as diárias extras trabalhadas ou à disposição que excedam esse limite serão acrescidas e registradas em Boletim de Medição, aplicando-se os preços unitários por diária pactuados na Cláusula 1.1 acima, assim como possíveis deduções previstas na Cláusula Quarta.`, false, 5);
+  } else {
+    printParagraph(`1.2. Fica acordado entre as Partes que o bem (ns) locado (s) constante na Cláusula 1.1 acima, possuem franquia mensal mínima de ${franquiaTxt} por veículo / equipamento, individualmente, sendo o valor unitário da hora de ${valorUnitTxt}.`, false, 5);
+    printParagraph(`1.3. Nos casos de contratos de locação por HORA, será garantido à LOCADORA um mínimo de ${franquiaTxt} mensais de locação por veículo / equipamento, individualmente, e as horas extras trabalhadas ou à disposição que excedam esse limite serão acrescidas e registradas em Boletim de Medição, aplicando-se os preços unitários por hora pactuados na Cláusula 1.1 acima, assim como possíveis deduções previstas na Cláusula Quarta.`, false, 5);
+  }
 
   printParagraph("1.3.1. Nos meses de mobilização e desmobilização do equipamento o valor mensal a ser medido será proporcional ao número de dias úteis do equipamento à disposição da obra.", false, 8);
 

@@ -273,7 +273,8 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
         dia_fim_medicao: diaFimMedicao,
         prazo_pagamento_dias: prazoPagamentoDias,
         multa_atraso_percent: multaAtrasoPercent,
-        juros_atraso_percent: jurosAtrasoPercent
+        juros_atraso_percent: jurosAtrasoPercent,
+        tipo_medicao: contractProposal.tipo_medicao
       });
       toast({ title: "Contrato gerado", description: "Contrato formal exportado com sucesso." });
       setContractDialogOpen(false);
@@ -1127,7 +1128,9 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <Label className="text-xs">Franquia Mensal (Horas)</Label>
+                        <Label className="text-xs">
+                          {contractProposal?.tipo_medicao === "diarias" ? "Franquia Mensal (Dias)" : "Franquia Mensal (Horas)"}
+                        </Label>
                         <Input
                           type="number"
                           value={ce.franquia_mensal}
@@ -1141,7 +1144,9 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Valor da Hora (R$)</Label>
+                        <Label className="text-xs">
+                          {contractProposal?.tipo_medicao === "diarias" ? "Valor da Diária (R$)" : "Valor da Hora (R$)"}
+                        </Label>
                         <CurrencyInput
                           value={ce.valor_hora}
                           onValueChange={v => {
