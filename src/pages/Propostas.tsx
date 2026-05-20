@@ -12,14 +12,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle, Mail, FileText, Clock, CheckSquare } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileDown, Eye, Copy, X, CheckCircle, Mail, FileText, Clock, CheckSquare, FileSignature } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { generatePropostaPDF } from "@/lib/propostaExportUtils";
+import { generateContratoPDF } from "@/lib/contratoExportUtils";
 
 interface Empresa {
   id: string; nome: string; cnpj: string; razao_social: string | null; nome_fantasia: string | null;
+  endereco_logradouro?: string | null; endereco_numero?: string | null; endereco_complemento?: string | null;
+  endereco_bairro?: string | null; endereco_cidade?: string | null; endereco_uf?: string | null;
 }
 
 interface ContaBancaria {
@@ -27,7 +30,7 @@ interface ContaBancaria {
 }
 
 interface Equipamento {
-  id: string; tipo: string; modelo: string; tag_placa: string | null; status: string;
+  id: string; tipo: string; modelo: string; tag_placa: string | null; status: string; numero_serie: string | null;
 }
 
 interface PropostaEquip {
@@ -166,22 +169,145 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const { toast } = useToast();
   const { role, user } = useAuth();
 
+  // Contract Modal State
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [contractProposal, setContractProposal] = useState<Proposta | null>(null);
+  const [contractStartDate, setContractStartDate] = useState("");
+  const [contractEndDate, setContractEndDate] = useState("");
+  const [contractEquipments, setContractEquipments] = useState<any[]>([]);
+  const [testemunha1Nome, setTestemunha1Nome] = useState("");
+  const [testemunha1Cpf, setTestemunha1Cpf] = useState("");
+  const [testemunha2Nome, setTestemunha2Nome] = useState("");
+  const [testemunha2Cpf, setTestemunha2Cpf] = useState("");
+
+  const openContractDialog = (item: Proposta) => {
+    setContractProposal(item);
+    
+    const today = new Date().toISOString().slice(0, 10);
+    const threeMonthsLater = new Date();
+    threeMonthsLater.setDate(threeMonthsLater.getDate() + 90);
+    const end = threeMonthsLater.toISOString().slice(0, 10);
+    
+    setContractStartDate(today);
+    setContractEndDate(end);
+    
+    // Duplicate based on quantity
+    const peList = (item as any).propostas_equipamentos || [];
+    const eqSelects: any[] = [];
+    peList.forEach((pe: any) => {
+      for (let i = 0; i < pe.quantidade; i++) {
+        eqSelects.push({
+          equipamento_tipo: pe.equipamento_tipo,
+          equipamento_id: "", // selected physical equipment ID
+          valor_hora: pe.valor_hora,
+          franquia_mensal: pe.franquia_mensal || 0,
+          valor_mensal: pe.valor_hora * (pe.franquia_mensal || 0)
+        });
+      }
+    });
+    setContractEquipments(eqSelects);
+    setTestemunha1Nome("");
+    setTestemunha1Cpf("");
+    setTestemunha2Nome("");
+    setTestemunha2Cpf("");
+    setContractDialogOpen(true);
+  };
+
+  const handleExportContract = async () => {
+    if (!contractProposal) return;
+    
+    // Check if all equipments are selected
+    const unselected = contractEquipments.some(ce => !ce.equipamento_id);
+    if (unselected) {
+      toast({ title: "Erro", description: "Selecione o equipamento físico para todos os itens do contrato.", variant: "destructive" });
+      return;
+    }
+
+    const client = empresas.find(e => e.id === contractProposal.empresa_id);
+    if (!client) {
+      toast({ title: "Erro", description: "Empresa cliente não encontrada.", variant: "destructive" });
+      return;
+    }
+
+    // Map equipments with physical details
+    const equipsWithDetails = contractEquipments.map(ce => {
+      const eqFisico = equipamentosCadastro.find(e => e.id === ce.equipamento_id);
+      return {
+        equipamento_tipo: ce.equipamento_tipo,
+        quantidade: 1,
+        valor_hora: ce.valor_hora,
+        franquia_mensal: ce.franquia_mensal,
+        equipamento_fisico: eqFisico || { modelo: "—", tag_placa: "—", numero_serie: "—" },
+        valor_mensal: ce.valor_mensal
+      };
+    });
+
+    try {
+      await generateContratoPDF({
+        empresa: client,
+        equipamentos: equipsWithDetails,
+        data_inicio: contractStartDate,
+        data_fim: contractEndDate,
+        testemunhas: {
+          nome1: testemunha1Nome,
+          cpf1: testemunha1Cpf,
+          nome2: testemunha2Nome,
+          cpf2: testemunha2Cpf
+        },
+        numero_proposta: String(contractProposal.numero_sequencial).padStart(3, "0")
+      });
+      toast({ title: "Contrato gerado", description: "Contrato formal exportado com sucesso." });
+      setContractDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar PDF", description: err.message, variant: "destructive" });
+    }
+  };
+
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes, peRes] = await Promise.all([
-      supabase.from("propostas").select("*").order("numero_sequencial", { ascending: false }),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia").eq("status", "Ativa").order("nome"),
+      (supabase.from("propostas") as any).select("*").order("numero", { ascending: false }),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status").eq("status", "Ativo").order("tipo"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status, numero_serie").eq("status", "Ativo").order("tipo"),
       supabase.from("propostas_equipamentos").select("*")
     ]);
 
     if (propRes.data) {
       const peList = peRes.data || [];
-      const propostasData = propRes.data.map(p => ({
-        ...p,
-        propostas_equipamentos: peList.filter(pe => pe.proposta_id === p.id)
-      }));
-      setItems(propostasData as unknown as Proposta[]);
+      const propostasData = propRes.data.map((p: any) => {
+        const mapped: Proposta = {
+          id: p.id,
+          numero_sequencial: p.numero,
+          empresa_id: p.empresa_id,
+          data: p.data,
+          validade_dias: p.validade_dias,
+          status: p.status,
+          valor_mobilizacao: Number(p.desconto) || 0,
+          valor_mobilizacao_texto: p.condicoes_pagamento || "",
+          prazo_pagamento: p.prazo_entrega || 0,
+          conta_bancaria_id: p.conta_bancaria_id,
+          consultor_nome: p.responsavel_nome || "",
+          consultor_email: p.responsavel_email || "",
+          consultor_telefone: p.responsavel_telefone || "",
+          consultor_nome_2: p.campo_extra_1 || "",
+          consultor_email_2: p.campo_extra_2 || "",
+          consultor_telefone_2: p.campo_extra_3 || "",
+          observacoes: p.campo_extra_4 || "",
+          franquia_horas_texto: p.garantia_minima || "",
+          horas_excedentes_texto: p.observacao_1 || "",
+          disponibilidade_texto: p.observacao_2 || "",
+          analise_cadastral_texto: p.observacao_3 || "",
+          seguro_texto: p.observacao_4 || "",
+          tipo_medicao: p.tipo_unidade || "horas",
+          created_at: p.created_at,
+          created_by: p.user_id || null,
+        };
+        return {
+          ...mapped,
+          propostas_equipamentos: peList.filter(pe => pe.proposta_id === p.id)
+        };
+      });
+      setItems(propostasData);
     }
     if (empRes.data) setEmpresas(empRes.data as Empresa[]);
     if (contasRes.data) setContas(contasRes.data as ContaBancaria[]);
@@ -276,47 +402,47 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       statusToSave = "Aguardando Aprovação";
     }
 
-    const payload: any = {
+    const dbPayload: any = {
       empresa_id: form.empresa_id,
       data: form.data,
       validade_dias: form.validade_dias,
       status: statusToSave,
-      valor_mobilizacao: form.valor_mobilizacao,
-      valor_mobilizacao_texto: form.valor_mobilizacao_texto,
-      prazo_pagamento: form.prazo_pagamento,
+      desconto: form.valor_mobilizacao,
+      condicoes_pagamento: form.valor_mobilizacao_texto,
+      prazo_entrega: form.prazo_pagamento,
       conta_bancaria_id: form.conta_bancaria_id || null,
-      consultor_nome: form.consultor_nome,
-      consultor_email: form.consultor_email,
-      consultor_telefone: form.consultor_telefone,
-      consultor_nome_2: form.consultor_nome_2,
-      consultor_email_2: form.consultor_email_2,
-      consultor_telefone_2: form.consultor_telefone_2,
-      observacoes: form.observacoes,
-      franquia_horas_texto: form.franquia_horas_texto,
-      horas_excedentes_texto: form.horas_excedentes_texto,
-      disponibilidade_texto: form.disponibilidade_texto,
-      analise_cadastral_texto: form.analise_cadastral_texto,
-      seguro_texto: form.seguro_texto,
-      tipo_medicao: form.tipo_medicao,
+      responsavel_nome: form.consultor_nome,
+      responsavel_email: form.consultor_email,
+      responsavel_telefone: form.consultor_telefone,
+      campo_extra_1: form.consultor_nome_2,
+      campo_extra_2: form.consultor_email_2,
+      campo_extra_3: form.consultor_telefone_2,
+      campo_extra_4: form.observacoes,
+      garantia_minima: form.franquia_horas_texto,
+      observacao_1: form.horas_excedentes_texto,
+      observacao_2: form.disponibilidade_texto,
+      observacao_3: form.analise_cadastral_texto,
+      observacao_4: form.seguro_texto,
+      tipo_unidade: form.tipo_medicao,
     };
 
     if (isNew && user) {
-      payload.created_by = user.id;
+      dbPayload.user_id = user.id;
     }
 
     let propostaId: string;
     let numSeq: number | undefined;
     if (editing) {
-      const { error } = await supabase.from("propostas").update(payload).eq("id", editing.id);
+      const { error } = await (supabase.from("propostas") as any).update(dbPayload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       propostaId = editing.id;
       numSeq = editing.numero_sequencial;
     } else {
       const newId = crypto.randomUUID();
-      const { data, error } = await supabase.from("propostas").insert({ ...payload, id: newId }).select("id, numero_sequencial").single();
+      const { data, error } = await (supabase.from("propostas") as any).insert({ ...dbPayload, id: newId }).select("id, numero").single();
       if (error || (!data && !newId)) { toast({ title: "Erro", description: error?.message || "Erro", variant: "destructive" }); return; }
       propostaId = data?.id || newId;
-      numSeq = data?.numero_sequencial || 0;
+      numSeq = data?.numero || 0;
     }
 
     // Save equipamentos
@@ -372,32 +498,32 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     const { data: eqs } = await supabase.from("propostas_equipamentos").select("*").eq("proposta_id", item.id);
     const { data: resps } = await supabase.from("propostas_responsabilidades").select("*").eq("proposta_id", item.id);
 
-    const payload: any = {
+    const dbPayload: any = {
       empresa_id: item.empresa_id,
       data: new Date().toISOString().slice(0, 10),
       validade_dias: item.validade_dias,
       status: "Aguardando Aprovação",
-      valor_mobilizacao: item.valor_mobilizacao,
-      valor_mobilizacao_texto: item.valor_mobilizacao_texto,
-      prazo_pagamento: item.prazo_pagamento,
+      desconto: item.valor_mobilizacao,
+      condicoes_pagamento: item.valor_mobilizacao_texto,
+      prazo_entrega: item.prazo_pagamento,
       conta_bancaria_id: item.conta_bancaria_id,
-      consultor_nome: item.consultor_nome,
-      consultor_email: item.consultor_email,
-      consultor_telefone: item.consultor_telefone,
-      consultor_nome_2: item.consultor_nome_2,
-      consultor_email_2: item.consultor_email_2,
-      consultor_telefone_2: item.consultor_telefone_2,
-      observacoes: item.observacoes,
-      franquia_horas_texto: item.franquia_horas_texto,
-      horas_excedentes_texto: item.horas_excedentes_texto,
-      disponibilidade_texto: item.disponibilidade_texto,
-      analise_cadastral_texto: item.analise_cadastral_texto,
-      seguro_texto: item.seguro_texto,
-      tipo_medicao: (item as any).tipo_medicao || "horas",
+      responsavel_nome: item.consultor_nome,
+      responsavel_email: item.consultor_email,
+      responsavel_telefone: item.consultor_telefone,
+      campo_extra_1: item.consultor_nome_2,
+      campo_extra_2: item.consultor_email_2,
+      campo_extra_3: item.consultor_telefone_2,
+      campo_extra_4: item.observacoes,
+      garantia_minima: item.franquia_horas_texto,
+      observacao_1: item.horas_excedentes_texto,
+      observacao_2: item.disponibilidade_texto,
+      observacao_3: item.analise_cadastral_texto,
+      observacao_4: item.seguro_texto,
+      tipo_unidade: (item as any).tipo_medicao || "horas",
     };
 
     const newId = crypto.randomUUID();
-    const { data: newProp, error } = await supabase.from("propostas").insert({ ...payload, id: newId }).select("id").single();
+    const { data: newProp, error } = await (supabase.from("propostas") as any).insert({ ...dbPayload, id: newId }).select("id").single();
     if (error || (!newProp && !newId)) { toast({ title: "Erro", description: error?.message, variant: "destructive" }); return; }
 
     const finalId = newProp?.id || newId;
@@ -560,9 +686,14 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                           </Button>
                         )}
                         {item.status === "Proposta Aprovada" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleSendEmail(item)} title="Enviar por e-mail" className="text-primary hover:text-primary">
-                            <Mail className="h-4 w-4" />
-                          </Button>
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleSendEmail(item)} title="Enviar por e-mail" className="text-primary hover:text-primary">
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => openContractDialog(item)} title="Emitir Contrato" className="text-success hover:text-success">
+                              <FileSignature className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                         <Button variant="ghost" size="icon" onClick={() => generatePDF(item)} title="Gerar PDF">
                           <FileDown className="h-4 w-4 text-accent" />
@@ -817,6 +948,142 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} className="bg-accent text-accent-foreground">{editing ? "Salvar" : "Criar Proposta"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de emissão de contrato */}
+      <Dialog open={contractDialogOpen} onOpenChange={setContractDialogOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Emitir Contrato Formal de Locação</DialogTitle>
+            <DialogDescription>
+              Preencha os dados adicionais necessários para gerar as cláusulas do contrato formal em PDF.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Datas de vigência */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Data de Início da Locação</Label>
+                <Input type="date" value={contractStartDate} onChange={e => setContractStartDate(e.target.value)} />
+              </div>
+              <div>
+                <Label>Data de Término Estimada</Label>
+                <Input type="date" value={contractEndDate} onChange={e => setContractEndDate(e.target.value)} />
+              </div>
+            </div>
+
+            {/* Equipamentos do Contrato */}
+            <div>
+              <h3 className="font-semibold text-sm mb-3">Selecione os Equipamentos Físicos</h3>
+              <div className="space-y-4">
+                {contractEquipments.map((ce, idx) => (
+                  <div key={idx} className="border border-border rounded-lg p-4 bg-muted/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase text-primary">Item {String(idx + 1).padStart(2, "0")} — {ce.equipamento_tipo}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="md:col-span-2">
+                        <Label className="text-xs">Equipamento Físico (Placa / Chassi / Série)</Label>
+                        <SearchableSelect
+                          options={equipamentosCadastro
+                            .filter(e => e.tipo === ce.equipamento_tipo)
+                            .map(e => ({
+                              value: e.id,
+                              label: `${e.modelo} (Placa: ${e.tag_placa || "—"} | Série: ${e.numero_serie || "—"})`
+                            }))}
+                          value={ce.equipamento_id}
+                          onValueChange={v => {
+                            const newEqs = [...contractEquipments];
+                            newEqs[idx].equipamento_id = v;
+                            setContractEquipments(newEqs);
+                          }}
+                          placeholder="Selecione o equipamento cadastrado..."
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Valor da Hora (R$)</Label>
+                        <CurrencyInput
+                          value={ce.valor_hora}
+                          onValueChange={v => {
+                            const newEqs = [...contractEquipments];
+                            newEqs[idx].valor_hora = v;
+                            newEqs[idx].valor_mensal = v * (newEqs[idx].franquia_mensal || 0);
+                            setContractEquipments(newEqs);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Franquia Mensal (Horas)</Label>
+                        <Input
+                          type="number"
+                          value={ce.franquia_mensal}
+                          onChange={e => {
+                            const val = Number(e.target.value);
+                            const newEqs = [...contractEquipments];
+                            newEqs[idx].franquia_mensal = val;
+                            newEqs[idx].valor_mensal = newEqs[idx].valor_hora * val;
+                            setContractEquipments(newEqs);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Valor Mensal Estimado (R$)</Label>
+                        <CurrencyInput
+                          value={ce.valor_mensal}
+                          onValueChange={v => {
+                            const newEqs = [...contractEquipments];
+                            newEqs[idx].valor_mensal = v;
+                            setContractEquipments(newEqs);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Testemunhas */}
+            <div>
+              <h3 className="font-semibold text-sm mb-3">Dados das Testemunhas (Opcional)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 border border-border rounded-lg p-3">
+                  <span className="text-xs font-bold text-muted-foreground uppercase">Testemunha 1</span>
+                  <div>
+                    <Label className="text-xs">Nome Completo</Label>
+                    <Input value={testemunha1Nome} onChange={e => setTestemunha1Nome(e.target.value)} placeholder="Nome" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">CPF</Label>
+                    <Input value={testemunha1Cpf} onChange={e => setTestemunha1Cpf(e.target.value)} placeholder="000.000.000-00" />
+                  </div>
+                </div>
+
+                <div className="space-y-2 border border-border rounded-lg p-3">
+                  <span className="text-xs font-bold text-muted-foreground uppercase">Testemunha 2</span>
+                  <div>
+                    <Label className="text-xs">Nome Completo</Label>
+                    <Input value={testemunha2Nome} onChange={e => setTestemunha2Nome(e.target.value)} placeholder="Nome" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">CPF</Label>
+                    <Input value={testemunha2Cpf} onChange={e => setTestemunha2Cpf(e.target.value)} placeholder="000.000.000-00" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContractDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleExportContract} className="bg-accent text-accent-foreground">
+              <FileSignature className="h-4 w-4 mr-2" /> Gerar Contrato (PDF)
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
