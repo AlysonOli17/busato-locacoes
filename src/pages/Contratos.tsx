@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { getEquipLabel, parseLocalDate } from "@/lib/utils";
+import { getEquipLabel } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -471,7 +471,27 @@ const Contratos = () => {
 
   const availableEquipamentos = equipamentos.filter(e => e.status === "Ativo" && !formEquipamentos.some(fe => fe.equipamento_id === e.id));
 
-  const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+  const safeParseLocalDate = (dateStr: string | null | undefined): Date | null => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    return d;
+  };
+
+  const parseLocalDate = (dateStr: string | null | undefined): Date => {
+    return safeParseLocalDate(dateStr) || new Date(NaN);
+  };
+
+  const formatLocalDate = (dateStr: string | null | undefined): string => {
+    const d = safeParseLocalDate(dateStr);
+    if (!d) return "—";
+    return d.toLocaleDateString("pt-BR");
+  };
+
+  const fmt = (v: number | null | undefined) => {
+    if (v === null || v === undefined || isNaN(Number(v))) return "—";
+    return `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+  };
 
   // --- Ajustes Temporários ---
   const openAjustes = async (item: Contrato) => {
@@ -855,8 +875,8 @@ const Contratos = () => {
     const { error } = await supabase.from("contratos").update({
       data_fim: prorrogacaoForm.nova_data_fim,
       observacoes: ajustesContrato.observacoes
-        ? `${ajustesContrato.observacoes}\n[Prorrogação] De ${parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR")} para ${parseLocalDate(prorrogacaoForm.nova_data_fim).toLocaleDateString("pt-BR")}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`
-        : `[Prorrogação] De ${parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR")} para ${parseLocalDate(prorrogacaoForm.nova_data_fim).toLocaleDateString("pt-BR")}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`,
+        ? `${ajustesContrato.observacoes}\n[Prorrogação] De ${formatLocalDate(ajustesContrato.data_fim)} para ${formatLocalDate(prorrogacaoForm.nova_data_fim)}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`
+        : `[Prorrogação] De ${formatLocalDate(ajustesContrato.data_fim)} para ${formatLocalDate(prorrogacaoForm.nova_data_fim)}${prorrogacaoForm.motivo ? ` — ${prorrogacaoForm.motivo}` : ""}`,
     }).eq("id", ajustesContrato.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Sucesso", description: "Contrato prorrogado com sucesso!" });
@@ -939,7 +959,7 @@ const Contratos = () => {
     if (!finalizarContrato) return;
     const obs = finalizarContrato.observacoes || "";
     const encerramento = finalizarForm.data_encerramento || new Date().toISOString().slice(0, 10);
-    const newObs = `${obs}\n[Encerrado em ${parseLocalDate(encerramento).toLocaleDateString("pt-BR")}]${finalizarForm.motivo ? ` — ${finalizarForm.motivo}` : ""}`.trim();
+    const newObs = `${obs}\n[Encerrado em ${formatLocalDate(encerramento)}]${finalizarForm.motivo ? ` — ${finalizarForm.motivo}` : ""}`.trim();
     const { error } = await supabase.from("contratos").update({
       status: "Encerrado",
       data_fim: encerramento,
@@ -1122,7 +1142,7 @@ const Contratos = () => {
                         </HoverCard>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {parseLocalDate(item.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(item.data_fim).toLocaleDateString("pt-BR")}
+                        {formatLocalDate(item.data_inicio)} - {formatLocalDate(item.data_fim)}
                       </TableCell>
                       <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell>
@@ -1163,7 +1183,7 @@ const Contratos = () => {
               Dashboard de Uso — {dashboardContrato?.empresas?.nome}{dashboardContrato?.empresas?.obra ? ` (Obra: ${dashboardContrato.empresas.obra})` : ""}
             </DialogTitle>
             <DialogDescription>
-              Período: {dashboardContrato ? `${parseLocalDate(dashboardContrato.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(dashboardContrato.data_fim).toLocaleDateString("pt-BR")}` : ""}
+              Período: {dashboardContrato ? `${formatLocalDate(dashboardContrato.data_inicio)} - ${formatLocalDate(dashboardContrato.data_fim)}` : ""}
             </DialogDescription>
           </DialogHeader>
 
@@ -1558,7 +1578,7 @@ const Contratos = () => {
                             ))}
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                            <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                            <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{formatLocalDate(aj.data_inicio)} - {formatLocalDate(aj.data_fim)}</span></div>
                             {changedFields.includes("Valor/Hora") && <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>}
                             {changedFields.includes("Hora Mínima") && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
                             {changedFields.includes("Horas Contratadas") && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
@@ -1618,7 +1638,7 @@ const Contratos = () => {
                           </div>
                         )}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                          <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{parseLocalDate(aj.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(aj.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                          <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{formatLocalDate(aj.data_inicio)} - {formatLocalDate(aj.data_fim)}</span></div>
                           {(indivChanges.length === 0 || indivChanges.includes("Valor/Hora")) && <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>}
                           {(indivChanges.length === 0 || indivChanges.includes("Hora Mínima")) && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
                           {(indivChanges.length === 0 || indivChanges.includes("Horas Contratadas")) && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
@@ -1642,11 +1662,12 @@ const Contratos = () => {
                 {aditivos.map(ad => {
                   const eqs = ad.aditivos_equipamentos || [];
                   const hoje = new Date();
-                  const inicio = new Date(ad.data_inicio);
-                  const fim = new Date(ad.data_fim);
-                  const ativo = hoje >= inicio && hoje <= fim;
-                  const futuro = hoje < inicio;
-                  const passado = hoje > fim;
+                  hoje.setHours(0, 0, 0, 0);
+                  const inicio = safeParseLocalDate(ad.data_inicio);
+                  const fim = safeParseLocalDate(ad.data_fim);
+                  const ativo = inicio && fim ? (hoje >= inicio && hoje <= fim) : false;
+                  const futuro = inicio ? (hoje < inicio) : false;
+                  const passado = fim ? (hoje > fim) : false;
                   return (
                     <div key={ad.id} className={`rounded-lg border p-4 space-y-3 ${ativo ? "border-accent bg-accent/5" : passado ? "border-muted bg-muted/30 opacity-60" : "border-border"}`}>
                       <div className="flex items-center justify-between">
@@ -1677,7 +1698,7 @@ const Contratos = () => {
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div><span className="text-muted-foreground">Vigência:</span> <span className="font-medium">{parseLocalDate(ad.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(ad.data_fim).toLocaleDateString("pt-BR")}</span></div>
+                        <div><span className="text-muted-foreground">Vigência:</span> <span className="font-medium">{formatLocalDate(ad.data_inicio)} - {formatLocalDate(ad.data_fim)}</span></div>
                         <div><span className="text-muted-foreground">Equipamentos:</span> <span className="font-medium">{eqs.length}</span></div>
                       </div>
                       {ad.motivo && <p className="text-xs text-muted-foreground italic">{ad.motivo}</p>}
@@ -1713,11 +1734,11 @@ const Contratos = () => {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Início:</span>{" "}
-                        <span className="font-medium">{ajustesContrato ? parseLocalDate(ajustesContrato.data_inicio).toLocaleDateString("pt-BR") : "—"}</span>
+                        <span className="font-medium">{ajustesContrato ? formatLocalDate(ajustesContrato.data_inicio) : "—"}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Término atual:</span>{" "}
-                        <span className="font-medium">{ajustesContrato ? parseLocalDate(ajustesContrato.data_fim).toLocaleDateString("pt-BR") : "—"}</span>
+                        <span className="font-medium">{ajustesContrato ? formatLocalDate(ajustesContrato.data_fim) : "—"}</span>
                       </div>
                     </div>
                   </div>
@@ -1733,7 +1754,12 @@ const Contratos = () => {
                       />
                       {prorrogacaoForm.nova_data_fim && ajustesContrato && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Prorrogação de {Math.ceil((parseLocalDate(prorrogacaoForm.nova_data_fim).getTime() - parseLocalDate(ajustesContrato.data_fim).getTime()) / (1000 * 60 * 60 * 24))} dias
+                          Prorrogação de {(() => {
+                            const d1 = safeParseLocalDate(prorrogacaoForm.nova_data_fim);
+                            const d2 = safeParseLocalDate(ajustesContrato.data_fim);
+                            if (!d1 || !d2) return "—";
+                            return Math.ceil((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
+                          })()} dias
                         </p>
                       )}
                     </div>
@@ -1845,7 +1871,7 @@ const Contratos = () => {
               <div>
                 <Label>Data Fim</Label>
                 <Input type="date" value={ajusteForm.data_fim} onChange={(e) => setAjusteForm(prev => ({ ...prev, data_fim: e.target.value }))} />
-                {!ajusteForm.data_fim && <p className="text-xs text-muted-foreground mt-1">Se vazio, usará a data final do contrato/aditivo ({getMaxDataFim(ajustesContrato) ? parseLocalDate(getMaxDataFim(ajustesContrato)).toLocaleDateString("pt-BR") : "—"})</p>}
+                {!ajusteForm.data_fim && <p className="text-xs text-muted-foreground mt-1">Se vazio, usará a data final do contrato/aditivo ({getMaxDataFim(ajustesContrato) ? formatLocalDate(getMaxDataFim(ajustesContrato)) : "—"})</p>}
               </div>
             </div>
             {ajusteTodos && ajusteForm.data_inicio && (() => {
@@ -2043,7 +2069,7 @@ const Contratos = () => {
                   {finalizarContrato.empresas?.obra && ` (Obra: ${finalizarContrato.empresas.obra})`}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Período original: {parseLocalDate(finalizarContrato.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(finalizarContrato.data_fim).toLocaleDateString("pt-BR")}
+                  Período original: {formatLocalDate(finalizarContrato.data_inicio)} - {formatLocalDate(finalizarContrato.data_fim)}
                 </p>
               </div>
             )}
@@ -2069,7 +2095,7 @@ const Contratos = () => {
                       {finalizarPendencias.equipsSemDevolucao.map((eq, i) => (
                         <div key={i} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
                           <span className="font-medium">{eq.label}</span>
-                          <span>Entrega: {eq.data_entrega ? parseLocalDate(eq.data_entrega).toLocaleDateString("pt-BR") : "—"}</span>
+                          <span>Entrega: {eq.data_entrega ? formatLocalDate(eq.data_entrega) : "—"}</span>
                         </div>
                       ))}
                     </div>
@@ -2099,7 +2125,7 @@ const Contratos = () => {
                       <p className="text-sm font-medium text-destructive">Gastos não Faturados ({finalizarPendencias.gastosNaoFaturados.length})</p>
                       {finalizarPendencias.gastosNaoFaturados.slice(0, 5).map(g => (
                         <div key={g.id} className="flex justify-between text-xs text-muted-foreground border-b pb-1 last:border-0">
-                          <span>{g.descricao} — {parseLocalDate(g.data).toLocaleDateString("pt-BR")}</span>
+                          <span>{g.descricao} — {formatLocalDate(g.data)}</span>
                           <span>R$ {g.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                         </div>
                       ))}
