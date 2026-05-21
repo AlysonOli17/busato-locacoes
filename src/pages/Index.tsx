@@ -96,7 +96,7 @@ const Index = () => {
         supabase.from("contratos").select("*").eq("status", "Ativo"),
         supabase.from("contratos_aditivos").select("*").order("data_fim", { ascending: true }),
         supabase.from("contratos_equipamentos_ajustes").select("*").order("data_fim", { ascending: true }),
-        supabase.from("empresas").select("id, nome"),
+        supabase.from("empresas").select("id, nome, obra"),
         supabase.from("equipamentos").select("id, tipo, modelo")
       ]);
 
@@ -114,7 +114,7 @@ const Index = () => {
         if (diff <= alertaDias) {
           items.push({
             tipo: "Contrato",
-            descricao: `${emp?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
+            descricao: `${emp?.nome || "—"}${emp?.obra ? ` (Obra: ${emp.obra})` : ""} (venc. ${fim.toLocaleDateString("pt-BR")})`,
             data_fim: c.data_fim,
             dias_restantes: diff,
             status: diff < 0 ? "vencido" : diff <= 7 ? "critico" : "alerta",
@@ -130,7 +130,7 @@ const Index = () => {
         if (diff <= alertaDias) {
           items.push({
             tipo: "Aditivo",
-            descricao: `Aditivo #${a.numero} - ${ct.empresas?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
+            descricao: `Aditivo #${a.numero} - ${ct.empresas?.nome || "—"}${ct.empresas?.obra ? ` (Obra: ${ct.empresas.obra})` : ""} (venc. ${fim.toLocaleDateString("pt-BR")})`,
             data_fim: a.data_fim,
             dias_restantes: diff,
             status: diff < 0 ? "vencido" : diff <= 7 ? "critico" : "alerta",
@@ -147,7 +147,7 @@ const Index = () => {
         if (diff <= alertaDias) {
           items.push({
             tipo: "Ajuste Temporário",
-            descricao: `${eq?.tipo || ""} ${eq?.modelo || ""} - ${ct.empresas?.nome || "—"} (venc. ${fim.toLocaleDateString("pt-BR")})`,
+            descricao: `${eq?.tipo || ""} ${eq?.modelo || ""} - ${ct.empresas?.nome || "—"}${ct.empresas?.obra ? ` (Obra: ${ct.empresas.obra})` : ""} (venc. ${fim.toLocaleDateString("pt-BR")})`,
             data_fim: aj.data_fim,
             dias_restantes: diff,
             status: diff < 0 ? "vencido" : diff <= 7 ? "critico" : "alerta",
@@ -303,7 +303,14 @@ const Index = () => {
                 <TableBody>
                   {recentContratos.map((c: any) => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium text-sm">{c.empresas?.nome}</TableCell>
+                      <TableCell className="font-medium text-sm">
+                        {c.empresas?.nome}
+                        {c.empresas?.obra && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {c.empresas.obra}
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{c.equipamentos?.tipo} {c.equipamentos?.modelo}</TableCell>
                       <TableCell>
                         <Badge className={c.status === "Ativo" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
