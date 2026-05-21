@@ -167,12 +167,17 @@ const Contratos = () => {
     const baseEquipamentos = getContratoEquipamentos(contrato);
 
     baseEquipamentos.forEach(ce => {
+      const valor_hora = Number(ce.valor_hora) > 0 ? Number(ce.valor_hora) : Number(contrato.valor_hora || 0);
+      const horas_contratadas = Number(ce.horas_contratadas) > 0 ? Number(ce.horas_contratadas) : Number(contrato.horas_contratadas || 0);
+      const valor_hora_excedente = Number(ce.valor_hora_excedente) > 0 ? Number(ce.valor_hora_excedente) : valor_hora * 1.25;
+      const hora_minima = Number(ce.hora_minima) > 0 ? Number(ce.hora_minima) : 0;
+
       equipMap.set(ce.equipamento_id, {
         ...ce,
-        valor_hora: Number(ce.valor_hora),
-        horas_contratadas: Number(ce.horas_contratadas),
-        valor_hora_excedente: Number(ce.valor_hora_excedente),
-        hora_minima: Number(ce.hora_minima),
+        valor_hora,
+        horas_contratadas,
+        valor_hora_excedente,
+        hora_minima,
       });
     });
 
@@ -185,13 +190,37 @@ const Contratos = () => {
           const equipamento = eq || fallback?.equipamentos;
           if (!equipamento) return;
 
+          const valor_hora = Number(ae.valor_hora) > 0
+            ? Number(ae.valor_hora)
+            : fallback && Number(fallback.valor_hora) > 0
+              ? Number(fallback.valor_hora)
+              : Number(contrato.valor_hora || 0);
+
+          const horas_contratadas = Number(ae.horas_contratadas) > 0
+            ? Number(ae.horas_contratadas)
+            : fallback && Number(fallback.horas_contratadas) > 0
+              ? Number(fallback.horas_contratadas)
+              : Number(contrato.horas_contratadas || 0);
+
+          const valor_hora_excedente = Number(ae.valor_hora_excedente) > 0
+            ? Number(ae.valor_hora_excedente)
+            : fallback && Number(fallback.valor_hora_excedente) > 0
+              ? Number(fallback.valor_hora_excedente)
+              : valor_hora * 1.25;
+
+          const hora_minima = Number(ae.hora_minima) > 0
+            ? Number(ae.hora_minima)
+            : fallback && Number(fallback.hora_minima) > 0
+              ? Number(fallback.hora_minima)
+              : 0;
+
           equipMap.set(ae.equipamento_id, {
             id: ae.id,
             equipamento_id: ae.equipamento_id,
-            valor_hora: Number(ae.valor_hora),
-            horas_contratadas: Number(ae.horas_contratadas),
-            valor_hora_excedente: Number(ae.valor_hora_excedente),
-            hora_minima: Number(ae.hora_minima),
+            valor_hora,
+            horas_contratadas,
+            valor_hora_excedente,
+            hora_minima,
             data_entrega: ae.data_entrega,
             data_devolucao: ae.data_devolucao,
             equipamentos: equipamento,

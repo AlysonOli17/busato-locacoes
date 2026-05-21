@@ -291,10 +291,29 @@ export const MedicaoTerceirosTab = () => {
       }
 
       // Priority: ajuste > aditivo > contrato_equipamento
-      const baseValorHora = aditivo ? Number(aditivo.valor_hora) : ce ? Number(ce.valor_hora) : 0;
-      const baseValorExcedente = aditivo ? Number(aditivo.valor_hora_excedente) : ce ? Number(ce.valor_hora_excedente) : 0;
-      const baseHorasContratadas = aditivo ? Number(aditivo.horas_contratadas) : ce ? Number(ce.horas_contratadas) : 0;
-      const baseHoraMinima = aditivo ? Number(aditivo.hora_minima) : ce ? Number(ce.hora_minima) : 0;
+      const baseValorHora = (aditivo && Number(aditivo.valor_hora) > 0)
+        ? Number(aditivo.valor_hora)
+        : (ce && Number(ce.valor_hora) > 0)
+          ? Number(ce.valor_hora)
+          : 0;
+
+      const baseValorExcedente = (aditivo && Number(aditivo.valor_hora_excedente) > 0)
+        ? Number(aditivo.valor_hora_excedente)
+        : (ce && Number(ce.valor_hora_excedente) > 0)
+          ? Number(ce.valor_hora_excedente)
+          : 0;
+
+      const baseHorasContratadas = (aditivo && Number(aditivo.horas_contratadas) > 0)
+        ? Number(aditivo.horas_contratadas)
+        : (ce && Number(ce.horas_contratadas) > 0)
+          ? Number(ce.horas_contratadas)
+          : 0;
+
+      const baseHoraMinima = (aditivo && Number(aditivo.hora_minima) > 0)
+        ? Number(aditivo.hora_minima)
+        : (ce && Number(ce.hora_minima) > 0)
+          ? Number(ce.hora_minima)
+          : 0;
 
       const descontoPerc = ajuste ? Number((ajuste as any).desconto_percentual || 0) : 0;
       const fatorDesconto = descontoPerc > 0 ? (1 - descontoPerc / 100) : 1;
