@@ -44,7 +44,7 @@ interface ContratoRef {
   dia_medicao_fim: number;
   prazo_faturamento: number;
   tipo_medicao: string;
-  empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null };
+  empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null; obra: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
   contratos_equipamentos: ContratoEquip[];
 }
@@ -93,6 +93,7 @@ interface EmpresaFat {
   endereco_bairro: string | null;
   endereco_cidade: string | null;
   endereco_uf: string | null;
+  obra: string | null;
   endereco_cep: string | null;
   inscricao_estadual: string | null;
   inscricao_municipal: string | null;
@@ -184,7 +185,7 @@ export const FaturamentoContent = () => {
       supabase.from("contratos").select("*"),
       supabase.from("contratos").select("*").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone").order("nome"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone, obra").order("nome"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
       supabase.from("contratos_equipamentos").select("*")
     ]);
@@ -952,10 +953,20 @@ export const FaturamentoContent = () => {
                     <SelectItem value="all">Todas as Empresas</SelectItem>
                     {(() => {
                       const empresaMap = new Map<string, string>();
-                      contratos.forEach(c => { if (c.empresas?.nome) empresaMap.set(c.empresa_id, c.empresas.nome); });
-                      items.forEach(i => { if (i.contratos?.empresas?.nome && i.contratos?.empresa_id) empresaMap.set(i.contratos.empresa_id, i.contratos.empresas.nome); });
-                      return Array.from(empresaMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, nome]) => (
-                        <SelectItem key={id} value={id}>{nome}</SelectItem>
+                      contratos.forEach(c => { 
+                        if (c.empresas?.nome) {
+                          const label = `${c.empresas.nome}${c.empresas.obra ? ` (Obra: ${c.empresas.obra})` : ""}`;
+                          empresaMap.set(c.empresa_id, label); 
+                        }
+                      });
+                      items.forEach(i => { 
+                        if (i.contratos?.empresas?.nome && i.contratos?.empresa_id) {
+                          const label = `${i.contratos.empresas.nome}${i.contratos.empresas.obra ? ` (Obra: ${i.contratos.empresas.obra})` : ""}`;
+                          empresaMap.set(i.contratos.empresa_id, label); 
+                        }
+                      });
+                      return Array.from(empresaMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, label]) => (
+                        <SelectItem key={id} value={id}>{label}</SelectItem>
                       ));
                     })()}
                   </SelectContent>
@@ -1009,11 +1020,18 @@ export const FaturamentoContent = () => {
                       <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium text-sm">{item.contratos?.empresas?.nome}</p>
+                          <p className="font-medium text-sm flex items-center gap-2">
+                            {item.contratos?.empresas?.nome}
+                            {item.contratos?.empresas?.obra && (
+                              <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
+                                {item.contratos.empresas.obra}
+                              </Badge>
+                            )}
+                          </p>
                           <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
                           {item.empresa_faturamento_id && (() => {
                             const ef = empresasList.find(e => e.id === item.empresa_faturamento_id);
-                            return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}</p> : null;
+                            return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}{ef.obra ? ` (Obra: ${ef.obra})` : ""}</p> : null;
                           })()}
                         </div>
                       </TableCell>
@@ -1069,7 +1087,20 @@ export const FaturamentoContent = () => {
                             <Button variant="ghost" size="icon" title="Aprovar e emitir fatura" onClick={() => {
                               setApprovalItemId(item.id);
                               setApprovalNumeroNota("");
-                              setApprovalObservacoes("");
+                              
+                              const obra = item.contratos?.empresas?.obra;
+                              const inicio = item.periodo_medicao_inicio ? parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR") : "";
+                              const fim = item.periodo_medicao_fim ? parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR") : "";
+                              
+                              let obs = "";
+                              if (obra) {
+                                obs += `Obra: ${obra}`;
+                              }
+                              if (inicio && fim) {
+                                if (obs) obs += " - ";
+                                obs += `Período: ${inicio} a ${fim}`;
+                              }
+                              setApprovalObservacoes(obs);
                               setApprovalDialogOpen(true);
                             }}><ShieldCheck className="h-4 w-4 text-success" /></Button>
                           )}
@@ -1151,7 +1182,7 @@ export const FaturamentoContent = () => {
 
                   return {
                     value: c.id,
-                    label: `${c.empresas?.nome} — ${equipCount > 0 ? `${equipCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}`,
+                    label: `${c.empresas?.nome}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${equipCount > 0 ? `${equipCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}`,
                   };
                 })}
               />
@@ -1160,7 +1191,7 @@ export const FaturamentoContent = () => {
             {selectedContrato && (
               <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-                  <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome}</p>
+                  <p><strong>Empresa:</strong> {selectedContrato.empresas?.nome}{selectedContrato.empresas?.obra ? ` (Obra: ${selectedContrato.empresas.obra})` : ""}</p>
                   <p><strong>CNPJ:</strong> {selectedContrato.empresas?.cnpj}</p>
                   <p><strong>Ciclo Medição:</strong> Dia {selectedContrato.dia_medicao_inicio || 1} ao Dia {selectedContrato.dia_medicao_fim || 30}</p>
                   <p><strong>Prazo Faturamento:</strong> {selectedContrato.prazo_faturamento || 30} dias</p>
@@ -1492,7 +1523,7 @@ export const FaturamentoContent = () => {
                 searchPlaceholder="Pesquisar empresa..."
                 options={[
                   { value: "", label: "Mesma empresa do contrato" },
-                  ...empresasList.map(e => ({ value: e.id, label: `${e.nome} — ${e.cnpj}` })),
+                  ...empresasList.map(e => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""} — ${e.cnpj}` })),
                 ]}
               />
               {formEmpresaFaturamentoId && (

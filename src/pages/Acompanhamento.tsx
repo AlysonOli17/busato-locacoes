@@ -106,7 +106,7 @@ const Acompanhamento = () => {
     const [fatRes, ctRes, empRes, eqRes] = await Promise.all([
       supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
       supabase.from("contratos").select("id, empresa_id, equipamento_id, horas_contratadas, valor_hora, dia_medicao_inicio, dia_medicao_fim, prazo_faturamento"),
-      supabase.from("empresas").select("id, nome, cnpj"),
+      supabase.from("empresas").select("id, nome, cnpj, obra"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa")
     ]);
 
@@ -451,7 +451,7 @@ const Acompanhamento = () => {
                     <SelectContent>
                       <SelectItem value="all">Todas as Empresas</SelectItem>
                       {empresas.map(e => (
-                        <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                        <SelectItem key={e.id} value={e.id}>{e.nome}{e.obra ? ` (Obra: ${e.obra})` : ""}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -546,7 +546,7 @@ const Acompanhamento = () => {
                                 <CardHeader className="pb-2">
                                   <CardTitle className="text-sm flex items-center gap-2">
                                     <AlertTriangle className="h-4 w-4 text-destructive" />
-                                    {emp.nome}
+                                    {emp.nome}{emp.obra ? ` (Obra: ${emp.obra})` : ""}
                                   </CardTitle>
                                   <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
                                 </CardHeader>
@@ -584,7 +584,7 @@ const Acompanhamento = () => {
                                 <CardHeader className="pb-2">
                                   <CardTitle className="text-sm flex items-center gap-2">
                                     <Clock className="h-4 w-4 text-warning" />
-                                    {emp.nome}
+                                    {emp.nome}{emp.obra ? ` (Obra: ${emp.obra})` : ""}
                                   </CardTitle>
                                   <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
                                 </CardHeader>
@@ -653,7 +653,14 @@ const Acompanhamento = () => {
                                 <Building2 className="h-4 w-4" />
                               </div>
                               <div>
-                                <p className="font-medium text-sm leading-none">{f.contratos?.empresas?.nome}</p>
+                                <p className="font-medium text-sm leading-none flex items-center gap-2">
+                                  {f.contratos?.empresas?.nome}
+                                  {f.contratos?.empresas?.obra && (
+                                    <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
+                                      {f.contratos.empresas.obra}
+                                    </Badge>
+                                  )}
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-1 font-mono">{f.contratos?.empresas?.cnpj}</p>
                               </div>
                             </div>
@@ -716,15 +723,16 @@ const Acompanhamento = () => {
                   <TableBody>
                     {(() => {
                       const empresasFiltradas = empresas.filter(e => filtroEmpresa === "all" || e.id === filtroEmpresa);
-                      // Group by nome
-                      const grouped: Record<string, { ids: string[]; cnpjs: string[] }> = {};
+                      // Group by nome and obra
+                      const grouped: Record<string, { ids: string[]; cnpjs: string[]; nome: string; obra: string | null }> = {};
                       empresasFiltradas.forEach(emp => {
-                        if (!grouped[emp.nome]) grouped[emp.nome] = { ids: [], cnpjs: [] };
-                        grouped[emp.nome].ids.push(emp.id);
-                        if (!grouped[emp.nome].cnpjs.includes(emp.cnpj)) grouped[emp.nome].cnpjs.push(emp.cnpj);
+                        const key = `${emp.nome}${emp.obra ? ` (Obra: ${emp.obra})` : ""}`;
+                        if (!grouped[key]) grouped[key] = { ids: [], cnpjs: [], nome: emp.nome, obra: emp.obra };
+                        grouped[key].ids.push(emp.id);
+                        if (!grouped[key].cnpjs.includes(emp.cnpj)) grouped[key].cnpjs.push(emp.cnpj);
                       });
                       return Object.entries(grouped)
-                        .map(([nome, { ids, cnpjs }]) => {
+                        .map(([key, { ids, cnpjs, nome, obra }]) => {
                           const empContratos = contratos.filter(c => ids.includes(c.empresa_id));
                           const empFaturas = faturas.filter(f => {
                             const ct = contratos.find(c => c.id === f.contrato_id);
@@ -735,19 +743,26 @@ const Acompanhamento = () => {
                           const atraso = empFaturas.filter(f => getDisplayStatus(f) === "Em Atraso").length;
                           const total = empFaturas.reduce((s, f) => s + Number(f.valor_total), 0);
                           if (empContratos.length === 0 && empFaturas.length === 0) return null;
-                          return { nome, cnpjs, empContratos: empContratos.length, empFaturas: empFaturas.length, pagas, pendentes, atraso, total };
+                          return { key, nome, obra, cnpjs, empContratos: empContratos.length, empFaturas: empFaturas.length, pagas, pendentes, atraso, total };
                         })
                         .filter(Boolean)
                         .sort((a, b) => b!.empContratos - a!.empContratos)
                         .map((row) => (
-                          <TableRow key={row!.nome} className="hover:bg-muted/30 transition-colors">
+                          <TableRow key={row!.key} className="hover:bg-muted/30 transition-colors">
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
                                   <Building2 className="h-4 w-4" />
                                 </div>
                                 <div>
-                                  <p className="font-medium text-sm leading-none">{row!.nome}</p>
+                                  <p className="font-medium text-sm leading-none flex items-center gap-2">
+                                    {row!.nome}
+                                    {row!.obra && (
+                                      <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
+                                        {row!.obra}
+                                      </Badge>
+                                    )}
+                                  </p>
                                   <p className="text-xs text-muted-foreground mt-1 font-mono">{row!.cnpjs.join(", ")}</p>
                                 </div>
                               </div>
@@ -776,8 +791,16 @@ const Acompanhamento = () => {
           </DialogHeader>
           {vincularDialog.alerta && (
             <div className="space-y-4">
-              <div className="text-sm space-y-1">
-                <p><span className="text-muted-foreground">Empresa:</span> <span className="font-medium">{vincularDialog.alerta.contrato.empresas?.nome}</span></p>
+              <div className="space-y-2 mt-4 text-sm border-t pt-4">
+                <p className="font-semibold mb-2">Detalhes do Alerta:</p>
+                <p>
+                  <span className="text-muted-foreground">Empresa:</span>{" "}
+                  <span className="font-medium">
+                    {vincularDialog.alerta.contrato.empresas?.nome}
+                    {vincularDialog.alerta.contrato.empresas?.obra ? ` (Obra: ${vincularDialog.alerta.contrato.empresas.obra})` : ""}
+                  </span>
+                </p>
+                <p><span className="text-muted-foreground">Competência:</span> <span className="font-medium">{formatCompetencia(competenciaFromPeriod(vincularDialog.alerta.period))}</span></p>
                 <p><span className="text-muted-foreground">Equipamento:</span> {vincularDialog.alerta.contrato.equipamentos?.tipo} {vincularDialog.alerta.contrato.equipamentos?.modelo}</p>
                 <p><span className="text-muted-foreground">Período:</span> {parseLocalDate(vincularDialog.alerta.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(vincularDialog.alerta.period.fim).toLocaleDateString("pt-BR")}</p>
               </div>

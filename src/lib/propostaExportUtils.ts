@@ -135,7 +135,8 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
   y += 6;
 
   y = sectionTitle("CLIENTE", y);
-  y = infoLine("Razão Social:", emp?.razao_social || emp?.nome || "—", y);
+  const clientNomeObra = `${emp?.razao_social || emp?.nome || "—"}${emp?.obra ? ` (Obra: ${emp.obra})` : ""}`;
+  y = infoLine("Razão Social:", clientNomeObra, y);
   y = infoLine("CNPJ:", emp?.cnpj || "—", y);
   y += 6;
 
@@ -321,7 +322,7 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
     y = 30;
 
     y = sectionTitle("5. RESPONSABILIDADES", y);
-    const clienteName = emp?.razao_social || emp?.nome || "CLIENTE";
+    const clienteName = `${emp?.razao_social || emp?.nome || "CLIENTE"}${emp?.obra ? ` (Obra: ${emp.obra})` : ""}`;
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
@@ -360,6 +361,7 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
   }
 
   const dateStr = parseLocalDate(item.data).toLocaleDateString("pt-BR").replace(/\//g, "-");
-  const empName = (emp?.nome || "proposta").replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
+  const obraSuffix = emp?.obra ? `_${emp.obra}` : "";
+  const empName = (`${emp?.nome || "proposta"}${obraSuffix}`).replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
   doc.save(`PROPOSTA_COMERCIAL_${empName}_${dateStr}.pdf`);
 };

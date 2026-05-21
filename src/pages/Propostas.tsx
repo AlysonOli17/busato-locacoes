@@ -23,6 +23,7 @@ interface Empresa {
   id: string; nome: string; cnpj: string; razao_social: string | null; nome_fantasia: string | null;
   endereco_logradouro?: string | null; endereco_numero?: string | null; endereco_complemento?: string | null;
   endereco_bairro?: string | null; endereco_cidade?: string | null; endereco_uf?: string | null;
+  obra?: string | null;
 }
 
 interface ContaBancaria {
@@ -384,7 +385,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes, peRes] = await Promise.all([
       (supabase.from("propostas") as any).select("*").order("numero", { ascending: false }),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf").eq("status", "Ativa").order("nome"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, obra").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status, numero_serie").eq("status", "Ativo").order("tipo"),
       supabase.from("propostas_equipamentos").select("*")
@@ -1260,7 +1261,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
               <div className="md:col-span-2">
                 <Label>Empresa *</Label>
                 <SearchableSelect
-                  options={empresas.map(e => ({ value: e.id, label: `${e.nome} (${e.cnpj})` }))}
+                  options={empresas.map(e => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""} (${e.cnpj})` }))}
                   value={form.empresa_id}
                   onValueChange={v => setForm(f => ({ ...f, empresa_id: v }))}
                   placeholder="Selecione a empresa"
@@ -1495,7 +1496,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
               <div>
                 <Label>Empresa Locatária</Label>
                 <SearchableSelect
-                  options={empresas.map(e => ({ value: e.id, label: `${e.nome} (${e.cnpj})` }))}
+                  options={empresas.map(e => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""} (${e.cnpj})` }))}
                   value={contractEmpresaId}
                   onValueChange={v => setContractEmpresaId(v)}
                   placeholder="Selecione a empresa"

@@ -256,7 +256,8 @@ export const generateContratoPDF = async (params: {
   printParagraph("BUSATO LOCAÇÕES E SERVIÇOS LTDA, empresa estabelecida Av. Coronel Manoel Nunes, 145, Planalto de Carapina, Serra/ES, CEP 29.162-715, inscrita no CNPJ sob o nº 00.865.596/0001-92, neste ato denominada simplesmente CONTRATADA.", false, 5);
 
   printParagraph("De outro lado, como Locatária,", true, 3);
-  const locatariaNome = params.empresa?.razao_social || params.empresa?.nome || "LOCATÁRIA";
+  const obraSuffix = params.empresa?.obra ? ` (Obra: ${params.empresa.obra})` : "";
+  const locatariaNome = `${params.empresa?.razao_social || params.empresa?.nome || "LOCATÁRIA"}${obraSuffix}`;
   const locatariaCnpj = params.empresa?.cnpj || "—";
   const locatariaEnd = [params.empresa?.endereco_logradouro, params.empresa?.endereco_numero, params.empresa?.endereco_complemento, params.empresa?.endereco_bairro, params.empresa?.endereco_cidade, params.empresa?.endereco_uf].filter(Boolean).join(", ") || "—";
   printParagraph(`${locatariaNome}, empresa estabelecida na ${locatariaEnd}, inscrita no CNPJ sob o nº ${locatariaCnpj}, neste ato denominada simplesmente Locatária.`, false, 8);

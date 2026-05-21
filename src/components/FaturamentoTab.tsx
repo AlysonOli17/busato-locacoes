@@ -32,6 +32,7 @@ interface Empresa {
   endereco_cep: string | null;
   inscricao_estadual: string | null;
   inscricao_municipal: string | null;
+  obra?: string | null;
 }
 
 interface ContaBancaria {
@@ -69,7 +70,7 @@ interface ContratoRef {
   id: string;
   empresa_id: string;
   prazo_faturamento: number;
-  empresas: { nome: string; cnpj: string };
+  empresas: { nome: string; cnpj: string; obra?: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
 }
 
@@ -133,8 +134,8 @@ export const FaturamentoTab = () => {
   const fetchData = async () => {
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
       supabase.from("faturamento").select("*").in("status", ["Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
-      supabase.from("contratos").select("id, empresa_id, prazo_faturamento, empresas(nome, cnpj), equipamentos(tipo, modelo, tag_placa, numero_serie)"),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal"),
+      supabase.from("contratos").select("id, empresa_id, prazo_faturamento, empresas(nome, cnpj, obra), equipamentos(tipo, modelo, tag_placa, numero_serie)"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, obra"),
       supabase.from("contas_bancarias").select("*"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
     ]);
@@ -392,7 +393,8 @@ export const FaturamentoTab = () => {
     };
 
     // ── NOME/RAZÃO SOCIAL ──
-    drawFormField("NOME/RAZÃO SOCIAL", (empresa.razao_social || empresa.nome).toUpperCase(), mLeft, y, contentW);
+    const clienteNome = `${empresa.razao_social || empresa.nome}${empresa.obra ? ` - OBRA: ${empresa.obra}` : ""}`;
+    drawFormField("NOME/RAZÃO SOCIAL", clienteNome.toUpperCase(), mLeft, y, contentW);
     y += 10;
 
     // ── ENDEREÇO ──
@@ -699,7 +701,7 @@ export const FaturamentoTab = () => {
             searchPlaceholder="Pesquisar empresa..."
             options={[
               { value: "all", label: "Todas as Empresas" },
-              ...empresasComFatura.map(e => ({ value: e.id, label: e.nome })),
+              ...empresasComFatura.map(e => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""}` })),
             ]}
           />
         </div>
@@ -743,11 +745,18 @@ export const FaturamentoTab = () => {
                   <TableRow key={f.id}>
                     <TableCell className="font-mono font-bold text-sm">{f.numero_nota || String(f.numero_sequencial).padStart(3, "0")}</TableCell>
                     <TableCell>
-                      <p className="font-medium text-sm">{ct?.empresas?.nome || "—"}</p>
+                      <p className="font-medium text-sm flex items-center gap-2">
+                        {ct?.empresas?.nome || "—"}
+                        {ct?.empresas?.obra && (
+                          <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
+                            {ct.empresas.obra}
+                          </Badge>
+                        )}
+                      </p>
                       <p className="text-xs text-muted-foreground font-mono">{ct?.empresas?.cnpj}</p>
                       {f.empresa_faturamento_id && (() => {
                         const ef = empresas.find(e => e.id === f.empresa_faturamento_id);
-                        return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}</p> : null;
+                        return ef ? <p className="text-xs text-warning mt-0.5 font-sans">Faturar: {ef.nome}{ef.obra ? ` (Obra: ${ef.obra})` : ""}</p> : null;
                       })()}
                     </TableCell>
                     <TableCell className="text-sm">{getEquipLabel(ct?.equipamentos)}</TableCell>

@@ -19,6 +19,7 @@ interface Empresa {
   nome: string;
   razao_social: string;
   nome_fantasia: string;
+  obra?: string | null;
   inscricao_estadual: string;
   inscricao_municipal: string;
   endereco_logradouro: string;
@@ -39,7 +40,7 @@ interface Empresa {
 const UF_LIST = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
 
 const emptyForm = {
-  cnpj: "", nome: "", razao_social: "", nome_fantasia: "",
+  cnpj: "", nome: "", razao_social: "", nome_fantasia: "", obra: "",
   inscricao_estadual: "", inscricao_municipal: "",
   endereco_logradouro: "", endereco_numero: "", endereco_complemento: "",
   endereco_bairro: "", endereco_cidade: "", endereco_uf: "", endereco_cep: "",
@@ -162,6 +163,7 @@ const Empresas = () => {
     setForm({
       cnpj: item.cnpj, nome: item.nome,
       razao_social: item.razao_social || "", nome_fantasia: item.nome_fantasia || "",
+      obra: item.obra || "",
       inscricao_estadual: item.inscricao_estadual || "", inscricao_municipal: item.inscricao_municipal || "",
       endereco_logradouro: item.endereco_logradouro || "", endereco_numero: item.endereco_numero || "",
       endereco_complemento: item.endereco_complemento || "", endereco_bairro: item.endereco_bairro || "",
@@ -242,7 +244,10 @@ const Empresas = () => {
                           <Building2 className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm leading-none">{item.razao_social || item.nome}</p>
+                          <p className="font-medium text-sm leading-none">
+                            {item.razao_social || item.nome}
+                            {item.obra && <span className="text-xs text-muted-foreground ml-2">(Obra: {item.obra})</span>}
+                          </p>
                           {item.nome_fantasia && <p className="text-xs text-muted-foreground mt-1 hidden sm:block">{item.nome_fantasia}</p>}
                         </div>
                       </div>
@@ -301,7 +306,7 @@ const Empresas = () => {
               </div>
               <div className="h-px bg-border" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>CNPJ <span className="text-destructive">*</span></Label>
                 <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: formatCNPJ(e.target.value) })} placeholder="00.000.000/0001-00" maxLength={18} />
@@ -309,6 +314,10 @@ const Empresas = () => {
               <div>
                 <Label>Razão Social <span className="text-destructive">*</span></Label>
                 <Input value={form.razao_social} onChange={(e) => setForm({ ...form, razao_social: e.target.value })} placeholder="Razão Social da empresa" />
+              </div>
+              <div>
+                <Label>Obra / Identificação</Label>
+                <Input value={form.obra} onChange={(e) => setForm({ ...form, obra: e.target.value })} placeholder="Ex: Obra 5223, Unidade ES..." />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -866,6 +866,7 @@ export type Database = {
           inscricao_municipal: string | null
           nome: string
           nome_fantasia: string | null
+          obra: string | null
           razao_social: string | null
           status: string
           telefone: string | null
@@ -889,6 +890,7 @@ export type Database = {
           inscricao_municipal?: string | null
           nome: string
           nome_fantasia?: string | null
+          obra?: string | null
           razao_social?: string | null
           status?: string
           telefone?: string | null
@@ -912,6 +914,7 @@ export type Database = {
           inscricao_municipal?: string | null
           nome?: string
           nome_fantasia?: string | null
+          obra?: string | null
           razao_social?: string | null
           status?: string
           telefone?: string | null

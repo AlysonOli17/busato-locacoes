@@ -43,8 +43,9 @@ export const exportSimplePDF = async (data: any[], equipamentos: any[]) => {
     ces.forEach((ce: any) => {
       const devDate = globalDev[ce.equipamento_id] || null;
       if (devDate && devDate < hoje) return;
+      const empObra = i.empresas?.obra ? ` (Obra: ${i.empresas.obra})` : "";
       mainRows.push([
-        i.empresas?.nome || "",
+        `${i.empresas?.nome || ""}${empObra}`,
         i.empresas?.cnpj || "",
         `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}`,
         ce.equipamentos.tag_placa || "—",
@@ -69,33 +70,33 @@ export const exportSimplePDF = async (data: any[], equipamentos: any[]) => {
   });
   
   doc.save(`contratos_${new Date().toISOString().slice(0, 10)}.pdf`);
-};
-
-export const exportDetailedPDF = async (data: any[], equipamentos: any[]) => {
-  const { default: jsPDF } = await import("jspdf");
-  const { default: autoTable } = await import("jspdf-autotable");
-
-  const doc = new jsPDF({ orientation: "portrait" });
-  const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-  const hoje = new Date().toISOString().slice(0, 10);
-  
-  for (let idx = 0; idx < data.length; idx++) {
-    const item = data[idx];
-    if (idx > 0) doc.addPage();
-    const emp = item.empresas;
-    const startY = await addLetterhead(doc, "Contrato Detalhado");
-    let y = startY;
-
-    doc.setFontSize(12);
-    doc.setTextColor(41, 128, 185);
-    doc.text("Dados da Empresa", 14, y);
-    y += 2;
-    
-    autoTable(doc, {
-      startY: y,
-      head: [["Campo", "Valor"]],
-      body: [
-        ["Razão Social", emp?.razao_social || emp?.nome || "—"],
+ };
+ 
+ export const exportDetailedPDF = async (data: any[], equipamentos: any[]) => {
+   const { default: jsPDF } = await import("jspdf");
+   const { default: autoTable } = await import("jspdf-autotable");
+ 
+   const doc = new jsPDF({ orientation: "portrait" });
+   const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+   const hoje = new Date().toISOString().slice(0, 10);
+   
+   for (let idx = 0; idx < data.length; idx++) {
+     const item = data[idx];
+     if (idx > 0) doc.addPage();
+     const emp = item.empresas;
+     const startY = await addLetterhead(doc, "Contrato Detalhado");
+     let y = startY;
+ 
+     doc.setFontSize(12);
+     doc.setTextColor(41, 128, 185);
+     doc.text("Dados da Empresa", 14, y);
+     y += 2;
+     
+     autoTable(doc, {
+       startY: y,
+       head: [["Campo", "Valor"]],
+       body: [
+         ["Razão Social", `${emp?.razao_social || emp?.nome || "—"}${emp?.obra ? ` (Obra: ${emp.obra})` : ""}`],
         ["CNPJ", emp?.cnpj || "—"],
         ["Endereço", [emp?.endereco_logradouro, emp?.endereco_numero].filter(Boolean).join(", ") || "—"],
         ["Cidade / UF", [emp?.endereco_cidade, emp?.endereco_uf].filter(Boolean).join(" / ") || "—"],

@@ -98,7 +98,7 @@ const Contratos = () => {
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes, ceRes] = await Promise.all([
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal, status"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal, status, obra"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie, status"),
       supabase.from("contratos_equipamentos").select("*")
     ]);
@@ -1007,7 +1007,14 @@ const Contratos = () => {
                             <Briefcase className="h-4 w-4" />
                           </div>
                           <div>
-                            <p className="font-medium text-sm leading-none">{item.empresas?.nome}</p>
+                            <p className="font-medium text-sm leading-none flex items-center gap-2">
+                              {item.empresas?.nome}
+                              {item.empresas?.obra && (
+                                <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
+                                  {item.empresas.obra}
+                                </Badge>
+                              )}
+                            </p>
                             <p className="text-xs text-muted-foreground mt-1 font-mono">{item.empresas?.cnpj}</p>
                           </div>
                         </div>
@@ -1138,7 +1145,7 @@ const Contratos = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-accent" />
-              Dashboard de Uso — {dashboardContrato?.empresas?.nome}
+              Dashboard de Uso — {dashboardContrato?.empresas?.nome}{dashboardContrato?.empresas?.obra ? ` (Obra: ${dashboardContrato.empresas.obra})` : ""}
             </DialogTitle>
             <DialogDescription>
               Período: {dashboardContrato ? `${parseLocalDate(dashboardContrato.data_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(dashboardContrato.data_fim).toLocaleDateString("pt-BR")}` : ""}
@@ -1275,7 +1282,7 @@ const Contratos = () => {
                 onValueChange={(v) => setForm({ ...form, empresa_id: v })}
                 placeholder="Selecione a empresa"
                 searchPlaceholder="Pesquisar empresa..."
-                options={empresas.map((e) => ({ value: e.id, label: `${e.nome} — ${e.cnpj}` }))}
+                options={empresas.map((e) => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""} — ${e.cnpj}` }))}
               />
             </div>
 
@@ -1434,7 +1441,7 @@ const Contratos = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-accent" />
-              Gestão do Contrato — {ajustesContrato?.empresas?.nome}
+              Gestão do Contrato — {ajustesContrato?.empresas?.nome}{ajustesContrato?.empresas?.obra ? ` (Obra: ${ajustesContrato.empresas.obra})` : ""}
             </DialogTitle>
             <DialogDescription>
               Gerencie ajustes temporários, aditivos e prorrogações.
@@ -1903,7 +1910,7 @@ const Contratos = () => {
               {editingAditivo ? `Editar Aditivo #${aditivoForm.numero}` : "Novo Aditivo"}
             </DialogTitle>
             <DialogDescription>
-              {ajustesContrato && `Contrato: ${ajustesContrato.empresas?.nome || ''}`}
+              {ajustesContrato && `Contrato: ${ajustesContrato.empresas?.nome || ''}${ajustesContrato.empresas?.obra ? ` (Obra: ${ajustesContrato.empresas.obra})` : ''}`}
             </DialogDescription>
           </DialogHeader>
 
@@ -2018,7 +2025,10 @@ const Contratos = () => {
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
             {finalizarContrato && (
               <div className="rounded-lg border p-3 bg-muted/30 space-y-1">
-                <p className="text-sm font-medium">{finalizarContrato.empresas?.nome}</p>
+                <p className="text-sm font-medium">
+                  {finalizarContrato.empresas?.nome}
+                  {finalizarContrato.empresas?.obra && ` (Obra: ${finalizarContrato.empresas.obra})`}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Período original: {parseLocalDate(finalizarContrato.data_inicio).toLocaleDateString("pt-BR")} - {parseLocalDate(finalizarContrato.data_fim).toLocaleDateString("pt-BR")}
                 </p>

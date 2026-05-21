@@ -69,15 +69,21 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     doc.text(cnpjLine, mL, y);
     y += 8;
 
+    const empObra = empresaFat ? empresaFat.obra : (emp?.obra || "");
+    const clientRows = [
+      ["Cliente:", empNome],
+      ["CNPJ:", empCnpj],
+    ];
+    if (empObra) {
+      clientRows.push(["Obra/Unidade:", empObra]);
+    }
+    clientRows.push(["Contato:", emp?.contato || "—"]);
+
     // Client Info Card
     autoTable(doc, {
       startY: y,
       head: [["DADOS DO CLIENTE", ""]],
-      body: [
-        ["Cliente:", empNome],
-        ["CNPJ:", empCnpj],
-        ["Contato:", emp?.contato || "—"],
-      ],
+      body: clientRows,
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [52, 73, 94], textColor: 255 },
       columnStyles: { 0: { cellWidth: 40, fontStyle: "bold" } },
@@ -142,9 +148,33 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
       columnStyles: { 0: { cellWidth: 150 }, 1: { align: "right" } },
       theme: "grid",
     });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Observações
+    const obs = item.observacoes;
+    if (obs && obs.trim()) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      const obsLines = doc.splitTextToSize(obs, contentW);
+      const obsHeight = (obsLines.length * 4) + 6;
+
+      if (y + obsHeight + 40 > pageH) {
+        doc.addPage();
+        y = 40;
+      }
+
+      doc.text("Observações:", mL, y);
+      y += 4.5;
+      doc.setFont("helvetica", "normal");
+      obsLines.forEach((line: string) => {
+        doc.text(line, mL, y);
+        y += 4;
+      });
+      y += 2;
+    }
 
     // Signature line
-    if (y + 40 > pageH) { doc.addPage(); y = 20; } else { y = pageH - 40; }
+    if (y + 40 > pageH) { doc.addPage(); y = 40; } else { y = pageH - 40; }
     doc.setDrawColor(180);
     doc.line(mL, y, mL + 60, y);
     doc.line(pageW - mR - 60, y, pageW - mR, y);
