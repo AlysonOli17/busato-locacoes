@@ -816,6 +816,67 @@ const Contratos = () => {
     setAditivoFormOpen(true);
   };
 
+  const syncAditivosEquipamentos = async (
+    contratoId: string,
+    currentAditivoId: string,
+    currentNumero: number,
+    currentEquipamentos: any[]
+  ) => {
+    const { data: aditivosData, error: aditivosErr } = await supabase
+      .from("contratos_aditivos")
+      .select("*, aditivos_equipamentos(*)")
+      .eq("contrato_id", contratoId);
+
+    if (aditivosErr || !aditivosData) {
+      console.error("Error fetching aditivos for sync:", aditivosErr);
+      return;
+    }
+
+    for (const eq of currentEquipamentos) {
+      for (const ad of aditivosData) {
+        if (ad.id === currentAditivoId) continue;
+
+        const existing = ad.aditivos_equipamentos?.find(
+          (ae: any) => ae.equipamento_id === eq.equipamento_id
+        );
+
+        if (existing) {
+          const needsUpdate =
+            Number(existing.valor_hora) !== Number(eq.valor_hora) ||
+            Number(existing.horas_contratadas) !== Number(eq.horas_contratadas) ||
+            Number(existing.valor_hora_excedente) !== Number(eq.valor_hora_excedente) ||
+            Number(existing.hora_minima) !== Number(eq.hora_minima);
+
+          if (needsUpdate) {
+            await supabase
+              .from("aditivos_equipamentos")
+              .update({
+                valor_hora: Number(eq.valor_hora),
+                horas_contratadas: Number(eq.horas_contratadas),
+                valor_hora_excedente: Number(eq.valor_hora_excedente),
+                hora_minima: Number(eq.hora_minima),
+              })
+              .eq("id", existing.id);
+          }
+        } else if (ad.numero > currentNumero) {
+          await supabase
+            .from("aditivos_equipamentos")
+            .insert({
+              id: crypto.randomUUID(),
+              aditivo_id: ad.id,
+              equipamento_id: eq.equipamento_id,
+              valor_hora: Number(eq.valor_hora),
+              horas_contratadas: Number(eq.horas_contratadas),
+              valor_hora_excedente: Number(eq.valor_hora_excedente),
+              hora_minima: Number(eq.hora_minima),
+              data_entrega: eq.data_entrega || null,
+              data_devolucao: eq.data_devolucao || null,
+            });
+        }
+      }
+    }
+  };
+
   const handleSaveAditivo = async () => {
     if (!ajustesContrato || !aditivoForm.data_inicio || !aditivoForm.data_fim) {
       toast({ title: "Campos obrigatórios", description: "Preencha as datas de início e fim do aditivo.", variant: "destructive" });
@@ -859,6 +920,7 @@ const Contratos = () => {
       data_devolucao: fe.data_devolucao || null,
     }));
     await supabase.from("aditivos_equipamentos").insert(eqRows);
+    await syncAditivosEquipamentos(ajustesContrato.id, aditivoId, aditivoForm.numero, eqRows);
 
     setAditivoFormOpen(false);
     toast({ title: "Sucesso", description: editingAditivo ? "Aditivo atualizado." : "Aditivo criado." });
