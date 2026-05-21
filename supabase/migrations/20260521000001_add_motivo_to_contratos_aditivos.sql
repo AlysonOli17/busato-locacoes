@@ -11,3 +11,20 @@ BEGIN
         UPDATE public.contratos_aditivos SET motivo = tipo WHERE motivo = '';
     END IF;
 END $$;
+
+-- Ensure foreign key constraint between aditivos_equipamentos and contratos_aditivos exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.table_constraints 
+        WHERE constraint_name = 'aditivos_equipamentos_aditivo_id_fkey' 
+          AND table_name = 'aditivos_equipamentos'
+    ) THEN
+        ALTER TABLE public.aditivos_equipamentos 
+          ADD CONSTRAINT aditivos_equipamentos_aditivo_id_fkey 
+          FOREIGN KEY (aditivo_id) 
+          REFERENCES public.contratos_aditivos(id) 
+          ON DELETE CASCADE;
+    END IF;
+END $$;
