@@ -407,10 +407,10 @@ export const FaturamentoContent = () => {
 
       const descontoPerc = ajuste ? Number((ajuste as any).desconto_percentual || 0) : 0;
       const fatorDesconto = descontoPerc > 0 ? (1 - descontoPerc / 100) : 1;
-      const valorHora = (ajuste ? Number(ajuste.valor_hora) : baseValorHora) * fatorDesconto;
-      const valorExcedente = (ajuste ? Number(ajuste.valor_hora_excedente) : baseValorExcedente) * fatorDesconto;
-      let horasContratadas = ajuste ? Number(ajuste.horas_contratadas) : baseHorasContratadas;
-      let horaMinima = ajuste ? Number(ajuste.hora_minima) : baseHoraMinima;
+      const valorHora = (ajuste && ajuste.valor_hora !== null && ajuste.valor_hora !== undefined ? Number(ajuste.valor_hora) : baseValorHora) * fatorDesconto;
+      const valorExcedente = (ajuste && ajuste.valor_hora_excedente !== null && ajuste.valor_hora_excedente !== undefined ? Number(ajuste.valor_hora_excedente) : baseValorExcedente) * fatorDesconto;
+      let horasContratadas = ajuste && ajuste.horas_contratadas !== null && ajuste.horas_contratadas !== undefined ? Number(ajuste.horas_contratadas) : baseHorasContratadas;
+      let horaMinima = ajuste && ajuste.hora_minima !== null && ajuste.hora_minima !== undefined ? Number(ajuste.hora_minima) : baseHoraMinima;
       const horasContratadasOriginal = horasContratadas;
       const horasMinimaOriginal = horaMinima;
 

@@ -528,12 +528,33 @@ const Contratos = () => {
 
   const openEditAjuste = (aj: AjusteTemporario) => {
     setEditingAjuste(aj);
+    setAjusteTodos(false);
+    
+    const valorHoraChecked = aj.valor_hora !== null && aj.valor_hora !== undefined;
+    const valorHoraExcedenteChecked = aj.valor_hora_excedente !== null && aj.valor_hora_excedente !== undefined;
+    const horaMinimaChecked = aj.hora_minima !== null && aj.hora_minima !== undefined;
+    const horasContratadasChecked = aj.horas_contratadas !== null && aj.horas_contratadas !== undefined;
+
+    setAjusteCampos({
+      valor_hora: valorHoraChecked,
+      valor_hora_excedente: valorHoraExcedenteChecked,
+      hora_minima: horaMinimaChecked,
+      horas_contratadas: horasContratadasChecked,
+    });
+
+    const allEquip = getAllEquipForAjuste(ajustesContrato);
+    const ce = allEquip.find(c => c.equipamento_id === aj.equipamento_id);
+    const origValorHora = ce ? Number(ce.valor_hora) : 0;
+    const origValorExcedente = ce ? Number(ce.valor_hora_excedente) : 0;
+    const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
+    const origHorasContratadas = ce ? Number(ce.horas_contratadas) : 0;
+
     setAjusteForm({
       equipamento_ids: [aj.equipamento_id],
-      valor_hora: aj.valor_hora,
-      valor_hora_excedente: aj.valor_hora_excedente,
-      hora_minima: aj.hora_minima,
-      horas_contratadas: aj.horas_contratadas,
+      valor_hora: valorHoraChecked ? aj.valor_hora : origValorHora,
+      valor_hora_excedente: valorHoraExcedenteChecked ? aj.valor_hora_excedente : origValorExcedente,
+      hora_minima: horaMinimaChecked ? aj.hora_minima : origHoraMinima,
+      horas_contratadas: horasContratadasChecked ? aj.horas_contratadas : origHorasContratadas,
       data_inicio: aj.data_inicio,
       data_fim: aj.data_fim,
       motivo: (aj.motivo || "").replace("[LOTE] ", "").replace("[LOTE]", ""),
@@ -563,10 +584,10 @@ const Contratos = () => {
       const payload = {
         contrato_id: ajustesContrato.id,
         equipamento_id: ajusteForm.equipamento_ids[0],
-        valor_hora: Number(ajusteForm.valor_hora),
-        valor_hora_excedente: Number(ajusteForm.valor_hora_excedente),
-        hora_minima: Number(ajusteForm.hora_minima),
-        horas_contratadas: Number(ajusteForm.horas_contratadas),
+        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : null,
+        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : null,
+        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : null,
+        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : null,
         data_inicio: ajusteForm.data_inicio,
         data_fim: dataFimFinal,
         motivo: ajusteForm.motivo,
@@ -620,14 +641,14 @@ const Contratos = () => {
         return;
       }
 
-      const rows = Array.from(equipMap.entries()).map(([eqId, vals]) => ({
+      const rows = Array.from(equipMap.entries()).map(([eqId]) => ({
         id: crypto.randomUUID(),
         contrato_id: ajustesContrato.id,
         equipamento_id: eqId,
-        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : vals.valor_hora,
-        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : vals.valor_hora_excedente,
-        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : vals.hora_minima,
-        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : vals.horas_contratadas,
+        valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : null,
+        valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : null,
+        hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : null,
+        horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : null,
         data_inicio: ajusteForm.data_inicio,
         data_fim: dataFimFinal,
         motivo: ajusteForm.motivo ? `[LOTE] ${ajusteForm.motivo}` : "[LOTE]",
@@ -637,21 +658,15 @@ const Contratos = () => {
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
       // Multi-select individual: one row per selected equipment
-      const allEquip = getAllEquipForAjuste(ajustesContrato);
       const rows = ajusteForm.equipamento_ids.map(eqId => {
-        const ce = allEquip.find(c => c.equipamento_id === eqId);
-        const origValorHora = ce ? Number(ce.valor_hora) : 0;
-        const origValorExcedente = ce ? Number(ce.valor_hora_excedente) : 0;
-        const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
-        const origHorasContratadas = ce ? Number(ce.horas_contratadas) : 0;
         return {
           id: crypto.randomUUID(),
           contrato_id: ajustesContrato.id,
           equipamento_id: eqId,
-          valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : origValorHora,
-          valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : origValorExcedente,
-          hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : origHoraMinima,
-          horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : origHorasContratadas,
+          valor_hora: ajusteCampos.valor_hora ? Number(ajusteForm.valor_hora) : null,
+          valor_hora_excedente: ajusteCampos.valor_hora_excedente ? Number(ajusteForm.valor_hora_excedente) : null,
+          hora_minima: ajusteCampos.hora_minima ? Number(ajusteForm.hora_minima) : null,
+          horas_contratadas: ajusteCampos.horas_contratadas ? Number(ajusteForm.horas_contratadas) : null,
           data_inicio: ajusteForm.data_inicio,
           data_fim: dataFimFinal,
           motivo: ajusteForm.motivo,
@@ -1763,30 +1778,28 @@ const Contratos = () => {
                 <Switch checked={ajusteTodos} onCheckedChange={setAjusteTodos} />
               </div>
             )}
-            {!editingAjuste && (
-              <div className="p-3 rounded-lg border bg-muted/20 space-y-2">
-                <Label className="text-sm font-medium">Quais campos deseja alterar?</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={ajusteCampos.valor_hora} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, valor_hora: !!v }))} />
-                    Valor/Hora
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={ajusteCampos.valor_hora_excedente} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, valor_hora_excedente: !!v }))} />
-                    Valor Hora Excedente
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={ajusteCampos.hora_minima} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, hora_minima: !!v }))} />
-                    Hora Mínima
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={ajusteCampos.horas_contratadas} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, horas_contratadas: !!v }))} />
-                    Horas Contratadas
-                  </label>
-                </div>
-                <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais do equipamento</p>
+            <div className="p-3 rounded-lg border bg-muted/20 space-y-2">
+              <Label className="text-sm font-medium">Quais campos deseja alterar?</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={ajusteCampos.valor_hora} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, valor_hora: !!v }))} />
+                  Valor/Hora
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={ajusteCampos.valor_hora_excedente} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, valor_hora_excedente: !!v }))} />
+                  Valor Hora Excedente
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={ajusteCampos.hora_minima} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, hora_minima: !!v }))} />
+                  Hora Mínima
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={ajusteCampos.horas_contratadas} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, horas_contratadas: !!v }))} />
+                  Horas Contratadas
+                </label>
               </div>
-            )}
+              <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais do equipamento</p>
+            </div>
             {!ajusteTodos && !editingAjuste && (
             <div>
               <Label className="mb-2 block">Equipamentos <Badge variant="secondary" className="ml-2 text-xs">{ajusteForm.equipamento_ids.length} selecionado{ajusteForm.equipamento_ids.length !== 1 ? "s" : ""}</Badge></Label>
@@ -1880,12 +1893,12 @@ const Contratos = () => {
               );
             })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className={!editingAjuste && !ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><CurrencyInput value={ajusteForm.valor_hora} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora: v }))} /></div>
-              <div className={!editingAjuste && !ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><CurrencyInput value={ajusteForm.valor_hora_excedente} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: v }))} /></div>
+              <div className={!ajusteCampos.valor_hora ? "opacity-40 pointer-events-none" : ""}><Label>Valor/Hora (R$)</Label><CurrencyInput value={ajusteForm.valor_hora} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora: v }))} /></div>
+              <div className={!ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><CurrencyInput value={ajusteForm.valor_hora_excedente} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: v }))} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className={!editingAjuste && !ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
-              <div className={!editingAjuste && !ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
+              <div className={!ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
+              <div className={!ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
             </div>
             <div><Label>Motivo</Label><Input value={ajusteForm.motivo} onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: Reajuste temporário por demanda extra" /></div>
             <div>

@@ -39,10 +39,10 @@ export interface AjusteTemporario {
   id: string;
   contrato_id: string;
   equipamento_id: string;
-  valor_hora: number;
-  valor_hora_excedente: number;
-  hora_minima: number;
-  horas_contratadas: number;
+  valor_hora: number | null;
+  valor_hora_excedente: number | null;
+  hora_minima: number | null;
+  horas_contratadas: number | null;
   data_inicio: string;
   data_fim: string;
   motivo: string;
