@@ -524,6 +524,14 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     setDialogOpen(true);
   };
 
+  const triggerEdit = (item: Proposta) => {
+    openEdit(item);
+  };
+
+  const triggerDelete = async (item: Proposta) => {
+    await handleDelete(item.id);
+  };
+
   const handleSave = async () => {
     if (!form.empresa_id || equipamentos.length === 0) {
       toast({ title: "Campos obrigatórios", description: "Selecione uma empresa e adicione equipamentos.", variant: "destructive" });
@@ -688,7 +696,6 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
   };
 
   const generatePDF = async (item: Proposta) => {
-    const { toast } = useToast();
     await generatePropostaPDF(item, empresas, contas);
     toast({ title: "PDF gerado", description: "Proposta exportada com sucesso." });
   };
