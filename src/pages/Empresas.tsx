@@ -73,6 +73,8 @@ const Empresas = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Empresa | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [contatosAdicionais, setContatosAdicionais] = useState<{ id?: string; nome: string; email: string; telefone: string }[]>([]);
+  const [novoContato, setNovoContato] = useState({ nome: "", email: "", telefone: "" });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -157,8 +159,15 @@ const Empresas = () => {
     }
   };
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: Empresa) => {
+  const openNew = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setContatosAdicionais([]);
+    setNovoContato({ nome: "", email: "", telefone: "" });
+    setDialogOpen(true);
+  };
+
+  const openEdit = async (item: Empresa) => {
     setEditing(item);
     setForm({
       cnpj: item.cnpj, nome: item.nome,
@@ -172,7 +181,25 @@ const Empresas = () => {
       atividade_principal: item.atividade_principal || "",
       contato: item.contato || "", telefone: item.telefone || "", status: item.status,
     });
+    setContatosAdicionais([]);
+    setNovoContato({ nome: "", email: "", telefone: "" });
     setDialogOpen(true);
+
+    const { data: contactsData } = await supabase
+      .from("empresas_contatos")
+      .select("*")
+      .eq("empresa_id", item.id);
+    
+    if (contactsData) {
+      setContatosAdicionais(
+        contactsData.map((c: any) => ({
+          id: c.id,
+          nome: c.nome,
+          email: c.email || "",
+          telefone: c.telefone || "",
+        }))
+      );
+    }
   };
 
   const handleSave = async () => {
@@ -181,15 +208,44 @@ const Empresas = () => {
       return;
     }
     const payload = { ...form, nome: form.razao_social };
+    let empresaId = editing?.id;
+
     if (editing) {
       const { error } = await supabase.from("empresas").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     } else {
-      // Garantir que temos um ID se o banco estiver sem default
-      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const newId = crypto.randomUUID();
+      const payloadWithId = { ...payload, id: newId };
       const { error } = await supabase.from("empresas").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      empresaId = newId;
     }
+
+    if (empresaId) {
+      const { error: deleteError } = await supabase.from("empresas_contatos").delete().eq("empresa_id", empresaId);
+      if (deleteError) {
+        toast({ title: "Erro ao salvar contatos", description: deleteError.message, variant: "destructive" });
+        return;
+      }
+
+      const validContacts = contatosAdicionais.filter(c => c.nome.trim() !== "");
+      if (validContacts.length > 0) {
+        const { error: insertError } = await supabase.from("empresas_contatos").insert(
+          validContacts.map(c => ({
+            id: crypto.randomUUID(),
+            empresa_id: empresaId,
+            nome: c.nome,
+            email: c.email || null,
+            telefone: c.telefone || null
+          }))
+        );
+        if (insertError) {
+          toast({ title: "Erro ao salvar contatos", description: insertError.message, variant: "destructive" });
+          return;
+        }
+      }
+    }
+
     setDialogOpen(false);
     fetchData();
   };
@@ -403,6 +459,87 @@ const Empresas = () => {
               <div>
                 <Label>E-mail</Label>
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@empresa.com" />
+              </div>
+            </div>
+
+            {/* Contatos Adicionais */}
+            <div className="space-y-1 pt-2">
+              <p className="text-sm font-semibold text-accent">Contatos Adicionais</p>
+              <div className="h-px bg-border" />
+            </div>
+
+            {contatosAdicionais.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-1">
+                {contatosAdicionais.map((contato, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+                    <div className="space-y-1 flex-1">
+                      <p className="text-sm font-medium text-foreground">{contato.nome}</p>
+                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                        {contato.email && <span>{contato.email}</span>}
+                        {contato.telefone && <span>{contato.telefone}</span>}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setContatosAdicionais(contatosAdicionais.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end bg-muted/20 p-4 rounded-lg border border-border/60">
+              <div>
+                <Label>Nome do Contato</Label>
+                <Input
+                  value={novoContato.nome}
+                  onChange={(e) => setNovoContato({ ...novoContato, nome: e.target.value })}
+                  placeholder="Nome"
+                />
+              </div>
+              <div>
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={novoContato.email}
+                  onChange={(e) => setNovoContato({ ...novoContato, email: e.target.value })}
+                  placeholder="email@empresa.com"
+                />
+              </div>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label>Telefone</Label>
+                  <Input
+                    value={novoContato.telefone}
+                    onChange={(e) => setNovoContato({ ...novoContato, telefone: formatPhone(e.target.value) })}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={() => {
+                    if (!novoContato.nome.trim()) {
+                      toast({
+                        title: "Erro ao adicionar contato",
+                        description: "O nome do contato é obrigatório.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setContatosAdicionais([...contatosAdicionais, { ...novoContato }]);
+                    setNovoContato({ nome: "", email: "", telefone: "" });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar
+                </Button>
               </div>
             </div>
 

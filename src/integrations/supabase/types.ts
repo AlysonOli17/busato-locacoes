@@ -1506,6 +1506,41 @@ export type Database = {
         }
         Relationships: []
       }
+      empresas_contatos: {
+        Row: {
+          created_at: string
+          email: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          telefone: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          telefone?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresas_contatos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       propostas: {
         Row: {
           analise_cadastral_texto: string | null

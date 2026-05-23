@@ -718,6 +718,20 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
   const handleSendEmail = async (item: Proposta) => {
     const emp = empresas.find(e => e.id === item.empresa_id);
+    
+    // Fetch additional contacts from empresas_contatos
+    const { data: contacts } = await supabase
+      .from("empresas_contatos")
+      .select("email")
+      .eq("empresa_id", item.empresa_id);
+    
+    const additionalEmails = (contacts || [])
+      .map(c => c.email)
+      .filter(Boolean) as string[];
+    
+    const allEmails = [emp?.email, ...additionalEmails].filter(Boolean);
+    const emailsString = allEmails.join(",");
+
     const numStr = parseLocalDate(item.data).toLocaleDateString("pt-BR");
     const subject = encodeURIComponent(`Proposta Comercial ${emp?.nome ? `- ${emp.nome}` : ""} - BUSATO LOCAÇÕES`);
     const body = encodeURIComponent(
@@ -726,7 +740,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     // Generate PDF first
     await generatePDF(item);
     // Open mailto
-    window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+    window.open(`mailto:${emailsString}?subject=${subject}&body=${body}`, "_self");
     toast({ title: "PDF gerado", description: "Anexe o PDF baixado ao e-mail que será aberto." });
   };
 
@@ -927,6 +941,20 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     try {
       const cached = JSON.parse(item.contrato_dados);
       const emp = empresas.find(e => e.id === item.empresa_id);
+
+      // Fetch additional contacts from empresas_contatos
+      const { data: contacts } = await supabase
+        .from("empresas_contatos")
+        .select("email")
+        .eq("empresa_id", item.empresa_id);
+      
+      const additionalEmails = (contacts || [])
+        .map(c => c.email)
+        .filter(Boolean) as string[];
+      
+      const allEmails = [emp?.email, ...additionalEmails].filter(Boolean);
+      const emailsString = allEmails.join(",");
+
       const subject = encodeURIComponent(`Contrato de Locação ${emp?.nome ? `- ${emp.nome}` : ""} - BUSATO LOCAÇÕES`);
       const body = encodeURIComponent(
         `Prezado(a),\n\nSegue em anexo o Contrato de Locação para ${emp?.nome || "sua empresa"}.\n\nFicamos no aguardo da assinatura para prosseguirmos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
@@ -936,7 +964,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       await handleDownloadContractPDF(item);
       
       // Open mailto link
-      window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+      window.open(`mailto:${emailsString}?subject=${subject}&body=${body}`, "_self");
       toast({ title: "PDF do Contrato gerado", description: "Anexe o PDF baixado ao e-mail que será aberto." });
     } catch (err: any) {
       toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
