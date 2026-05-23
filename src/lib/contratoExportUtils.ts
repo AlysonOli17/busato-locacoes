@@ -334,7 +334,7 @@ export const generateContratoPDF = async (params: {
   const dtFimClause3 = parseLocalDate(params.data_fim);
   const diffTimeClause3 = Math.abs(dtFimClause3.getTime() - dtInicioClause3.getTime());
   const diffDaysClause3 = Math.ceil(diffTimeClause3 / (1000 * 60 * 60 * 24));
-  const mesesContrato = diffDaysClause3 / 30;
+  const mesesContrato = Math.max(1, diffDaysClause3 / 30);
   const valorGlobalEstimado = valorTotalMensal * mesesContrato;
   const valorGlobalEstimadoExt = valorExtenso(valorGlobalEstimado);
   printParagraph(`3.1. O valor global estimado do presente Contrato é de ${fmtBRL(valorGlobalEstimado)} (${valorGlobalEstimadoExt}), calculado conforme os valores unitários e prazos indicados na Cláusula 1.1 acima. Este valor serve apenas como parâmetro orçamentário, não constituindo qualquer compromisso das Partes de virem a efetivamente utilizá-lo integralmente, sendo devido apenas o montante referente ao período em que o equipamento estiver efetivamente locado, observadas as premissas de medição estabelecidas neste instrumento.`, false, 5);
