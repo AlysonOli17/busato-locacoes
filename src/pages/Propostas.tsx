@@ -602,19 +602,35 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     }
 
     // Save equipamentos
-    await supabase.from("propostas_equipamentos").delete().eq("proposta_id", propostaId);
+    const { error: deleteEqError } = await supabase.from("propostas_equipamentos").delete().eq("proposta_id", propostaId);
+    if (deleteEqError) {
+      toast({ title: "Erro ao salvar equipamentos", description: deleteEqError.message, variant: "destructive" });
+      return;
+    }
     if (equipamentos.length > 0) {
-      await supabase.from("propostas_equipamentos").insert(
+      const { error: insertEqError } = await supabase.from("propostas_equipamentos").insert(
         equipamentos.map(e => ({ id: crypto.randomUUID(), proposta_id: propostaId, equipamento_tipo: e.equipamento_tipo, quantidade: e.quantidade, valor_hora: e.valor_hora, franquia_mensal: e.franquia_mensal }))
       );
+      if (insertEqError) {
+        toast({ title: "Erro ao salvar equipamentos", description: insertEqError.message, variant: "destructive" });
+        return;
+      }
     }
 
     // Save responsabilidades
-    await supabase.from("propostas_responsabilidades").delete().eq("proposta_id", propostaId);
+    const { error: deleteRespError } = await supabase.from("propostas_responsabilidades").delete().eq("proposta_id", propostaId);
+    if (deleteRespError) {
+      toast({ title: "Erro ao salvar responsabilidades", description: deleteRespError.message, variant: "destructive" });
+      return;
+    }
     if (responsabilidades.length > 0) {
-      await supabase.from("propostas_responsabilidades").insert(
+      const { error: insertRespError } = await supabase.from("propostas_responsabilidades").insert(
         responsabilidades.map(r => ({ id: crypto.randomUUID(), proposta_id: propostaId, atividade: r.atividade, responsavel_busato: r.responsavel_busato, responsavel_cliente: r.responsavel_cliente }))
       );
+      if (insertRespError) {
+        toast({ title: "Erro ao salvar responsabilidades", description: insertRespError.message, variant: "destructive" });
+        return;
+      }
     }
 
     // Notify admins if operator created a proposal
