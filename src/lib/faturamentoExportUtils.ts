@@ -41,9 +41,9 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
 
   // Fetch Busato company data
   const { data: busatoEmp } = await supabase.from("empresas").select("*").ilike("nome", "%busato%").limit(1).single();
-  const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
-  const busatoCnpj = busatoEmp?.cnpj || "";
-  const busatoEndereco = busatoEmp ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf, busatoEmp.endereco_cep ? `CEP: ${busatoEmp.endereco_cep}` : ""].filter(Boolean).join(", ") : "";
+  const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCACOES E SERVICOS LTDA";
+  const busatoCnpj = busatoEmp?.cnpj || "54.167.719/0001-40";
+  const busatoEndereco = busatoEmp ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf, busatoEmp.endereco_cep ? `CEP: ${busatoEmp.endereco_cep}` : ""].filter(Boolean).join(", ") : "AV NOSSA SENHORA DA PENHA, 595, SALA 510, SANTA LUCIA, VITORIA, ES, CEP: 29056-250";
   const busatoIE = busatoEmp?.inscricao_estadual || "";
 
   const logo = await loadLogo();
@@ -94,24 +94,31 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     doc.text(`BOLETIM DE MEDIÇÃO${docLabel}`, pageW - mR, y + 8, { align: "right" });
     y += 18;
 
-    doc.setFontSize(7.5);
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(60, 60, 60);
+    doc.setTextColor(41, 128, 185); // Brand blue for company name
     doc.text(busatoNome.toUpperCase(), mL, y);
-    y += 4;
+    y += 4.5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100); // Gray for details
     if (busatoEndereco) {
-      doc.text(busatoEndereco, mL, y);
+      doc.text(busatoEndereco.toUpperCase(), mL, y);
       y += 3.5;
     }
     const cnpjLine = [busatoCnpj ? `CNPJ: ${busatoCnpj}` : "", busatoIE ? `Inscrição Estadual: ${busatoIE}` : ""].filter(Boolean).join(" - ");
-    doc.text(cnpjLine, mL, y);
+    doc.text(cnpjLine.toUpperCase(), mL, y);
+    y += 4.5;
+
+    // Horizontal blue line under header
+    doc.setDrawColor(41, 128, 185);
+    doc.setLineWidth(0.4);
+    doc.line(mL, y, pageW - mR, y);
     y += 8;
 
     // Fetch billing equipment items
     const { data: faturamentoItens } = await supabase.from("faturamento_equipamentos").select("*, equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("faturamento_id", item.id);
-    const itemsList = faturamentoItens || [];
+    const itemsList = (faturamentoItens as any[]) || [];
 
     // Construct "Objeto de contrato" listing Measured Equipment Types
     const uniqueTypes = new Set<string>();
@@ -167,7 +174,9 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
       const equipId = fi.equipamento_id;
       const valorUnit = Number(fi.valor_hora);
       const valorExc = Number(fi.valor_excedente_hora ?? fi.valor_hora_excedente ?? 0);
-      const totalItem = Number(fi.valor_total_item ?? fi.valor_total ?? (Number(fi.horas_normais) * valorUnit + Number(fi.horas_excedentes) * valorExc));
+      
+      // Calculate total item correctly: normas * valor_hora + exc * valor_exc
+      const totalItem = (Number(fi.horas_normais) * valorUnit) + (Number(fi.horas_excedentes) * valorExc);
       medicaoTotal += totalItem;
 
       // Query indisponibilidade for this equipment in this period
@@ -181,6 +190,10 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
 
       const indispQty = (medIndisp || []).reduce((sum, m) => sum + Number(m.horas_trabalhadas || 0), 0);
 
+      // Support fallback columns for database schema cache mismatches (valor_total_item/hora_minima and horas_totais/horas_medidas)
+      const displayMinima = Number(fi.valor_total_item ?? fi.hora_minima ?? 0);
+      const displayMedidas = Number(fi.horas_totais ?? fi.horas_medidas ?? 0);
+
       // Main equipment row
       eqRows.push([
         `${fi.equipamentos?.tipo || ""} ${fi.equipamentos?.modelo || ""}`,
@@ -188,8 +201,8 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
         fi.equipamentos?.numero_serie || "—",
         fmtBRL(valorUnit),
         fmtBRL(valorExc),
-        `${Number(fi.hora_minima || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}${unit}`,
-        `${Number(fi.horas_medidas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}${unit}`,
+        `${displayMinima.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}${unit}`,
+        `${displayMedidas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}${unit}`,
         `${indispQty.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}${unit}`,
         fmtBRL(totalItem)
       ]);

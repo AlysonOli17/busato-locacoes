@@ -81,11 +81,14 @@ interface FaturaEquip {
   equipamento_id: string;
   horas_normais: number;
   horas_excedentes: number;
-  horas_medidas: number;
+  horas_medidas?: number;
+  horas_totais?: number;
   valor_hora: number;
   valor_hora_excedente: number;
-  hora_minima: number;
-  primeiro_mes: boolean;
+  hora_minima?: number;
+  valor_total_item?: number;
+  primeiro_mes?: boolean;
+  considerar_medicao?: boolean;
 }
 
 interface EquipamentoInfo {
