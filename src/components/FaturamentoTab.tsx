@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
+import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -34,6 +34,7 @@ interface Empresa {
   inscricao_estadual: string | null;
   inscricao_municipal: string | null;
   obra?: string | null;
+  email?: string | null;
 }
 
 interface ContaBancaria {
@@ -133,7 +134,10 @@ export const FaturamentoTab = () => {
   const [editDialog, setEditDialog] = useState(false);
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null);
   const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "" });
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [payId, setPayId] = useState<string | null>(null);
   const { toast } = useToast();
   const [sortCol, setSortCol] = useState("numero");
   const [sortAsc, setSortAsc] = useState(false);
@@ -142,13 +146,22 @@ export const FaturamentoTab = () => {
   const fetchData = async () => {
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
       supabase.from("faturamento").select("*").in("status", ["Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
-      supabase.from("contratos").select("id, empresa_id, prazo_faturamento, empresas(nome, cnpj, obra), equipamentos(tipo, modelo, tag_placa, numero_serie)"),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, obra"),
+      supabase.from("contratos").select("*"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, obra, email"),
       supabase.from("contas_bancarias").select("*"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
     ]);
+
+    const empresasMap = new Map((empRes.data || []).map(e => [e.id, e]));
+    const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
+    const contratosList = (ctRes.data || []).map(c => ({
+      ...c,
+      empresas: empresasMap.get(c.empresa_id) || null,
+      equipamentos: equipMap.get(c.equipamento_id) || null,
+    }));
+
     if (fatRes.data) setFaturas(fatRes.data as unknown as Fatura[]);
-    if (ctRes.data) setContratos(ctRes.data as unknown as ContratoRef[]);
+    setContratos(contratosList as unknown as ContratoRef[]);
     if (empRes.data) setEmpresas(empRes.data as unknown as Empresa[]);
     if (contasRes.data) setContas(contasRes.data as unknown as ContaBancaria[]);
     if (equipRes.data) setEquipamentos(equipRes.data as unknown as EquipamentoInfo[]);
@@ -277,6 +290,7 @@ export const FaturamentoTab = () => {
       .update({
         numero_nota: numeroNota || null,
         data_aprovacao: hoje,
+        emissao: hoje,
         observacoes: observacoes || "",
       } as any)
       .eq("id", id);
@@ -294,16 +308,45 @@ export const FaturamentoTab = () => {
     fetchData();
   };
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    // Delete related records first
-    await supabase.from("faturamento_gastos").delete().eq("faturamento_id", deleteId);
-    await supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", deleteId);
-    const { error } = await supabase.from("faturamento").delete().eq("id", deleteId);
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Fatura excluída" });
-    setDeleteId(null);
-    fetchData();
+  const handleCancelFatura = async (id: string, reason: string) => {
+    try {
+      const faturaToCancel = faturas.find(f => f.id === id);
+      if (!faturaToCancel) return;
+
+      const dateStr = new Date().toLocaleDateString("pt-BR");
+      const cancelNote = `[Cancelada em ${dateStr}. Motivo: ${reason || "Não informado"}]`;
+      const updatedObs = faturaToCancel.observacoes 
+        ? `${faturaToCancel.observacoes}\n${cancelNote}`
+        : cancelNote;
+
+      const { error } = await supabase
+        .from("faturamento")
+        .update({
+          status: "Pendente",
+          data_aprovacao: null,
+          numero_nota: null,
+          observacoes: updatedObs,
+        } as any)
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Fatura Cancelada",
+        description: "A fatura foi cancelada e retornou como medição pendente.",
+        variant: "default",
+      });
+      setCancelDialogOpen(false);
+      setCancelId(null);
+      setCancelReason("");
+      fetchData();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao cancelar fatura",
+        description: err.message || "Erro desconhecido",
+        variant: "destructive",
+      });
+    }
   };
 
   const generateInvoicePDF = async (fatura: Fatura) => {
@@ -331,15 +374,17 @@ export const FaturamentoTab = () => {
       busatoData?.endereco_logradouro,
       busatoData?.endereco_numero,
       busatoData?.endereco_complemento,
-    ].filter(Boolean).join(", ");
+    ].filter(Boolean).join(", ") || "AV NOSSA SENHORA DA PENHA, 595, SALA 510";
     const busatoBairroLine = [
       busatoData?.endereco_bairro,
       busatoData?.endereco_cidade,
       busatoData?.endereco_uf,
       busatoData?.endereco_cep ? `CEP:${busatoData.endereco_cep}` : "",
-    ].filter(Boolean).join(", ");
-    const busatoCnpj = busatoData?.cnpj || "";
+    ].filter(Boolean).join(", ") || "SANTA LUCIA, VITORIA, ES, CEP: 29056-250";
+    const busatoCnpj = busatoData?.cnpj || "54.167.719/0001-40";
     const busatoIE = busatoData?.inscricao_estadual || "";
+    const busatoCidade = busatoData?.endereco_cidade || "VITORIA";
+    const busatoUf = busatoData?.endereco_uf || "ES";
 
     const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -400,7 +445,8 @@ export const FaturamentoTab = () => {
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
-    doc.text(`DATA DA EMISSÃO: ${parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR")}`, mLeft + contentW - 2, y + 5, { align: "right" });
+    const dateEmissao = fatura.emissao ? parseLocalDate(fatura.emissao).toLocaleDateString("pt-BR") : "—";
+    doc.text(`DATA DA EMISSÃO: ${dateEmissao}`, mLeft + contentW - 2, y + 5, { align: "right" });
     y += emissaoH;
 
     // ── VALOR DA FATURA ──
@@ -450,7 +496,7 @@ export const FaturamentoTab = () => {
     // ── CONDIÇÕES PAGAMENTO | DATA DE VENCIMENTO | LOCAL DE PAGAMENTO ──
     drawFormField("CONDIÇÕES PAGAMENTO", "Crédito Bancário", mLeft, y, thirdW);
     drawFormField("DATA DE VENCIMENTO", vencimento.toLocaleDateString("pt-BR"), mLeft + thirdW, y, thirdW);
-    const localPagto = conta ? [busatoData?.endereco_cidade, busatoData?.endereco_uf].filter(Boolean).join(" ") : "—";
+    const localPagto = conta ? `${busatoCidade} ${busatoUf}` : "—";
     drawFormField("LOCAL DE PAGAMENTO", localPagto, mLeft + thirdW * 2, y, thirdW);
     y += 10;
 
@@ -464,7 +510,7 @@ export const FaturamentoTab = () => {
 
     if (conta) {
       const bankLine1 = `O PAGAMENTO DEVERÁ SER EFETUADO ATRAVÉS DE DEPÓSITO BANCÁRIO PARA ${busatoNome.toUpperCase()}`;
-      const bankLine2 = `BANCO ${conta.banco}, AGÊNCIA ${conta.agencia} ${busatoData?.endereco_cidade || ""} - ${busatoData?.endereco_uf || ""}.CONTA ${conta.tipo_conta.toUpperCase()} Nº${conta.conta}`;
+      const bankLine2 = `BANCO ${conta.banco}, AGÊNCIA ${conta.agencia} ${busatoCidade} - ${busatoUf}. CONTA ${conta.tipo_conta.toUpperCase()} Nº${conta.conta}`;
       const bankBoxH = 12;
       doc.rect(mLeft, y, contentW, bankBoxH);
       doc.setFontSize(7);
@@ -618,6 +664,67 @@ export const FaturamentoTab = () => {
     const saveLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
     doc.save(`fatura_locacao_${saveLabel}.pdf`);
     toast({ title: "PDF gerado", description: `Fatura ${saveLabel} exportada com sucesso.` });
+  };
+
+  const handleSendEmail = async (fatura: Fatura) => {
+    try {
+      const ct = getContrato(fatura.contrato_id);
+      if (!ct) {
+        toast({ title: "Erro", description: "Contrato não encontrado para esta fatura.", variant: "destructive" });
+        return;
+      }
+
+      // Use alternative billing company if set
+      const empresa = fatura.empresa_faturamento_id
+        ? getEmpresa(fatura.empresa_faturamento_id) || getEmpresa(ct.empresa_id)
+        : getEmpresa(ct.empresa_id);
+
+      if (!empresa) {
+        toast({ title: "Erro", description: "Empresa não encontrada para esta fatura.", variant: "destructive" });
+        return;
+      }
+
+      const empName = empresa.nome || "";
+      const empEmail = empresa.email || "";
+      const obra = empresa.obra || "";
+
+      // Fetch additional contacts from empresas_contatos
+      const { data: contacts } = await supabase
+        .from("empresas_contatos")
+        .select("email")
+        .eq("empresa_id", ct.empresa_id);
+
+      const additionalEmails = (contacts || [])
+        .map(c => c.email)
+        .filter(Boolean) as string[];
+
+      const allEmails = [empEmail, ...additionalEmails].filter(Boolean);
+      const emailsString = allEmails.join(",");
+
+      const inicioFmt = fatura.periodo_medicao_inicio
+        ? parseLocalDate(fatura.periodo_medicao_inicio).toLocaleDateString("pt-BR")
+        : "";
+      const fimFmt = fatura.periodo_medicao_fim
+        ? parseLocalDate(fatura.periodo_medicao_fim).toLocaleDateString("pt-BR")
+        : "";
+
+      const periodString = inicioFmt && fimFmt ? `referente ao período de ${inicioFmt} a ${fimFmt}` : "";
+      const docLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
+
+      const subject = encodeURIComponent(`Fatura de Locação ${docLabel} - ${empName}${obra ? ` (Obra: ${obra})` : ""} - BUSATO LOCAÇÕES`);
+      const body = encodeURIComponent(
+        `Prezado(a),\n\nSegue em anexo a Fatura de Locação ${docLabel} ${periodString} para ${empName}.\n\nFicamos à disposição para esclarecimentos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
+      );
+
+      // Generate and download PDF
+      await generateInvoicePDF(fatura);
+
+      // Open email client
+      window.open(`mailto:${emailsString}?subject=${subject}&body=${body}`, "_self");
+      toast({ title: "PDF da Fatura gerado", description: "Anexe o PDF baixado ao e-mail que será aberto." });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
+    }
   };
 
   const statusColor = (status: string) => {
@@ -804,7 +911,7 @@ export const FaturamentoTab = () => {
                         ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-sm">{parseLocalDate(f.emissao).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="text-sm">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
                     <TableCell className="text-sm">{getVencimento(f).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     
@@ -846,11 +953,38 @@ export const FaturamentoTab = () => {
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
                           <FileDown className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)}>
-                          <Pencil className="h-3.5 w-3.5" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
+                          title="Enviar por E-mail"
+                          onClick={() => handleSendEmail(f)}
+                        >
+                          <Mail className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(f.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
+                        {f.status !== "Pago" && f.status !== "Cancelado" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                            title="Confirmar Pagamento"
+                            onClick={() => setPayId(f.id)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Cancelar Fatura"
+                          onClick={() => {
+                            setCancelId(f.id);
+                            setCancelReason("");
+                            setCancelDialogOpen(true);
+                          }}
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </TableCell>
@@ -912,19 +1046,41 @@ export const FaturamentoTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
-      <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Fatura</AlertDialogTitle>
-            <AlertDialogDescription>Tem certeza que deseja excluir esta fatura? Esta ação não pode ser desfeita.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Cancel Fatura Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" />
+              Cancelar Fatura
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            A fatura retornará para a aba de Medições como pendente. Por favor, insira o motivo do cancelamento:
+          </p>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Motivo do Cancelamento</Label>
+              <Textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Descreva o motivo do cancelamento (ex: correção de horas, alteração de valores...)"
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCancelDialogOpen(false); setCancelId(null); }}>Cancelar</Button>
+            <Button
+              onClick={() => cancelId && handleCancelFatura(cancelId, cancelReason)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!cancelReason.trim()}
+            >
+              Confirmar Cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Generate Invoice Dialog */}
       <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
@@ -954,6 +1110,41 @@ export const FaturamentoTab = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Payment Dialog */}
+      <AlertDialog open={!!payId} onOpenChange={open => !open && setPayId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Pagamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja alterar o status desta fatura para Pago?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (payId) {
+                  const { error } = await supabase
+                    .from("faturamento")
+                    .update({ status: "Pago" })
+                    .eq("id", payId);
+                  if (error) {
+                    toast({ title: "Erro", description: error.message, variant: "destructive" });
+                  } else {
+                    toast({ title: "Fatura paga", description: "O status da fatura foi alterado para Pago." });
+                    fetchData();
+                  }
+                  setPayId(null);
+                }
+              }}
+              className="bg-success text-success-foreground hover:bg-success/90"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

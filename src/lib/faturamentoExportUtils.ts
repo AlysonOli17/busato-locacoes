@@ -117,8 +117,32 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     y += 8;
 
     // Fetch billing equipment items
-    const { data: faturamentoItens } = await supabase.from("faturamento_equipamentos").select("*, equipamentos(tipo, modelo, tag_placa, numero_serie)").eq("faturamento_id", item.id);
-    const itemsList = (faturamentoItens as any[]) || [];
+    const { data: faturamentoItens } = await supabase
+      .from("faturamento_equipamentos")
+      .select("*")
+      .eq("faturamento_id", item.id);
+
+    const itemsList: any[] = [];
+    if (faturamentoItens && faturamentoItens.length > 0) {
+      const equipIds = faturamentoItens.map(fi => fi.equipamento_id);
+      const { data: equipsData } = await supabase
+        .from("equipamentos")
+        .select("id, tipo, modelo, tag_placa, numero_serie")
+        .in("id", equipIds);
+
+      const equipsMap = new Map((equipsData || []).map(e => [e.id, e]));
+      faturamentoItens.forEach(fi => {
+        itemsList.push({
+          ...fi,
+          equipamentos: equipsMap.get(fi.equipamento_id) || null
+        });
+      });
+    }
+
+    console.log('Fetched equipment items for faturamento', item.id, 'count:', itemsList.length);
+    if (itemsList.length === 0) {
+      console.warn('No equipment items found for faturamento', item.id);
+    }
 
     // Construct "Objeto de contrato" listing Measured Equipment Types
     const uniqueTypes = new Set<string>();
@@ -175,8 +199,12 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
       const valorUnit = Number(fi.valor_hora);
       const valorExc = Number(fi.valor_excedente_hora ?? fi.valor_hora_excedente ?? 0);
       
+      // Fallback for possible column name differences
+      const horasNormais = Number(fi.horas_normais ?? fi.horas_medidas ?? 0);
+      const horasExcedentes = Number(fi.horas_excedentes ?? fi.horas_excedentes ?? 0);
+      
       // Calculate total item correctly: normas * valor_hora + exc * valor_exc
-      const totalItem = (Number(fi.horas_normais) * valorUnit) + (Number(fi.horas_excedentes) * valorExc);
+      const totalItem = (horasNormais * valorUnit) + (horasExcedentes * valorExc);
       medicaoTotal += totalItem;
 
       // Query indisponibilidade for this equipment in this period

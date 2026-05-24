@@ -497,6 +497,28 @@ export const FaturamentoContent = () => {
       }
     });
 
+    if (editing) {
+      const { data: savedEquips } = await supabase
+        .from("faturamento_equipamentos")
+        .select("*")
+        .eq("faturamento_id", editing.id);
+
+      if (savedEquips && savedEquips.length > 0) {
+        newEquipForms.forEach(ef => {
+          const saved = savedEquips.find(s => s.equipamento_id === ef.equipamento_id);
+          if (saved) {
+            ef.horas_normais = Number(saved.horas_normais);
+            ef.horas_excedentes = Number(saved.horas_excedentes);
+            ef.valor_hora = Number(saved.valor_hora);
+            ef.valor_hora_excedente = Number(saved.valor_hora_excedente);
+            ef.hora_minima = Number(saved.hora_minima || 0);
+            ef.horas_medidas = Number(saved.horas_totais ?? saved.horas_medidas ?? ef.horas_medidas);
+            ef.primeiro_mes = Boolean(saved.primeiro_mes || saved.considerar_medicao);
+          }
+        });
+      }
+    }
+
     setEquipForms(newEquipForms);
 
     // Gastos
@@ -530,7 +552,7 @@ export const FaturamentoContent = () => {
     }
 
     setLoadingMedicoes(false);
-  }, [contratos]);
+  }, [contratos, editing]);
 
   // Create mobilização/desmobilização gastos
   const handleCreateMobGastos = async () => {
@@ -768,16 +790,22 @@ export const FaturamentoContent = () => {
       i.status,
     ]);
     return { title: "Relatório de Medição", headers, rows, filename: `medicao_${new Date().toISOString().slice(0, 10)}` };
-
   };
 
 
   const exportDetailedPDF = async (singleItem?: Fatura) => {
     const data = singleItem ? [singleItem] : filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    if (data.length === 0) return;
-
-    const { exportDetailedFaturamentoPDF } = await import("@/lib/faturamentoExportUtils");
-    await exportDetailedFaturamentoPDF(data, empresasList);
+    if (data.length === 0) {
+      toast({ title: "Nenhum item selecionado", description: "Selecione ao menos um registro para exportar.", variant: "destructive" });
+      return;
+    }
+    try {
+      const { exportDetailedFaturamentoPDF } = await import("@/lib/faturamentoExportUtils");
+      await exportDetailedFaturamentoPDF(data, empresasList);
+      toast({ title: "PDF gerado", description: "O PDF foi baixado com sucesso.", variant: "default" });
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar PDF", description: err.message ?? "Erro desconhecido", variant: "destructive" });
+    }
   };
 
   const handleSendEmail = async (item: Fatura) => {
@@ -1011,8 +1039,9 @@ export const FaturamentoContent = () => {
             {selected.size > 0 && <p className="text-sm text-muted-foreground">{selected.size} selecionada(s)</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> Exportar Medição</Button>
+            
             <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
+            <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
           </div>
         </div>
