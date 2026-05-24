@@ -375,10 +375,9 @@ export const FaturamentoContent = () => {
       let horasMedidas = 0;
 
       if (isDiarias) {
-        // For diárias: count distinct work days with measurements in the period
+        // For diárias: sum the horas_trabalhadas (which stores the number of days) for work days
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
-        const uniqueDays = new Set(trabalho.map(m => String(m.data)));
-        horasMedidas = uniqueDays.size;
+        horasMedidas = trabalho.reduce((sum, m) => sum + Number(m.horas_trabalhadas || 0), 0);
       } else if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
         // Build readings array: baseline + in-period readings

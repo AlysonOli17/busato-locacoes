@@ -48,7 +48,7 @@ const Medicoes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0 });
+  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0, horas_trab: 1 });
   const [sortCol, setSortCol] = useState<"equipamento" | "tag" | "data" | "tipo" | "horimetro" | "horas_indisp">("data");
   const [sortAsc, setSortAsc] = useState(false);
   const [filterEquip, setFilterEquip] = useState("Todos");
@@ -61,11 +61,13 @@ const Medicoes = () => {
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [medRes, equipRes, contractsRes, ceRes] = await Promise.all([
+    const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes] = await Promise.all([
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id").eq("status", "Ativo"),
-      supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id")
+      supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id"),
+      supabase.from("contratos_aditivos").select("id, contrato_id"),
+      supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id")
     ]);
     
     if (equipRes.data) setEquipamentos(equipRes.data);
@@ -73,6 +75,7 @@ const Medicoes = () => {
     if (contractsRes.data) {
       const map = new Map<string, "horas" | "diarias">();
       const contractMedicaoTypes = new Map<string, "horas" | "diarias">();
+      const aditivoToContract = new Map<string, string>();
       
       contractsRes.data.forEach((c: any) => {
         const tipo = (c.tipo_medicao || "horas") as "horas" | "diarias";
@@ -87,6 +90,24 @@ const Medicoes = () => {
           const tipo = contractMedicaoTypes.get(ce.contrato_id);
           if (tipo) {
             map.set(ce.equipamento_id, tipo);
+          }
+        });
+      }
+
+      if (aditivosRes.data) {
+        aditivosRes.data.forEach((a: any) => {
+          aditivoToContract.set(a.id, a.contrato_id);
+        });
+      }
+
+      if (aeRes.data) {
+        aeRes.data.forEach((ae: any) => {
+          const contratoId = aditivoToContract.get(ae.aditivo_id);
+          if (contratoId) {
+            const tipo = contractMedicaoTypes.get(contratoId);
+            if (tipo) {
+              map.set(ae.equipamento_id, tipo);
+            }
           }
         });
       }
@@ -242,7 +263,7 @@ const Medicoes = () => {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0 });
+    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0, horas_trab: 1 });
     setHorimetroAnterior(0);
     setDialogOpen(true);
   };
@@ -250,7 +271,17 @@ const Medicoes = () => {
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
     const isIndisp = m.tipo === "Indisponível";
-    setForm({ equipamento_id: m.equipamento_id, data: m.data, horimetro: Number(m.horimetro_final), tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "", horimetro_inicial_indisp: isIndisp ? Number(m.horimetro_inicial) : 0, horas_indisp: isIndisp ? Number(m.horas_trabalhadas) : 0 });
+    const isDiaria = equipMedicaoTypes.get(m.equipamento_id) === "diarias";
+    setForm({ 
+      equipamento_id: m.equipamento_id, 
+      data: m.data, 
+      horimetro: Number(m.horimetro_final), 
+      tipo: m.tipo || "Trabalho", 
+      observacoes: m.observacoes || "", 
+      horimetro_inicial_indisp: isIndisp ? Number(m.horimetro_inicial) : 0, 
+      horas_indisp: isIndisp ? Number(m.horas_trabalhadas) : 0,
+      horas_trab: !isIndisp && isDiaria ? Number(m.horas_trabalhadas) : 1
+    });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
     // Refresh anterior for this date
@@ -278,7 +309,7 @@ const Medicoes = () => {
     if (isDiaria) {
       hInicial = 0;
       hFinal = 0;
-      horasTrabalhadas = isIndisp ? form.horas_indisp : 1;
+      horasTrabalhadas = isIndisp ? form.horas_indisp : form.horas_trab;
     } else {
       hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
       hFinal = form.horimetro;
@@ -520,7 +551,9 @@ const Medicoes = () => {
                        )}
                      </TableCell>
                      <TableCell className="text-sm font-medium">
-                       {equipMedicaoTypes.get(item.equipamento_id) === "diarias" ? "—" : Number(item.horimetro_final).toFixed(1)}
+                       {equipMedicaoTypes.get(item.equipamento_id) === "diarias" 
+                          ? (item.tipo === "Trabalho" ? `${Number(item.horas_trabalhadas).toFixed(1)}d` : "—") 
+                          : Number(item.horimetro_final).toFixed(1)}
                      </TableCell>
                      <TableCell>
                         {(item.tipo || "Trabalho") === "Indisponível" ? (
@@ -651,10 +684,22 @@ const Medicoes = () => {
                   {form.tipo === "Trabalho" && (
                     <div>
                       {isDiaria ? (
-                        <div className="p-3 bg-accent/10 rounded-md border border-accent/20">
-                          <p className="text-xs text-muted-foreground leading-normal">
-                            <strong>Lançamento por Diárias:</strong> Este equipamento possui contrato por diárias. Ao registrar, será computada <strong>1 diária de trabalho</strong> para este dia.
-                          </p>
+                        <div className="space-y-4">
+                          <div className="p-3 bg-accent/10 rounded-md border border-accent/20">
+                            <p className="text-xs text-muted-foreground leading-normal">
+                              <strong>Lançamento por Diárias:</strong> Este equipamento possui contrato por diárias. Ao registrar, insira a quantidade de diárias de trabalho realizadas.
+                            </p>
+                          </div>
+                          <div>
+                            <Label>Diárias Trabalhadas (editável)</Label>
+                            <Input 
+                              type="number" 
+                              step="0.1" 
+                              value={form.horas_trab || ""} 
+                              onChange={(e) => setForm({ ...form, horas_trab: Number(e.target.value) })} 
+                              placeholder="Ex: 1.0" 
+                            />
+                          </div>
                         </div>
                       ) : (
                         <>
