@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle } from "lucide-react";
+import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -120,6 +121,10 @@ export const FaturamentoTab = () => {
   const [faturaEquips, setFaturaEquips] = useState<Map<string, FaturaEquip[]>>(new Map());
   const [faturaGastos, setFaturaGastos] = useState<Map<string, { descricao: string; valor: number; tipo: string }[]>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [generateItemId, setGenerateItemId] = useState<string | null>(null);
+  const [generateNumeroNota, setGenerateNumeroNota] = useState("");
+  const [generateObservacoes, setGenerateObservacoes] = useState("");
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [editDialog, setEditDialog] = useState(false);
@@ -259,6 +264,30 @@ export const FaturamentoTab = () => {
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Fatura atualizada" });
     setEditDialog(false);
+    fetchData();
+  };
+
+  const handleEmitirFatura = async (id: string, numeroNota: string, observacoes: string) => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase
+      .from("faturamento")
+      .update({
+        numero_nota: numeroNota || null,
+        data_aprovacao: hoje,
+        observacoes: observacoes || "",
+      } as any)
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Fatura emitida", description: "O número da fatura e observações foram salvos." });
+    setGenerateDialogOpen(false);
+    setGenerateItemId(null);
+    setGenerateNumeroNota("");
+    setGenerateObservacoes("");
     fetchData();
   };
 
@@ -734,7 +763,7 @@ export const FaturamentoTab = () => {
                 <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor</SortableTableHead>
                 
                 <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
-                <TableHead className="w-28">Ações</TableHead>
+                <TableHead className="w-36">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -743,7 +772,14 @@ export const FaturamentoTab = () => {
                 const status = getDisplayStatus(f);
                 return (
                   <TableRow key={f.id}>
-                    <TableCell className="font-mono font-bold text-sm">{f.numero_nota || String(f.numero_sequencial).padStart(3, "0")}</TableCell>
+                    <TableCell className="font-mono font-bold text-sm">
+                      {f.numero_nota || String(f.numero_sequencial).padStart(3, "0")}
+                      {!f.numero_nota && (
+                        <Badge variant="outline" className="ml-2 text-[9px] py-0 px-1 border-warning text-warning bg-warning/5 font-sans font-normal whitespace-nowrap">
+                          Pendente de Emissão
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <p className="font-medium text-sm flex items-center gap-2">
                         {ct?.empresas?.nome || "—"}
@@ -774,6 +810,36 @@ export const FaturamentoTab = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {!f.numero_nota && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                            title="Emitir Fatura"
+                            onClick={() => {
+                              setGenerateItemId(f.id);
+                              setGenerateNumeroNota("");
+                              
+                              const ct = getContrato(f.contrato_id);
+                              const obra = ct?.empresas?.obra;
+                              const inicio = f.periodo_medicao_inicio ? parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR") : "";
+                              const fim = f.periodo_medicao_fim ? parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR") : "";
+                              
+                              let obs = "";
+                              if (obra) {
+                                obs += `Obra: ${obra}`;
+                              }
+                              if (inicio && fim) {
+                                if (obs) obs += " - ";
+                                obs += `Período: ${inicio} a ${fim}`;
+                              }
+                              setGenerateObservacoes(obs);
+                              setGenerateDialogOpen(true);
+                            }}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
                           <FileDown className="h-3.5 w-3.5" />
                         </Button>
@@ -856,6 +922,35 @@ export const FaturamentoTab = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Generate Invoice Dialog */}
+      <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-success" />
+              Emitir Fatura
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Informe o número da fatura e, se desejar, uma observação:</p>
+          <div className="space-y-4">
+            <div>
+              <Label>Nº Fatura</Label>
+              <Input value={generateNumeroNota} onChange={(e) => setGenerateNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
+            </div>
+            <div>
+              <Label>Observação</Label>
+              <Textarea value={generateObservacoes} onChange={(e) => setGenerateObservacoes(e.target.value)} placeholder="Observações sobre a fatura (opcional)" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => generateItemId && handleEmitirFatura(generateItemId, generateNumeroNota, generateObservacoes)} className="bg-success text-success-foreground hover:bg-success/90">
+              Emitir Fatura
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

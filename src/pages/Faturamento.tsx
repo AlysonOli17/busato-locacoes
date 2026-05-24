@@ -150,10 +150,6 @@ export const FaturamentoContent = () => {
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
-  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
-  const [approvalItemId, setApprovalItemId] = useState<string | null>(null);
-  const [approvalNumeroNota, setApprovalNumeroNota] = useState("");
-  const [approvalObservacoes, setApprovalObservacoes] = useState("");
   
   const [formStatus, setFormStatus] = useState("Pendente");
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
@@ -709,15 +705,14 @@ export const FaturamentoContent = () => {
     return item.status;
   };
 
-  const handleAprovar = async (id: string, numeroNota: string, observacoes: string) => {
+  const handleAprovarMedicaoDirect = async (id: string) => {
     const hoje = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("faturamento").update({ status: "Aprovado", numero_nota: numeroNota || null, data_aprovacao: hoje, observacoes: observacoes || "" } as any).eq("id", id);
+    const { error } = await supabase
+      .from("faturamento")
+      .update({ status: "Aprovado", data_aprovacao: hoje } as any)
+      .eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Medição aprovada", description: "A fatura foi emitida automaticamente na aba Faturamento." });
-    setApprovalDialogOpen(false);
-    setApprovalItemId(null);
-    setApprovalNumeroNota("");
-    setApprovalObservacoes("");
+    toast({ title: "Medição aprovada", description: "A medição foi enviada para a aba Faturamento." });
     fetchData();
   };
 
@@ -1167,33 +1162,30 @@ export const FaturamentoContent = () => {
                           <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
                           <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
                             {getDisplayStatus(item) === "Pendente" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
-                                title="Aprovar e emitir fatura"
-                                onClick={() => {
-                                  setApprovalItemId(item.id);
-                                  setApprovalNumeroNota("");
-                                  
-                                  const obra = item.contratos?.empresas?.obra;
-                                  const inicio = item.periodo_medicao_inicio ? parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR") : "";
-                                  const fim = item.periodo_medicao_fim ? parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR") : "";
-                                  
-                                  let obs = "";
-                                  if (obra) {
-                                    obs += `Obra: ${obra}`;
-                                  }
-                                  if (inicio && fim) {
-                                    if (obs) obs += " - ";
-                                    obs += `Período: ${inicio} a ${fim}`;
-                                  }
-                                  setApprovalObservacoes(obs);
-                                  setApprovalDialogOpen(true);
-                                }}
-                              >
-                                <ShieldCheck className="h-3.5 w-3.5" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                    title="Aprovar Medição"
+                                  >
+                                    <ShieldCheck className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Aprovar Medição #{item.numero_sequencial}</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Deseja aprovar esta medição? Ela será enviada para a aba de Faturamento como pendente.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleAprovarMedicaoDirect(item.id)} className="bg-success text-success-foreground hover:bg-success/90">Aprovar</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
 
                             <Button
@@ -1773,34 +1765,6 @@ export const FaturamentoContent = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Approval Dialog - ask for invoice number */}
-      <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-success" />
-              Aprovar Medição
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">Ao aprovar, a fatura será emitida automaticamente na aba Faturamento. Informe o número da fatura e, se desejar, uma observação:</p>
-          <div className="space-y-4">
-            <div>
-              <Label>Nº Fatura</Label>
-              <Input value={approvalNumeroNota} onChange={(e) => setApprovalNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
-            </div>
-            <div>
-              <Label>Observação</Label>
-              <Textarea value={approvalObservacoes} onChange={(e) => setApprovalObservacoes(e.target.value)} placeholder="Observações sobre a fatura (opcional)" rows={3} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApprovalDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => approvalItemId && handleAprovar(approvalItemId, approvalNumeroNota, approvalObservacoes)} className="bg-success text-success-foreground hover:bg-success/90">
-              Aprovar e Emitir Fatura
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
     </>
   );
