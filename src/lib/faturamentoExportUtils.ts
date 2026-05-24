@@ -92,19 +92,29 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     y = (doc as any).lastAutoTable.finalY + 6;
 
     // Billing items
-    const { data: faturamentoItens } = await supabase.from("faturamento_itens").select("*, equipamentos(tipo, modelo, tag_placa)").eq("faturamento_id", item.id);
+    const { data: faturamentoItens } = await supabase.from("faturamento_equipamentos").select("*, equipamentos(tipo, modelo, tag_placa)").eq("faturamento_id", item.id);
     if (faturamentoItens && faturamentoItens.length > 0) {
+      const isDiarias = ct?.tipo_medicao === "diarias";
+      const unit = isDiarias ? "d" : "h";
       autoTable(doc, {
         startY: y,
-        head: [["Equipamento", "Tag", "Horas Normais", "Vlr Hora", "Horas Exc.", "Vlr Exc.", "Subtotal"]],
+        head: [[
+          "Equipamento",
+          "Tag",
+          isDiarias ? "Diárias Normais" : "Horas Normais",
+          isDiarias ? "Vlr Diária" : "Vlr Hora",
+          isDiarias ? "Diárias Exc." : "Horas Exc.",
+          isDiarias ? "Vlr Exc. Diária" : "Vlr Exc. Hora",
+          "Subtotal"
+        ]],
         body: faturamentoItens.map(fi => [
           `${fi.equipamentos?.tipo || ""} ${fi.equipamentos?.modelo || ""}`,
           fi.equipamentos?.tag_placa || "—",
-          fi.horas_normais,
+          `${fi.horas_normais}${unit}`,
           fmtBRL(Number(fi.valor_hora)),
-          fi.horas_excedentes,
-          fmtBRL(Number(fi.valor_hora_excedente)),
-          fmtBRL(Number(fi.valor_total)),
+          `${fi.horas_excedentes}${unit}`,
+          fmtBRL(Number(fi.valor_excedente_hora ?? fi.valor_hora_excedente ?? 0)),
+          fmtBRL(Number(fi.valor_total_item ?? fi.valor_total ?? (Number(fi.horas_normais) * Number(fi.valor_hora) + Number(fi.horas_excedentes) * Number(fi.valor_excedente_hora ?? fi.valor_hora_excedente ?? 0)))),
         ]),
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },

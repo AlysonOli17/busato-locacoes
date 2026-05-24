@@ -132,6 +132,7 @@ interface EquipFormItem {
   aditivo: any | null;
   aditivo_numero: number | null;
   cobranca_parcial: "horas_trabalhadas" | "proporcional_minimo";
+  horas_indisponiveis: number;
 }
 
 // Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
@@ -442,6 +443,9 @@ export const FaturamentoContent = () => {
 
       const aditivoHeader = aditivo ? (aditivosData || []).find(a => a.id === aditivo.aditivo_id) : null;
 
+      const indisponiveis = filteredMedicoes.filter(m => m.tipo === 'Indisponível');
+      const totalIndisponivel = indisponiveis.reduce((sum, m) => sum + Number(m.horas_trabalhadas || 0), 0);
+
       return {
         equipamento_id: eqId,
         tipo: eq?.tipo || "",
@@ -464,11 +468,15 @@ export const FaturamentoContent = () => {
         aditivo: !ajuste ? aditivo : null,
         aditivo_numero: !ajuste && aditivoHeader ? aditivoHeader.numero : null,
         cobranca_parcial: "horas_trabalhadas" as const,
+        horas_indisponiveis: totalIndisponivel,
       };
     });
 
     // Calculate hours for each equipment
     newEquipForms.forEach(ef => {
+      ef.horas_contratadas = Math.max(0, ef.horas_contratadas_original - ef.horas_indisponiveis);
+      ef.hora_minima = Math.max(0, ef.hora_minima_original - ef.horas_indisponiveis);
+
       const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
       if (isProporcional) {
         if (ef.cobranca_parcial === "proporcional_minimo") {
@@ -609,6 +617,9 @@ export const FaturamentoContent = () => {
 
   // Recalculate hours helper
   const recalcHours = (ef: EquipFormItem) => {
+    ef.horas_contratadas = Math.max(0, ef.horas_contratadas_original - (ef.horas_indisponiveis || 0));
+    ef.hora_minima = Math.max(0, ef.hora_minima_original - (ef.horas_indisponiveis || 0));
+
     const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
     if (isProporcional) {
       if (ef.cobranca_parcial === "proporcional_minimo" && formMedicaoInicio && formMedicaoFim) {
@@ -749,7 +760,7 @@ export const FaturamentoContent = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Nº", "Empresa", "CNPJ", "Período Medição", "Horas Normais", "Horas Excedentes", "Custos Adicionais (R$)", "Valor Total (R$)", "Status"];
+    const headers = ["Nº", "Empresa", "CNPJ", "Período Medição", "Horas/Diárias Normais", "Horas/Diárias Excedentes", "Custos Adicionais (R$)", "Valor Total (R$)", "Status"];
     const rows = data.map(i => [
       String(i.numero_sequencial),
       i.contratos?.empresas?.nome || "",
@@ -1224,22 +1235,26 @@ export const FaturamentoContent = () => {
                   <div className="border-t border-border/50 pt-2 space-y-1.5">
                     <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Equipamentos ({equipForms.length})</p>
                     <div className="space-y-1">
-                      {equipForms.map(ef => (
-                        <div key={ef.equipamento_id} className="flex items-center justify-between text-xs p-1.5 rounded bg-background/60">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
-                            {ef.ajuste && <Badge variant="outline" className="text-[10px] h-4 border-accent text-accent px-1">Ajuste</Badge>}
-                            {ef.aditivo && <Badge variant="outline" className="text-[10px] h-4 border-primary text-primary px-1">Aditivo {ef.aditivo_numero ? `#${ef.aditivo_numero}` : ""}</Badge>}
-                            {ef.primeiro_mes && <Badge variant="outline" className="text-[10px] h-4 border-success text-success px-1">1º Mês</Badge>}
-                            {ef.data_devolucao && <Badge variant="outline" className="text-[10px] h-4 border-warning text-warning px-1">Devolução</Badge>}
+                      {equipForms.map(ef => {
+                        const isDiarias = selectedContrato?.tipo_medicao === "diarias";
+                        const unit = isDiarias ? "d" : "h";
+                        return (
+                          <div key={ef.equipamento_id} className="flex items-center justify-between text-xs p-1.5 rounded bg-background/60">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{ef.tipo} {ef.modelo} {ef.tag_placa ? `(${ef.tag_placa})` : ""}</span>
+                              {ef.ajuste && <Badge variant="outline" className="text-[10px] h-4 border-accent text-accent px-1">Ajuste</Badge>}
+                              {ef.aditivo && <Badge variant="outline" className="text-[10px] h-4 border-primary text-primary px-1">Aditivo {ef.aditivo_numero ? `#${ef.aditivo_numero}` : ""}</Badge>}
+                              {ef.primeiro_mes && <Badge variant="outline" className="text-[10px] h-4 border-success text-success px-1">1º Mês</Badge>}
+                              {ef.data_devolucao && <Badge variant="outline" className="text-[10px] h-4 border-warning text-warning px-1">Devolução</Badge>}
+                            </div>
+                            <div className="flex items-center gap-3 text-muted-foreground">
+                              <span>R$ {ef.valor_hora.toFixed(2)}/{unit}</span>
+                              <span>{ef.horas_contratadas}{unit} contrat.</span>
+                              {ef.hora_minima > 0 && <span>Mín: {ef.hora_minima}{unit}</span>}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 text-muted-foreground">
-                            <span>R$ {ef.valor_hora.toFixed(2)}/h</span>
-                            <span>{ef.horas_contratadas}h contrat.</span>
-                            {ef.hora_minima > 0 && <span>Mín: {ef.hora_minima}h</span>}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1266,9 +1281,11 @@ export const FaturamentoContent = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Clock className="h-4 w-4 text-accent" />
-                  Horas por Equipamento
+                  {selectedContrato?.tipo_medicao === "diarias" ? "Diárias por Equipamento" : "Horas por Equipamento"}
                 </div>
                 {equipForms.map((ef, idx) => {
+                  const isDiarias = selectedContrato?.tipo_medicao === "diarias";
+                  const unit = isDiarias ? "d" : "h";
                   const equipGastos = gastosEquip.filter(g => g.equipamento_id === ef.equipamento_id && g.tipo !== "Mobilização" && g.tipo !== "Desmobilização");
                   const equipGastosCobrar = equipGastos.filter(g => selectedGastos.has(g.id) && (g.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
                   const equipGastosReembolsar = equipGastos.filter(g => selectedGastos.has(g.id) && g.classificacao === "A Reembolsar ao Cliente").reduce((acc, g) => acc + Number(g.valor), 0);
@@ -1290,26 +1307,30 @@ export const FaturamentoContent = () => {
                         </Badge>
                       )}
                     </div>
-                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div className="grid grid-cols-5 gap-2 text-center text-xs">
                       <div>
                         <p className="text-muted-foreground">Medidas</p>
-                        <p className="text-base font-bold text-accent">{ef.horas_medidas.toFixed(1)}h</p>
+                        <p className="text-base font-bold text-accent">{ef.horas_medidas.toFixed(1)}{unit}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Contratadas</p>
-                        <p className="text-base font-bold">{ef.horas_contratadas}h</p>
+                        <p className="text-base font-bold">{ef.horas_contratadas}{unit}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Indisponíveis</p>
+                        <p className="text-base font-bold text-destructive">{ef.horas_indisponiveis.toFixed(1)}{unit}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Normais</p>
-                        <p className="text-base font-bold text-success">{ef.horas_normais}h</p>
+                        <p className="text-base font-bold text-success">{ef.horas_normais}{unit}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Excedentes</p>
-                        <p className={`text-base font-bold ${ef.horas_excedentes > 0 ? "text-warning" : "text-success"}`}>{ef.horas_excedentes > 0 ? `+${ef.horas_excedentes}` : "0"}h</p>
+                        <p className={`text-base font-bold ${ef.horas_excedentes > 0 ? "text-warning" : "text-success"}`}>{ef.horas_excedentes > 0 ? `+${ef.horas_excedentes}` : "0"}{unit}</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>V/h: R$ {ef.valor_hora.toFixed(2)} | V/h exc: R$ {ef.valor_hora_excedente.toFixed(2)}{ef.hora_minima > 0 ? ` | Mín: ${ef.hora_minima}h` : ""}</span>
+                      <span>{isDiarias ? "V/dia" : "V/h"}: R$ {ef.valor_hora.toFixed(2)} | {isDiarias ? "V/dia exc" : "V/h exc"}: R$ {ef.valor_hora_excedente.toFixed(2)}{ef.hora_minima > 0 ? ` | Mín: ${ef.hora_minima}${unit}` : ""}</span>
                       <span className="font-semibold text-foreground">R$ {valorEquip.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                       {ef.hora_minima > 0 && (
@@ -1332,9 +1353,9 @@ export const FaturamentoContent = () => {
                           <span className="text-xs text-muted-foreground ml-auto">
                             {ef.proporcional_devolucao
                               ? (ef.cobranca_parcial === "proporcional_minimo"
-                                  ? `Base proporcional: ${ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas}h${ef.ajuste ? " (ajuste)" : ef.aditivo ? " (aditivo)" : ""}`
-                                  : `Proporcional: ${ef.horas_contratadas}h / Mín: ${ef.hora_minima}h`)
-                              : `Integral: ${ef.horas_contratadas_original}h / Mín: ${ef.hora_minima_original}h`}
+                                  ? `Base proporcional: ${ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas}${unit}${ef.ajuste ? " (ajuste)" : ef.aditivo ? " (aditivo)" : ""}`
+                                  : `Proporcional: ${ef.horas_contratadas}${unit} / Mín: ${ef.hora_minima}${unit}`)
+                              : `Integral: ${ef.horas_contratadas_original}${unit} / Mín: ${ef.hora_minima_original}${unit}`}
                           </span>
                         </div>
                       </div>
@@ -1347,20 +1368,20 @@ export const FaturamentoContent = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="horas_trabalhadas">Horas Trabalhadas</SelectItem>
-                            <SelectItem value="proporcional_minimo">Proporcional Mínimo</SelectItem>
+                            <SelectItem value="horas_trabalhadas">{isDiarias ? "Diárias Trabalhadas" : "Horas Trabalhadas"}</SelectItem>
+                            <SelectItem value="proporcional_minimo">{isDiarias ? "Proporcional Mínimo (Diárias)" : "Proporcional Mínimo"}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     )}
                     {ef.cobranca_parcial === "proporcional_minimo" && (ef.primeiro_mes || ef.proporcional_devolucao) && (
                       <div className="text-xs text-muted-foreground bg-muted/40 rounded p-1.5">
-                        Base usada no cálculo: <span className="font-medium text-foreground">{ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas}h</span>{ef.ajuste ? " do ajuste vigente" : ef.aditivo ? " do aditivo vigente" : " do contrato"}.
+                        Base usada no cálculo: <span className="font-medium text-foreground">{ef.hora_minima > 0 ? ef.hora_minima : ef.horas_contratadas}{unit}</span>{ef.ajuste ? " do ajuste vigente" : ef.aditivo ? " do aditivo vigente" : " do contrato"}.
                       </div>
                     )}
                     {ef.hora_minima > 0 && !ef.primeiro_mes && !ef.proporcional_devolucao && ef.horas_medidas < ef.hora_minima && (
                       <div className="text-xs text-accent font-medium bg-accent/10 rounded p-1.5">
-                        ⚡ Hora mínima: {ef.horas_medidas.toFixed(1)}h → cobrando {ef.hora_minima}h
+                        ⚡ {isDiarias ? "Diária mínima" : "Hora mínima"}: {ef.horas_medidas.toFixed(1)}{unit} → cobrando {ef.hora_minima}{unit}
                       </div>
                     )}
                     {/* Observações sobre ajustes aplicados */}
@@ -1381,10 +1402,10 @@ export const FaturamentoContent = () => {
                         obs.push(`📄 Valores do Aditivo #${ef.aditivo_numero || "?"} aplicados`);
                       }
                       if (ef.primeiro_mes) {
-                        obs.push(`🆕 Primeiro mês — horas contratadas e mínima proporcionais à entrega`);
+                        obs.push(`🆕 Primeiro mês — ${isDiarias ? "diárias" : "horas"} contratadas e mínima proporcionais à entrega`);
                       }
                       if (ef.proporcional_devolucao) {
-                        obs.push(`🔄 Proporcional à devolução — horas contratadas e mínima reduzidas`);
+                        obs.push(`🔄 Proporcional à devolução — ${isDiarias ? "diárias" : "horas"} contratadas e mínima reduzidas`);
                       }
                       if (obs.length === 0) return null;
                       return (

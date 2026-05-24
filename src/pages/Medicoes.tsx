@@ -57,15 +57,29 @@ const Medicoes = () => {
   const [loading, setLoading] = useState(true);
   const [horimetroAnterior, setHorimetroAnterior] = useState<number>(0);
   const [baselines, setBaselines] = useState<Map<string, { horim: number; data: string }>>(new Map());
+  const [equipMedicaoTypes, setEquipMedicaoTypes] = useState<Map<string, "horas" | "diarias">>(new Map());
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [medRes, equipRes] = await Promise.all([
+    const [medRes, equipRes, contractsRes] = await Promise.all([
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo")
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
+      supabase.from("contratos").select("id, status, tipo_medicao, contratos_equipamentos(equipamento_id)").eq("status", "Ativo")
     ]);
     
     if (equipRes.data) setEquipamentos(equipRes.data);
+
+    if (contractsRes.data) {
+      const map = new Map<string, "horas" | "diarias">();
+      contractsRes.data.forEach((c: any) => {
+        const tipo = (c.tipo_medicao || "horas") as "horas" | "diarias";
+        const ces = c.contratos_equipamentos || [];
+        ces.forEach((ce: any) => {
+          map.set(ce.equipamento_id, tipo);
+        });
+      });
+      setEquipMedicaoTypes(map);
+    }
     
     if (medRes.data && equipRes.data) {
       const equipMap = new Map(equipRes.data.map((e: any) => [e.id, e]));
@@ -166,10 +180,14 @@ const Medicoes = () => {
     const tag = first.equipamentos?.tag_placa || "";
     const trabalhoEntries = sorted.filter(e => (e.tipo || "Trabalho") === "Trabalho");
 
+    const isDiaria = equipMedicaoTypes.get(eqId) === "diarias";
     let totalHoras = 0;
     let mediaHorasDia = 0;
 
-    if (dataInicio && validDataFim) {
+    if (isDiaria) {
+      totalHoras = trabalhoEntries.reduce((sum, e) => sum + Number(e.horas_trabalhadas || 0), 0);
+      mediaHorasDia = 0;
+    } else if (dataInicio && validDataFim) {
       // Use interpolation when period filters are active
       const inicioStr = format(dataInicio, "yyyy-MM-dd");
       const fimStr = format(validDataFim, "yyyy-MM-dd");
@@ -227,21 +245,39 @@ const Medicoes = () => {
   };
 
   const handleSave = async () => {
-    if (!form.equipamento_id || form.horimetro <= 0) {
-      toast({ title: "Campos obrigatórios", description: "Selecione um equipamento e informe o horímetro.", variant: "destructive" });
+    if (!form.equipamento_id) {
+      toast({ title: "Campos obrigatórios", description: "Selecione um equipamento.", variant: "destructive" });
+      return;
+    }
+
+    const isDiaria = equipMedicaoTypes.get(form.equipamento_id) === "diarias";
+
+    if (!isDiaria && form.horimetro <= 0) {
+      toast({ title: "Campos obrigatórios", description: "Informe o horímetro.", variant: "destructive" });
       return;
     }
 
     const isIndisp = form.tipo === "Indisponível";
-    const hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
-    const horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
+    let hInicial = 0;
+    let hFinal = 0;
+    let horasTrabalhadas = 0;
+
+    if (isDiaria) {
+      hInicial = 0;
+      hFinal = 0;
+      horasTrabalhadas = isIndisp ? form.horas_indisp : 1;
+    } else {
+      hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
+      hFinal = form.horimetro;
+      horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
+    }
 
     if (editingId) {
       const { error } = await supabase.from("medicoes").update({
         equipamento_id: form.equipamento_id,
         data: form.data,
         horimetro_inicial: hInicial,
-        horimetro_final: form.horimetro,
+        horimetro_final: hFinal,
         horas_trabalhadas: horasTrabalhadas,
         tipo: form.tipo,
         observacoes: form.observacoes || null,
@@ -253,7 +289,7 @@ const Medicoes = () => {
         equipamento_id: form.equipamento_id,
         data: form.data,
         horimetro_inicial: hInicial,
-        horimetro_final: form.horimetro,
+        horimetro_final: hFinal,
         horas_trabalhadas: horasTrabalhadas,
         tipo: form.tipo,
         observacoes: form.observacoes || null,
@@ -274,7 +310,12 @@ const Medicoes = () => {
   };
 
   const onEquipChange = (v: string) => {
-    setForm((prev) => ({ ...prev, equipamento_id: v }));
+    const isDiaria = equipMedicaoTypes.get(v) === "diarias";
+    setForm((prev) => ({ 
+      ...prev, 
+      equipamento_id: v,
+      horas_indisp: isDiaria ? 1 : prev.horas_indisp
+    }));
     if (form.data) fetchHorimetroPorData(v, form.data, editingId || undefined);
   };
 
@@ -321,7 +362,10 @@ const Medicoes = () => {
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Geral</p>
-                  <h3 className="text-2xl font-bold mt-1 text-sidebar">{totalHorasGeral.toFixed(1)}h</h3>
+                  <h3 className="text-2xl font-bold mt-1 text-sidebar">
+                    {totalHorasGeral.toFixed(1)}
+                    {filterEquip !== "Todos" && equipMedicaoTypes.get(filterEquip) === "diarias" ? "d" : "h"}
+                  </h3>
                   <p className="text-[10px] text-muted-foreground mt-1">{filtered.length} registros (filtrado)</p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
@@ -329,28 +373,34 @@ const Medicoes = () => {
                 </div>
               </CardContent>
             </Card>
-            {Array.from(summaryMap.entries()).map(([id, data]) =>
-              <Card key={id} className="hover:shadow-md transition-shadow bg-card shadow-sm border-border">
-                <CardContent className="p-4 flex flex-col justify-between h-full">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground line-clamp-1" title={data.label}>{data.label}</p>
-                      <h3 className="text-xl font-bold mt-1 text-accent">{data.totalHoras.toFixed(1)}h</h3>
-                      {data.tag && <p className="text-[10px] font-mono text-muted-foreground mt-1">{data.tag}</p>}
+            {Array.from(summaryMap.entries()).map(([id, data]) => {
+              const isDiaria = equipMedicaoTypes.get(id) === "diarias";
+              return (
+                <Card key={id} className="hover:shadow-md transition-shadow bg-card shadow-sm border-border">
+                  <CardContent className="p-4 flex flex-col justify-between h-full">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground line-clamp-1" title={data.label}>{data.label}</p>
+                        <h3 className="text-xl font-bold mt-1 text-accent">
+                          {data.totalHoras.toFixed(1)}
+                          {isDiaria ? "d" : "h"}
+                        </h3>
+                        {data.tag && <p className="text-[10px] font-mono text-muted-foreground mt-1">{data.tag}</p>}
+                      </div>
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <Activity className="h-4 w-4" />
+                      </div>
                     </div>
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                      <Activity className="h-4 w-4" />
+                    <div className="mt-2">
+                      <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
+                      {data.mediaHorasDia > 0 && (
+                        <p className="text-[10px] text-accent/70 font-medium">Média: {data.mediaHorasDia.toFixed(2)} h/dia</p>
+                      )}
                     </div>
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
-                    {data.mediaHorasDia > 0 && (
-                      <p className="text-[10px] text-accent/70 font-medium">Média: {data.mediaHorasDia.toFixed(2)} h/dia</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
 
@@ -394,15 +444,18 @@ const Medicoes = () => {
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => {
-                const headers = ["Equipamento", "Tag/Placa", "Data", "Tipo", "Horímetro Atual", "Horas Indisp."];
-                const rows = filtered.map((m) => [
-                `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
-                m.equipamentos?.tag_placa || "—",
-                parseLocalDate(m.data).toLocaleDateString("pt-BR"),
-                m.tipo || "Trabalho",
-                Number(m.horimetro_final).toFixed(1),
-                (m.tipo || "Trabalho") === "Indisponível" ? Number(m.horas_trabalhadas).toFixed(1) : "—"]
-                );
+                const headers = ["Equipamento", "Tag/Placa", "Data", "Tipo", "Horímetro/Diária", "Indisponibilidade"];
+                const rows = filtered.map((m) => {
+                  const isDiaria = equipMedicaoTypes.get(m.equipamento_id) === "diarias";
+                  return [
+                    `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
+                    m.equipamentos?.tag_placa || "—",
+                    parseLocalDate(m.data).toLocaleDateString("pt-BR"),
+                    m.tipo || "Trabalho",
+                    isDiaria ? "Diária (Trabalho)" : Number(m.horimetro_final).toFixed(1),
+                    (m.tipo || "Trabalho") === "Indisponível" ? `${Number(m.horas_trabalhadas).toFixed(1)}${isDiaria ? "d" : "h"}` : "—"
+                  ];
+                });
                 const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
                 exportToPDF({ title: `Relatório de Horímetro Mensal${periodo}`, headers, rows, filename: `horimetro_mensal_${new Date().toISOString().slice(0, 10)}` });
               }} className="bg-background">
@@ -424,8 +477,8 @@ const Medicoes = () => {
                    <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag/Placa</SortableTableHead>
                    <SortableTableHead column="data" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Data</SortableTableHead>
                    <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
-                   <SortableTableHead column="horimetro" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horímetro Atual</SortableTableHead>
-                   <SortableTableHead column="horas_indisp" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horas Indisp.</SortableTableHead>
+                   <SortableTableHead column="horimetro" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horímetro / Lançamento</SortableTableHead>
+                   <SortableTableHead column="horas_indisp" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Horas / Diárias Indisp.</SortableTableHead>
                    <TableHead className="w-20">Ações</TableHead>
                  </TableRow>
               </TableHeader>
@@ -453,11 +506,15 @@ const Medicoes = () => {
                          <Badge className="bg-accent/10 text-accent border-0 text-xs">Trabalho</Badge>
                        )}
                      </TableCell>
-                     <TableCell className="text-sm font-medium">{Number(item.horimetro_final).toFixed(1)}</TableCell>
+                     <TableCell className="text-sm font-medium">
+                       {equipMedicaoTypes.get(item.equipamento_id) === "diarias" ? "—" : Number(item.horimetro_final).toFixed(1)}
+                     </TableCell>
                      <TableCell>
                         {(item.tipo || "Trabalho") === "Indisponível" ? (
                           <Badge className="font-semibold border-0 bg-destructive/10 text-destructive">
-                            <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas).toFixed(1)}h
+                            <Clock className="h-3 w-3 mr-1" />
+                            {Number(item.horas_trabalhadas).toFixed(1)}
+                            {equipMedicaoTypes.get(item.equipamento_id) === "diarias" ? "d" : "h"}
                           </Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
@@ -494,100 +551,133 @@ const Medicoes = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-accent" />
-              {editingId ? "Editar Horímetro" : "Novo Horímetro"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div>
-              <Label>Equipamento</Label>
-              <SearchableSelect
-                value={form.equipamento_id}
-                onValueChange={onEquipChange}
-                placeholder="Selecione o equipamento"
-                searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
-              />
-            </div>
-            <div>
-              <Label>Data</Label>
-              <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
-            </div>
-            <div>
-              <Label>Tipo de Lançamento</Label>
-              <RadioGroup value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })} className="flex gap-4 mt-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Trabalho" id="tipo-trabalho" />
-                  <Label htmlFor="tipo-trabalho" className="cursor-pointer">Trabalho</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Indisponível" id="tipo-indisponivel" />
-                  <Label htmlFor="tipo-indisponivel" className="cursor-pointer">Indisponível</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            {form.tipo === "Indisponível" && (
+          {(() => {
+            const isDiaria = equipMedicaoTypes.get(form.equipamento_id) === "diarias";
+            return (
               <>
-                <div>
-                  <Label>Observação (motivo da indisponibilidade)</Label>
-                  <Textarea
-                    value={form.observacoes}
-                    onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-                    placeholder="Ex: Manutenção preventiva, quebra mecânica..."
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-accent" />
+                    {editingId ? (isDiaria ? "Editar Lançamento de Diária" : "Editar Horímetro") : (isDiaria ? "Novo Lançamento de Diária" : "Novo Horímetro")}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
                   <div>
-                    <Label>Horímetro Inicial</Label>
-                    <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => {
-                      const val = Number(e.target.value);
-                      const diff = Math.max(0, form.horimetro - val);
-                      setForm({ ...form, horimetro_inicial_indisp: val, horas_indisp: diff });
-                    }} placeholder="Ex: 180.0" />
+                    <Label>Equipamento</Label>
+                    <SearchableSelect
+                      value={form.equipamento_id}
+                      onValueChange={onEquipChange}
+                      placeholder="Selecione o equipamento"
+                      searchPlaceholder="Pesquisar equipamento..."
+                      options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
+                    />
                   </div>
                   <div>
-                    <Label>Horímetro Final</Label>
-                    <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => {
-                      const val = Number(e.target.value);
-                      const diff = Math.max(0, val - form.horimetro_inicial_indisp);
-                      setForm({ ...form, horimetro: val, horas_indisp: diff });
-                    }} placeholder="Ex: 189.5" />
+                    <Label>Data</Label>
+                    <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
                   </div>
+                  <div>
+                    <Label>Tipo de Lançamento</Label>
+                    <RadioGroup 
+                      value={form.tipo} 
+                      onValueChange={(v) => setForm({ 
+                        ...form, 
+                        tipo: v,
+                        horas_indisp: v === "Indisponível" && isDiaria ? 1 : form.horas_indisp
+                      })} 
+                      className="flex gap-4 mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Trabalho" id="tipo-trabalho" />
+                        <Label htmlFor="tipo-trabalho" className="cursor-pointer">Trabalho</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Indisponível" id="tipo-indisponivel" />
+                        <Label htmlFor="tipo-indisponivel" className="cursor-pointer">Indisponível</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  {form.tipo === "Indisponível" && (
+                    <>
+                      <div>
+                        <Label>Observação (motivo da indisponibilidade)</Label>
+                        <Textarea
+                          value={form.observacoes}
+                          onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                          placeholder="Ex: Manutenção preventiva, quebra mecânica..."
+                          rows={3}
+                        />
+                      </div>
+                      {!isDiaria && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label>Horímetro Inicial</Label>
+                            <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const diff = Math.max(0, form.horimetro - val);
+                              setForm({ ...form, horimetro_inicial_indisp: val, horas_indisp: diff });
+                            }} placeholder="Ex: 180.0" />
+                          </div>
+                          <div>
+                            <Label>Horímetro Final</Label>
+                            <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const diff = Math.max(0, val - form.horimetro_inicial_indisp);
+                              setForm({ ...form, horimetro: val, horas_indisp: diff });
+                            }} placeholder="Ex: 189.5" />
+                          </div>
+                        </div>
+                      )}
+                      <div>
+                        <Label>{isDiaria ? "Diárias Indisponíveis (editável)" : "Horas Indisponíveis (editável)"}</Label>
+                        <Input type="number" step="0.1" value={form.horas_indisp || ""} onChange={(e) => setForm({ ...form, horas_indisp: Number(e.target.value) })} placeholder={isDiaria ? "Ex: 1.0" : "Ex: 9.5"} />
+                        {!isDiaria && <p className="text-xs text-muted-foreground mt-1">Pré-calculado pela diferença do horímetro. Edite se necessário.</p>}
+                      </div>
+                    </>
+                  )}
+                  {form.tipo === "Trabalho" && (
+                    <div>
+                      {isDiaria ? (
+                        <div className="p-3 bg-accent/10 rounded-md border border-accent/20">
+                          <p className="text-xs text-muted-foreground leading-normal">
+                            <strong>Lançamento por Diárias:</strong> Este equipamento possui contrato por diárias. Ao registrar, será computada <strong>1 diária de trabalho</strong> para este dia.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <Label>Horímetro Atual</Label>
+                          <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {!isDiaria && horasCalculadas > 0 && (
+                    <div className={cn("p-3 rounded-lg text-center", form.tipo === "Indisponível" ? "bg-destructive/10" : "bg-accent/10")}>
+                      <p className="text-sm text-muted-foreground">
+                        {form.tipo === "Indisponível" ? "Horas indisponíveis (serão descontadas)" : "Horas trabalhadas (diferença)"}
+                      </p>
+                      <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{horasCalculadas.toFixed(1)}h</p>
+                      <p className="text-xs text-muted-foreground">
+                        {form.tipo === "Indisponível" ? form.horimetro_inicial_indisp.toFixed(1) : horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}
+                      </p>
+                    </div>
+                  )}
+                  {isDiaria && form.tipo === "Indisponível" && form.horas_indisp > 0 && (
+                    <div className="p-3 rounded-lg text-center bg-destructive/10">
+                      <p className="text-sm text-muted-foreground">Diárias indisponíveis (serão descontadas)</p>
+                      <p className="text-2xl font-bold text-destructive">{form.horas_indisp.toFixed(1)}d</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Label>Horas Indisponíveis (editável)</Label>
-                  <Input type="number" step="0.1" value={form.horas_indisp || ""} onChange={(e) => setForm({ ...form, horas_indisp: Number(e.target.value) })} placeholder="Ex: 9.5" />
-                  <p className="text-xs text-muted-foreground mt-1">Pré-calculado pela diferença do horímetro. Edite se necessário.</p>
-                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                    {editingId ? "Salvar" : "Registrar"}
+                  </Button>
+                </DialogFooter>
               </>
-            )}
-            {form.tipo === "Trabalho" && (
-              <div>
-                <Label>Horímetro Atual</Label>
-                <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
-              </div>
-            )}
-            {horasCalculadas > 0 &&
-            <div className={cn("p-3 rounded-lg text-center", form.tipo === "Indisponível" ? "bg-destructive/10" : "bg-accent/10")}>
-                <p className="text-sm text-muted-foreground">
-                  {form.tipo === "Indisponível" ? "Horas indisponíveis (serão descontadas)" : "Horas trabalhadas (diferença)"}
-                </p>
-                <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{horasCalculadas.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">
-                  {form.tipo === "Indisponível" ? form.horimetro_inicial_indisp.toFixed(1) : horimetroAnterior.toFixed(1)} → {form.horimetro.toFixed(1)}
-                </p>
-              </div>
-            }
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              {editingId ? "Salvar" : "Registrar"}
-            </Button>
-          </DialogFooter>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
