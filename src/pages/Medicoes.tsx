@@ -61,23 +61,36 @@ const Medicoes = () => {
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [medRes, equipRes, contractsRes] = await Promise.all([
+    const [medRes, equipRes, contractsRes, ceRes] = await Promise.all([
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
-      supabase.from("contratos").select("id, status, tipo_medicao, contratos_equipamentos(equipamento_id)").eq("status", "Ativo")
+      supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id").eq("status", "Ativo"),
+      supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id")
     ]);
     
     if (equipRes.data) setEquipamentos(equipRes.data);
 
     if (contractsRes.data) {
       const map = new Map<string, "horas" | "diarias">();
+      const contractMedicaoTypes = new Map<string, "horas" | "diarias">();
+      
       contractsRes.data.forEach((c: any) => {
         const tipo = (c.tipo_medicao || "horas") as "horas" | "diarias";
-        const ces = c.contratos_equipamentos || [];
-        ces.forEach((ce: any) => {
-          map.set(ce.equipamento_id, tipo);
-        });
+        contractMedicaoTypes.set(c.id, tipo);
+        if (c.equipamento_id) {
+          map.set(c.equipamento_id, tipo);
+        }
       });
+
+      if (ceRes.data) {
+        ceRes.data.forEach((ce: any) => {
+          const tipo = contractMedicaoTypes.get(ce.contrato_id);
+          if (tipo) {
+            map.set(ce.equipamento_id, tipo);
+          }
+        });
+      }
+
       setEquipMedicaoTypes(map);
     }
     
