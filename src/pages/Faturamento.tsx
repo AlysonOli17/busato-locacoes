@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { calcularHorasInterpoladas, parseLocalDate } from "@/lib/utils";
@@ -44,7 +44,7 @@ interface ContratoRef {
   dia_medicao_fim: number;
   prazo_faturamento: number;
   tipo_medicao: string;
-  empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null; obra: string | null };
+  empresas: { nome: string; cnpj: string; contato: string | null; telefone: string | null; obra: string | null; email?: string | null };
   equipamentos: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null };
   contratos_equipamentos: ContratoEquip[];
 }
@@ -97,6 +97,7 @@ interface EmpresaFat {
   endereco_cep: string | null;
   inscricao_estadual: string | null;
   inscricao_municipal: string | null;
+  email?: string | null;
 }
 
 interface GastoItem {
@@ -186,7 +187,7 @@ export const FaturamentoContent = () => {
       supabase.from("contratos").select("*"),
       supabase.from("contratos").select("*").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
-      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone, obra").order("nome"),
+      supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone, obra, email").order("nome"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
       supabase.from("contratos_equipamentos").select("*")
     ]);
@@ -785,6 +786,57 @@ export const FaturamentoContent = () => {
     await exportDetailedFaturamentoPDF(data, empresasList);
   };
 
+  const handleSendEmail = async (item: Fatura) => {
+    try {
+      const ct = item.contratos;
+      if (!ct) {
+        toast({ title: "Erro", description: "Contrato não encontrado para esta medição.", variant: "destructive" });
+        return;
+      }
+
+      const emp = ct.empresas;
+      const empName = emp?.nome || "";
+      const empEmail = emp?.email || "";
+      const obra = emp?.obra || "";
+
+      // Fetch additional contacts from empresas_contatos
+      const { data: contacts } = await supabase
+        .from("empresas_contatos")
+        .select("email")
+        .eq("empresa_id", ct.empresa_id);
+
+      const additionalEmails = (contacts || [])
+        .map(c => c.email)
+        .filter(Boolean) as string[];
+
+      const allEmails = [empEmail, ...additionalEmails].filter(Boolean);
+      const emailsString = allEmails.join(",");
+
+      const inicioFmt = item.periodo_medicao_inicio
+        ? parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")
+        : "";
+      const fimFmt = item.periodo_medicao_fim
+        ? parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")
+        : "";
+
+      const periodString = inicioFmt && fimFmt ? `referente ao período de ${inicioFmt} a ${fimFmt}` : "";
+
+      const subject = encodeURIComponent(`Boletim de Medição - ${empName}${obra ? ` (Obra: ${obra})` : ""} - BUSATO LOCAÇÕES`);
+      const body = encodeURIComponent(
+        `Prezado(a),\n\nSegue em anexo o Boletim de Medição ${periodString} para ${empName}.\n\nFicamos à disposição para esclarecimentos.\n\nAtenciosamente,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA`
+      );
+
+      // Generate and download PDF
+      await exportDetailedPDF(item);
+
+      // Open email client
+      window.open(`mailto:${emailsString}?subject=${subject}&body=${body}`, "_self");
+      toast({ title: "PDF da Medição gerado", description: "Anexe o PDF baixado ao e-mail que será aberto." });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
+    }
+  };
+
   const calcMedicaoDates = (ct: ContratoRef) => {
     const now = new Date();
     const diaInicio = ct.dia_medicao_inicio || 1;
@@ -1039,7 +1091,7 @@ export const FaturamentoContent = () => {
                   <TableHead>Custos Adicionais</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-16">Ações</TableHead>
+                  <TableHead className="w-44">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1111,45 +1163,92 @@ export const FaturamentoContent = () => {
                         })()}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          
-                          {getDisplayStatus(item) === "Pendente" && (
-                            <Button variant="ghost" size="icon" title="Aprovar e emitir fatura" onClick={() => {
-                              setApprovalItemId(item.id);
-                              setApprovalNumeroNota("");
-                              
-                              const obra = item.contratos?.empresas?.obra;
-                              const inicio = item.periodo_medicao_inicio ? parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR") : "";
-                              const fim = item.periodo_medicao_fim ? parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR") : "";
-                              
-                              let obs = "";
-                              if (obra) {
-                                obs += `Obra: ${obra}`;
-                              }
-                              if (inicio && fim) {
-                                if (obs) obs += " - ";
-                                obs += `Período: ${inicio} a ${fim}`;
-                              }
-                              setApprovalObservacoes(obs);
-                              setApprovalDialogOpen(true);
-                            }}><ShieldCheck className="h-4 w-4 text-success" /></Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Medição #{item.numero_sequencial}</AlertDialogTitle>
-                                <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
+                          <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
+                            {getDisplayStatus(item) === "Pendente" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                title="Aprovar e emitir fatura"
+                                onClick={() => {
+                                  setApprovalItemId(item.id);
+                                  setApprovalNumeroNota("");
+                                  
+                                  const obra = item.contratos?.empresas?.obra;
+                                  const inicio = item.periodo_medicao_inicio ? parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR") : "";
+                                  const fim = item.periodo_medicao_fim ? parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR") : "";
+                                  
+                                  let obs = "";
+                                  if (obra) {
+                                    obs += `Obra: ${obra}`;
+                                  }
+                                  if (inicio && fim) {
+                                    if (obs) obs += " - ";
+                                    obs += `Período: ${inicio} a ${fim}`;
+                                  }
+                                  setApprovalObservacoes(obs);
+                                  setApprovalDialogOpen(true);
+                                }}
+                              >
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                              title="Editar Medição"
+                              onClick={() => openEdit(item)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                              title="Exportar PDF da Medição"
+                              onClick={() => exportDetailedPDF(item)}
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
+                              title="Enviar por E-mail"
+                              onClick={() => handleSendEmail(item)}
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                            </Button>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  title="Excluir Medição"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir Medição #{item.numero_sequencial}</AlertDialogTitle>
+                                  <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>
