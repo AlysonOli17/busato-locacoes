@@ -110,10 +110,13 @@ export const MedicaoTerceirosTab = () => {
         const allCtMap = new Map((allCtData || []).map(c => [c.id, c]));
 
         const mappedSaved = savedRes.data.map((s: any) => {
-          const ct = allCtMap.get(s.contrato_id);
+          const ct = allCtMap.get(s.contrato_terceiro_id);
           const forn = ct ? fMap.get(ct.fornecedor_id) : null;
           return {
             ...s,
+            contrato_id: s.contrato_terceiro_id,
+            periodo_inicio: s.data_inicio,
+            periodo_fim: s.data_fim,
             contratos_terceiros: {
               tipo_medicao: ct?.tipo_medicao,
               fornecedores: forn || null
@@ -408,10 +411,10 @@ export const MedicaoTerceirosTab = () => {
     const periodo = `${new Date(formMedicaoInicio + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(formMedicaoFim + "T00:00:00").toLocaleDateString("pt-BR")}`;
 
     const payload = {
-      contrato_id: formContratoId,
+      contrato_terceiro_id: formContratoId,
       periodo,
-      periodo_inicio: formMedicaoInicio,
-      periodo_fim: formMedicaoFim,
+      data_inicio: formMedicaoInicio,
+      data_fim: formMedicaoFim,
       valor_total: valorTotal,
       status: "Pendente",
       detalhes: equipForms.map(ef => ({
