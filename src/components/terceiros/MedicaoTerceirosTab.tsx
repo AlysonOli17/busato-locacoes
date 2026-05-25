@@ -402,6 +402,59 @@ export const MedicaoTerceirosTab = () => {
     setDialogOpen(true);
   };
 
+  const openEdit = (item: MedicaoSalva) => {
+    setEditing(item.id);
+    setFormContratoId(item.contrato_id);
+    setFormMedicaoInicio(item.periodo_inicio);
+    setFormMedicaoFim(item.periodo_fim);
+    
+    const details = Array.isArray(item.detalhes) ? item.detalhes : [];
+    const ct = contratos.find(c => c.id === item.contrato_id);
+    const ceList = ct ? ct.contratos_terceiros_equipamentos || [] : [];
+    
+    const forms = details.map((d: any) => {
+      const ce = ceList.find(c => c.equipamento_id === d.equipamento_id);
+      return {
+        equipamento_id: d.equipamento_id,
+        tipo: d.tipo || "",
+        modelo: d.modelo || "",
+        tag_placa: d.tag_placa || null,
+        horas_medidas: Number(d.horas_medidas ?? 0),
+        horas_normais: Number(d.horas_normais ?? 0),
+        horas_excedentes: Number(d.horas_excedentes ?? 0),
+        valor_hora: Number(d.valor_hora ?? 0),
+        valor_hora_excedente: Number(d.valor_hora_excedente ?? 0),
+        hora_minima: ce ? Number(ce.hora_minima || 0) : 0,
+        horas_contratadas: ce ? Number(ce.horas_contratadas || 0) : 0,
+        primeiro_mes: false,
+        data_entrega: ce ? ce.data_entrega : null,
+        data_devolucao: ce ? ce.data_devolucao : null,
+        cobranca_parcial: "horas_trabalhadas" as const,
+      };
+    });
+    
+    setEquipForms(forms);
+    
+    if (ct) {
+      const allEquipIds = forms.map(f => f.equipamento_id);
+      if (allEquipIds.length > 0) {
+        supabase.from("custos_terceiros").select("id, descricao, tipo, valor, data, equipamento_terceiro_id, status")
+          .in("equipamento_terceiro_id", allEquipIds).gte("data", item.periodo_inicio).lte("data", item.periodo_fim)
+          .then(({ data: custosData }) => {
+            if (custosData) {
+              setCustos(custosData.map((c: any) => ({
+                ...c,
+                equipamento_id: c.equipamento_terceiro_id,
+                classificacao: c.status
+              })) as CustoTerceiro[]);
+            }
+          });
+      }
+    }
+    
+    setDialogOpen(true);
+  };
+
   const handleSave = async () => {
     if (!formContratoId || !formMedicaoInicio || !formMedicaoFim) {
       toast({ title: "Preencha todos os campos", variant: "destructive" });
@@ -509,6 +562,7 @@ export const MedicaoTerceirosTab = () => {
                 <TableCell>{new Date(item.created_at).toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)} title="Editar Medição"><Pencil className="h-3.5 w-3.5" /></Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportPDF(item)} title="Baixar PDF"><FileDown className="h-3.5 w-3.5" /></Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
