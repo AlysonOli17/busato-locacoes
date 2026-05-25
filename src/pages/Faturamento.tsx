@@ -575,7 +575,21 @@ export const FaturamentoContent = () => {
       setCreatingMob(false);
       return;
     }
-    const rows = toCreate.map(e => ({
+
+    // Check if any of the rows already exist in the database
+    const { data: existing } = await supabase.from("gastos")
+      .select("equipamento_id, tipo, data")
+      .in("equipamento_id", toCreate.map(e => e.equipamento_id))
+      .in("tipo", ["Mobilização", "Desmobilização"]);
+
+    const rows = toCreate.filter(e => {
+      const alreadyExists = (existing || []).some(g => 
+        g.equipamento_id === e.equipamento_id && 
+        g.tipo === e.evento && 
+        g.data === e.data
+      );
+      return !alreadyExists;
+    }).map(e => ({
       id: crypto.randomUUID(),
       equipamento_id: e.equipamento_id,
       descricao: `${e.evento} — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
@@ -583,6 +597,14 @@ export const FaturamentoContent = () => {
       valor: mobValues[`${e.equipamento_id}_${e.evento}`],
       data: e.data,
     }));
+
+    if (rows.length === 0) {
+      toast({ title: "Já cadastrado", description: "Esses custos de mobilização/desmobilização já foram registrados anteriormente." });
+      setMobDialogOpen(false);
+      setCreatingMob(false);
+      return;
+    }
+
     const { data, error } = await supabase.from("gastos").insert(rows).select();
     if (error) {
       toast({ title: "Erro ao criar custos", description: error.message, variant: "destructive" });
@@ -601,7 +623,21 @@ export const FaturamentoContent = () => {
   // Insert zero-value gastos to mark as "não cobrado" and prevent future popups
   const handleNaoCobrarMob = async () => {
     setCreatingMob(true);
-    const rows = mobAlerts.map(e => ({
+
+    // Check if any of the rows already exist in the database
+    const { data: existing } = await supabase.from("gastos")
+      .select("equipamento_id, tipo, data")
+      .in("equipamento_id", mobAlerts.map(e => e.equipamento_id))
+      .in("tipo", ["Mobilização", "Desmobilização"]);
+
+    const rows = mobAlerts.filter(e => {
+      const alreadyExists = (existing || []).some(g => 
+        g.equipamento_id === e.equipamento_id && 
+        g.tipo === e.evento && 
+        g.data === e.data
+      );
+      return !alreadyExists;
+    }).map(e => ({
       id: crypto.randomUUID(),
       equipamento_id: e.equipamento_id,
       descricao: `${e.evento} (não cobrado) — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
@@ -609,6 +645,14 @@ export const FaturamentoContent = () => {
       valor: 0,
       data: e.data,
     }));
+
+    if (rows.length === 0) {
+      toast({ title: "Já registrado", description: "A não cobrança de mobilização/desmobilização já havia sido registrada." });
+      setMobDialogOpen(false);
+      setCreatingMob(false);
+      return;
+    }
+
     const { data, error } = await supabase.from("gastos").insert(rows).select();
     if (error) {
       toast({ title: "Erro ao registrar", description: error.message, variant: "destructive" });

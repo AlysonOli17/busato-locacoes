@@ -277,7 +277,7 @@ export const MedicaoTerceirosTab = () => {
       let horasMedidas = 0;
       if (ct.tipo_medicao === "diarias") {
         const diarias = (periodRes.data || []).filter((m: any) => m.tipo === "Trabalho" || m.tipo === "Diária");
-        horasMedidas = new Set(diarias.map((m: any) => String(m.data))).size;
+        horasMedidas = diarias.length;
       } else {
         const allReadings: { data: string; horimetro_final: number }[] = [];
         if (baselineRes.data && baselineRes.data.length > 0) {
