@@ -92,6 +92,8 @@ export default function Agenda() {
   // Event Dialog State
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AgendaEvent | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [viewEvent, setViewEvent] = useState<AgendaEvent | null>(null);
   const [form, setForm] = useState<{
     titulo: string;
     descricao: string;
@@ -484,7 +486,8 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                 key={e.id}
                 onClick={(ev) => {
                   ev.stopPropagation();
-                  openEdit(e);
+                  setViewEvent(e);
+                  setViewDialogOpen(true);
                 }}
                 className={`text-[10px] px-1.5 py-0.5 rounded border truncate ${
                   e.prioridade === "Alta"
@@ -545,7 +548,11 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                     hourEvents.map(e => (
                       <div
                         key={e.id}
-                        onClick={() => openEdit(e)}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setViewEvent(e);
+                          setViewDialogOpen(true);
+                        }}
                         className={`text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all flex justify-between items-center ${
                           e.prioridade === "Alta"
                             ? "bg-destructive/10 border-destructive/20 text-destructive"
@@ -780,7 +787,11 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                         key={item.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, item.id)}
-                        className="bg-card hover:shadow-md cursor-grab active:cursor-grabbing transition-all border border-border group"
+                        onClick={() => {
+                          setViewEvent(item);
+                          setViewDialogOpen(true);
+                        }}
+                        className="bg-card hover:shadow-md cursor-pointer cursor-grab active:cursor-grabbing transition-all border border-border group"
                       >
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
@@ -831,7 +842,10 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => openEdit(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEdit(item);
+                                }}
                                 className="h-5 w-5 p-0 hover:bg-muted"
                               >
                                 <Pencil className="h-3 w-3 text-muted-foreground" />
@@ -839,7 +853,10 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => handleDeleteEvent(item.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteEvent(item.id);
+                                }}
                                 className="h-5 w-5 p-0 hover:bg-muted"
                               >
                                 <Trash2 className="h-3 w-3 text-destructive" />
@@ -1129,6 +1146,136 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
             )}
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSaveEvent} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Event Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="text-lg font-bold text-foreground leading-tight">
+                {viewEvent?.titulo}
+              </DialogTitle>
+              <Badge className={
+                viewEvent?.prioridade === "Alta" ? "bg-destructive/15 text-destructive border-0 font-bold" :
+                viewEvent?.prioridade === "Média" ? "bg-warning/15 text-warning border-0 font-bold" :
+                "bg-success/15 text-success border-0 font-bold"
+              }>
+                {viewEvent?.prioridade}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3 text-sm">
+            {viewEvent?.descricao ? (
+              <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1">Descrição</span>
+                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed break-words">
+                  {viewEvent.descricao}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Sem descrição informada.</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
+                <Badge className={
+                  viewEvent?.status === "Concluído" ? "bg-success/15 text-success border-0 font-semibold" :
+                  viewEvent?.status === "Em Andamento" ? "bg-warning/15 text-warning border-0 font-semibold" :
+                  "bg-muted text-muted-foreground border-0 font-semibold"
+                }>
+                  {viewEvent?.status}
+                </Badge>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Categoria</span>
+                <Badge variant="outline" className="bg-muted/20 border-border text-muted-foreground font-semibold">
+                  {viewEvent?.categoria}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-3">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Data Início</span>
+                <span className="text-sm text-foreground flex items-center gap-1.5 mt-0.5">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  {viewEvent?.data_inicio ? new Date(viewEvent.data_inicio).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Data Término</span>
+                <span className="text-sm text-foreground flex items-center gap-1.5 mt-0.5">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  {viewEvent?.data_fim ? new Date(viewEvent.data_fim).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                </span>
+              </div>
+            </div>
+
+            {(viewEvent?.equipamentos || viewEvent?.empresas) && (
+              <div className="border-t border-border/40 pt-3 space-y-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Associações</span>
+                
+                {viewEvent?.equipamentos && (
+                  <div className="flex items-center gap-2 text-sm bg-muted/20 p-2 rounded border border-border/50">
+                    <LinkIcon className="h-4 w-4 text-accent shrink-0" />
+                    <span className="text-xs text-muted-foreground font-medium mr-1">Equipamento:</span>
+                    <span className="font-medium text-foreground text-xs">
+                      {viewEvent.equipamentos.tipo} {viewEvent.equipamentos.modelo} {viewEvent.equipamentos.tag_placa ? `(${viewEvent.equipamentos.tag_placa})` : ""}
+                    </span>
+                  </div>
+                )}
+
+                {viewEvent?.empresas && (
+                  <div className="flex items-center gap-2 text-sm bg-muted/20 p-2 rounded border border-border/50">
+                    <LinkIcon className="h-4 w-4 text-success shrink-0" />
+                    <span className="text-xs text-muted-foreground font-medium mr-1">Empresa:</span>
+                    <span className="font-medium text-foreground text-xs">{viewEvent.empresas.nome}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-row sm:justify-end gap-2 border-t border-border/40 pt-3 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewDialogOpen(false)}
+              className="mr-auto sm:mr-0"
+            >
+              Fechar
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setViewDialogOpen(false);
+                if (viewEvent) openEdit(viewEvent);
+              }}
+              className="gap-1.5"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setViewDialogOpen(false);
+                if (viewEvent) handleDeleteEvent(viewEvent.id);
+              }}
+              className="gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
