@@ -233,7 +233,7 @@ export const FaturamentoContent = () => {
   useEffect(() => { fetchData(); }, []);
 
   // Fetch measurements + gastos for ALL equipment in a contract
-  const fetchMedicoesEGastos = useCallback(async (contratoId: string, inicio: string, fim: string) => {
+  const fetchMedicoesEGastos = useCallback(async (contratoId: string, inicio: string, fim: string, checkActive?: () => boolean) => {
     const ct = contratos.find(c => c.id === contratoId);
     if (!ct || !inicio || !fim) {
       setEquipForms([]);
@@ -262,11 +262,14 @@ export const FaturamentoContent = () => {
       .lte("data_inicio", fim)
       .gte("data_fim", inicio);
 
+    if (checkActive && !checkActive()) return;
+
     let aditivoEquipMap = new Map<string, any>();
     let aditivoExtraEquipIds: string[] = [];
     if (aditivosData && aditivosData.length > 0) {
       const aditivoIds = aditivosData.map(a => a.id);
       const { data: aeData } = await supabase.from("aditivos_equipamentos").select("*").in("aditivo_id", aditivoIds);
+      if (checkActive && !checkActive()) return;
       if (aeData) {
         for (const ae of aeData) {
           if (ae.data_entrega && ae.data_entrega > fim) continue;
@@ -300,6 +303,8 @@ export const FaturamentoContent = () => {
       supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", allEquipIdsWithAditivos).lte("data_inicio", fim).gte("data_fim", inicio),
     ]);
 
+    if (checkActive && !checkActive()) return;
+
     const ajustesData = ajustesRes.data || [];
 
     // Fetch measurements per equipment: in-period + baseline (last reading before period)
@@ -313,6 +318,8 @@ export const FaturamentoContent = () => {
       ]);
     });
     const medResults = await Promise.all(medPromises);
+    if (checkActive && !checkActive()) return;
+
     const baselineMap = new Map<string, { data: string; horimetro_final: number }>();
     const medicoesData: any[] = [];
     medResults.forEach(([baselineRes, periodRes]) => {
@@ -502,6 +509,8 @@ export const FaturamentoContent = () => {
         .from("faturamento_equipamentos")
         .select("*")
         .eq("faturamento_id", editing.id);
+
+      if (checkActive && !checkActive()) return;
 
       if (savedEquips && savedEquips.length > 0) {
         newEquipForms.forEach(ef => {
@@ -709,15 +718,36 @@ export const FaturamentoContent = () => {
   };
 
   useEffect(() => {
-    if (formContratoId && formMedicaoInicio && formMedicaoFim) {
-      fetchMedicoesEGastos(formContratoId, formMedicaoInicio, formMedicaoFim);
-    } else {
+    let active = true;
+    const checkActive = () => active;
+    if (dialogOpen && formContratoId && formMedicaoInicio && formMedicaoFim) {
+      fetchMedicoesEGastos(formContratoId, formMedicaoInicio, formMedicaoFim, checkActive);
+    } else if (!dialogOpen) {
       setEquipForms([]);
       setGastosEquip([]);
       setTotalGastos(0);
       setSelectedGastos(new Set());
     }
-  }, [formContratoId, formMedicaoInicio, formMedicaoFim, fetchMedicoesEGastos]);
+    return () => {
+      active = false;
+    };
+  }, [dialogOpen, formContratoId, formMedicaoInicio, formMedicaoFim, fetchMedicoesEGastos]);
+
+  // Reset billing form states when dialog closes
+  useEffect(() => {
+    if (!dialogOpen) {
+      setEditing(null);
+      setFormContratoId("");
+      setFormPeriodo("");
+      setFormStatus("Pendente");
+      setFormMedicaoInicio("");
+      setFormMedicaoFim("");
+      setFormContaBancariaId("");
+      setFormEmpresaFaturamentoId("");
+      setMobDialogOpen(false);
+      setMobAlerts([]);
+    }
+  }, [dialogOpen]);
 
   const getDisplayStatus = (item: Fatura) => {
     if (item.status === "Pago" || item.status === "Cancelado" || item.status === "Aprovado") return item.status;

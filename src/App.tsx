@@ -17,6 +17,7 @@ import Usuarios from "./pages/Usuarios";
 import Acompanhamento from "./pages/Acompanhamento";
 import Agregados from "./pages/Agregados";
 import Login from "./pages/Login";
+import Agenda from "./pages/Agenda";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />
             <Route path="/acompanhamento" element={<ProtectedRoute requiredPermission="/acompanhamento"><Acompanhamento /></ProtectedRoute>} />
             <Route path="/agregados" element={<ProtectedRoute requiredPermission="/agregados"><Agregados /></ProtectedRoute>} />
+            <Route path="/agenda" element={<ProtectedRoute requiredPermission="/agenda"><Agenda /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

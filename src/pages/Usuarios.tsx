@@ -41,6 +41,7 @@ const ALL_ROUTES = [
   { path: "/apolices", label: "Apólices" },
   { path: "/gastos", label: "Gastos" },
   { path: "/acompanhamento", label: "Acompanhamento" },
+  { path: "/agenda", label: "Agenda & Kanban" },
 ];
 
 const emptyForm = { nome: "", email: "", password: "", role: "operador", status: "Ativo" };
