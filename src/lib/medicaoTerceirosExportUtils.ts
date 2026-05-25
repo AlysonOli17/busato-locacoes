@@ -66,8 +66,10 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
 
   let y = 10;
   const busatoNome = busatoEmp?.razao_social || busatoEmp?.nome || "BUSATO LOCAÇÕES E SERVIÇOS LTDA";
-  const busatoCnpj = busatoEmp?.cnpj || "";
-  const busatoEndereco = busatoEmp ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf, busatoEmp.endereco_cep ? `CEP: ${busatoEmp.endereco_cep}` : ""].filter(Boolean).join(", ") : "";
+  const busatoCnpj = busatoEmp?.cnpj || "54.167.719/0001-40";
+  const busatoEndereco = busatoEmp 
+    ? [busatoEmp.endereco_logradouro, busatoEmp.endereco_numero, busatoEmp.endereco_complemento, busatoEmp.endereco_bairro, busatoEmp.endereco_cidade, busatoEmp.endereco_uf, busatoEmp.endereco_cep ? `CEP: ${busatoEmp.endereco_cep}` : ""].filter(Boolean).join(", ") 
+    : "AV NOSSA SENHORA DA PENHA, 595, SALA 510, SANTA LUCIA, VITORIA, ES, CEP: 29056-250";
   const busatoIE = busatoEmp?.inscricao_estadual || "";
 
   if (logo) doc.addImage(logo, "PNG", mL, y, 48, 12);
