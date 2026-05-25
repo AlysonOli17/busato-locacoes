@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 
       if (validated.role) {
         await supabaseAdmin.from("user_roles").delete().eq("user_id", validated.user_id);
-        await supabaseAdmin.from("user_roles").insert({ user_id: validated.user_id, role: validated.role });
+        await supabaseAdmin.from("user_roles").insert({ id: crypto.randomUUID(), user_id: validated.user_id, role: validated.role });
       }
 
       if (validated.password) {

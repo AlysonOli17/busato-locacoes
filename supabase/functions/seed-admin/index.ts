@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 
     await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: userId, role: "admin" });
+      .insert({ id: crypto.randomUUID(), user_id: userId, role: "admin" });
 
     return new Response(
       JSON.stringify({ message: "Admin created", email: validated.email }),
