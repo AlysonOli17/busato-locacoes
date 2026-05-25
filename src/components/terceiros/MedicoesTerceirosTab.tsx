@@ -57,10 +57,11 @@ export const MedicoesTerceirosTab = () => {
       const eqMap = new Map(eqRes.data.map(e => [e.id, e]));
       setItems(medRes.data.map((m: any) => ({
         ...m,
-        equipamentos_terceiros: eqMap.get(m.equipamento_id) || null
+        equipamento_id: m.equipamento_terceiro_id,
+        equipamentos_terceiros: eqMap.get(m.equipamento_terceiro_id) || null
       })) as unknown as Medicao[]);
     } else if (medRes.data) {
-      setItems(medRes.data.map((m: any) => ({ ...m, equipamentos_terceiros: null })) as unknown as Medicao[]);
+      setItems(medRes.data.map((m: any) => ({ ...m, equipamento_id: m.equipamento_terceiro_id, equipamentos_terceiros: null })) as unknown as Medicao[]);
     }
     if (eqRes.data) setEquipamentos(eqRes.data);
   };
@@ -71,7 +72,7 @@ export const MedicoesTerceirosTab = () => {
     const { data: result } = await supabase
       .from("medicoes_terceiros")
       .select("horimetro_final, data")
-      .eq("equipamento_id", equipId)
+      .eq("equipamento_terceiro_id", equipId)
       .eq("tipo", "Trabalho")
       .lt("data", data)
       .order("data", { ascending: false })
@@ -183,7 +184,7 @@ export const MedicoesTerceirosTab = () => {
     const horasTrabalhadas = isDiaria ? 0 : (isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial));
 
     const payload = {
-      equipamento_id: form.equipamento_id, data: form.data,
+      equipamento_terceiro_id: form.equipamento_id, data: form.data,
       horimetro_inicial: hInicial, horimetro_final: hFinal,
       horas_trabalhadas: horasTrabalhadas, tipo: form.tipo,
       observacoes: form.observacoes || null,

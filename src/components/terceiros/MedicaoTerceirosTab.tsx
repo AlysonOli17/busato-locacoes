@@ -237,11 +237,11 @@ export const MedicaoTerceirosTab = () => {
 
     // Fetch measurements per equipment
     const medPromises = allEquipIds.map(eqId => Promise.all([
-      supabase.from("medicoes_terceiros").select("equipamento_id, horimetro_final, data")
-        .eq("equipamento_id", eqId).eq("tipo", "Trabalho")
+      supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horimetro_final, data")
+        .eq("equipamento_terceiro_id", eqId).eq("tipo", "Trabalho")
         .lt("data", inicio).order("data", { ascending: false }).limit(1),
-      supabase.from("medicoes_terceiros").select("equipamento_id, horas_trabalhadas, tipo, horimetro_final, data")
-        .eq("equipamento_id", eqId).gte("data", inicio).lte("data", fim),
+      supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horas_trabalhadas, tipo, horimetro_final, data")
+        .eq("equipamento_terceiro_id", eqId).gte("data", inicio).lte("data", fim),
     ]));
     const medResults = await Promise.all(medPromises);
 
