@@ -495,7 +495,11 @@ export const MedicaoTerceirosTab = () => {
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Medição atualizada" });
     } else {
-      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const payloadWithId = { 
+        ...payload, 
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString()
+      };
       const { error } = await (supabase.from as any)("medicoes_terceiros_faturamento").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Medição registrada" });
@@ -570,7 +574,14 @@ export const MedicaoTerceirosTab = () => {
                 <TableCell>
                   <Badge variant={item.status === "Aprovado" ? "default" : "secondary"}>{item.status}</Badge>
                 </TableCell>
-                <TableCell>{new Date(item.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                <TableCell>
+                  {item.created_at 
+                    ? new Date(item.created_at).toLocaleDateString("pt-BR") 
+                    : (item.data_fim 
+                      ? new Date(item.data_fim + "T00:00:00").toLocaleDateString("pt-BR") 
+                      : new Date().toLocaleDateString("pt-BR"))
+                  }
+                </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)} title="Editar Medição"><Pencil className="h-3.5 w-3.5" /></Button>
