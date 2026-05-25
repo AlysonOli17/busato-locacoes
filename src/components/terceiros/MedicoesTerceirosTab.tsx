@@ -112,7 +112,7 @@ export const MedicoesTerceirosTab = () => {
   const hasFilters = !!(filtroEquip || dataInicio || dataFim);
   const summaryMap = useMemo(() => {
     if (!hasFilters) return new Map();
-    const map = new Map<string, { label: string; totalHoras: number; mediaHorasDia: number; registros: number }>();
+    const map = new Map<string, { label: string; totalHoras: number; mediaHorasDia: number; totalDiarias: number; totalIndisp: number; registros: number }>();
     const byEquip = new Map<string, Medicao[]>();
     filtered.forEach(m => {
       if (!byEquip.has(m.equipamento_id)) byEquip.set(m.equipamento_id, []);
@@ -124,12 +124,22 @@ export const MedicoesTerceirosTab = () => {
       const pInicio = dataInicio || meds.reduce((min, m) => m.data < min ? m.data : min, meds[0].data);
       const pFim = dataFim || meds.reduce((max, m) => m.data > max ? m.data : max, meds[0].data);
       const result = calcularHorasInterpoladas(readings, pInicio, pFim);
-      map.set(eqId, { label: getEquipLabel(eq ?? null), ...result, registros: meds.length });
+      const totalDiarias = meds.filter(m => m.tipo === "Diária").length;
+      const totalIndisp = meds.filter(m => m.tipo === "Indisponível").length;
+      map.set(eqId, { 
+        label: getEquipLabel(eq ?? null), 
+        ...result, 
+        totalDiarias,
+        totalIndisp,
+        registros: meds.length 
+      });
     });
     return map;
   }, [filtered, hasFilters, items, equipamentos, dataInicio, dataFim]);
 
   const totalHorasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalHoras, 0);
+  const totalDiariasGeral = filtered.filter(m => m.tipo === "Diária").length;
+  const totalIndispGeral = filtered.filter(m => m.tipo === "Indisponível").length;
 
   const horasCalculadas = form.tipo === "Indisponível"
     ? form.horas_indisp
@@ -240,16 +250,32 @@ export const MedicoesTerceirosTab = () => {
           <Card className="border-accent/30 bg-accent/5">
             <CardContent className="p-3">
               <p className="text-xs font-medium text-muted-foreground">Total Geral</p>
-              <p className="text-lg font-bold">{totalHorasGeral.toFixed(1)}h</p>
-              <p className="text-xs text-muted-foreground">{filtered.length} registros</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-lg font-bold">{totalHorasGeral.toFixed(1)}h</p>
+                {totalDiariasGeral > 0 && (
+                  <p className="text-sm font-semibold text-muted-foreground">· {totalDiariasGeral} diárias</p>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {filtered.length} registros
+                {totalIndispGeral > 0 && ` (${totalIndispGeral} indisponíveis)`}
+              </p>
             </CardContent>
           </Card>
           {Array.from(summaryMap.entries()).map(([eqId, s]) => (
             <Card key={eqId}>
               <CardContent className="p-3">
-                <p className="text-xs font-medium truncate">{s.label}</p>
-                <p className="text-lg font-bold">{s.totalHoras.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">Média: {s.mediaHorasDia.toFixed(2)}h/dia · {s.registros} registros</p>
+                <p className="text-xs font-medium truncate" title={s.label}>{s.label}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-lg font-bold">{s.totalHoras.toFixed(1)}h</p>
+                  {s.totalDiarias > 0 && (
+                    <p className="text-sm font-semibold text-muted-foreground">· {s.totalDiarias} diárias</p>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Média: {s.mediaHorasDia.toFixed(2)}h/dia · {s.registros} registros
+                  {s.totalIndisp > 0 && ` (${s.totalIndisp} indisp.)`}
+                </p>
               </CardContent>
             </Card>
           ))}
