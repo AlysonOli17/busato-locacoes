@@ -408,7 +408,18 @@ export const MedicaoTerceirosTab = () => {
     setFormMedicaoInicio(item.periodo_inicio);
     setFormMedicaoFim(item.periodo_fim);
     
-    const details = Array.isArray(item.detalhes) ? item.detalhes : [];
+    let details: any[] = [];
+    if (item.detalhes) {
+      if (typeof item.detalhes === "string") {
+        try {
+          details = JSON.parse(item.detalhes);
+        } catch (e) {
+          console.error("Error parsing details string in openEdit:", e);
+        }
+      } else if (Array.isArray(item.detalhes)) {
+        details = item.detalhes;
+      }
+    }
     const ct = contratos.find(c => c.id === item.contrato_id);
     const ceList = ct ? ct.contratos_terceiros_equipamentos || [] : [];
     

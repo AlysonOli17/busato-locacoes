@@ -26,7 +26,18 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
   const fimFmt = fim ? parseLocalDate(fim).toLocaleDateString("pt-BR") : "";
 
   // Fetch costs in period for this contract's equipment
-  const detalhes: any[] = Array.isArray(item.detalhes) ? item.detalhes : [];
+  let detalhes: any[] = [];
+  if (item.detalhes) {
+    if (typeof item.detalhes === "string") {
+      try {
+        detalhes = JSON.parse(item.detalhes);
+      } catch (e) {
+        console.error("Error parsing detalhes string:", e);
+      }
+    } else if (Array.isArray(item.detalhes)) {
+      detalhes = item.detalhes;
+    }
+  }
   const equipIds = detalhes.map(d => d.equipamento_id).filter(Boolean);
   let custosPeriodo: any[] = [];
   if (equipIds.length > 0 && inicio && fim) {
