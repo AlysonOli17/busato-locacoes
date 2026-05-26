@@ -24,7 +24,12 @@ import {
   Copy,
   Check,
   Database,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Table2,
+  User,
+  Paperclip,
+  ChevronDown,
+  Eye
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +51,12 @@ interface AgendaEvent {
   equipamento_id: string | null;
   contrato_id: string | null;
   empresa_id: string | null;
+  orcamento?: number;
+  notas?: string;
+  responsavel_nome?: string;
+  arquivos?: string[];
   created_at?: string;
+  updated_at?: string;
   // Join references
   equipamentos?: Equipamento | null;
   contratos?: Contrato | null;
@@ -72,7 +82,7 @@ const stickyColors = {
 };
 
 export default function Agenda() {
-  const [activeTab, setActiveTab] = useState<"kanban" | "calendar" | "notes">("kanban");
+  const [activeTab, setActiveTab] = useState<"kanban" | "calendar" | "notes" | "board">("board");
   const [calendarMode, setCalendarMode] = useState<"day" | "month" | "year">("month");
   
   // Data lists
@@ -81,6 +91,7 @@ export default function Agenda() {
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [usuarios, setUsuarios] = useState<{ user_id: string; nome: string; }[]>([]);
 
   // States
   const [loading, setLoading] = useState(true);
@@ -94,6 +105,13 @@ export default function Agenda() {
   const [editingEvent, setEditingEvent] = useState<AgendaEvent | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewEvent, setViewEvent] = useState<AgendaEvent | null>(null);
+
+  // Monday Board View & Files States
+  const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+  const [filesDialogOpen, setFilesDialogOpen] = useState(false);
+  const [activeFilesEvent, setActiveFilesEvent] = useState<AgendaEvent | null>(null);
+  const [newFileUrl, setNewFileUrl] = useState("");
+
   const [form, setForm] = useState<{
     titulo: string;
     descricao: string;
@@ -105,6 +123,10 @@ export default function Agenda() {
     equipamento_id: string;
     contrato_id: string;
     empresa_id: string;
+    orcamento: number;
+    notas: string;
+    responsavel_nome: string;
+    arquivos: string[];
   }>({
     titulo: "",
     descricao: "",
@@ -116,6 +138,10 @@ export default function Agenda() {
     equipamento_id: "none",
     contrato_id: "none",
     empresa_id: "none",
+    orcamento: 0,
+    notas: "",
+    responsavel_nome: "",
+    arquivos: [],
   });
 
   // Calendar date tracker
@@ -144,6 +170,12 @@ CREATE TABLE IF NOT EXISTS public.agenda (
 ALTER TABLE public.agenda ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Adiciona novos campos estilo Monday.com caso já tenha a tabela criada:
+ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS orcamento NUMERIC DEFAULT 0;
+ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS notas TEXT DEFAULT '';
+ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS responsavel_nome TEXT DEFAULT '';
+ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 `;
 
   // Fetch relations + initial data
@@ -151,15 +183,17 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
     setLoading(true);
     try {
       // 1. Fetch relations
-      const [equipRes, empRes, ctRes] = await Promise.all([
+      const [equipRes, empRes, ctRes, profilesRes] = await Promise.all([
         supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
         supabase.from("empresas").select("id, nome").order("nome"),
-        supabase.from("contratos").select("id, empresa_id, empresas(nome), equipamento_id, equipamentos(tipo, modelo)")
+        supabase.from("contratos").select("id, empresa_id, empresas(nome), equipamento_id, equipamentos(tipo, modelo)"),
+        supabase.from("profiles").select("user_id, nome").order("nome")
       ]);
 
       if (equipRes.data) setEquipamentos(equipRes.data as any);
       if (empRes.data) setEmpresas(empRes.data as any);
       if (ctRes.data) setContratos(ctRes.data as any);
+      if (profilesRes.data) setUsuarios(profilesRes.data as any);
 
       // 2. Fetch agenda events
       const { data: dbEvents, error: dbError } = await supabase
@@ -242,6 +276,10 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
       equipamento_id: "none",
       contrato_id: "none",
       empresa_id: "none",
+      orcamento: 0,
+      notas: "",
+      responsavel_nome: "",
+      arquivos: [],
     });
     setDialogOpen(true);
   };
@@ -260,6 +298,10 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
       equipamento_id: e.equipamento_id || "none",
       contrato_id: e.contrato_id || "none",
       empresa_id: e.empresa_id || "none",
+      orcamento: Number(e.orcamento || 0),
+      notas: e.notas || "",
+      responsavel_nome: e.responsavel_nome || "",
+      arquivos: e.arquivos || [],
     });
     setDialogOpen(true);
   };
@@ -282,6 +324,10 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
       equipamento_id: form.equipamento_id === "none" ? null : form.equipamento_id,
       contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
       empresa_id: form.empresa_id === "none" ? null : form.empresa_id,
+      orcamento: Number(form.orcamento || 0),
+      notas: form.notas,
+      responsavel_nome: form.responsavel_nome,
+      arquivos: form.arquivos,
     };
 
     if (isLocalMode) {
@@ -343,6 +389,119 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
         toast({ title: "Erro ao remover", description: err.message, variant: "destructive" });
       }
     }
+  };
+
+  // Helper for inline updates in Monday table
+  const updateEventField = async (eventId: string, field: string, value: any) => {
+    const targetEvent = events.find(e => e.id === eventId);
+    if (!targetEvent) return;
+
+    const updatedEvent = {
+      ...targetEvent,
+      [field]: value,
+      updated_at: new Date().toISOString()
+    };
+
+    setEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e));
+
+    if (isLocalMode) {
+      const updated = events.map(e => e.id === eventId ? updatedEvent : e);
+      saveLocalEvents(updated);
+    } else {
+      try {
+        const payload = {
+          [field]: value,
+          updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from("agenda").update(payload).eq("id", eventId);
+        if (error) throw error;
+      } catch (err: any) {
+        toast({ title: "Erro ao atualizar campo", description: err.message, variant: "destructive" });
+        fetchData();
+      }
+    }
+  };
+
+  // Helper for quick adding events from the Monday spreadsheet view
+  const handleQuickAddEvent = async (titulo: string, status: "A Fazer" | "Em Andamento" | "Concluído") => {
+    const newId = crypto.randomUUID();
+    const newEvent: AgendaEvent = {
+      id: newId,
+      titulo,
+      descricao: "",
+      data_inicio: new Date().toISOString().slice(0, 16),
+      data_fim: null,
+      status,
+      prioridade: "Média",
+      categoria: "Geral",
+      equipamento_id: null,
+      contrato_id: null,
+      empresa_id: null,
+      orcamento: 0,
+      notas: "",
+      responsavel_nome: "",
+      arquivos: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    setEvents(prev => [...prev, newEvent]);
+
+    if (isLocalMode) {
+      saveLocalEvents([...events, newEvent]);
+      toast({ title: "Tarefa criada", description: `"${titulo}" adicionado localmente.` });
+    } else {
+      try {
+        const { error } = await supabase.from("agenda").insert(newEvent);
+        if (error) throw error;
+        toast({ title: "Tarefa criada", description: `"${titulo}" adicionada com sucesso.` });
+        fetchData();
+      } catch (err: any) {
+        toast({ title: "Erro ao criar tarefa", description: err.message, variant: "destructive" });
+        fetchData();
+      }
+    }
+  };
+
+  // Helper to calculate days overdue
+  const getDaysOverdue = (dataInicioStr: string, status: string) => {
+    if (status === "Concluído" || !dataInicioStr) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadline = new Date(dataInicioStr);
+    deadline.setHours(0, 0, 0, 0);
+    if (deadline < today) {
+      const diffTime = Math.abs(today.getTime() - deadline.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    }
+    return 0;
+  };
+
+  // Files attachment helpers
+  const handleAddFileLink = async () => {
+    if (!activeFilesEvent || !newFileUrl.trim()) return;
+    const currentFiles = activeFilesEvent.arquivos || [];
+    if (currentFiles.includes(newFileUrl.trim())) {
+      toast({ title: "Arquivo já existe", description: "Este link já foi adicionado.", variant: "destructive" });
+      return;
+    }
+    const updatedFiles = [...currentFiles, newFileUrl.trim()];
+    
+    await updateEventField(activeFilesEvent.id, "arquivos", updatedFiles);
+    setActiveFilesEvent(prev => prev ? { ...prev, arquivos: updatedFiles } : null);
+    setNewFileUrl("");
+    toast({ title: "Sucesso", description: "Link de arquivo adicionado." });
+  };
+
+  const handleRemoveFileLink = async (urlToRemove: string) => {
+    if (!activeFilesEvent) return;
+    const currentFiles = activeFilesEvent.arquivos || [];
+    const updatedFiles = currentFiles.filter(url => url !== urlToRemove);
+    
+    await updateEventField(activeFilesEvent.id, "arquivos", updatedFiles);
+    setActiveFilesEvent(prev => prev ? { ...prev, arquivos: updatedFiles } : null);
+    toast({ title: "Sucesso", description: "Link de arquivo removido." });
   };
 
   // Drag and Drop handlers for Kanban
@@ -706,12 +865,20 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
           <div className="flex items-center gap-2">
             <Button
+              variant={activeTab === "board" ? "default" : "outline"}
+              onClick={() => setActiveTab("board")}
+              size="sm"
+              className={activeTab === "board" ? "bg-accent text-accent-foreground" : "bg-background"}
+            >
+              <Table2 className="h-4 w-4 mr-2" /> Quadro Principal
+            </Button>
+            <Button
               variant={activeTab === "kanban" ? "default" : "outline"}
               onClick={() => setActiveTab("kanban")}
               size="sm"
               className={activeTab === "kanban" ? "bg-accent text-accent-foreground" : "bg-background"}
             >
-              <Trello className="h-4 w-4 mr-2" /> Quadro Kanban
+              <Trello className="h-4 w-4 mr-2" /> Cartões
             </Button>
             <Button
               variant={activeTab === "calendar" ? "default" : "outline"}
@@ -757,6 +924,359 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
         </div>
 
         {/* Tab Contents */}
+        {activeTab === "board" && (
+          <div className="space-y-8 bg-card border border-border rounded-xl p-6 shadow-sm overflow-x-auto">
+            {STATUSES.map(colStatus => {
+              const statusEvents = filteredEvents.filter(e => e.status === colStatus);
+              const isCollapsed = collapsedGroups.includes(colStatus);
+              
+              // Calculate aggregations
+              const totalBudget = statusEvents.reduce((acc, curr) => acc + Number(curr.orcamento || 0), 0);
+              const totalFilesCount = statusEvents.reduce((acc, curr) => acc + (curr.arquivos?.length || 0), 0);
+              
+              // Timeline aggregation
+              const validDates = statusEvents
+                .map(e => e.data_inicio ? new Date(e.data_inicio) : null)
+                .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
+              
+              let timelineStr = "—";
+              if (validDates.length > 0) {
+                const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
+                const maxDate = new Date(Math.max(...validDates.map(d => d.getTime())));
+                const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+                timelineStr = `${minDate.toLocaleDateString("pt-BR", options)} - ${maxDate.toLocaleDateString("pt-BR", options)}`;
+              }
+
+              // Status colors for left indicator bar
+              const groupColors = {
+                "A Fazer": { border: "border-l-4 border-l-[#E2445C]", bg: "bg-[#E2445C]", text: "text-[#E2445C]" },
+                "Em Andamento": { border: "border-l-4 border-l-[#FDAB3D]", bg: "bg-[#FDAB3D]", text: "text-[#FDAB3D]" },
+                "Concluído": { border: "border-l-4 border-l-[#00C875]", bg: "bg-[#00C875]", text: "text-[#00C875]" }
+              }[colStatus];
+
+              return (
+                <div key={colStatus} className={`rounded-xl border border-border bg-card overflow-hidden ${groupColors.border} transition-all shadow-sm`}>
+                  {/* Status Group Header */}
+                  <div className="flex items-center gap-2 p-3 bg-muted/20 border-b border-border/80">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setCollapsedGroups(prev => isCollapsed ? prev.filter(g => g !== colStatus) : [...prev, colStatus])}
+                      className="h-6 w-6 p-0"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isCollapsed ? "-rotate-90 text-muted-foreground/60" : "text-foreground"}`} />
+                    </Button>
+                    <span className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold text-white ${groupColors.bg}`}>
+                        {colStatus}
+                      </span>
+                      <span className="text-xs text-muted-foreground/75 font-medium">({statusEvents.length} tarefas)</span>
+                    </span>
+                  </div>
+
+                  {!isCollapsed && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-muted/15 border-b border-border text-muted-foreground font-semibold">
+                            <th className="p-2 w-8 text-center">#</th>
+                            <th className="p-2 min-w-[200px]">Tarefa</th>
+                            <th className="p-2 min-w-[120px]">Responsável</th>
+                            <th className="p-2 min-w-[110px] text-center">Status</th>
+                            <th className="p-2 min-w-[110px] text-center">Prioridade</th>
+                            <th className="p-2 min-w-[120px] text-center">Prazo / Início</th>
+                            {colStatus !== "Concluído" && <th className="p-2 min-w-[90px] text-center">Trabalho</th>}
+                            <th className="p-2 min-w-[100px] text-right">Orçamento</th>
+                            <th className="p-2 min-w-[180px]">Notas</th>
+                            <th className="p-2 w-20 text-center">Ações</th>
+                          </tr>
+                        </thead>
+                                {statusEvents.map((item, index) => (
+                            <tr key={item.id} className="hover:bg-muted/5 transition-colors group">
+                              {/* Row Index */}
+                              <td className="p-2 text-center text-muted-foreground/60 font-mono font-medium border-r border-border/60">
+                                {index + 1}
+                              </td>
+
+                              {/* Task Title */}
+                              <td className="p-2 border-r border-border/60">
+                                {colStatus === "Concluído" ? (
+                                  <span className="font-semibold text-foreground px-1 py-0.5 block truncate max-w-[280px]">
+                                    {item.titulo}
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={item.titulo}
+                                    onChange={(e) => updateEventField(item.id, "titulo", e.target.value)}
+                                    className="bg-transparent border-0 focus:ring-1 focus:ring-accent rounded-sm outline-none px-1 py-0.5 w-full font-medium text-foreground hover:bg-muted/30 focus:bg-background"
+                                  />
+                                )}
+                              </td>
+
+                              {/* Responsavel */}
+                              <td className="p-2 border-r border-border/60">
+                                {colStatus === "Concluído" ? (
+                                  <div className="flex items-center gap-1.5 px-1 py-0.5">
+                                    <div className="h-4 w-4 rounded-full bg-accent/10 text-accent/80 flex items-center justify-center text-[8px] font-bold shrink-0">
+                                      {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : <User className="h-2.5 w-2.5" />}
+                                    </div>
+                                    <span className="text-foreground/75 truncate text-xs">
+                                      {item.responsavel_nome || <span className="text-muted-foreground/40 italic">Sem responsável</span>}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <Select
+                                    value={item.responsavel_nome || "none"}
+                                    onValueChange={(val) => updateEventField(item.id, "responsavel_nome", val === "none" ? "" : val)}
+                                  >
+                                    <SelectTrigger className="h-7 text-xs border-0 rounded-sm shadow-none focus:ring-0 w-full bg-transparent hover:bg-muted/30 px-1">
+                                      <div className="flex items-center gap-1.5 truncate">
+                                        <div className="h-4 w-4 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[8px] font-bold shrink-0">
+                                          {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : <User className="h-2.5 w-2.5" />}
+                                        </div>
+                                        <span className="truncate text-left text-foreground">
+                                          {item.responsavel_nome || <span className="text-muted-foreground/50 italic">Sem responsável</span>}
+                                        </span>
+                                      </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none" className="text-xs italic text-muted-foreground">Sem responsável</SelectItem>
+                                      {usuarios.map(u => (
+                                        <SelectItem key={u.user_id} value={u.nome} className="text-xs">{u.nome}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </td>
+
+                              {/* Status badge dropdown */}
+                              <td className="p-2 border-r border-border/60 text-center">
+                                {colStatus === "Concluído" ? (
+                                  <div className="h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm bg-[#00C875] select-none">
+                                    {item.status}
+                                  </div>
+                                ) : (
+                                  <Select
+                                    value={item.status}
+                                    onValueChange={(val: any) => updateEventField(item.id, "status", val)}
+                                  >
+                                    <SelectTrigger className={`h-7 text-[11px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
+                                      item.status === "Concluído" ? "bg-[#00C875] hover:bg-[#00C875]/90" :
+                                      item.status === "Em Andamento" ? "bg-[#FDAB3D] hover:bg-[#FDAB3D]/90" : "bg-[#E2445C] hover:bg-[#E2445C]/90"
+                                    }`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {STATUSES.map(st => (
+                                        <SelectItem key={st} value={st} className="text-xs font-semibold">{st}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </td>
+
+                              {/* Priority badge dropdown */}
+                              <td className="p-2 border-r border-border/60 text-center">
+                                {colStatus === "Concluído" ? (
+                                  <div className={`h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm select-none ${
+                                    item.prioridade === "Alta" ? "bg-[#784BD1]" :
+                                    item.prioridade === "Média" ? "bg-[#5559DF]" : "bg-[#579BFC]"
+                                  }`}>
+                                    {item.prioridade}
+                                  </div>
+                                ) : (
+                                  <Select
+                                    value={item.prioridade}
+                                    onValueChange={(val: any) => updateEventField(item.id, "prioridade", val)}
+                                  >
+                                    <SelectTrigger className={`h-7 text-[11px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
+                                      item.prioridade === "Alta" ? "bg-[#784BD1] hover:bg-[#784BD1]/90" :
+                                      item.prioridade === "Média" ? "bg-[#5559DF] hover:bg-[#5559DF]/90" : "bg-[#579BFC] hover:bg-[#579BFC]/90"
+                                    }`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {PRIORITIES.map(pr => (
+                                        <SelectItem key={pr} value={pr} className="text-xs font-semibold">{pr}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </td>
+
+                              {/* Prazo (Timeline) */}
+                              <td className="p-2 border-r border-border/60 text-center">
+                                {colStatus === "Concluído" ? (
+                                  <span className="text-foreground/80 font-mono text-[11px] text-center block py-1.5">
+                                    {item.data_inicio ? new Date(item.data_inicio).toLocaleDateString("pt-BR") : "—"}
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="date"
+                                    value={item.data_inicio ? item.data_inicio.slice(0, 10) : ""}
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        const updatedDate = new Date(e.target.value);
+                                        updateEventField(item.id, "data_inicio", updatedDate.toISOString());
+                                      }
+                                    }}
+                                    className="bg-transparent border-0 outline-none text-xs w-full text-center hover:bg-muted/30 rounded-sm focus:ring-1 focus:ring-accent"
+                                  />
+                                )}
+                              </td>
+
+                              {/* Atraso (Trabalho) */}
+                              {colStatus !== "Concluído" && (
+                                <td className="p-2 border-r border-border/60 text-center font-medium">
+                                  {(() => {
+                                    const days = getDaysOverdue(item.data_inicio, item.status);
+                                    if (days > 0) {
+                                      if (item.status === "Em Andamento") {
+                                        return (
+                                          <Badge className="bg-[#FDAB3D]/15 text-[#FDAB3D] border-0 font-bold hover:bg-[#FDAB3D]/20 text-[10px] whitespace-nowrap">
+                                            {days} {days === 1 ? "dia" : "dias"}
+                                          </Badge>
+                                        );
+                                      }
+                                      return (
+                                        <Badge className="bg-destructive/15 text-destructive border-0 font-bold hover:bg-destructive/20 text-[10px] whitespace-nowrap">
+                                          {days} {days === 1 ? "dia" : "dias"}
+                                        </Badge>
+                                      );
+                                    }
+                                    return <span className="text-muted-foreground/45">—</span>;
+                                  })()}
+                                </td>
+                              )}
+
+                              {/* Budget (Orcamento) */}
+                              <td className="p-2 border-r border-border/60 text-right font-mono font-medium">
+                                {colStatus === "Concluído" ? (
+                                  <span className="text-foreground/80 font-mono text-[11px] text-right block py-1.5 px-1">
+                                    {Number(item.orcamento || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={item.orcamento || ""}
+                                    placeholder="R$ 0"
+                                    onChange={(e) => updateEventField(item.id, "orcamento", Number(e.target.value || 0))}
+                                    className="bg-transparent border-0 focus:ring-1 focus:ring-accent rounded-sm outline-none px-1 py-0.5 w-full text-right hover:bg-muted/30 focus:bg-background placeholder:text-muted-foreground/35"
+                                  />
+                                )}
+                              </td>
+
+                              {/* Notes */}
+                              <td className="p-2 border-r border-border/60">
+                                {colStatus === "Concluído" ? (
+                                  <span className="text-foreground/75 px-1 py-0.5 block truncate max-w-[220px]" title={item.notas || ""}>
+                                    {item.notes || item.notas || <span className="text-muted-foreground/30 italic">—</span>}
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={item.notes || item.notas || ""}
+                                    placeholder="Notas rápidas..."
+                                    onChange={(e) => updateEventField(item.id, "notas", e.target.value)}
+                                    className="bg-transparent border-0 focus:ring-1 focus:ring-accent rounded-sm outline-none px-1 py-0.5 w-full text-foreground/80 hover:bg-muted/30 focus:bg-background placeholder:text-muted-foreground/35"
+                                  />
+                                )}
+                              </td>
+
+                              {/* Row Actions */}
+                              <td className="p-2 text-center">
+                                {colStatus === "Concluído" ? (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setViewEvent(item);
+                                        setViewDialogOpen(true);
+                                      }}
+                                      className="h-6 w-6 hover:bg-muted text-muted-foreground hover:text-foreground"
+                                      title="Visualizar Detalhes"
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => openEdit(item)}
+                                      className="h-6 w-6 hover:bg-muted"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteEvent(item.id)}
+                                      className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+
+                          {/* Quick Add Row */}
+                          {colStatus !== "Concluído" && (
+                            <tr className="bg-muted/5 group">
+                              <td className="p-2 text-center">
+                                <Plus className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                              </td>
+                              <td className="p-2 border-r border-border/60" colSpan={colStatus === "Concluído" ? 8 : 9}>
+                                <input
+                                  type="text"
+                                  placeholder="+ Adicionar nova tarefa..."
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                                      handleQuickAddEvent(e.currentTarget.value.trim(), colStatus);
+                                      e.currentTarget.value = "";
+                                    }
+                                  }}
+                                  className="bg-transparent border-0 outline-none w-full text-xs text-foreground placeholder:text-muted-foreground/50 font-medium py-1"
+                                />
+                              </td>
+                            </tr>
+                          )}</td>
+                          </tr>
+                        </tbody>
+                        
+                        {/* Summary Footer */}
+                        <tfoot>
+                          <tr className="bg-muted/20 border-t border-border font-bold text-muted-foreground text-[11px]">
+                            <td className="p-2 border-r border-border/60"></td>
+                            <td className="p-2 border-r border-border/60 text-right font-semibold">Resumo do Grupo</td>
+                            <td className="p-2 border-r border-border/60"></td>
+                            <td className="p-2 border-r border-border/60"></td>
+                            <td className="p-2 border-r border-border/60"></td>
+                            <td className="p-2 border-r border-border/60 text-center font-mono font-semibold">
+                              {timelineStr}
+                            </td>
+                            {colStatus !== "Concluído" && <td className="p-2 border-r border-border/60"></td>}
+                            <td className="p-2 border-r border-border/60 text-right font-mono text-foreground font-bold">
+                              {totalBudget.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </td>
+                            <td className="p-2 border-r border-border/60"></td>
+                            <td className="p-2"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {activeTab === "kanban" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {STATUSES.map(colStatus => {
@@ -767,9 +1287,9 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                   key={colStatus}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, colStatus)}
-                  className="rounded-lg border border-border bg-muted/10 flex flex-col min-h-[500px]"
+                  className="rounded-xl border border-border bg-muted/10 flex flex-col min-h-[500px]"
                 >
-                  <div className="p-3 border-b border-border bg-muted/40 rounded-t-lg flex items-center justify-between">
+                  <div className="p-4 border-b border-border bg-muted/40 rounded-t-xl flex items-center justify-between">
                     <span className="font-bold text-sm text-foreground flex items-center gap-2">
                       {colStatus === "A Fazer" && <Clock className="h-4 w-4 text-muted-foreground" />}
                       {colStatus === "Em Andamento" && <AlertTriangle className="h-4 w-4 text-warning" />}
@@ -781,93 +1301,161 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                     </Badge>
                   </div>
 
-                  <div className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[600px] scrollbar-thin">
+                  <div className="p-4 space-y-4 flex-1 overflow-y-auto max-h-[650px] scrollbar-thin">
                     {statusEvents.map(item => (
                       <Card
                         key={item.id}
-                        draggable
+                        draggable={item.status !== "Concluído"}
                         onDragStart={(e) => handleDragStart(e, item.id)}
                         onClick={() => {
                           setViewEvent(item);
                           setViewDialogOpen(true);
                         }}
-                        className="bg-card hover:shadow-md cursor-pointer cursor-grab active:cursor-grabbing transition-all border border-border group"
+                        className={`bg-card hover:shadow-lg border border-border rounded-xl group overflow-hidden ${
+                          item.status === "Concluído" ? "cursor-pointer" : "cursor-pointer cursor-grab active:cursor-grabbing"
+                        }`}
                       >
-                        <CardContent className="p-4 space-y-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="font-semibold text-sm leading-tight text-foreground block group-hover:text-accent transition-colors">
-                              {item.titulo}
-                            </span>
-                            <Badge className={
-                              item.prioridade === "Alta" ? "bg-destructive/15 text-destructive border-0 text-[9px] font-bold" :
-                              item.prioridade === "Média" ? "bg-warning/15 text-warning border-0 text-[9px] font-bold" :
-                              "bg-success/15 text-success border-0 text-[9px] font-bold"
-                            }>
-                              {item.prioridade}
-                            </Badge>
+                        {/* Monday Card Top Placeholder (Avatar Container) */}
+                        <div className="bg-muted/40 relative flex items-center justify-center py-5 border-b border-border/50 bg-slate-50 dark:bg-slate-900/50">
+                          <div className="h-16 w-16 rounded-full border-2 border-card bg-background flex items-center justify-center shadow-sm">
+                            <User className="h-8 w-8 text-muted-foreground/60" />
                           </div>
-
-                          {item.descricao && (
-                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                              {item.descricao}
-                            </p>
-                          )}
-
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            <Badge variant="outline" className="text-[9px] bg-muted/20 border-border text-muted-foreground font-semibold">
-                              {item.categoria}
-                            </Badge>
-                            
-                            {item.equipamentos && (
-                              <Badge variant="outline" className="text-[9px] bg-muted/20 border-accent/25 text-accent-foreground font-semibold flex items-center gap-1">
-                                <LinkIcon className="h-2.5 w-2.5 shrink-0 text-accent" />
-                                {item.equipamentos.tipo} ({item.equipamentos.tag_placa || "—"})
-                              </Badge>
-                            )}
-
-                            {item.empresas && (
-                              <Badge variant="outline" className="text-[9px] bg-muted/20 border-success/25 text-success font-semibold flex items-center gap-1">
-                                <LinkIcon className="h-2.5 w-2.5 shrink-0 text-success" />
-                                {item.empresas.nome}
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/60 pt-2.5 mt-1">
-                            <span className="flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                              {new Date(item.data_inicio).toLocaleDateString("pt-BR", { month: "short", day: "numeric" })}
-                            </span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          
+                          {/* Quick "+" or edit button on hover */}
+                          {item.status !== "Concluído" && (
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Button
                                 size="icon"
-                                variant="ghost"
+                                variant="secondary"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   openEdit(item);
                                 }}
-                                className="h-5 w-5 p-0 hover:bg-muted"
+                                className="h-6 w-6 bg-background hover:bg-muted border shadow-sm"
                               >
-                                <Pencil className="h-3 w-3 text-muted-foreground" />
+                                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                               </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteEvent(item.id);
-                                }}
-                                className="h-5 w-5 p-0 hover:bg-muted"
-                              >
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        <CardContent className="p-4 space-y-4">
+                          {/* Title and Notes Icon Row */}
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="font-bold text-sm leading-tight text-foreground block group-hover:text-accent transition-colors">
+                              {item.titulo}
+                            </span>
+                            {item.notas && (
+                              <Badge variant="outline" className="border-0 p-0 text-muted-foreground/60 shrink-0">
+                                <StickyNote className="h-3.5 w-3.5" />
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Monday Card attributes layout (matching screenshot) */}
+                          <div className="space-y-2 pt-2 text-xs border-t border-border/40">
+                            {/* Responsavel Row */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Responsável</span>
+                              <div className="flex items-center gap-1 font-semibold text-foreground">
+                                <div className="h-5 w-5 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[9px] font-bold shrink-0">
+                                  {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : <User className="h-3 w-3" />}
+                                </div>
+                                <span className="text-[11px] max-w-[100px] truncate">{item.responsavel_nome || "—"}</span>
+                              </div>
+                            </div>
+                            
+                            {/* Status Row */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Status</span>
+                              <div className={`text-[10px] text-white py-0.5 px-2 rounded-sm text-center font-bold min-w-[90px] shadow-sm ${
+                                item.status === "Concluído" ? "bg-[#00C875]" :
+                                item.status === "Em Andamento" ? "bg-[#FDAB3D]" : "bg-[#E2445C]"
+                              }`}>
+                                {item.status}
+                              </div>
+                            </div>
+
+                            {/* Prioridade Row */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Prioridade</span>
+                              <div className={`text-[10px] text-white py-0.5 px-2 rounded-sm text-center font-bold min-w-[90px] shadow-sm ${
+                                item.prioridade === "Alta" ? "bg-[#784BD1]" :
+                                item.prioridade === "Média" ? "bg-[#5559DF]" : "bg-[#579BFC]"
+                              }`}>
+                                {item.prioridade}
+                              </div>
+                            </div>
+
+                            {/* Prazo Row */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Prazo</span>
+                              <div className="flex items-center gap-1.5 bg-muted/40 px-2 py-0.5 rounded text-[11px] font-medium text-foreground">
+                                {item.status === "Concluído" ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                ) : item.data_inicio && new Date(item.data_inicio) < new Date() ? (
+                                  <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                                ) : (
+                                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                )}
+                                <span>
+                                  {item.data_inicio ? new Date(item.data_inicio).toLocaleDateString("pt-BR", { month: "short", day: "numeric" }) : "—"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Quick delete/edit buttons bar */}
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/40 pt-2.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-muted-foreground/60 italic">Categoria: {item.categoria}</span>
+                            <div className="flex gap-1">
+                              {item.status === "Concluído" ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewEvent(item);
+                                    setViewDialogOpen(true);
+                                  }}
+                                  className="h-5 w-5 p-0 hover:bg-muted"
+                                  title="Visualizar Detalhes"
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEdit(item);
+                                    }}
+                                    className="h-5 w-5 p-0 hover:bg-muted"
+                                  >
+                                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteEvent(item.id);
+                                    }}
+                                    className="h-5 w-5 p-0 hover:bg-muted text-destructive"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
                     {statusEvents.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground border border-dashed border-border rounded-lg bg-muted/5">
+                      <div className="h-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground border border-dashed border-border rounded-xl bg-muted/5">
                         <Trello className="h-8 w-8 text-muted-foreground/30 mb-2" />
                         <span className="text-xs">Arraste tarefas aqui</span>
                       </div>
@@ -1129,6 +1717,52 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
                 </Select>
               </div>
             </div>
+
+            <div className="border-t border-border/60 pt-4 mt-2 space-y-3">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Informações Monday (Opcional)</span>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="responsavel_nome">Responsável</Label>
+                  <Select
+                    value={form.responsavel_nome || "none"}
+                    onValueChange={(v) => setForm(prev => ({ ...prev, responsavel_nome: v === "none" ? "" : v }))}
+                  >
+                    <SelectTrigger id="responsavel_nome">
+                      <SelectValue placeholder="Selecione um responsável..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {usuarios.map(u => (
+                        <SelectItem key={u.user_id} value={u.nome}>{u.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="orcamento">Orçamento (R$)</Label>
+                  <Input
+                    id="orcamento"
+                    type="number"
+                    value={form.orcamento || ""}
+                    onChange={(e) => setForm(prev => ({ ...prev, orcamento: Number(e.target.value) }))}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="notas">Notas / Observações</Label>
+                <Textarea
+                  id="notas"
+                  value={form.notas}
+                  onChange={(e) => setForm(prev => ({ ...prev, notas: e.target.value }))}
+                  placeholder="Notas rápidas..."
+                  className="min-h-12"
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
@@ -1252,30 +1886,34 @@ CREATE POLICY "Authenticated access to agenda" ON public.agenda FOR ALL TO authe
             >
               Fechar
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setViewDialogOpen(false);
-                if (viewEvent) openEdit(viewEvent);
-              }}
-              className="gap-1.5"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Editar
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                setViewDialogOpen(false);
-                if (viewEvent) handleDeleteEvent(viewEvent.id);
-              }}
-              className="gap-1.5"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Excluir
-            </Button>
+            {viewEvent?.status !== "Concluído" && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    if (viewEvent) openEdit(viewEvent);
+                  }}
+                  className="gap-1.5"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editar
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    if (viewEvent) handleDeleteEvent(viewEvent.id);
+                  }}
+                  className="gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
