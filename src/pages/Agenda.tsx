@@ -105,7 +105,7 @@ const stickyColors = {
 export default function Agenda() {
   const { profile } = useAuth();
   const currentUserNome = profile?.nome || "Sistema";
-  const [activeTab, setActiveTab] = useState<"kanban" | "calendar" | "notes" | "board">("board");
+  const [activeTab, setActiveTab] = useState<"kanban" | "calendar" | "notes">("kanban");
   const [calendarMode, setCalendarMode] = useState<"day" | "month" | "year">("month");
   
   // Data lists
@@ -1169,14 +1169,6 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
           <div className="flex items-center gap-2">
             <Button
-              variant={activeTab === "board" ? "default" : "outline"}
-              onClick={() => setActiveTab("board")}
-              size="sm"
-              className={activeTab === "board" ? "bg-accent text-accent-foreground" : "bg-background"}
-            >
-              <Table2 className="h-4 w-4 mr-2" /> Quadro Principal
-            </Button>
-            <Button
               variant={activeTab === "kanban" ? "default" : "outline"}
               onClick={() => setActiveTab("kanban")}
               size="sm"
@@ -1228,358 +1220,6 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
         </div>
 
         {/* Tab Contents */}
-        {activeTab === "board" && (
-          <div className="space-y-8 bg-card border border-border rounded-xl p-6 shadow-sm overflow-x-auto">
-            {STATUSES.map(colStatus => {
-              const statusEvents = processedEvents.filter(e => e.status === colStatus);
-              const isCollapsed = collapsedGroups.includes(colStatus);
-              
-              // Calculate aggregations
-              const totalBudget = statusEvents.reduce((acc, curr) => acc + Number(curr.orcamento || 0), 0);
-              const totalFilesCount = statusEvents.reduce((acc, curr) => acc + (curr.arquivos?.length || 0), 0);
-              
-              // Timeline aggregation
-              const validDates = statusEvents
-                .map(e => e.data_inicio ? new Date(e.data_inicio) : null)
-                .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
-              
-              let timelineStr = "—";
-              if (validDates.length > 0) {
-                const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
-                const maxDate = new Date(Math.max(...validDates.map(d => d.getTime())));
-                const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-                timelineStr = `${minDate.toLocaleDateString("pt-BR", options)} - ${maxDate.toLocaleDateString("pt-BR", options)}`;
-              }
-
-              // Status colors for left indicator bar
-              const groupColors = {
-                "A Fazer": { border: "border-l-4 border-l-[#A1343C]", bg: "bg-[#A1343C]", text: "text-[#A1343C]" },
-                "Em Andamento": { border: "border-l-4 border-l-[#E66C37]", bg: "bg-[#E66C37]", text: "text-[#E66C37]" },
-                "Concluído": { border: "border-l-4 border-l-[#3F7343]", bg: "bg-[#3F7343]", text: "text-[#3F7343]" }
-              }[colStatus];
-
-              return (
-                <div key={colStatus} className={`rounded-xl border border-border bg-card overflow-hidden ${groupColors.border} transition-all shadow-sm`}>
-                  {/* Status Group Header */}
-                  <div className="flex items-center gap-2 p-3 bg-muted/20 border-b border-border/80">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setCollapsedGroups(prev => isCollapsed ? prev.filter(g => g !== colStatus) : [...prev, colStatus])}
-                      className="h-6 w-6 p-0"
-                    >
-                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isCollapsed ? "-rotate-90 text-muted-foreground/60" : "text-foreground"}`} />
-                    </Button>
-                    <span className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold text-white ${groupColors.bg}`}>
-                        {colStatus}
-                      </span>
-                      <span className="text-xs text-muted-foreground/75 font-medium">({statusEvents.length} tarefas)</span>
-                    </span>
-                  </div>
-
-                  {!isCollapsed && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="bg-muted/15 border-b border-border text-muted-foreground font-semibold">
-                            <th className="p-2 w-8 text-center">#</th>
-                            <th className="p-2 min-w-[200px]">Tarefa</th>
-                            <th className="p-2 min-w-[120px]">Responsável</th>
-                            <th className="p-2 min-w-[110px] text-center">Status</th>
-                            <th className="p-2 min-w-[110px] text-center">Prioridade</th>
-                            <th className="p-2 min-w-[120px] text-center">Prazo / Início</th>
-                            {colStatus !== "Concluído" && <th className="p-2 min-w-[90px] text-center">Trabalho</th>}
-                            <th className="p-2 min-w-[100px] text-right">Orçamento</th>
-                            <th className="p-2 min-w-[180px]">Notas</th>
-                            <th className="p-2 w-20 text-center">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {statusEvents.map((item, index) => (
-                            <tr key={item.id} className="hover:bg-muted/5 transition-colors group">
-                              {/* Row Index */}
-                              <td className="p-2 text-center text-muted-foreground/60 font-mono font-medium border-r border-border/60">
-                                {index + 1}
-                              </td>
-
-                              {/* Task Title */}
-                              <td className="p-2 border-r border-border/60">
-                                {item.readOnly ? (
-                                  <span className="font-semibold text-foreground px-1 py-0.5 block truncate max-w-[280px]">
-                                    {item.titulo}
-                                  </span>
-                                ) : (
-                                  <input
-                                    type="text"
-                                    value={item.titulo}
-                                    onChange={(e) => updateEventField(item.id, "titulo", e.target.value)}
-                                    className="bg-transparent border-0 focus:ring-1 focus:ring-accent rounded-sm outline-none px-1 py-0.5 w-full font-medium text-foreground hover:bg-muted/30 focus:bg-background"
-                                  />
-                                )}
-                              </td>
-
-                              {/* Responsavel */}
-                              <td className="p-2 border-r border-border/60">
-                                {item.readOnly ? (
-                                  <div className="flex items-center gap-1.5 px-1 py-0.5">
-                                    <div className="h-4 w-4 rounded-full bg-accent/10 text-accent/80 flex items-center justify-center text-[8px] font-bold shrink-0">
-                                      {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : <User className="h-2.5 w-2.5" />}
-                                    </div>
-                                    <span className="text-foreground/75 truncate text-xs">
-                                      {item.responsavel_nome || <span className="text-muted-foreground/40 italic">Sem responsável</span>}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <Select
-                                    value={item.responsavel_nome || "none"}
-                                    onValueChange={(val) => updateEventField(item.id, "responsavel_nome", val === "none" ? "" : val)}
-                                  >
-                                    <SelectTrigger className="h-7 text-xs border-0 rounded-sm shadow-none focus:ring-0 w-full bg-transparent hover:bg-muted/30 px-1">
-                                      <div className="flex items-center gap-1.5 truncate">
-                                        <div className="h-4 w-4 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[8px] font-bold shrink-0">
-                                          {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : <User className="h-2.5 w-2.5" />}
-                                        </div>
-                                        <span className="truncate text-left text-foreground">
-                                          {item.responsavel_nome || <span className="text-muted-foreground/50 italic">Sem responsável</span>}
-                                        </span>
-                                      </div>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none" className="text-xs italic text-muted-foreground">Sem responsável</SelectItem>
-                                      {usuarios.map(u => (
-                                        <SelectItem key={u.user_id} value={u.nome} className="text-xs">{u.nome}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              </td>
-
-                              {/* Status badge dropdown */}
-                              <td className="p-2 border-r border-border/60 text-center">
-                                {item.readOnly ? (
-                                  <div className="h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm bg-[#3F7343] select-none">
-                                    {item.status}
-                                  </div>
-                                ) : (
-                                  <Select
-                                    value={item.status}
-                                    onValueChange={(val: any) => updateEventField(item.id, "status", val)}
-                                  >
-                                    <SelectTrigger className={`h-7 text-[11px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
-                                      item.status === "Concluído" ? "bg-[#3F7343] hover:bg-[#3F7343]/90" :
-                                      item.status === "Em Andamento" ? "bg-[#E66C37] hover:bg-[#E66C37]/90" : "bg-[#A1343C] hover:bg-[#A1343C]/90"
-                                    }`}>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {STATUSES.map(st => (
-                                        <SelectItem key={st} value={st} className="text-xs font-semibold">{st}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              </td>
-
-                              {/* Priority badge dropdown */}
-                              <td className="p-2 border-r border-border/60 text-center">
-                                {item.readOnly ? (
-                                  <div className={`h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm select-none ${
-                                    item.prioridade === "Alta" ? "bg-[#A1343C]" :
-                                    item.prioridade === "Média" ? "bg-[#E66C37]" : "bg-[#3F7343]"
-                                  }`}>
-                                    {item.prioridade}
-                                  </div>
-                                ) : (
-                                  <Select
-                                    value={item.prioridade}
-                                    onValueChange={(val: any) => updateEventField(item.id, "prioridade", val)}
-                                  >
-                                    <SelectTrigger className={`h-7 text-[11px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
-                                      item.prioridade === "Alta" ? "bg-[#A1343C] hover:bg-[#A1343C]/90" :
-                                      item.prioridade === "Média" ? "bg-[#E66C37] hover:bg-[#E66C37]/90" : "bg-[#3F7343] hover:bg-[#3F7343]/90"
-                                    }`}>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {PRIORITIES.map(pr => (
-                                        <SelectItem key={pr} value={pr} className="text-xs font-semibold">{pr}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              </td>
-
-                              {/* Prazo (Timeline) */}
-                              <td className="p-2 border-r border-border/60 text-center">
-                                {item.readOnly ? (
-                                  <span className="text-foreground/80 font-mono text-[11px] text-center block py-1.5">
-                                    {item.data_inicio ? new Date(item.data_inicio).toLocaleDateString("pt-BR") : "—"}
-                                  </span>
-                                ) : (
-                                  <input
-                                    type="date"
-                                    value={item.data_inicio ? item.data_inicio.slice(0, 10) : ""}
-                                    onChange={(e) => {
-                                      if (e.target.value) {
-                                        const updatedDate = new Date(e.target.value);
-                                        updateEventField(item.id, "data_inicio", updatedDate.toISOString());
-                                      }
-                                    }}
-                                    className="bg-transparent border-0 outline-none text-xs w-full text-center hover:bg-muted/30 rounded-sm focus:ring-1 focus:ring-accent"
-                                  />
-                                )}
-                              </td>
-
-                              {/* Atraso (Trabalho) */}
-                              {colStatus !== "Concluído" && (
-                                <td className="p-2 border-r border-border/60 text-center font-medium">
-                                  {(() => {
-                                    const days = getDaysOverdue(item.data_inicio, item.status);
-                                    if (days > 0) {
-                                      if (item.status === "Em Andamento") {
-                                        return (
-                                          <Badge className="bg-[#E66C37]/15 text-[#E66C37] border-0 font-bold hover:bg-[#E66C37]/20 text-[10px] whitespace-nowrap">
-                                            {days} {days === 1 ? "dia" : "dias"}
-                                          </Badge>
-                                        );
-                                      }
-                                      return (
-                                        <Badge className="bg-[#A1343C]/15 text-[#A1343C] border-0 font-bold hover:bg-[#A1343C]/20 text-[10px] whitespace-nowrap">
-                                          {days} {days === 1 ? "dia" : "dias"}
-                                        </Badge>
-                                      );
-                                    }
-                                    return <span className="text-muted-foreground/45">—</span>;
-                                  })()}
-                                </td>
-                              )}
-
-                              {/* Budget (Orcamento) */}
-                              <td className="p-2 border-r border-border/60 text-right font-mono font-medium">
-                                {item.readOnly ? (
-                                  <span className="text-foreground/80 font-mono text-[11px] text-right block py-1.5 px-1">
-                                    {Number(item.orcamento || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                  </span>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    value={item.orcamento || ""}
-                                    placeholder="R$ 0"
-                                    onChange={(e) => updateEventField(item.id, "orcamento", Number(e.target.value || 0))}
-                                    className="bg-transparent border-0 focus:ring-1 focus:ring-accent rounded-sm outline-none px-1 py-0.5 w-full text-right hover:bg-muted/30 focus:bg-background placeholder:text-muted-foreground/35"
-                                  />
-                                )}
-                              </td>
-
-                              {/* Notes */}
-                              <td className="p-2 border-r border-border/60">
-                                {item.readOnly ? (
-                                  <span className="text-foreground/75 px-1 py-0.5 block truncate max-w-[220px]" title={item.notas || ""}>
-                                    {item.notes || item.notas || <span className="text-muted-foreground/30 italic">—</span>}
-                                  </span>
-                                ) : (
-                                  <input
-                                    type="text"
-                                    value={item.notes || item.notas || ""}
-                                    placeholder="Notas rápidas..."
-                                    onChange={(e) => updateEventField(item.id, "notas", e.target.value)}
-                                    className="bg-transparent border-0 focus:ring-1 focus:ring-accent rounded-sm outline-none px-1 py-0.5 w-full text-foreground/80 hover:bg-muted/30 focus:bg-background placeholder:text-muted-foreground/35"
-                                  />
-                                )}
-                              </td>
-
-                              {/* Row Actions */}
-                              <td className="p-2 text-center">
-                                {item.readOnly ? (
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => {
-                                        setViewEvent(item);
-                                        setViewDialogOpen(true);
-                                      }}
-                                      className="h-6 w-6 hover:bg-muted text-muted-foreground hover:text-foreground"
-                                      title="Visualizar Detalhes"
-                                    >
-                                      <Eye className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => openEdit(item)}
-                                      className="h-6 w-6 hover:bg-muted"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteEvent(item.id)}
-                                      className="h-6 w-6 text-destructive hover:bg-destructive/10"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-
-                          {/* Quick Add Row */}
-                          {colStatus !== "Concluído" && (
-                            <tr className="bg-muted/5 group">
-                              <td className="p-2 text-center">
-                                <Plus className="h-4 w-4 text-muted-foreground/40 mx-auto" />
-                              </td>
-                              <td className="p-2 border-r border-border/60" colSpan={colStatus === "Concluído" ? 8 : 9}>
-                                <input
-                                  type="text"
-                                  placeholder="+ Adicionar nova tarefa..."
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                                      handleQuickAddEvent(e.currentTarget.value.trim(), colStatus);
-                                      e.currentTarget.value = "";
-                                    }
-                                  }}
-                                  className="bg-transparent border-0 outline-none w-full text-xs text-foreground placeholder:text-muted-foreground/50 font-medium py-1"
-                                />
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                        
-                        {/* Summary Footer */}
-                        <tfoot>
-                          <tr className="bg-muted/20 border-t border-border font-bold text-muted-foreground text-[11px]">
-                            <td className="p-2 border-r border-border/60"></td>
-                            <td className="p-2 border-r border-border/60 text-right font-semibold">Resumo do Grupo</td>
-                            <td className="p-2 border-r border-border/60"></td>
-                            <td className="p-2 border-r border-border/60"></td>
-                            <td className="p-2 border-r border-border/60"></td>
-                            <td className="p-2 border-r border-border/60 text-center font-mono font-semibold">
-                              {timelineStr}
-                            </td>
-                            {colStatus !== "Concluído" && <td className="p-2 border-r border-border/60"></td>}
-                            <td className="p-2 border-r border-border/60 text-right font-mono text-foreground font-bold">
-                              {totalBudget.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                            </td>
-                            <td className="p-2 border-r border-border/60"></td>
-                            <td className="p-2"></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {activeTab === "kanban" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1605,12 +1245,22 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                       {colStatus === "Concluído" && <CheckCircle2 className="h-4 w-4" style={{ color: colAccentColor }} />}
                       {colStatus}
                     </span>
-                    <Badge
-                      className="text-[10px] font-bold text-white border-0"
-                      style={{ backgroundColor: colAccentColor }}
-                    >
-                      {statusEvents.length}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const totalBudgetCol = statusEvents.reduce((acc, e) => acc + Number(e.orcamento || 0), 0);
+                        return totalBudgetCol > 0 ? (
+                          <span className="text-[10px] font-mono font-semibold text-muted-foreground">
+                            {totalBudgetCol.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>
+                        ) : null;
+                      })()}
+                      <Badge
+                        className="text-[10px] font-bold text-white border-0"
+                        style={{ backgroundColor: colAccentColor }}
+                      >
+                        {statusEvents.length}
+                      </Badge>
+                    </div>
                   </div>
 
                   {/* Stacked File Cards */}
@@ -1869,6 +1519,25 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                       );
                     })}
                   </div>
+                  {/* Quick Add Card */}
+                  {colStatus !== "Concluído" && (
+                    <div className="px-3 pb-3">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border/60 bg-muted/5 hover:bg-muted/20 hover:border-border transition-colors group">
+                        <Plus className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Adicionar nova tarefa..."
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                              handleQuickAddEvent(e.currentTarget.value.trim(), colStatus);
+                              e.currentTarget.value = "";
+                            }
+                          }}
+                          className="bg-transparent border-0 outline-none w-full text-xs text-foreground placeholder:text-muted-foreground/40 font-medium"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
