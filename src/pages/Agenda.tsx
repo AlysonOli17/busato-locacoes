@@ -991,7 +991,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                             <th className="p-2 w-20 text-center">Ações</th>
                           </tr>
                         </thead>
-                                {statusEvents.map((item, index) => (
+                        <tbody>
+                          {statusEvents.map((item, index) => (
                             <tr key={item.id} className="hover:bg-muted/5 transition-colors group">
                               {/* Row Index */}
                               <td className="p-2 text-center text-muted-foreground/60 font-mono font-medium border-r border-border/60">
