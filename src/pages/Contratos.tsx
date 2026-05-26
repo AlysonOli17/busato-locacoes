@@ -1664,14 +1664,17 @@ const Contratos = () => {
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             <span className="text-xs text-muted-foreground">Alterações:</span>
-                            {changedFields.map(f => (
-                              <Badge key={f} variant="outline" className="text-xs bg-accent/10 border-accent/30">{f}</Badge>
-                            ))}
+                            {changedFields.map(f => {
+                              if (f === "Hora Mínima" && aj.hora_minima === 0) {
+                                return <Badge key={f} variant="outline" className="text-xs bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400">Apenas Horas Trabalhadas</Badge>;
+                              }
+                              return <Badge key={f} variant="outline" className="text-xs bg-accent/10 border-accent/30">{f}</Badge>;
+                            })}
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                             <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{formatLocalDate(aj.data_inicio)} - {formatLocalDate(aj.data_fim)}</span></div>
                             {changedFields.includes("Valor/Hora") && <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>}
-                            {changedFields.includes("Hora Mínima") && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
+                            {changedFields.includes("Hora Mínima") && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima === 0 ? "0h (Apenas H. Trabalhadas)" : `${aj.hora_minima}h`}</span></div>}
                             {changedFields.includes("Horas Contratadas") && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
                           </div>
                           {aj.motivo && aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "").trim() && <p className="text-xs text-muted-foreground italic">{aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "")}</p>}
@@ -1723,15 +1726,18 @@ const Contratos = () => {
                         {indivChanges.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
                             <span className="text-xs text-muted-foreground">Alterações:</span>
-                            {indivChanges.map(f => (
-                              <Badge key={f} variant="outline" className="text-xs bg-accent/10 border-accent/30">{f}</Badge>
-                            ))}
+                            {indivChanges.map(f => {
+                              if (f === "Hora Mínima" && aj.hora_minima === 0) {
+                                return <Badge key={f} variant="outline" className="text-xs bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400">Apenas Horas Trabalhadas</Badge>;
+                              }
+                              return <Badge key={f} variant="outline" className="text-xs bg-accent/10 border-accent/30">{f}</Badge>;
+                            })}
                           </div>
                         )}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                           <div><span className="text-muted-foreground">Período:</span> <span className="font-medium">{formatLocalDate(aj.data_inicio)} - {formatLocalDate(aj.data_fim)}</span></div>
                           {(indivChanges.length === 0 || indivChanges.includes("Valor/Hora")) && <div><span className="text-muted-foreground">Valor/h:</span> <span className="font-medium">{fmt(aj.valor_hora)}</span></div>}
-                          {(indivChanges.length === 0 || indivChanges.includes("Hora Mínima")) && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima}h</span></div>}
+                          {(indivChanges.length === 0 || indivChanges.includes("Hora Mínima")) && <div><span className="text-muted-foreground">Hora Mín:</span> <span className="font-medium">{aj.hora_minima === 0 ? "0h (Apenas H. Trabalhadas)" : `${aj.hora_minima}h`}</span></div>}
                           {(indivChanges.length === 0 || indivChanges.includes("Horas Contratadas")) && <div><span className="text-muted-foreground">Horas Contrat.:</span> <span className="font-medium">{aj.horas_contratadas}h</span></div>}
                         </div>
                         {aj.motivo && aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "").trim() && <p className="text-xs text-muted-foreground italic">{aj.motivo.replace("[LOTE] ", "").replace("[LOTE]", "")}</p>}
@@ -1917,6 +1923,26 @@ const Contratos = () => {
               </div>
               <p className="text-xs text-muted-foreground">Campos não selecionados manterão os valores originais do equipamento</p>
             </div>
+            
+            <div className="p-3 rounded-lg border bg-yellow-500/5 border-yellow-500/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-semibold text-foreground">Cobrar apenas hora trabalhada</Label>
+                  <p className="text-xs text-muted-foreground">O equipamento será cobrado estritamente pelas horas medidas na medição, desconsiderando a hora mínima.</p>
+                </div>
+                <Switch
+                  checked={ajusteCampos.hora_minima && ajusteForm.hora_minima === 0}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setAjusteCampos(prev => ({ ...prev, hora_minima: true }));
+                      setAjusteForm(prev => ({ ...prev, hora_minima: 0 }));
+                    } else {
+                      setAjusteCampos(prev => ({ ...prev, hora_minima: false }));
+                    }
+                  }}
+                />
+              </div>
+            </div>
             {!ajusteTodos && !editingAjuste && (
             <div>
               <Label className="mb-2 block">Equipamentos <Badge variant="secondary" className="ml-2 text-xs">{ajusteForm.equipamento_ids.length} selecionado{ajusteForm.equipamento_ids.length !== 1 ? "s" : ""}</Badge></Label>
@@ -2014,7 +2040,7 @@ const Contratos = () => {
               <div className={!ajusteCampos.valor_hora_excedente ? "opacity-40 pointer-events-none" : ""}><Label>Valor Hora Excedente (R$)</Label><CurrencyInput value={ajusteForm.valor_hora_excedente} onValueChange={(v) => setAjusteForm(prev => ({ ...prev, valor_hora_excedente: v }))} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className={!ajusteCampos.hora_minima ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
+              <div className={(!ajusteCampos.hora_minima || (ajusteCampos.hora_minima && ajusteForm.hora_minima === 0)) ? "opacity-40 pointer-events-none" : ""}><Label>Hora Mínima</Label><Input type="number" value={ajusteForm.hora_minima || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, hora_minima: Number(e.target.value) }))} placeholder="0 = sem mínimo" /></div>
               <div className={!ajusteCampos.horas_contratadas ? "opacity-40 pointer-events-none" : ""}><Label>Horas Contratadas</Label><Input type="number" value={ajusteForm.horas_contratadas || ""} onChange={(e) => setAjusteForm(prev => ({ ...prev, horas_contratadas: Number(e.target.value) }))} /></div>
             </div>
             <div><Label>Motivo</Label><Input value={ajusteForm.motivo} onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: Reajuste temporário por demanda extra" /></div>
