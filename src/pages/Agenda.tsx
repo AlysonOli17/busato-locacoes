@@ -175,6 +175,8 @@ export default function Agenda() {
   const [stageObsInput, setStageObsInput] = useState("");
   const [editingStageObsId, setEditingStageObsId] = useState<string | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [editingNotasCardId, setEditingNotasCardId] = useState<string | null>(null);
+  const [notasInput, setNotasInput] = useState<string>("");
 
   const [form, setForm] = useState<{
     titulo: string;
@@ -719,6 +721,29 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
         mensagem: `Uma nova etapa "${newStageTitle.trim()}" foi criada para você na tarefa "${viewEvent?.titulo}".`,
         referenciaId: viewEvent?.id,
       });
+    }
+  };
+
+  const handleUpdateNotas = async (id: string, newNotas: string) => {
+    if (isLocalMode) {
+      const updated = events.map(ev => (ev.id === id ? { ...ev, notas: newNotas } : ev));
+      saveLocalEvents(updated);
+      toast({ title: "Notas atualizadas", description: "As notas foram salvas localmente." });
+    } else {
+      try {
+        const { error } = await supabase
+          .from("agenda")
+          .update({ notas: newNotas, updated_at: new Date().toISOString() })
+          .eq("id", id);
+        if (error) throw error;
+        setEvents(prev => prev.map(ev => (ev.id === id ? { ...ev, notas: newNotas } : ev)));
+        if (viewEvent && viewEvent.id === id) {
+          setViewEvent(prev => prev ? { ...prev, notas: newNotas } : null);
+        }
+        toast({ title: "Notas atualizadas", description: "As notas foram salvas com sucesso." });
+      } catch (err: any) {
+        toast({ title: "Erro ao atualizar notas", description: err.message, variant: "destructive" });
+      }
     }
   };
 
@@ -1492,12 +1517,68 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                 </div>
 
                                 {/* Notas */}
-                                {item.notas && (
-                                  <div className="text-xs bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg p-2.5">
-                                    <div className="flex items-center gap-1 text-yellow-700 dark:text-yellow-400 font-semibold mb-1">
-                                      <StickyNote className="h-3 w-3" /> Notas
+                                {editingNotasCardId === item.id ? (
+                                  <div className="text-xs bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg p-2.5 space-y-2">
+                                    <div className="flex items-center gap-1 text-yellow-700 dark:text-yellow-400 font-semibold">
+                                      <StickyNote className="h-3 w-3" /> Editando Notas
                                     </div>
-                                    <p className="text-foreground/80 leading-relaxed">{item.notas}</p>
+                                    <Textarea
+                                      value={notasInput}
+                                      onChange={(e) => setNotasInput(e.target.value)}
+                                      placeholder="Digite notas ou observações rápidas..."
+                                      className="min-h-[60px] text-xs bg-background border-yellow-300 dark:border-yellow-800 focus-visible:ring-yellow-400 text-foreground"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <div className="flex justify-end gap-1.5">
+                                      <Button
+                                        size="xs"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingNotasCardId(null);
+                                        }}
+                                        className="h-6 text-[10px]"
+                                      >
+                                        Cancelar
+                                      </Button>
+                                      <Button
+                                        size="xs"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          await handleUpdateNotas(item.id, notasInput.trim());
+                                          setEditingNotasCardId(null);
+                                        }}
+                                        className="h-6 text-[10px] bg-yellow-600 hover:bg-yellow-700 text-white border-0"
+                                      >
+                                        Salvar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg p-2.5 relative">
+                                    <div className="flex items-center justify-between text-yellow-700 dark:text-yellow-400 font-semibold mb-1">
+                                      <div className="flex items-center gap-1">
+                                        <StickyNote className="h-3 w-3" /> Notas / Observações
+                                      </div>
+                                      <Button
+                                        size="xs"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingNotasCardId(item.id);
+                                          setNotasInput(item.notas || "");
+                                        }}
+                                        className="h-5 w-5 p-0 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400"
+                                        title={item.notas ? "Editar notas" : "Adicionar notas"}
+                                      >
+                                        <Pencil className="h-2.5 w-2.5" />
+                                      </Button>
+                                    </div>
+                                    {item.notas ? (
+                                      <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">{item.notas}</p>
+                                    ) : (
+                                      <p className="text-muted-foreground/50 italic">Nenhuma observação cadastrada. Clique no lápis para adicionar.</p>
+                                    )}
                                   </div>
                                 )}
 
@@ -1887,16 +1968,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="notas">Notas / Observações</Label>
-                <Textarea
-                  id="notas"
-                  value={form.notas}
-                  onChange={(e) => setForm(prev => ({ ...prev, notas: e.target.value }))}
-                  placeholder="Notas rápidas..."
-                  className="min-h-12"
-                />
-              </div>
+
             </div>
           </div>
 
