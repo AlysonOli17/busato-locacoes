@@ -36,6 +36,42 @@ import { useToast } from "@/hooks/use-toast";
 import { getEquipLabel } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Helper: envia notificacao para um usuario pelo nome
+async function sendNotification({
+  responsavelNome,
+  tipo,
+  titulo,
+  mensagem,
+  referenciaId,
+}: {
+  responsavelNome: string;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  referenciaId?: string;
+}) {
+  if (!responsavelNome) return;
+  try {
+    const { data: usuariosData } = await supabase
+      .from("usuarios")
+      .select("user_id")
+      .ilike("nome", responsavelNome.trim())
+      .limit(1);
+    const userId = usuariosData?.[0]?.user_id;
+    if (!userId) return;
+    await supabase.from("notificacoes").insert({
+      id: crypto.randomUUID(),
+      user_id: userId,
+      tipo,
+      titulo,
+      mensagem,
+      lida: false,
+      referencia_tipo: "agenda",
+      referencia_id: referenciaId || null,
+    });
+  } catch {}
+}
+
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 interface Empresa { id: string; nome: string; }
 interface Contrato { id: string; empresa_id: string; empresas: { nome: string } | null; equipamento_id: string; equipamentos: { tipo: string; modelo: string } | null; }
@@ -423,8 +459,19 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
           if (error) throw error;
           toast({ title: "Sucesso", description: "Compromisso atualizado." });
         } else {
-          const { error } = await supabase.from("agenda").insert({ ...payload, id: crypto.randomUUID() });
+          const newId = crypto.randomUUID();
+          const { error } = await supabase.from("agenda").insert({ ...payload, id: newId });
           if (error) throw error;
+          // Notificar responsavel
+          if (payload.responsavel_nome) {
+            await sendNotification({
+              responsavelNome: payload.responsavel_nome,
+              tipo: "tarefa",
+              titulo: "Nova tarefa atribuída a você",
+              mensagem: `Você foi definido como responsável pela tarefa: "${payload.titulo}".`,
+              referenciaId: newId,
+            });
+          }
           toast({ title: "Sucesso", description: "Compromisso agendado." });
         }
         setDialogOpen(false);
@@ -662,6 +709,17 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     setNewStageTitle("");
     setNewStageAssignee("");
     toast({ title: "Etapa criada", description: `Etapa atribuída a ${newStageAssignee}.` });
+
+    // Notificar o responsavel da etapa
+    if (!isLocalMode) {
+      await sendNotification({
+        responsavelNome: newStageAssignee,
+        tipo: "etapa",
+        titulo: "Nova etapa atribuída a você",
+        mensagem: `Uma nova etapa "${newStageTitle.trim()}" foi criada para você na tarefa "${viewEvent?.titulo}".`,
+        referenciaId: viewEvent?.id,
+      });
+    }
   };
 
   // Helper to update stage status inside View Dialog

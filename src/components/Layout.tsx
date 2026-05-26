@@ -8,18 +8,17 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { NotificationsDropdown } from "@/components/NotificationsDropdown";
+import { NotificationsDropdown, NotificationToastContainer } from "@/components/NotificationsDropdown";
 import logoBusato from "@/assets/logo-busato.png";
 import globoBusato from "@/assets/globo-busato.png";
 
 const allNavItems = [
+  { to: "/agenda", icon: Calendar, label: "Agenda & Kanban" },
   { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
   { to: "/empresas", icon: Building2, label: "Empresas" },
   { to: "/contratos", icon: FileText, label: "Contratos" },
-  
   { to: "/medicoes", icon: Clock, label: "Medições / Faturamento" },
   { to: "/agregados", icon: CalendarDays, label: "Locação Terceiros" },
-  { to: "/agenda", icon: Calendar, label: "Agenda & Kanban" },
   { to: "/apolices", icon: Shield, label: "Apólices" },
   { to: "/gastos", icon: DollarSign, label: "Custos" },
   { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },
@@ -46,6 +45,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
   });
 
   return (
+    <>
     <div className="flex h-screen bg-background">
       {sidebarOpen && (
         <div
@@ -167,5 +167,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
         </main>
       </div>
     </div>
+    <NotificationToastContainer />
+    </>
   );
 };
