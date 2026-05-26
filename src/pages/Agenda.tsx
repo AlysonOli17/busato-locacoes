@@ -46,6 +46,7 @@ interface Etapa {
   responsavel_nome: string;
   solicitante_nome: string;
   status: "A Fazer" | "Em Andamento" | "Concluído";
+  observacoes?: string;
   created_at: string;
 }
 
@@ -135,6 +136,8 @@ export default function Agenda() {
   const [newFileUrl, setNewFileUrl] = useState("");
   const [newStageTitle, setNewStageTitle] = useState("");
   const [newStageAssignee, setNewStageAssignee] = useState("");
+  const [stageObsInput, setStageObsInput] = useState("");
+  const [editingStageObsId, setEditingStageObsId] = useState<string | null>(null);
 
   const [form, setForm] = useState<{
     titulo: string;
@@ -661,25 +664,34 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
   };
 
   // Helper to update stage status inside View Dialog
-  const handleUpdateStageStatus = async (stageId: string, newStatus: "A Fazer" | "Em Andamento" | "Concluído") => {
+  const handleUpdateStageStatus = async (stageId: string, newStatus: "A Fazer" | "Em Andamento" | "Concluído", overrideObs?: string) => {
     if (!viewEvent) return;
 
     const stages = viewEvent.etapas || [];
     const stageIndex = stages.findIndex(st => st.id === stageId);
     if (stageIndex === -1) return;
 
+    // If changing to Concluído and no overrideObs is passed, trigger observations panel input first
+    if (newStatus === "Concluído" && overrideObs === undefined) {
+      setEditingStageObsId(stageId);
+      setStageObsInput("");
+      return;
+    }
+
     const updatedStages = [...stages];
     const oldStatus = updatedStages[stageIndex].status;
+    
     updatedStages[stageIndex] = {
       ...updatedStages[stageIndex],
-      status: newStatus
+      status: newStatus,
+      observacoes: overrideObs || updatedStages[stageIndex].observacoes
     };
 
     let actionStr = `Alterou status da etapa '${updatedStages[stageIndex].titulo}'`;
     let detailsStr = `De '${oldStatus}' para '${newStatus}'`;
     if (newStatus === "Concluído") {
       actionStr = `Concluiu a etapa '${updatedStages[stageIndex].titulo}'`;
-      detailsStr = `Tarefa retornada para '${updatedStages[stageIndex].solicitante_nome}'`;
+      detailsStr = `Tarefa retornada para '${updatedStages[stageIndex].solicitante_nome}'${overrideObs ? ` - Obs: "${overrideObs}"` : ""}`;
     }
 
     const newEntry: HistoricoEntry = {
@@ -699,6 +711,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
     setEvents(prev => prev.map(e => e.id === viewEvent.id ? updatedEvent : e));
     setViewEvent(updatedEvent);
+    setEditingStageObsId(null);
+    setStageObsInput("");
 
     if (isLocalMode) {
       saveLocalEvents(events.map(e => e.id === viewEvent.id ? updatedEvent : e));
@@ -2199,44 +2213,85 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                 {viewEvent?.etapas && viewEvent.etapas.length > 0 ? (
                   viewEvent.etapas.map(etapa => {
                     const isAssignee = etapa.responsavel_nome === currentUserNome;
+                    const isConcludingThis = editingStageObsId === etapa.id;
+
                     return (
-                      <div key={etapa.id} className="flex items-center justify-between p-2.5 rounded bg-muted/20 border border-border/50 text-xs">
-                        <div className="space-y-1">
-                          <span className="font-semibold text-foreground">{etapa.titulo}</span>
-                          <div className="text-muted-foreground text-[10px] flex flex-wrap gap-x-2">
-                            <span>Resp: <strong>{etapa.responsavel_nome}</strong></span>
-                            <span>Solicitado por: <strong>{etapa.solicitante_nome}</strong></span>
+                      <div key={etapa.id} className="space-y-1.5 p-2.5 rounded bg-muted/20 border border-border/50 text-xs">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <span className="font-semibold text-foreground">{etapa.titulo}</span>
+                            <div className="text-muted-foreground text-[10px] flex flex-wrap gap-x-2">
+                              <span>Resp: <strong>{etapa.responsavel_nome}</strong></span>
+                              <span>Solicitado por: <strong>{etapa.solicitante_nome}</strong></span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {isAssignee && etapa.status !== "Concluído" ? (
+                              <Select
+                                value={etapa.status}
+                                onValueChange={(val: any) => handleUpdateStageStatus(etapa.id, val)}
+                              >
+                                <SelectTrigger className={`h-6 text-[10px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
+                                  etapa.status === "Concluído" ? "bg-[#3F7343]" :
+                                  etapa.status === "Em Andamento" ? "bg-[#E66C37]" : "bg-[#A1343C]"
+                                }`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {STATUSES.map(st => (
+                                    <SelectItem key={st} value={st} className="text-xs font-semibold">{st}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge className={
+                                etapa.status === "Concluído" ? "bg-[#3F7343]/15 text-[#3F7343] border-0 font-semibold" :
+                                etapa.status === "Em Andamento" ? "bg-[#E66C37]/15 text-[#E66C37] border-0 font-semibold" :
+                                "bg-[#A1343C]/15 text-[#A1343C] border-0 font-semibold"
+                              }>
+                                {etapa.status}
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          {isAssignee && etapa.status !== "Concluído" ? (
-                            <Select
-                              value={etapa.status}
-                              onValueChange={(val: any) => handleUpdateStageStatus(etapa.id, val)}
-                            >
-                              <SelectTrigger className={`h-6 text-[10px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
-                                etapa.status === "Concluído" ? "bg-[#3F7343]" :
-                                etapa.status === "Em Andamento" ? "bg-[#E66C37]" : "bg-[#A1343C]"
-                              }`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STATUSES.map(st => (
-                                  <SelectItem key={st} value={st} className="text-xs font-semibold">{st}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Badge className={
-                              etapa.status === "Concluído" ? "bg-[#3F7343]/15 text-[#3F7343] border-0 font-semibold" :
-                              etapa.status === "Em Andamento" ? "bg-[#E66C37]/15 text-[#E66C37] border-0 font-semibold" :
-                              "bg-[#A1343C]/15 text-[#A1343C] border-0 font-semibold"
-                            }>
-                              {etapa.status}
-                            </Badge>
-                          )}
-                        </div>
+                        {/* Exibir observações cadastradas na etapa */}
+                        {etapa.observacoes && (
+                          <div className="mt-1.5 p-2 rounded bg-background/50 border border-border/40 text-[11px] text-foreground/90">
+                            <strong className="text-muted-foreground font-semibold">Obs. de Conclusão:</strong> {etapa.observacoes}
+                          </div>
+                        )}
+
+                        {/* Formulário inline para preenchimento de observações de conclusão */}
+                        {isConcludingThis && (
+                          <div className="mt-2 pt-2 border-t border-border/40 space-y-2">
+                            <Label className="text-[10px] font-bold text-muted-foreground">Observações / Considerações de Conclusão (Opcional)</Label>
+                            <Textarea
+                              placeholder="Digite aqui observações adicionais sobre a conclusão desta etapa..."
+                              value={stageObsInput}
+                              onChange={(e) => setStageObsInput(e.target.value)}
+                              className="h-14 text-xs bg-background/60"
+                            />
+                            <div className="flex justify-end gap-1.5">
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => setEditingStageObsId(null)}
+                                className="h-6 text-[10px]"
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                size="xs"
+                                onClick={() => handleUpdateStageStatus(etapa.id, "Concluído", stageObsInput.trim())}
+                                className="h-6 text-[10px] bg-[#3F7343] text-white hover:bg-[#3F7343]/90"
+                              >
+                                Confirmar Conclusão
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
