@@ -34,10 +34,27 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getEquipLabel } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; }
 interface Empresa { id: string; nome: string; }
 interface Contrato { id: string; empresa_id: string; empresas: { nome: string } | null; equipamento_id: string; equipamentos: { tipo: string; modelo: string } | null; }
+
+interface Etapa {
+  id: string;
+  titulo: string;
+  responsavel_nome: string;
+  solicitante_nome: string;
+  status: "A Fazer" | "Em Andamento" | "Concluído";
+  created_at: string;
+}
+
+interface HistoricoEntry {
+  data: string;
+  usuario: string;
+  acao: string;
+  detalhes: string;
+}
 
 interface AgendaEvent {
   id: string;
@@ -54,6 +71,9 @@ interface AgendaEvent {
   orcamento?: number;
   notas?: string;
   responsavel_nome?: string;
+  criador_nome?: string;
+  etapas?: Etapa[];
+  historico?: HistoricoEntry[];
   arquivos?: string[];
   created_at?: string;
   updated_at?: string;
@@ -82,6 +102,8 @@ const stickyColors = {
 };
 
 export default function Agenda() {
+  const { profile } = useAuth();
+  const currentUserNome = profile?.nome || "Sistema";
   const [activeTab, setActiveTab] = useState<"kanban" | "calendar" | "notes" | "board">("board");
   const [calendarMode, setCalendarMode] = useState<"day" | "month" | "year">("month");
   
@@ -111,6 +133,8 @@ export default function Agenda() {
   const [filesDialogOpen, setFilesDialogOpen] = useState(false);
   const [activeFilesEvent, setActiveFilesEvent] = useState<AgendaEvent | null>(null);
   const [newFileUrl, setNewFileUrl] = useState("");
+  const [newStageTitle, setNewStageTitle] = useState("");
+  const [newStageAssignee, setNewStageAssignee] = useState("");
 
   const [form, setForm] = useState<{
     titulo: string;
@@ -330,6 +354,39 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       arquivos: form.arquivos,
     };
 
+    if (editingEvent) {
+      // Log changes to history
+      const history = [...(editingEvent.historico || [])];
+      const changes: string[] = [];
+      if (editingEvent.titulo !== payload.titulo) changes.push(`título para '${payload.titulo}'`);
+      if (editingEvent.status !== payload.status) changes.push(`status para '${payload.status}'`);
+      if (editingEvent.prioridade !== payload.prioridade) changes.push(`prioridade para '${payload.prioridade}'`);
+      if (editingEvent.responsavel_nome !== payload.responsavel_nome) changes.push(`responsável para '${payload.responsavel_nome || "Nenhum"}'`);
+      if (Number(editingEvent.orcamento || 0) !== Number(payload.orcamento || 0)) changes.push(`orçamento para '${payload.orcamento}'`);
+      if (editingEvent.notas !== payload.notas) changes.push("notas rápidas");
+
+      if (changes.length > 0) {
+        history.unshift({
+          data: new Date().toISOString(),
+          usuario: currentUserNome,
+          acao: "Atualizou a tarefa via formulário",
+          detalhes: `Campos alterados: ${changes.join(", ")}`
+        });
+      }
+      payload.historico = history;
+    } else {
+      payload.criador_nome = currentUserNome;
+      payload.etapas = [];
+      payload.historico = [
+        {
+          data: new Date().toISOString(),
+          usuario: currentUserNome,
+          acao: "Criou a tarefa",
+          detalhes: "Criada pelo formulário"
+        }
+      ];
+    }
+
     if (isLocalMode) {
       // Local Storage Save
       if (editingEvent) {
@@ -391,29 +448,99 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     }
   };
 
-  // Helper for inline updates in Monday table
+  // Helper for inline updates in Monday table with history logging and workflow logic
   const updateEventField = async (eventId: string, field: string, value: any) => {
     const targetEvent = events.find(e => e.id === eventId);
     if (!targetEvent) return;
 
-    const updatedEvent = {
-      ...targetEvent,
-      [field]: value,
-      updated_at: new Date().toISOString()
-    };
+    let updatedEvent = { ...targetEvent };
+    let historyMessage = "";
+    let historyDetails = "";
 
+    // Check if updating status on a task with active stage assigned to current user
+    if (field === "status") {
+      const stages = targetEvent.etapas || [];
+      const activeStageIndex = stages.findIndex(st => st.status !== "Concluído");
+      if (activeStageIndex !== -1 && stages[activeStageIndex].responsavel_nome === currentUserNome) {
+        // Update stage status instead
+        const updatedStages = [...stages];
+        const prevStatus = updatedStages[activeStageIndex].status;
+        updatedStages[activeStageIndex] = {
+          ...updatedStages[activeStageIndex],
+          status: value
+        };
+        updatedEvent.etapas = updatedStages;
+        historyMessage = `Alterou status da etapa '${stages[activeStageIndex].titulo}'`;
+        historyDetails = `De '${prevStatus}' para '${value}'`;
+        if (value === "Concluído") {
+          historyMessage = `Concluiu a etapa '${stages[activeStageIndex].titulo}'`;
+          historyDetails = `Tarefa retornada para '${stages[activeStageIndex].solicitante_nome}'`;
+        }
+      } else {
+        historyMessage = `Alterou o status`;
+        historyDetails = `De '${targetEvent.status}' para '${value}'`;
+        updatedEvent.status = value;
+      }
+    } else {
+      updatedEvent[field] = value;
+      if (field === "titulo") {
+        historyMessage = "Alterou o título";
+        historyDetails = `Novo título: '${value}'`;
+      } else if (field === "responsavel_nome") {
+        historyMessage = "Alterou o responsável";
+        historyDetails = value ? `Atribuído a '${value}'` : "Removido responsável";
+      } else if (field === "orcamento") {
+        historyMessage = "Alterou o orçamento";
+        historyDetails = `Novo valor: ${Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
+      } else if (field === "notas") {
+        historyMessage = "Atualizou as notas";
+        historyDetails = value;
+      } else if (field === "prioridade") {
+        historyMessage = "Alterou a prioridade";
+        historyDetails = `De '${targetEvent.prioridade}' para '${value}'`;
+      } else if (field === "data_inicio") {
+        historyMessage = "Alterou a data de início";
+        historyDetails = `Nova data: ${new Date(value).toLocaleDateString("pt-BR")}`;
+      } else {
+        historyMessage = `Atualizou campo '${field}'`;
+      }
+    }
+
+    // Add to history
+    const newEntry: HistoricoEntry = {
+      data: new Date().toISOString(),
+      usuario: currentUserNome,
+      acao: historyMessage,
+      detalhes: historyDetails || ""
+    };
+    updatedEvent.historico = [newEntry, ...(targetEvent.historico || [])];
+    updatedEvent.updated_at = new Date().toISOString();
+
+    // Update state
     setEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e));
+    if (viewEvent?.id === eventId) {
+      setViewEvent(updatedEvent);
+    }
 
     if (isLocalMode) {
-      const updated = events.map(e => e.id === eventId ? updatedEvent : e);
-      saveLocalEvents(updated);
+      saveLocalEvents(events.map(e => e.id === eventId ? updatedEvent : e));
     } else {
       try {
-        const payload = {
-          [field]: value,
-          updated_at: new Date().toISOString()
-        };
-        const { error } = await supabase.from("agenda").update(payload).eq("id", eventId);
+        const { error } = await supabase
+          .from("agenda")
+          .update({
+            status: updatedEvent.status,
+            titulo: updatedEvent.titulo,
+            responsavel_nome: updatedEvent.responsavel_nome,
+            orcamento: updatedEvent.orcamento,
+            notas: updatedEvent.notas,
+            prioridade: updatedEvent.prioridade,
+            data_inicio: updatedEvent.data_inicio,
+            etapas: updatedEvent.etapas,
+            historico: updatedEvent.historico,
+            updated_at: updatedEvent.updated_at
+          })
+          .eq("id", eventId);
         if (error) throw error;
       } catch (err: any) {
         toast({ title: "Erro ao atualizar campo", description: err.message, variant: "destructive" });
@@ -422,7 +549,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     }
   };
 
-  // Helper for quick adding events from the Monday spreadsheet view
+  // Helper for quick adding events from the Monday spreadsheet view with history logging
   const handleQuickAddEvent = async (titulo: string, status: "A Fazer" | "Em Andamento" | "Concluído") => {
     const newId = crypto.randomUUID();
     const newEvent: AgendaEvent = {
@@ -441,6 +568,16 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       notas: "",
       responsavel_nome: "",
       arquivos: [],
+      criador_nome: currentUserNome,
+      etapas: [],
+      historico: [
+        {
+          data: new Date().toISOString(),
+          usuario: currentUserNome,
+          acao: "Criou a tarefa",
+          detalhes: `Status inicial: ${status}`
+        }
+      ],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -459,6 +596,125 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       } catch (err: any) {
         toast({ title: "Erro ao criar tarefa", description: err.message, variant: "destructive" });
         fetchData();
+      }
+    }
+  };
+
+  // Helper to add workflow sub-step (etapa) inside View Dialog
+  const handleAddStage = async () => {
+    if (!viewEvent || !newStageTitle.trim() || !newStageAssignee) {
+      toast({ title: "Aviso", description: "Informe o título e o responsável para a etapa.", variant: "destructive" });
+      return;
+    }
+
+    const newEtapa: Etapa = {
+      id: crypto.randomUUID(),
+      titulo: newStageTitle.trim(),
+      responsavel_nome: newStageAssignee,
+      solicitante_nome: currentUserNome,
+      status: "A Fazer",
+      created_at: new Date().toISOString()
+    };
+
+    const updatedStages = [...(viewEvent.etapas || []), newEtapa];
+    
+    // Add history entry
+    const newEntry: HistoricoEntry = {
+      data: new Date().toISOString(),
+      usuario: currentUserNome,
+      acao: `Criou a etapa '${newStageTitle.trim()}'`,
+      detalhes: `Atribuída para: '${newStageAssignee}'`
+    };
+    const updatedHistory = [newEntry, ...(viewEvent.historico || [])];
+
+    const updatedEvent = {
+      ...viewEvent,
+      etapas: updatedStages,
+      historico: updatedHistory,
+      updated_at: new Date().toISOString()
+    };
+
+    setEvents(prev => prev.map(e => e.id === viewEvent.id ? updatedEvent : e));
+    setViewEvent(updatedEvent);
+
+    if (isLocalMode) {
+      saveLocalEvents(events.map(e => e.id === viewEvent.id ? updatedEvent : e));
+    } else {
+      try {
+        const { error } = await supabase
+          .from("agenda")
+          .update({
+            etapas: updatedStages,
+            historico: updatedHistory,
+            updated_at: updatedEvent.updated_at
+          })
+          .eq("id", viewEvent.id);
+        if (error) throw error;
+      } catch (err: any) {
+        toast({ title: "Erro ao salvar etapa", description: err.message, variant: "destructive" });
+      }
+    }
+
+    setNewStageTitle("");
+    setNewStageAssignee("");
+    toast({ title: "Etapa criada", description: `Etapa atribuída a ${newStageAssignee}.` });
+  };
+
+  // Helper to update stage status inside View Dialog
+  const handleUpdateStageStatus = async (stageId: string, newStatus: "A Fazer" | "Em Andamento" | "Concluído") => {
+    if (!viewEvent) return;
+
+    const stages = viewEvent.etapas || [];
+    const stageIndex = stages.findIndex(st => st.id === stageId);
+    if (stageIndex === -1) return;
+
+    const updatedStages = [...stages];
+    const oldStatus = updatedStages[stageIndex].status;
+    updatedStages[stageIndex] = {
+      ...updatedStages[stageIndex],
+      status: newStatus
+    };
+
+    let actionStr = `Alterou status da etapa '${updatedStages[stageIndex].titulo}'`;
+    let detailsStr = `De '${oldStatus}' para '${newStatus}'`;
+    if (newStatus === "Concluído") {
+      actionStr = `Concluiu a etapa '${updatedStages[stageIndex].titulo}'`;
+      detailsStr = `Tarefa retornada para '${updatedStages[stageIndex].solicitante_nome}'`;
+    }
+
+    const newEntry: HistoricoEntry = {
+      data: new Date().toISOString(),
+      usuario: currentUserNome,
+      acao: actionStr,
+      detalhes: detailsStr
+    };
+    const updatedHistory = [newEntry, ...(viewEvent.historico || [])];
+
+    const updatedEvent = {
+      ...viewEvent,
+      etapas: updatedStages,
+      historico: updatedHistory,
+      updated_at: new Date().toISOString()
+    };
+
+    setEvents(prev => prev.map(e => e.id === viewEvent.id ? updatedEvent : e));
+    setViewEvent(updatedEvent);
+
+    if (isLocalMode) {
+      saveLocalEvents(events.map(e => e.id === viewEvent.id ? updatedEvent : e));
+    } else {
+      try {
+        const { error } = await supabase
+          .from("agenda")
+          .update({
+            etapas: updatedStages,
+            historico: updatedHistory,
+            updated_at: updatedEvent.updated_at
+          })
+          .eq("id", viewEvent.id);
+        if (error) throw error;
+      } catch (err: any) {
+        toast({ title: "Erro ao atualizar status da etapa", description: err.message, variant: "destructive" });
       }
     }
   };
@@ -577,6 +833,39 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       e.descricao.toLowerCase().includes(q) ||
       e.categoria.toLowerCase().includes(q)
     );
+  });
+
+  // Process workflow stages and read-only logic for viewing user
+  const processedEvents = filteredEvents.map(event => {
+    const stages = event.etapas || [];
+    const activeStage = stages.find(st => st.status !== "Concluído");
+    
+    if (activeStage) {
+      if (activeStage.responsavel_nome === currentUserNome) {
+        return {
+          ...event,
+          status: activeStage.status, // Override status for stage assignee
+          readOnly: false,
+          isActiveStageAssignee: true,
+          activeStageId: activeStage.id
+        };
+      } else {
+        return {
+          ...event,
+          status: "Em Andamento" as const, // Override status to Em Andamento for requestor/creator/others
+          readOnly: true,
+          isActiveStageAssignee: false,
+          activeStageId: activeStage.id
+        };
+      }
+    }
+    
+    return {
+      ...event,
+      readOnly: event.status === "Concluído",
+      isActiveStageAssignee: false,
+      activeStageId: null
+    };
   });
 
   // Calendar calculations
@@ -927,7 +1216,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
         {activeTab === "board" && (
           <div className="space-y-8 bg-card border border-border rounded-xl p-6 shadow-sm overflow-x-auto">
             {STATUSES.map(colStatus => {
-              const statusEvents = filteredEvents.filter(e => e.status === colStatus);
+              const statusEvents = processedEvents.filter(e => e.status === colStatus);
               const isCollapsed = collapsedGroups.includes(colStatus);
               
               // Calculate aggregations
@@ -1001,7 +1290,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Task Title */}
                               <td className="p-2 border-r border-border/60">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <span className="font-semibold text-foreground px-1 py-0.5 block truncate max-w-[280px]">
                                     {item.titulo}
                                   </span>
@@ -1017,7 +1306,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Responsavel */}
                               <td className="p-2 border-r border-border/60">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <div className="flex items-center gap-1.5 px-1 py-0.5">
                                     <div className="h-4 w-4 rounded-full bg-accent/10 text-accent/80 flex items-center justify-center text-[8px] font-bold shrink-0">
                                       {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : <User className="h-2.5 w-2.5" />}
@@ -1053,7 +1342,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Status badge dropdown */}
                               <td className="p-2 border-r border-border/60 text-center">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <div className="h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm bg-[#3F7343] select-none">
                                     {item.status}
                                   </div>
@@ -1079,7 +1368,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Priority badge dropdown */}
                               <td className="p-2 border-r border-border/60 text-center">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <div className={`h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm select-none ${
                                     item.prioridade === "Alta" ? "bg-[#A1343C]" :
                                     item.prioridade === "Média" ? "bg-[#E66C37]" : "bg-[#3F7343]"
@@ -1108,7 +1397,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Prazo (Timeline) */}
                               <td className="p-2 border-r border-border/60 text-center">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <span className="text-foreground/80 font-mono text-[11px] text-center block py-1.5">
                                     {item.data_inicio ? new Date(item.data_inicio).toLocaleDateString("pt-BR") : "—"}
                                   </span>
@@ -1153,7 +1442,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Budget (Orcamento) */}
                               <td className="p-2 border-r border-border/60 text-right font-mono font-medium">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <span className="text-foreground/80 font-mono text-[11px] text-right block py-1.5 px-1">
                                     {Number(item.orcamento || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                                   </span>
@@ -1170,7 +1459,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Notes */}
                               <td className="p-2 border-r border-border/60">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <span className="text-foreground/75 px-1 py-0.5 block truncate max-w-[220px]" title={item.notas || ""}>
                                     {item.notes || item.notas || <span className="text-muted-foreground/30 italic">—</span>}
                                   </span>
@@ -1187,7 +1476,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
                               {/* Row Actions */}
                               <td className="p-2 text-center">
-                                {colStatus === "Concluído" ? (
+                                {item.readOnly ? (
                                   <div className="flex items-center justify-center gap-1.5">
                                     <Button
                                       size="icon"
@@ -1280,7 +1569,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
         {activeTab === "kanban" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {STATUSES.map(colStatus => {
-              const statusEvents = filteredEvents.filter(e => e.status === colStatus);
+              const statusEvents = processedEvents.filter(e => e.status === colStatus);
 
               return (
                 <div
@@ -1900,6 +2189,115 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                 )}
               </div>
             )}
+
+            {/* Etapas de Trabalho / Workflow Stages */}
+            <div className="border-t border-border/40 pt-4 space-y-3">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Etapas da Demanda</span>
+              
+              {/* Stages List */}
+              <div className="space-y-2">
+                {viewEvent?.etapas && viewEvent.etapas.length > 0 ? (
+                  viewEvent.etapas.map(etapa => {
+                    const isAssignee = etapa.responsavel_nome === currentUserNome;
+                    return (
+                      <div key={etapa.id} className="flex items-center justify-between p-2.5 rounded bg-muted/20 border border-border/50 text-xs">
+                        <div className="space-y-1">
+                          <span className="font-semibold text-foreground">{etapa.titulo}</span>
+                          <div className="text-muted-foreground text-[10px] flex flex-wrap gap-x-2">
+                            <span>Resp: <strong>{etapa.responsavel_nome}</strong></span>
+                            <span>Solicitado por: <strong>{etapa.solicitante_nome}</strong></span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isAssignee && etapa.status !== "Concluído" ? (
+                            <Select
+                              value={etapa.status}
+                              onValueChange={(val: any) => handleUpdateStageStatus(etapa.id, val)}
+                            >
+                              <SelectTrigger className={`h-6 text-[10px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
+                                etapa.status === "Concluído" ? "bg-[#3F7343]" :
+                                etapa.status === "Em Andamento" ? "bg-[#E66C37]" : "bg-[#A1343C]"
+                              }`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {STATUSES.map(st => (
+                                  <SelectItem key={st} value={st} className="text-xs font-semibold">{st}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge className={
+                              etapa.status === "Concluído" ? "bg-[#3F7343]/15 text-[#3F7343] border-0 font-semibold" :
+                              etapa.status === "Em Andamento" ? "bg-[#E66C37]/15 text-[#E66C37] border-0 font-semibold" :
+                              "bg-[#A1343C]/15 text-[#A1343C] border-0 font-semibold"
+                            }>
+                              {etapa.status}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted-foreground italic pl-1">Esta tarefa ainda não possui sub-etapas definidas.</p>
+                )}
+              </div>
+
+              {/* Add New Stage Form - Only if task is not completed */}
+              {viewEvent?.status !== "Concluído" && (
+                <div className="bg-muted/10 p-3 rounded-lg border border-dashed border-border/80 space-y-2 mt-2">
+                  <span className="text-[11px] font-bold text-muted-foreground block">Nova Etapa</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Descrição da etapa..."
+                      value={newStageTitle}
+                      onChange={(e) => setNewStageTitle(e.target.value)}
+                      className="h-8 text-xs bg-background"
+                    />
+                    <Select
+                      value={newStageAssignee || "none"}
+                      onValueChange={(val) => setNewStageAssignee(val === "none" ? "" : val)}
+                    >
+                      <SelectTrigger className="h-8 text-xs bg-background">
+                        <SelectValue placeholder="Responsável..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Selecione...</SelectItem>
+                        {usuarios.map(u => (
+                          <SelectItem key={u.user_id} value={u.nome} className="text-xs">{u.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button size="xs" onClick={handleAddStage} className="w-full bg-accent text-accent-foreground text-xs mt-1">
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar Etapa
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Histórico da Demanda / Full Audit Logs */}
+            <div className="border-t border-border/40 pt-4 space-y-3">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Histórico de Atividades</span>
+              <div className="max-h-48 overflow-y-auto divide-y divide-border border border-border rounded-lg bg-muted/5 scrollbar-thin">
+                {viewEvent?.historico && viewEvent.historico.length > 0 ? (
+                  viewEvent.historico.map((log, index) => (
+                    <div key={index} className="p-2.5 text-xs space-y-0.5">
+                      <div className="flex items-center justify-between text-muted-foreground text-[10px]">
+                        <span className="font-semibold text-foreground/80">{log.usuario}</span>
+                        <span>{new Date(log.data).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
+                      </div>
+                      <p className="font-medium text-foreground">{log.acao}</p>
+                      {log.detalhes && <p className="text-muted-foreground text-[10px] italic">{log.detalhes}</p>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground italic p-3 text-center">Nenhum registro de atividades cadastrado.</p>
+                )}
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="flex-row sm:justify-end gap-2 border-t border-border/40 pt-3 mt-2">
