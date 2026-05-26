@@ -949,9 +949,9 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
               // Status colors for left indicator bar
               const groupColors = {
-                "A Fazer": { border: "border-l-4 border-l-[#E2445C]", bg: "bg-[#E2445C]", text: "text-[#E2445C]" },
-                "Em Andamento": { border: "border-l-4 border-l-[#FDAB3D]", bg: "bg-[#FDAB3D]", text: "text-[#FDAB3D]" },
-                "Concluído": { border: "border-l-4 border-l-[#00C875]", bg: "bg-[#00C875]", text: "text-[#00C875]" }
+                "A Fazer": { border: "border-l-4 border-l-[#A1343C]", bg: "bg-[#A1343C]", text: "text-[#A1343C]" },
+                "Em Andamento": { border: "border-l-4 border-l-[#E66C37]", bg: "bg-[#E66C37]", text: "text-[#E66C37]" },
+                "Concluído": { border: "border-l-4 border-l-[#3F7343]", bg: "bg-[#3F7343]", text: "text-[#3F7343]" }
               }[colStatus];
 
               return (
@@ -1054,7 +1054,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                               {/* Status badge dropdown */}
                               <td className="p-2 border-r border-border/60 text-center">
                                 {colStatus === "Concluído" ? (
-                                  <div className="h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm bg-[#00C875] select-none">
+                                  <div className="h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm bg-[#3F7343] select-none">
                                     {item.status}
                                   </div>
                                 ) : (
@@ -1063,8 +1063,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                     onValueChange={(val: any) => updateEventField(item.id, "status", val)}
                                   >
                                     <SelectTrigger className={`h-7 text-[11px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
-                                      item.status === "Concluído" ? "bg-[#00C875] hover:bg-[#00C875]/90" :
-                                      item.status === "Em Andamento" ? "bg-[#FDAB3D] hover:bg-[#FDAB3D]/90" : "bg-[#E2445C] hover:bg-[#E2445C]/90"
+                                      item.status === "Concluído" ? "bg-[#3F7343] hover:bg-[#3F7343]/90" :
+                                      item.status === "Em Andamento" ? "bg-[#E66C37] hover:bg-[#E66C37]/90" : "bg-[#A1343C] hover:bg-[#A1343C]/90"
                                     }`}>
                                       <SelectValue />
                                     </SelectTrigger>
@@ -1081,8 +1081,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                               <td className="p-2 border-r border-border/60 text-center">
                                 {colStatus === "Concluído" ? (
                                   <div className={`h-7 flex items-center justify-center text-[11px] font-bold text-white px-3 rounded-sm select-none ${
-                                    item.prioridade === "Alta" ? "bg-[#784BD1]" :
-                                    item.prioridade === "Média" ? "bg-[#5559DF]" : "bg-[#579BFC]"
+                                    item.prioridade === "Alta" ? "bg-[#A1343C]" :
+                                    item.prioridade === "Média" ? "bg-[#E66C37]" : "bg-[#3F7343]"
                                   }`}>
                                     {item.prioridade}
                                   </div>
@@ -1092,8 +1092,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                     onValueChange={(val: any) => updateEventField(item.id, "prioridade", val)}
                                   >
                                     <SelectTrigger className={`h-7 text-[11px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
-                                      item.prioridade === "Alta" ? "bg-[#784BD1] hover:bg-[#784BD1]/90" :
-                                      item.prioridade === "Média" ? "bg-[#5559DF] hover:bg-[#5559DF]/90" : "bg-[#579BFC] hover:bg-[#579BFC]/90"
+                                      item.prioridade === "Alta" ? "bg-[#A1343C] hover:bg-[#A1343C]/90" :
+                                      item.prioridade === "Média" ? "bg-[#E66C37] hover:bg-[#E66C37]/90" : "bg-[#3F7343] hover:bg-[#3F7343]/90"
                                     }`}>
                                       <SelectValue />
                                     </SelectTrigger>
@@ -1135,13 +1135,13 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                     if (days > 0) {
                                       if (item.status === "Em Andamento") {
                                         return (
-                                          <Badge className="bg-[#FDAB3D]/15 text-[#FDAB3D] border-0 font-bold hover:bg-[#FDAB3D]/20 text-[10px] whitespace-nowrap">
+                                          <Badge className="bg-[#E66C37]/15 text-[#E66C37] border-0 font-bold hover:bg-[#E66C37]/20 text-[10px] whitespace-nowrap">
                                             {days} {days === 1 ? "dia" : "dias"}
                                           </Badge>
                                         );
                                       }
                                       return (
-                                        <Badge className="bg-destructive/15 text-destructive border-0 font-bold hover:bg-destructive/20 text-[10px] whitespace-nowrap">
+                                        <Badge className="bg-[#A1343C]/15 text-[#A1343C] border-0 font-bold hover:bg-[#A1343C]/20 text-[10px] whitespace-nowrap">
                                           {days} {days === 1 ? "dia" : "dias"}
                                         </Badge>
                                       );
@@ -1369,8 +1369,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                             <div className="flex items-center justify-between">
                               <span className="text-muted-foreground">Status</span>
                               <div className={`text-[10px] text-white py-0.5 px-2 rounded-sm text-center font-bold min-w-[90px] shadow-sm ${
-                                item.status === "Concluído" ? "bg-[#00C875]" :
-                                item.status === "Em Andamento" ? "bg-[#FDAB3D]" : "bg-[#E2445C]"
+                                item.status === "Concluído" ? "bg-[#3F7343]" :
+                                item.status === "Em Andamento" ? "bg-[#E66C37]" : "bg-[#A1343C]"
                               }`}>
                                 {item.status}
                               </div>
@@ -1380,8 +1380,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                             <div className="flex items-center justify-between">
                               <span className="text-muted-foreground">Prioridade</span>
                               <div className={`text-[10px] text-white py-0.5 px-2 rounded-sm text-center font-bold min-w-[90px] shadow-sm ${
-                                item.prioridade === "Alta" ? "bg-[#784BD1]" :
-                                item.prioridade === "Média" ? "bg-[#5559DF]" : "bg-[#579BFC]"
+                                item.prioridade === "Alta" ? "bg-[#A1343C]" :
+                                item.prioridade === "Média" ? "bg-[#E66C37]" : "bg-[#3F7343]"
                               }`}>
                                 {item.prioridade}
                               </div>
@@ -1793,9 +1793,9 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                 {viewEvent?.titulo}
               </DialogTitle>
               <Badge className={
-                viewEvent?.prioridade === "Alta" ? "bg-destructive/15 text-destructive border-0 font-bold" :
-                viewEvent?.prioridade === "Média" ? "bg-warning/15 text-warning border-0 font-bold" :
-                "bg-success/15 text-success border-0 font-bold"
+                viewEvent?.prioridade === "Alta" ? "bg-[#A1343C]/15 text-[#A1343C] border-0 font-bold" :
+                viewEvent?.prioridade === "Média" ? "bg-[#E66C37]/15 text-[#E66C37] border-0 font-bold" :
+                "bg-[#3F7343]/15 text-[#3F7343] border-0 font-bold"
               }>
                 {viewEvent?.prioridade}
               </Badge>
@@ -1818,9 +1818,9 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
               <div className="space-y-1">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
                 <Badge className={
-                  viewEvent?.status === "Concluído" ? "bg-success/15 text-success border-0 font-semibold" :
-                  viewEvent?.status === "Em Andamento" ? "bg-warning/15 text-warning border-0 font-semibold" :
-                  "bg-muted text-muted-foreground border-0 font-semibold"
+                  viewEvent?.status === "Concluído" ? "bg-[#3F7343]/15 text-[#3F7343] border-0 font-semibold" :
+                  viewEvent?.status === "Em Andamento" ? "bg-[#E66C37]/15 text-[#E66C37] border-0 font-semibold" :
+                  "bg-[#A1343C]/15 text-[#A1343C] border-0 font-semibold"
                 }>
                   {viewEvent?.status}
                 </Badge>
