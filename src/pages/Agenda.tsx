@@ -138,6 +138,7 @@ export default function Agenda() {
   const [newStageAssignee, setNewStageAssignee] = useState("");
   const [stageObsInput, setStageObsInput] = useState("");
   const [editingStageObsId, setEditingStageObsId] = useState<string | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
   const [form, setForm] = useState<{
     titulo: string;
@@ -1585,6 +1586,10 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
             {STATUSES.map(colStatus => {
               const statusEvents = processedEvents.filter(e => e.status === colStatus);
 
+              const colAccentColor =
+                colStatus === "Concluído" ? "#3F7343" :
+                colStatus === "Em Andamento" ? "#E66C37" : "#A1343C";
+
               return (
                 <div
                   key={colStatus}
@@ -1592,177 +1597,277 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                   onDrop={(e) => handleDrop(e, colStatus)}
                   className="rounded-xl border border-border bg-muted/10 flex flex-col min-h-[500px]"
                 >
+                  {/* Column Header */}
                   <div className="p-4 border-b border-border bg-muted/40 rounded-t-xl flex items-center justify-between">
                     <span className="font-bold text-sm text-foreground flex items-center gap-2">
-                      {colStatus === "A Fazer" && <Clock className="h-4 w-4 text-muted-foreground" />}
-                      {colStatus === "Em Andamento" && <AlertTriangle className="h-4 w-4 text-warning" />}
-                      {colStatus === "Concluído" && <CheckCircle2 className="h-4 w-4 text-success" />}
+                      {colStatus === "A Fazer" && <Clock className="h-4 w-4" style={{ color: colAccentColor }} />}
+                      {colStatus === "Em Andamento" && <AlertTriangle className="h-4 w-4" style={{ color: colAccentColor }} />}
+                      {colStatus === "Concluído" && <CheckCircle2 className="h-4 w-4" style={{ color: colAccentColor }} />}
                       {colStatus}
                     </span>
-                    <Badge variant="secondary" className="bg-muted/80 text-muted-foreground text-[10px] font-semibold">
+                    <Badge
+                      className="text-[10px] font-bold text-white border-0"
+                      style={{ backgroundColor: colAccentColor }}
+                    >
                       {statusEvents.length}
                     </Badge>
                   </div>
 
-                  <div className="p-4 space-y-4 flex-1 overflow-y-auto max-h-[650px] scrollbar-thin">
-                    {statusEvents.map(item => (
-                      <Card
-                        key={item.id}
-                        draggable={item.status !== "Concluído"}
-                        onDragStart={(e) => handleDragStart(e, item.id)}
-                        onClick={() => {
-                          setViewEvent(item);
-                          setViewDialogOpen(true);
-                        }}
-                        className={`bg-card hover:shadow-lg border border-border rounded-xl group overflow-hidden ${
-                          item.status === "Concluído" ? "cursor-pointer" : "cursor-pointer cursor-grab active:cursor-grabbing"
-                        }`}
-                      >
-                        {/* Monday Card Top Placeholder (Avatar Container) */}
-                        <div className="bg-muted/40 relative flex items-center justify-center py-5 border-b border-border/50 bg-slate-50 dark:bg-slate-900/50">
-                          <div className="h-16 w-16 rounded-full border-2 border-card bg-background flex items-center justify-center shadow-sm">
-                            <User className="h-8 w-8 text-muted-foreground/60" />
-                          </div>
-                          
-                          {/* Quick "+" or edit button on hover */}
-                          {item.status !== "Concluído" && (
-                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                size="icon"
-                                variant="secondary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEdit(item);
-                                }}
-                                className="h-6 w-6 bg-background hover:bg-muted border shadow-sm"
-                              >
-                                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-
-                        <CardContent className="p-4 space-y-4">
-                          {/* Title and Notes Icon Row */}
-                          <div className="flex items-start justify-between gap-3">
-                            <span className="font-bold text-sm leading-tight text-foreground block group-hover:text-accent transition-colors">
-                              {item.titulo}
-                            </span>
-                            {item.notas && (
-                              <Badge variant="outline" className="border-0 p-0 text-muted-foreground/60 shrink-0">
-                                <StickyNote className="h-3.5 w-3.5" />
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Monday Card attributes layout (matching screenshot) */}
-                          <div className="space-y-2 pt-2 text-xs border-t border-border/40">
-                            {/* Responsavel Row */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Responsável</span>
-                              <div className="flex items-center gap-1 font-semibold text-foreground">
-                                <div className="h-5 w-5 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[9px] font-bold shrink-0">
-                                  {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : <User className="h-3 w-3" />}
-                                </div>
-                                <span className="text-[11px] max-w-[100px] truncate">{item.responsavel_nome || "—"}</span>
-                              </div>
-                            </div>
-                            
-                            {/* Status Row */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Status</span>
-                              <div className={`text-[10px] text-white py-0.5 px-2 rounded-sm text-center font-bold min-w-[90px] shadow-sm ${
-                                item.status === "Concluído" ? "bg-[#3F7343]" :
-                                item.status === "Em Andamento" ? "bg-[#E66C37]" : "bg-[#A1343C]"
-                              }`}>
-                                {item.status}
-                              </div>
-                            </div>
-
-                            {/* Prioridade Row */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Prioridade</span>
-                              <div className={`text-[10px] text-white py-0.5 px-2 rounded-sm text-center font-bold min-w-[90px] shadow-sm ${
-                                item.prioridade === "Alta" ? "bg-[#A1343C]" :
-                                item.prioridade === "Média" ? "bg-[#E66C37]" : "bg-[#3F7343]"
-                              }`}>
-                                {item.prioridade}
-                              </div>
-                            </div>
-
-                            {/* Prazo Row */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Prazo</span>
-                              <div className="flex items-center gap-1.5 bg-muted/40 px-2 py-0.5 rounded text-[11px] font-medium text-foreground">
-                                {item.status === "Concluído" ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                                ) : item.data_inicio && new Date(item.data_inicio) < new Date() ? (
-                                  <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                                ) : (
-                                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                                )}
-                                <span>
-                                  {item.data_inicio ? new Date(item.data_inicio).toLocaleDateString("pt-BR", { month: "short", day: "numeric" }) : "—"}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Quick delete/edit buttons bar */}
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/40 pt-2.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-muted-foreground/60 italic">Categoria: {item.categoria}</span>
-                            <div className="flex gap-1">
-                              {item.status === "Concluído" ? (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setViewEvent(item);
-                                    setViewDialogOpen(true);
-                                  }}
-                                  className="h-5 w-5 p-0 hover:bg-muted"
-                                  title="Visualizar Detalhes"
-                                >
-                                  <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                                </Button>
-                              ) : (
-                                <>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openEdit(item);
-                                    }}
-                                    className="h-5 w-5 p-0 hover:bg-muted"
-                                  >
-                                    <Pencil className="h-3 w-3 text-muted-foreground" />
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteEvent(item.id);
-                                    }}
-                                    className="h-5 w-5 p-0 hover:bg-muted text-destructive"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  {/* Stacked File Cards */}
+                  <div className="p-3 flex-1 overflow-y-auto max-h-[680px] scrollbar-thin space-y-0">
                     {statusEvents.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground border border-dashed border-border rounded-xl bg-muted/5">
+                      <div className="h-full flex flex-col items-center justify-center py-16 text-center text-muted-foreground border border-dashed border-border rounded-xl bg-muted/5 mt-3">
                         <Trello className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                        <span className="text-xs">Arraste tarefas aqui</span>
+                        <span className="text-xs">Nenhuma tarefa nesta coluna</span>
                       </div>
                     )}
+
+                    {statusEvents.map((item, idx) => {
+                      const isExpanded = expandedCardId === item.id;
+                      const isOverdue = item.data_inicio && new Date(item.data_inicio) < new Date() && item.status !== "Concluído";
+                      const hasStages = item.etapas && item.etapas.length > 0;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="relative"
+                          style={{ marginBottom: isExpanded ? "12px" : "-1px", zIndex: isExpanded ? 20 : statusEvents.length - idx }}
+                        >
+                          {/* Stack shadow layers (decorative) */}
+                          {!isExpanded && idx < statusEvents.length - 1 && (
+                            <>
+                              <div
+                                className="absolute bottom-[-5px] left-2 right-2 h-full rounded-xl border border-border bg-card opacity-60"
+                                style={{ zIndex: -1 }}
+                              />
+                              {idx < statusEvents.length - 2 && (
+                                <div
+                                  className="absolute bottom-[-9px] left-4 right-4 h-full rounded-xl border border-border bg-card opacity-30"
+                                  style={{ zIndex: -2 }}
+                                />
+                              )}
+                            </>
+                          )}
+
+                          {/* Main Card */}
+                          <div
+                            draggable={!isExpanded && item.status !== "Concluído"}
+                            onDragStart={(e) => handleDragStart(e, item.id)}
+                            className={`bg-card border rounded-xl overflow-hidden transition-all duration-300 group ${
+                              isExpanded
+                                ? "shadow-xl border-2"
+                                : "shadow-sm hover:shadow-md cursor-pointer"
+                            }`}
+                            style={isExpanded ? { borderColor: colAccentColor } : {}}
+                          >
+                            {/* Card Header — always visible, click to expand */}
+                            <div
+                              className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
+                              onClick={() => setExpandedCardId(isExpanded ? null : item.id)}
+                            >
+                              {/* Left: colored strip + title */}
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className="w-1 h-8 rounded-full shrink-0"
+                                  style={{ backgroundColor: colAccentColor }}
+                                />
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-sm text-foreground truncate leading-tight">
+                                    {item.titulo}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                                    {item.responsavel_nome || "Sem responsável"}
+                                    {item.data_inicio && (
+                                      <span className={`ml-2 ${isOverdue ? "text-destructive font-semibold" : ""}`}>
+                                        · {new Date(item.data_inicio).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Right: badges + chevron */}
+                              <div className="flex items-center gap-2 shrink-0 ml-2">
+                                {hasStages && (
+                                  <span
+                                    className="text-[9px] font-bold text-white px-1.5 py-0.5 rounded-full"
+                                    style={{ backgroundColor: colAccentColor }}
+                                    title="Possui etapas"
+                                  >
+                                    {item.etapas!.filter(et => et.status === "Concluído").length}/{item.etapas!.length}
+                                  </span>
+                                )}
+                                <div
+                                  className="text-[9px] font-bold text-white px-2 py-0.5 rounded-sm"
+                                  style={{ backgroundColor:
+                                    item.prioridade === "Alta" ? "#A1343C" :
+                                    item.prioridade === "Média" ? "#E66C37" : "#3F7343"
+                                  }}
+                                >
+                                  {item.prioridade}
+                                </div>
+                                <ChevronDown
+                                  className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${
+                                    isExpanded ? "rotate-180" : ""
+                                  }`}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Expanded Body */}
+                            {isExpanded && (
+                              <div className="border-t border-border/60 px-4 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                {/* Description */}
+                                {item.descricao && (
+                                  <p className="text-xs text-muted-foreground leading-relaxed">{item.descricao}</p>
+                                )}
+
+                                {/* Attributes Grid */}
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs border border-border/40 rounded-lg p-3 bg-muted/10">
+                                  <div>
+                                    <span className="text-muted-foreground block text-[10px] mb-0.5">Responsável</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="h-5 w-5 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[9px] font-bold shrink-0">
+                                        {item.responsavel_nome ? item.responsavel_nome.slice(0, 2).toUpperCase() : "—"}
+                                      </div>
+                                      <span className="font-semibold truncate max-w-[90px]">{item.responsavel_nome || "—"}</span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block text-[10px] mb-0.5">Status</span>
+                                    <div
+                                      className="text-[10px] text-white font-bold px-2 py-0.5 rounded-sm inline-block"
+                                      style={{ backgroundColor: colAccentColor }}
+                                    >
+                                      {item.status}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block text-[10px] mb-0.5">Prioridade</span>
+                                    <div
+                                      className="text-[10px] text-white font-bold px-2 py-0.5 rounded-sm inline-block"
+                                      style={{ backgroundColor:
+                                        item.prioridade === "Alta" ? "#A1343C" :
+                                        item.prioridade === "Média" ? "#E66C37" : "#3F7343"
+                                      }}
+                                    >
+                                      {item.prioridade}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block text-[10px] mb-0.5">Prazo</span>
+                                    <div className={`flex items-center gap-1 font-semibold ${ isOverdue ? "text-destructive" : "text-foreground" }`}>
+                                      {item.status === "Concluído" ? (
+                                        <CheckCircle2 className="h-3 w-3 text-[#3F7343]" />
+                                      ) : isOverdue ? (
+                                        <AlertTriangle className="h-3 w-3 text-destructive" />
+                                      ) : (
+                                        <Clock className="h-3 w-3 text-muted-foreground" />
+                                      )}
+                                      {item.data_inicio
+                                        ? new Date(item.data_inicio).toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: "numeric" })
+                                        : "—"}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block text-[10px] mb-0.5">Categoria</span>
+                                    <span className="font-semibold">{item.categoria}</span>
+                                  </div>
+                                  {item.orcamento ? (
+                                    <div>
+                                      <span className="text-muted-foreground block text-[10px] mb-0.5">Orçamento</span>
+                                      <span className="font-semibold font-mono">
+                                        {Number(item.orcamento).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                </div>
+
+                                {/* Notas */}
+                                {item.notas && (
+                                  <div className="text-xs bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg p-2.5">
+                                    <div className="flex items-center gap-1 text-yellow-700 dark:text-yellow-400 font-semibold mb-1">
+                                      <StickyNote className="h-3 w-3" /> Notas
+                                    </div>
+                                    <p className="text-foreground/80 leading-relaxed">{item.notas}</p>
+                                  </div>
+                                )}
+
+                                {/* Etapas summary */}
+                                {hasStages && (
+                                  <div className="text-xs">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Etapas ({item.etapas!.filter(et => et.status === "Concluído").length}/{item.etapas!.length} concluídas)</p>
+                                    <div className="space-y-1">
+                                      {item.etapas!.map(et => (
+                                        <div key={et.id} className="flex items-center justify-between p-1.5 rounded bg-muted/30 border border-border/30">
+                                          <span className="truncate text-[11px] font-medium">{et.titulo}</span>
+                                          <span
+                                            className="text-[9px] font-bold text-white px-1.5 py-0.5 rounded-sm shrink-0 ml-2"
+                                            style={{
+                                              backgroundColor:
+                                                et.status === "Concluído" ? "#3F7343" :
+                                                et.status === "Em Andamento" ? "#E66C37" : "#A1343C"
+                                            }}
+                                          >
+                                            {et.status}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Actions */}
+                                <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                                  <Button
+                                    size="xs"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewEvent(item);
+                                      setViewDialogOpen(true);
+                                    }}
+                                    className="h-7 text-[11px] gap-1.5"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" /> Ver Detalhes
+                                  </Button>
+                                  {item.status !== "Concluído" && (
+                                    <div className="flex gap-1.5">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openEdit(item);
+                                          setExpandedCardId(null);
+                                        }}
+                                        className="h-7 w-7 hover:bg-muted"
+                                        title="Editar"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteEvent(item.id);
+                                          setExpandedCardId(null);
+                                        }}
+                                        className="h-7 w-7 hover:bg-destructive/10 text-destructive"
+                                        title="Excluir"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
