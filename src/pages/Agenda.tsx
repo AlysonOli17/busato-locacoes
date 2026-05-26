@@ -1852,6 +1852,31 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-3">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Responsável</span>
+                <span className="text-sm font-medium text-foreground block mt-0.5">
+                  {viewEvent?.responsavel_nome || <span className="text-muted-foreground italic">Sem responsável</span>}
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Orçamento</span>
+                <span className="text-sm font-semibold text-foreground font-mono block mt-0.5">
+                  {Number(viewEvent?.orcamento || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </span>
+              </div>
+            </div>
+
+            {(viewEvent?.notas || viewEvent?.notes) && (
+              <div className="border-t border-border/40 pt-3 space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Notas</span>
+                <p className="text-xs text-foreground bg-muted/20 p-2.5 rounded border border-border/50 break-words mt-0.5 leading-relaxed">
+                  {viewEvent.notes || viewEvent.notas}
+                </p>
+              </div>
+            )}
+
             {(viewEvent?.equipamentos || viewEvent?.empresas) && (
               <div className="border-t border-border/40 pt-3 space-y-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Associações</span>
