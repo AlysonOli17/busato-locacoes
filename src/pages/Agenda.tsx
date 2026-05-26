@@ -1245,8 +1245,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                 />
                               </td>
                             </tr>
-                          )}</td>
-                          </tr>
+                          )}
                         </tbody>
                         
                         {/* Summary Footer */}
