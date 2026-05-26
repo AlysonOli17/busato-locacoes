@@ -878,9 +878,27 @@ export const FaturamentoContent = () => {
       await exportDetailedFaturamentoPDF(data, empresasList);
       toast({ title: "PDF gerado", description: "O PDF foi baixado com sucesso.", variant: "default" });
     } catch (err: any) {
+      // If chunk failed to load (stale deployment), reload once to get new bundles
+      const isChunkError =
+        err?.message?.includes("Failed to fetch dynamically imported module") ||
+        err?.message?.includes("Importing a module script failed") ||
+        err?.name === "ChunkLoadError";
+      if (isChunkError) {
+        const reloadKey = "pdf_chunk_reload";
+        if (!sessionStorage.getItem(reloadKey)) {
+          sessionStorage.setItem(reloadKey, "1");
+          toast({ title: "Atualizando sistema...", description: "Uma nova versão foi detectada. A página será recarregada automaticamente." });
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          sessionStorage.removeItem(reloadKey);
+          toast({ title: "Erro ao gerar PDF", description: "Não foi possível carregar o módulo. Tente novamente.", variant: "destructive" });
+        }
+        return;
+      }
       toast({ title: "Erro ao gerar PDF", description: err.message ?? "Erro desconhecido", variant: "destructive" });
     }
   };
+
 
   const handleSendEmail = async (item: Fatura) => {
     try {
