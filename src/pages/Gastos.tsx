@@ -87,6 +87,7 @@ const Gastos = () => {
       const equipMap = new Map(equipRes.data.map((e: any) => [e.id, e]));
       const mapped = gastosRes.data.map((g: any) => ({
         ...g,
+        classificacao: g.status || "A Cobrar do Cliente",
         equipamentos: equipMap.get(g.equipamento_id) || null,
         fatura: fatMap.get(g.id) || null,
       }));
@@ -149,7 +150,8 @@ const Gastos = () => {
       toast({ title: "Campos obrigatórios", description: "Equipamento e Descrição são obrigatórios.", variant: "destructive" });
       return;
     }
-    const payload = { ...form, valor: Number(form.valor) };
+    const { classificacao, ...basePayload } = form;
+    const payload = { ...basePayload, valor: Number(form.valor), status: classificacao };
     if (editing) {
       const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }

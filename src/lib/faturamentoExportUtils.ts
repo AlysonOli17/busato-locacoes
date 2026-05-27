@@ -308,8 +308,8 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     // 4. ADDITIONAL COSTS & REFUNDS
     const { data: fatGastos } = await supabase.from("faturamento_gastos").select("*, gastos(*)").eq("faturamento_id", item.id);
     const gastosList = fatGastos || [];
-    const cobrarGastos = gastosList.filter(fg => fg.gastos && (fg.gastos.classificacao || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
-    const reembolsarGastos = gastosList.filter(fg => fg.gastos && fg.gastos.classificacao === "A Reembolsar ao Cliente");
+    const cobrarGastos = gastosList.filter(fg => fg.gastos && (fg.gastos.classificacao || fg.gastos.status || "A Cobrar do Cliente") !== "A Reembolsar ao Cliente");
+    const reembolsarGastos = gastosList.filter(fg => fg.gastos && (fg.gastos.classificacao || fg.gastos.status) === "A Reembolsar ao Cliente");
 
     let totalCobrar = 0;
     if (cobrarGastos.length > 0) {
