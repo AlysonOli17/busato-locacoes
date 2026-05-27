@@ -149,8 +149,7 @@ const Gastos = () => {
       toast({ title: "Campos obrigatórios", description: "Equipamento e Descrição são obrigatórios.", variant: "destructive" });
       return;
     }
-    const { classificacao, ...basePayload } = form;
-    const payload = { ...basePayload, valor: Number(form.valor) };
+    const payload = { ...form, valor: Number(form.valor) };
     if (editing) {
       const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
