@@ -129,11 +129,12 @@ export const FaturamentoTab = () => {
   const [generateItemId, setGenerateItemId] = useState<string | null>(null);
   const [generateNumeroNota, setGenerateNumeroNota] = useState("");
   const [generateObservacoes, setGenerateObservacoes] = useState("");
+  const [generateEmissao, setGenerateEmissao] = useState("");
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [editDialog, setEditDialog] = useState(false);
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null);
-  const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "" });
+  const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "", emissao: "" });
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -206,9 +207,10 @@ export const FaturamentoTab = () => {
   const getVencimento = (fatura: Fatura) => {
     const ct = getContrato(fatura.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
-    const baseDate = (fatura as any).data_aprovacao
-      ? parseLocalDate((fatura as any).data_aprovacao)
-      : parseLocalDate(fatura.emissao);
+    const dateStr = (fatura as any).data_aprovacao || fatura.emissao;
+    if (!dateStr) return null;
+    const baseDate = parseLocalDate(dateStr);
+    if (isNaN(baseDate.getTime())) return null;
     const venc = new Date(baseDate);
     venc.setDate(venc.getDate() + prazo);
     return venc;
@@ -218,7 +220,7 @@ export const FaturamentoTab = () => {
     if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
     if (fatura.status === "Aprovado") {
       const venc = getVencimento(fatura);
-      if (new Date() > venc) return "Em Atraso";
+      if (venc && new Date() > venc) return "Em Atraso";
       return "Pendente";
     }
     return fatura.status;
@@ -246,8 +248,13 @@ export const FaturamentoTab = () => {
       switch (sortCol) {
         case "numero": cmp = (a.numero_nota || String(a.numero_sequencial)).localeCompare(b.numero_nota || String(b.numero_sequencial)); break;
         case "empresa": cmp = (ctA?.empresas?.nome || "").localeCompare(ctB?.empresas?.nome || ""); break;
-        case "emissao": cmp = a.emissao.localeCompare(b.emissao); break;
-        case "vencimento": cmp = getVencimento(a).getTime() - getVencimento(b).getTime(); break;
+        case "emissao": cmp = (a.emissao || "").localeCompare(b.emissao || ""); break;
+        case "vencimento": {
+          const vencA = getVencimento(a);
+          const vencB = getVencimento(b);
+          cmp = (vencA ? vencA.getTime() : 0) - (vencB ? vencB.getTime() : 0);
+          break;
+        }
         case "valor": cmp = Number(a.valor_total) - Number(b.valor_total); break;
         case "status": cmp = getDisplayStatus(a).localeCompare(getDisplayStatus(b)); break;
       }
@@ -266,6 +273,7 @@ export const FaturamentoTab = () => {
       status: fatura.status,
       numero_nota: fatura.numero_nota || "",
       conta_bancaria_id: fatura.conta_bancaria_id || "",
+      emissao: fatura.emissao || "",
     });
     setEditDialog(true);
   };
@@ -276,6 +284,7 @@ export const FaturamentoTab = () => {
       status: editForm.status,
       numero_nota: editForm.numero_nota || null,
       conta_bancaria_id: editForm.conta_bancaria_id || null,
+      emissao: editForm.emissao || null,
     }).eq("id", editingFatura.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Fatura atualizada" });
@@ -283,14 +292,13 @@ export const FaturamentoTab = () => {
     fetchData();
   };
 
-  const handleEmitirFatura = async (id: string, numeroNota: string, observacoes: string) => {
-    const hoje = new Date().toISOString().slice(0, 10);
+  const handleEmitirFatura = async (id: string, numeroNota: string, emissaoDate: string, observacoes: string) => {
     const { error } = await supabase
       .from("faturamento")
       .update({
         numero_nota: numeroNota || null,
-        data_aprovacao: hoje,
-        emissao: hoje,
+        data_aprovacao: emissaoDate,
+        emissao: emissaoDate,
         observacoes: observacoes || "",
       } as any)
       .eq("id", id);
@@ -495,7 +503,7 @@ export const FaturamentoTab = () => {
 
     // ── CONDIÇÕES PAGAMENTO | DATA DE VENCIMENTO | LOCAL DE PAGAMENTO ──
     drawFormField("CONDIÇÕES PAGAMENTO", "Crédito Bancário", mLeft, y, thirdW);
-    drawFormField("DATA DE VENCIMENTO", vencimento.toLocaleDateString("pt-BR"), mLeft + thirdW, y, thirdW);
+    drawFormField("DATA DE VENCIMENTO", vencimento ? vencimento.toLocaleDateString("pt-BR") : "—", mLeft + thirdW, y, thirdW);
     const localPagto = conta ? `${busatoCidade} ${busatoUf}` : "—";
     drawFormField("LOCAL DE PAGAMENTO", localPagto, mLeft + thirdW * 2, y, thirdW);
     y += 10;
@@ -781,8 +789,8 @@ export const FaturamentoTab = () => {
         f.periodo_medicao_inicio && f.periodo_medicao_fim
           ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
           : "—",
-        parseLocalDate(f.emissao).toLocaleDateString("pt-BR"),
-        venc.toLocaleDateString("pt-BR"),
+        f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—",
+        venc ? venc.toLocaleDateString("pt-BR") : "—",
         Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         status,
       ];
@@ -912,7 +920,7 @@ export const FaturamentoTab = () => {
                         : "—"}
                     </TableCell>
                     <TableCell className="text-sm">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                    <TableCell className="text-sm">{getVencimento(f).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="text-sm">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
                     <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     
                     <TableCell>
@@ -929,6 +937,7 @@ export const FaturamentoTab = () => {
                             onClick={() => {
                               setGenerateItemId(f.id);
                               setGenerateNumeroNota("");
+                              setGenerateEmissao(new Date().toISOString().slice(0, 10));
                               
                               const ct = getContrato(f.contrato_id);
                               const obra = ct?.empresas?.obra;
@@ -1038,6 +1047,10 @@ export const FaturamentoTab = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Data de Emissão</Label>
+              <Input type="date" value={editForm.emissao} onChange={e => setEditForm(p => ({ ...p, emissao: e.target.value }))} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialog(false)}>Cancelar</Button>
@@ -1098,13 +1111,17 @@ export const FaturamentoTab = () => {
               <Input value={generateNumeroNota} onChange={(e) => setGenerateNumeroNota(e.target.value)} placeholder="Ex: FAT001" />
             </div>
             <div>
+              <Label>Data de Emissão</Label>
+              <Input type="date" value={generateEmissao} onChange={(e) => setGenerateEmissao(e.target.value)} />
+            </div>
+            <div>
               <Label>Observação</Label>
               <Textarea value={generateObservacoes} onChange={(e) => setGenerateObservacoes(e.target.value)} placeholder="Observações sobre a fatura (opcional)" rows={3} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => generateItemId && handleEmitirFatura(generateItemId, generateNumeroNota, generateObservacoes)} className="bg-success text-success-foreground hover:bg-success/90">
+            <Button onClick={() => generateItemId && handleEmitirFatura(generateItemId, generateNumeroNota, generateEmissao, generateObservacoes)} className="bg-success text-success-foreground hover:bg-success/90">
               Emitir Fatura
             </Button>
           </DialogFooter>

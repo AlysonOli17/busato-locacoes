@@ -796,7 +796,7 @@ export const FaturamentoContent = () => {
   const getDisplayStatus = (item: Fatura) => {
     if (item.status === "Pago" || item.status === "Cancelado" || item.status === "Aprovado") return item.status;
     const vencimento = getVencimento(item);
-    if (new Date() > vencimento) return "Em Atraso";
+    if (vencimento && new Date() > vencimento) return "Em Atraso";
     return item.status;
   };
 
@@ -814,10 +814,10 @@ export const FaturamentoContent = () => {
   const getVencimento = (item: Fatura) => {
     const ct = contratos.find(c => c.id === item.contrato_id);
     const prazo = ct?.prazo_faturamento || 30;
-    // Vencimento é contado a partir da data de aprovação, se existir
-    const baseDate = (item as any).data_aprovacao
-      ? parseLocalDate((item as any).data_aprovacao)
-      : parseLocalDate(item.emissao);
+    const dateStr = (item as any).data_aprovacao || item.emissao;
+    if (!dateStr) return null;
+    const baseDate = parseLocalDate(dateStr);
+    if (isNaN(baseDate.getTime())) return null;
     const vencimento = new Date(baseDate);
     vencimento.setDate(vencimento.getDate() + prazo);
     return vencimento;
@@ -1201,8 +1201,6 @@ export const FaturamentoContent = () => {
                   
                   <TableHead>Empresa</TableHead>
                   <TableHead>Período Medição</TableHead>
-                  <TableHead>Prazo</TableHead>
-                  <TableHead>Vencimento</TableHead>
                   <TableHead>Horas/Diárias</TableHead>
                   <TableHead>Custos Adicionais</TableHead>
                   <TableHead>Valor Total</TableHead>
@@ -1237,12 +1235,6 @@ export const FaturamentoContent = () => {
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
                           ? `${parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
                           : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {(() => { const ct = contratos.find(c => c.id === item.contrato_id); return `${ct?.prazo_faturamento || 30} dias`; })()}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {getVencimento(item).toLocaleDateString("pt-BR")}
                       </TableCell>
                       <TableCell className="text-sm">
                         {(() => {
