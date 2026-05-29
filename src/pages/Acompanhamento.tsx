@@ -224,9 +224,10 @@ const Acompanhamento = () => {
 
   const getVencimento = (fatura: Fatura) => {
     const prazo = fatura.contratos?.prazo_faturamento || 30;
-    const baseDate = (fatura as any).data_aprovacao
-      ? new Date((fatura as any).data_aprovacao + "T00:00:00")
-      : new Date(fatura.emissao);
+    const dateStr = (fatura as any).data_aprovacao || fatura.emissao;
+    if (!dateStr) return null;
+    const baseDate = parseLocalDate(dateStr);
+    if (isNaN(baseDate.getTime())) return null;
     const venc = new Date(baseDate);
     venc.setDate(venc.getDate() + prazo);
     return venc;
@@ -235,7 +236,7 @@ const Acompanhamento = () => {
   const getDisplayStatus = (fatura: Fatura) => {
     if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
     const venc = getVencimento(fatura);
-    if (new Date() > venc) return "Em Atraso";
+    if (venc && new Date() > venc) return "Em Atraso";
     return "Pendente";
   };
 
@@ -352,8 +353,13 @@ const Acompanhamento = () => {
         case "empresa": cmp = (a.contratos?.empresas?.nome || "").localeCompare(b.contratos?.empresas?.nome || ""); break;
         case "nota": cmp = (a.numero_nota || "").localeCompare(b.numero_nota || ""); break;
         case "equipamento": cmp = `${a.contratos?.equipamentos?.tipo} ${a.contratos?.equipamentos?.modelo}`.localeCompare(`${b.contratos?.equipamentos?.tipo} ${b.contratos?.equipamentos?.modelo}`); break;
-        case "emissao": cmp = a.emissao.localeCompare(b.emissao); break;
-        case "vencimento": cmp = getVencimento(a).getTime() - getVencimento(b).getTime(); break;
+        case "emissao": cmp = (a.emissao || "").localeCompare(b.emissao || ""); break;
+        case "vencimento": {
+          const vencA = getVencimento(a);
+          const vencB = getVencimento(b);
+          cmp = (vencA ? vencA.getTime() : 0) - (vencB ? vencB.getTime() : 0);
+          break;
+        }
         case "valor": cmp = Number(a.valor_total) - Number(b.valor_total); break;
         case "status": cmp = getDisplayStatus(a).localeCompare(getDisplayStatus(b)); break;
       }
@@ -370,13 +376,14 @@ const Acompanhamento = () => {
     const headers = ["Empresa", "CNPJ", "Equipamento", "Período Medição", "Emissão", "Vencimento", "Valor (R$)", "Status"];
     const rows = faturasFiltered.map(f => {
       const status = getDisplayStatus(f);
+      const venc = getVencimento(f);
       return [
         f.contratos?.empresas?.nome || "",
         f.contratos?.empresas?.cnpj || "",
         `${f.contratos?.equipamentos?.tipo} ${f.contratos?.equipamentos?.modelo}`,
         f.periodo_medicao_inicio && f.periodo_medicao_fim ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
-        parseLocalDate(f.emissao).toLocaleDateString("pt-BR"),
-        getVencimento(f).toLocaleDateString("pt-BR"),
+        f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—",
+        venc ? venc.toLocaleDateString("pt-BR") : "—",
         Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
         status,
       ];
@@ -672,8 +679,8 @@ const Acompanhamento = () => {
                               ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
                               : "—"}
                           </TableCell>
-                          <TableCell className="text-sm">{parseLocalDate(f.emissao).toLocaleDateString("pt-BR")}</TableCell>
-                          <TableCell className="text-sm">{getVencimento(f).toLocaleDateString("pt-BR")}</TableCell>
+                          <TableCell className="text-sm">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                          <TableCell className="text-sm">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
                           <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell>
                             <Badge className={
