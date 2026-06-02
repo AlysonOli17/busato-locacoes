@@ -15,7 +15,19 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, AreaChart, Area
 } from "recharts";
 
-const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+const parseLocalDate = (dateStr: any): Date => {
+  const mkFallback = () => {
+    const d = new Date(NaN);
+    (d as any).toLocaleDateString = () => "—";
+    return d;
+  };
+  if (!dateStr) return mkFallback();
+  const str = String(dateStr).trim();
+  if (!str || str === "null" || str === "undefined") return mkFallback();
+  const d = str.includes("T") ? new Date(str) : new Date(str + "T00:00:00");
+  if (isNaN(d.getTime())) return mkFallback();
+  return d;
+};
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtShort = (v: number) => {
@@ -287,7 +299,7 @@ export const VisaoGeralTab = ({
           </div>
           <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg border">
             <CalendarClock className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium">Período: {new Date(dataInicio).toLocaleDateString()} - {new Date(dataFim).toLocaleDateString()}</span>
+            <span className="text-xs font-medium">Período: {parseLocalDate(dataInicio).toLocaleDateString("pt-BR")} - {parseLocalDate(dataFim).toLocaleDateString("pt-BR")}</span>
           </div>
         </div>
       )}
@@ -601,7 +613,7 @@ export const VisaoGeralTab = ({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Contratos Críticos</p>
-                  <h3 className="text-2xl font-bold mt-1">{contratos.filter(c => c.status === "Ativo" && parseLocalDate(c.data_fim) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).length}</h3>
+                  <h3 className="text-2xl font-bold mt-1">{contratos.filter(c => c.status === "Ativo" && c.data_fim && !isNaN(parseLocalDate(c.data_fim).getTime()) && parseLocalDate(c.data_fim) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).length}</h3>
                 </div>
                 <div className="h-12 w-12 bg-warning/10 rounded-full flex items-center justify-center">
                   <Shield className="h-6 w-6 text-warning" />

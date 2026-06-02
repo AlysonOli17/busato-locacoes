@@ -63,7 +63,19 @@ interface Fatura {
   };
 }
 
-const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+const parseLocalDate = (dateStr: any): Date => {
+  const mkFallback = () => {
+    const d = new Date(NaN);
+    (d as any).toLocaleDateString = () => "—";
+    return d;
+  };
+  if (!dateStr) return mkFallback();
+  const str = String(dateStr).trim();
+  if (!str || str === "null" || str === "undefined") return mkFallback();
+  const d = str.includes("T") ? new Date(str) : new Date(str + "T00:00:00");
+  if (isNaN(d.getTime())) return mkFallback();
+  return d;
+};
 const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const monthKey = (dateStr: string) => dateStr.slice(0, 7);
 const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.inicio);
@@ -278,7 +290,7 @@ const Acompanhamento = () => {
 
     contratosAtivos.forEach(ct => {
       const dataInicio = parseLocalDate(ct.data_inicio);
-      if (hoje < dataInicio) return;
+      if (isNaN(dataInicio.getTime()) || hoje < dataInicio) return;
 
       // Get all billings for this contract
       const faturasContrato = faturas.filter(f => f.contrato_id === ct.id);
@@ -820,7 +832,7 @@ const Acompanhamento = () => {
                   <SelectContent>
                     {faturas
                       .filter(f => f.contrato_id === vincularDialog.alerta.contrato.id)
-                      .sort((a, b) => b.emissao.localeCompare(a.emissao))
+                      .sort((a, b) => (b.emissao || "").localeCompare(a.emissao || ""))
                       .map(f => (
                         <SelectItem key={f.id} value={f.id}>
                           {f.numero_nota ? `Nº ${f.numero_nota}` : "(sem número)"} — {parseLocalDate(f.emissao).toLocaleDateString("pt-BR")} — R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}

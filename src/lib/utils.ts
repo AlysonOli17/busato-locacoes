@@ -107,4 +107,25 @@ export function getEquipLabel(eq: {
   return label || fallback;
 }
 
-export const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
+export const parseLocalDate = (dateStr: any) => {
+  const fallback = () => {
+    const d = new Date(NaN);
+    d.toLocaleDateString = () => "—";
+    return d;
+  };
+  if (!dateStr) return fallback();
+  const str = String(dateStr).trim();
+  if (!str || str === "null" || str === "undefined") return fallback();
+  
+  let d;
+  if (str.includes("T")) {
+    d = new Date(str);
+  } else {
+    d = new Date(str + "T00:00:00");
+  }
+  
+  if (isNaN(d.getTime())) {
+    return fallback();
+  }
+  return d;
+};
