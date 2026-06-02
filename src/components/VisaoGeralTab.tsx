@@ -29,11 +29,17 @@ const parseLocalDate = (dateStr: any): Date => {
   return d;
 };
 
-const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtShort = (v: number) => {
-  if (v >= 1000000) return (v / 1000000).toFixed(1) + "M";
-  if (v >= 1000) return (v / 1000).toFixed(1) + "k";
-  return v.toFixed(0);
+const fmt = (v: any) => {
+  const val = Number(v);
+  if (isNaN(val)) return "0,00";
+  return val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const fmtShort = (v: any) => {
+  const val = Number(v);
+  if (isNaN(val)) return "0";
+  if (val >= 1000000) return (val / 1000000).toFixed(1) + "M";
+  if (val >= 1000) return (val / 1000).toFixed(1) + "k";
+  return val.toFixed(0);
 };
 
 interface VisaoGeralTabProps {
@@ -298,11 +304,11 @@ export const VisaoGeralTab = ({
       const monthKey = d.toISOString().slice(0, 7);
       
       const receitasMes = faturas
-        .filter(f => f.emissao && f.emissao.slice(0, 7) === monthKey)
+        .filter(f => f && f.emissao && typeof f.emissao === "string" && f.emissao.slice(0, 7) === monthKey)
         .reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
         
       const custosMes = gastos
-        .filter(g => g.data && g.data.slice(0, 7) === monthKey)
+        .filter(g => g && g.data && typeof g.data === "string" && g.data.slice(0, 7) === monthKey)
         .reduce((sum, g) => sum + Number(g.valor || 0), 0);
         
       result.push({
@@ -318,19 +324,21 @@ export const VisaoGeralTab = ({
   const topClientes = useMemo(() => {
     const map = new Map<string, { nome: string; total: number; contratosCount: number }>();
     faturas.forEach(f => {
+      if (!f) return;
       const empresa = f.contratos?.empresas;
       if (!empresa) return;
-      const key = empresa.id;
+      const key = String(empresa.id || empresa.nome);
       const valor = Number(f.valor_total || 0);
       if (!map.has(key)) {
-        map.set(key, { nome: empresa.nome, total: 0, contratosCount: 0 });
+        map.set(key, { nome: empresa.nome || "Cliente sem Nome", total: 0, contratosCount: 0 });
       }
       map.get(key)!.total += valor;
     });
     
     contratos.forEach(c => {
-      if (c.status === "Ativo" && c.empresas?.id) {
-        const entry = map.get(c.empresas.id);
+      if (c && c.status === "Ativo" && c.empresas) {
+        const key = String(c.empresas.id || c.empresas.nome);
+        const entry = map.get(key);
         if (entry) entry.contratosCount += 1;
       }
     });
@@ -343,6 +351,7 @@ export const VisaoGeralTab = ({
   const topEquipamentos = useMemo(() => {
     const map = new Map<string, { nome: string; tag: string; total: number; status: string }>();
     faturas.forEach(f => {
+      if (!f) return;
       const contrato = f.contratos;
       if (!contrato || !contrato.equipamento_id) return;
       const eq = equipamentos.find(e => e.id === contrato.equipamento_id);
@@ -351,7 +360,12 @@ export const VisaoGeralTab = ({
       const key = eq.id;
       const valor = Number(f.valor_total || 0);
       if (!map.has(key)) {
-        map.set(key, { nome: `${eq.tipo} ${eq.modelo}`, tag: eq.tag_placa || "S/T", total: 0, status: eq.status });
+        map.set(key, { 
+          nome: `${eq.tipo || "Equipamento"} ${eq.modelo || ""}`.trim(), 
+          tag: eq.tag_placa || "S/T", 
+          total: 0, 
+          status: eq.status || "Ativo" 
+        });
       }
       map.get(key)!.total += valor;
     });
@@ -362,15 +376,27 @@ export const VisaoGeralTab = ({
   }, [faturas, equipamentos]);
 
   const inadimplenciaStats = useMemo(() => {
-    const hojeStr = new Date().toISOString().slice(0, 10);
+    const hoje = new Date();
+    
+    const getVenc = (f: any) => {
+      const prazo = f.contratos?.prazo_faturamento || 30;
+      const dateStr = f.data_aprovacao || f.emissao;
+      if (!dateStr) return null;
+      const baseDate = parseLocalDate(dateStr);
+      if (isNaN(baseDate.getTime())) return null;
+      const v = new Date(baseDate);
+      v.setDate(v.getDate() + prazo);
+      return v;
+    };
+
     const emAtraso = faturas.filter(f => {
-      if (f.status === "Pago") return false;
-      const venc = f.vencimento;
-      return venc && venc < hojeStr;
+      if (!f || f.status === "Pago" || f.status === "Cancelado") return false;
+      const venc = getVenc(f);
+      return venc && hoje > venc;
     });
     
-    const totalEmitido = faturas.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
-    const totalAtrasoVal = emAtraso.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    const totalEmitido = faturas.reduce((sum, f) => sum + Number(f ? f.valor_total : 0), 0);
+    const totalAtrasoVal = emAtraso.reduce((sum, f) => sum + Number(f ? f.valor_total : 0), 0);
     const percentualAtraso = totalEmitido > 0 ? (totalAtrasoVal / totalEmitido) * 100 : 0;
     
     return {
