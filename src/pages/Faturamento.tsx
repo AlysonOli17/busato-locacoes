@@ -174,6 +174,11 @@ export const FaturamentoContent = () => {
   interface MobEvent { equipamento_id: string; tipo: string; modelo: string; tag_placa: string | null; evento: "Mobilização" | "Desmobilização"; data: string; }
   const [mobAlerts, setMobAlerts] = useState<MobEvent[]>([]);
   const [mobDialogOpen, setMobDialogOpen] = useState(false);
+  const [aprovarDialog, setAprovarDialog] = useState<{ isOpen: boolean; faturaId: string | null; emissaoDate: string }>({
+    isOpen: false,
+    faturaId: null,
+    emissaoDate: new Date().toISOString().slice(0, 10)
+  });
   const [mobValues, setMobValues] = useState<Record<string, number>>({});
   const [creatingMob, setCreatingMob] = useState(false);
 
@@ -800,11 +805,14 @@ export const FaturamentoContent = () => {
     return item.status;
   };
 
-  const handleAprovarMedicaoDirect = async (id: string) => {
-    const hoje = new Date().toISOString().slice(0, 10);
+  const handleAprovarMedicaoDirect = async (id: string, emissaoDate: string) => {
     const { error } = await supabase
       .from("faturamento")
-      .update({ status: "Aprovado", data_aprovacao: hoje } as any)
+      .update({ 
+        status: "Aprovado", 
+        data_aprovacao: emissaoDate,
+        emissao: emissaoDate
+      } as any)
       .eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Medição aprovada", description: "A medição foi enviada para a aba Faturamento." });
@@ -1275,30 +1283,15 @@ export const FaturamentoContent = () => {
                           <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
                           <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
                             {getDisplayStatus(item) === "Pendente" && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
-                                    title="Aprovar Medição"
-                                  >
-                                    <ShieldCheck className="h-3.5 w-3.5" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Aprovar Medição #{item.numero_sequencial}</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Deseja aprovar esta medição? Ela será enviada para a aba de Faturamento como pendente.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleAprovarMedicaoDirect(item.id)} className="bg-success text-success-foreground hover:bg-success/90">Aprovar</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                title="Aprovar Medição"
+                                onClick={() => setAprovarDialog({ isOpen: true, faturaId: item.id, emissaoDate: new Date().toISOString().slice(0, 10) })}
+                              >
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                              </Button>
                             )}
 
                             <Button
@@ -1878,6 +1871,50 @@ export const FaturamentoContent = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Custom Fatura Approval Dialog */}
+      <Dialog open={aprovarDialog.isOpen} onOpenChange={(open) => !open && setAprovarDialog(prev => ({ ...prev, isOpen: false }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aprovar Medição e Faturar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Para aprovar esta medição, por favor informe a <strong>Data de Emissão</strong> da fatura. O vencimento será calculado a partir desta data com base no prazo do contrato.
+            </p>
+            <div className="space-y-1.5">
+              <label htmlFor="emissaoDate" className="text-xs font-semibold text-muted-foreground">
+                Data de Emissão
+              </label>
+              <Input
+                id="emissaoDate"
+                type="date"
+                max={new Date().toISOString().slice(0, 10)}
+                value={aprovarDialog.emissaoDate}
+                onChange={(e) => setAprovarDialog(prev => ({ ...prev, emissaoDate: e.target.value }))}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                * Apenas datas iguais ou anteriores à data atual são permitidas para migrações históricas.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAprovarDialog(prev => ({ ...prev, isOpen: false }))}>
+              Cancelar
+            </Button>
+            <Button 
+              className="bg-success text-success-foreground hover:bg-success/90"
+              onClick={async () => {
+                if (aprovarDialog.faturaId && aprovarDialog.emissaoDate) {
+                  await handleAprovarMedicaoDirect(aprovarDialog.faturaId, aprovarDialog.emissaoDate);
+                  setAprovarDialog(prev => ({ ...prev, isOpen: false }));
+                }
+              }}
+            >
+              Confirmar e Aprovar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </>
   );
