@@ -288,6 +288,121 @@ export const VisaoGeralTab = ({
   const equipAtivos = equipamentos.filter(e => e.status === "Ativo").length;
   const taxaUtilizacao = equipamentos.length > 0 ? Math.round((equipAtivos / equipamentos.length) * 100) : 0;
 
+  // ============ ADVANCED BI CALCULATIONS ============
+  const mensalFinanceiroData = useMemo(() => {
+    const result = [];
+    const today = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const label = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+      const monthKey = d.toISOString().slice(0, 7);
+      
+      const receitasMes = faturas
+        .filter(f => f.emissao && f.emissao.slice(0, 7) === monthKey)
+        .reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+        
+      const custosMes = gastos
+        .filter(g => g.data && g.data.slice(0, 7) === monthKey)
+        .reduce((sum, g) => sum + Number(g.valor || 0), 0);
+        
+      result.push({
+        mes: label,
+        "Receitas": receitasMes,
+        "Custos": custosMes,
+        "Resultado": receitasMes - custosMes
+      });
+    }
+    return result;
+  }, [faturas, gastos]);
+
+  const topClientes = useMemo(() => {
+    const map = new Map<string, { nome: string; total: number; contratosCount: number }>();
+    faturas.forEach(f => {
+      const empresa = f.contratos?.empresas;
+      if (!empresa) return;
+      const key = empresa.id;
+      const valor = Number(f.valor_total || 0);
+      if (!map.has(key)) {
+        map.set(key, { nome: empresa.nome, total: 0, contratosCount: 0 });
+      }
+      map.get(key)!.total += valor;
+    });
+    
+    contratos.forEach(c => {
+      if (c.status === "Ativo" && c.empresas?.id) {
+        const entry = map.get(c.empresas.id);
+        if (entry) entry.contratosCount += 1;
+      }
+    });
+
+    return Array.from(map.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [faturas, contratos]);
+
+  const topEquipamentos = useMemo(() => {
+    const map = new Map<string, { nome: string; tag: string; total: number; status: string }>();
+    faturas.forEach(f => {
+      const contrato = f.contratos;
+      if (!contrato || !contrato.equipamento_id) return;
+      const eq = equipamentos.find(e => e.id === contrato.equipamento_id);
+      if (!eq) return;
+      
+      const key = eq.id;
+      const valor = Number(f.valor_total || 0);
+      if (!map.has(key)) {
+        map.set(key, { nome: `${eq.tipo} ${eq.modelo}`, tag: eq.tag_placa || "S/T", total: 0, status: eq.status });
+      }
+      map.get(key)!.total += valor;
+    });
+    
+    return Array.from(map.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [faturas, equipamentos]);
+
+  const inadimplenciaStats = useMemo(() => {
+    const hojeStr = new Date().toISOString().slice(0, 10);
+    const emAtraso = faturas.filter(f => {
+      if (f.status === "Pago") return false;
+      const venc = f.vencimento;
+      return venc && venc < hojeStr;
+    });
+    
+    const totalEmitido = faturas.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    const totalAtrasoVal = emAtraso.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    const percentualAtraso = totalEmitido > 0 ? (totalAtrasoVal / totalEmitido) * 100 : 0;
+    
+    return {
+      quantidade: emAtraso.length,
+      valor: totalAtrasoVal,
+      percentual: percentualAtraso
+    };
+  }, [faturas]);
+
+  const equipSemSeguro = useMemo(() => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const ativosSet = new Set(contratos.filter(c => c.status === "Ativo").map(c => c.id));
+    const locadosSet = new Set<string>();
+    
+    (contratosEquipamentos || []).forEach((ce: any) => {
+      if (ativosSet.has(ce.contrato_id) && (!ce.data_devolucao || ce.data_devolucao > hoje)) {
+        locadosSet.add(ce.equipamento_id);
+      }
+    });
+
+    const vigentesApolices = (apolices || []).filter(a => a.status === "Vigente");
+    const insuredEquipIds = new Set<string>();
+    
+    vigentesApolices.forEach(ap => {
+      (apolicesEquipamentos || [])
+        .filter(ae => ae.apolice_id === ap.id)
+        .forEach(ae => insuredEquipIds.add(ae.equipamento_id));
+    });
+
+    return equipamentos.filter(e => locadosSet.has(e.id) && !insuredEquipIds.has(e.id));
+  }, [equipamentos, contratos, contratosEquipamentos, apolices, apolicesEquipamentos]);
+
   return (
     <div className="space-y-8">
       {mode === "dashboard" && (
@@ -305,246 +420,361 @@ export const VisaoGeralTab = ({
       )}
 
       {mode === "modules" && (
-        /* ============ SECTIONS OF MULTI-PAGE CARDS (CLICKABLE) ============ */
-        <div className="space-y-6">
-          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Acompanhamento por Módulos</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Module: Frota */}
-          <div 
-            onClick={() => navigate("/equipamentos")}
-            className="flex flex-col justify-between p-5 rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                    <Truck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Frota & Equipamentos</h4>
-                    <p className="text-[10px] text-muted-foreground">Clique para gerenciar frota</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Total</p>
-                  <p className="text-base font-bold mt-1 text-foreground">{frotaStats.total}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Disponíveis</p>
-                  <p className="text-base font-bold mt-1 text-success">{frotaStats.disponiveis}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Em Locação</p>
-                  <p className="text-base font-bold mt-1 text-primary">{frotaStats.emLocacao}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Manut. / Sinistro</p>
-                  <p className="text-base font-bold mt-1 text-warning">{frotaStats.emManutencaoOuSinistro}</p>
-                </div>
-              </div>
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Dashboard Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 rounded-2xl border border-primary/10">
+            <div>
+              <h2 className="text-2xl font-black text-foreground flex items-center gap-2">
+                <BarChart3 className="h-6 w-6 text-primary animate-pulse" />
+                Cockpit Executivo & B.I.
+              </h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                Análise macro-estratégica, eficiência operacional e indicadores financeiros integrados.
+              </p>
+            </div>
+            <div className="bg-background px-4 py-2 rounded-xl shadow-sm border text-xs font-semibold text-muted-foreground flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-success animate-ping"></span>
+              Dados Consolidados em Tempo Real
             </div>
           </div>
 
-          {/* Module: Empresas */}
-          <div 
-            onClick={() => navigate("/empresas")}
-            className="flex flex-col justify-between p-5 rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                    <Building2 className="h-5 w-5" />
+          {/* Premium BI KPI Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* KPI 1: Yield Operacional */}
+            <Card className="hover:shadow-md transition-all border-l-4 border-l-primary">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Yield Operacional / Máq</p>
+                    <h3 className="text-2xl font-black text-foreground mt-2">
+                      R$ {fmt(totalFaturado / Math.max(1, frotaStats.emLocacao))}
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                      Faturamento total dividido por {frotaStats.emLocacao} locados
+                    </p>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Empresas & Parceiros</h4>
-                    <p className="text-[10px] text-muted-foreground">Clique para gerenciar clientes</p>
+                  <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                    <Activity className="h-5 w-5" />
                   </div>
                 </div>
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Total</p>
-                  <p className="text-base font-bold mt-1 text-foreground">{empresas.length}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Ativas</p>
-                  <p className="text-base font-bold mt-1 text-success">{empresas.filter((e: any) => e.status === "Ativa").length}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Inativas</p>
-                  <p className="text-base font-bold mt-1 text-muted-foreground">{empresas.filter((e: any) => e.status === "Inativa").length}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Cidades</p>
-                  <p className="text-base font-bold mt-1 text-primary">{new Set(empresas.map((e: any) => e.endereco_cidade).filter(Boolean)).size}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+              </CardContent>
+            </Card>
 
-          {/* Module: Contratos */}
-          <div 
-            onClick={() => navigate("/contratos")}
-            className="flex flex-col justify-between p-5 rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                    <FileText className="h-5 w-5" />
+            {/* KPI 2: EBITDA / Resultado Líquido */}
+            <Card className="hover:shadow-md transition-all border-l-4 border-l-success">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Resultado da Operação</p>
+                    <h3 className="text-2xl font-black text-success mt-2">
+                      R$ {fmt(totalFaturado - totalGastos)}
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                      Margem EBITDA: <span className="font-bold text-success">{margemGeral.toFixed(1)}%</span>
+                    </p>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Contratos & Locações</h4>
-                    <p className="text-[10px] text-muted-foreground">Clique para gerenciar locações</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Total Contratos</p>
-                  <p className="text-base font-bold mt-1 text-foreground">{contratosStats.total}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Ativos</p>
-                  <p className="text-base font-bold mt-1 text-success">{contratosStats.ativos}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Equip. Locados</p>
-                  <p className="text-base font-bold mt-1 text-primary">{contratosStats.locados}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Encerrados</p>
-                  <p className="text-base font-bold mt-1 text-muted-foreground">{contratosStats.encerrados}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Module: Seguros */}
-          <div 
-            onClick={() => navigate("/apolices")}
-            className="flex flex-col justify-between p-5 rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                    <Shield className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Seguros & Apólices</h4>
-                    <p className="text-[10px] text-muted-foreground">Clique para gerenciar apólices</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Vigentes</p>
-                  <p className="text-base font-bold mt-1 text-success">{apolicesStats.vigentes}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Vencendo (30 dias)</p>
-                  <p className="text-base font-bold mt-1 text-warning">{apolicesStats.vencendoEm30}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Custo Mensal</p>
-                  <p className="text-sm font-bold mt-1 text-foreground leading-snug">R$ {fmtShort(apolicesStats.totalMensal)}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Total Anual</p>
-                  <p className="text-sm font-bold mt-1 text-primary leading-snug">R$ {fmtShort(apolicesStats.totalAnual)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Module: Custos */}
-          <div 
-            onClick={() => navigate("/gastos")}
-            className="flex flex-col justify-between p-5 rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                  <div className="h-10 w-10 bg-success/10 rounded-xl flex items-center justify-center text-success">
                     <DollarSign className="h-5 w-5" />
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Centro de Custos & Gastos</h4>
-                    <p className="text-[10px] text-muted-foreground">Clique para gerenciar custos</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* KPI 3: Inadimplência */}
+            <Card className="hover:shadow-md transition-all border-l-4 border-l-warning">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Inadimplência / Atrasos</p>
+                    <h3 className="text-2xl font-black text-warning mt-2">
+                      R$ {fmtShort(inadimplenciaStats.valor)}
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                      {inadimplenciaStats.quantidade} fatura(s) — <span className="font-bold text-warning">{inadimplenciaStats.percentual.toFixed(1)}%</span> do faturado
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 bg-warning/10 rounded-xl flex items-center justify-center text-warning">
+                    <AlertTriangle className="h-5 w-5" />
                   </div>
                 </div>
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Total de Custos</p>
-                  <p className="text-sm font-bold mt-1 text-foreground leading-none">R$ {fmtShort(gastosStats.totalCustos)}</p>
+              </CardContent>
+            </Card>
+
+            {/* KPI 4: Taxa de Ocupação da Frota */}
+            <Card className="hover:shadow-md transition-all border-l-4 border-l-info">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ocupação da Frota</p>
+                    <h3 className="text-2xl font-black text-foreground mt-2">
+                      {taxaUtilizacao}%
+                    </h3>
+                    <div className="w-full bg-muted h-1.5 rounded-full mt-2 overflow-hidden">
+                      <div className="bg-primary h-1.5 rounded-full" style={{ width: `${taxaUtilizacao}%` }} />
+                    </div>
+                  </div>
+                  <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                    <Truck className="h-5 w-5" />
+                  </div>
                 </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Receita Mobilização</p>
-                  <p className="text-sm font-bold mt-1 text-primary leading-none">R$ {fmtShort(gastosStats.totalMobilizacao)}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Faturado/Deduzido</p>
-                  <p className="text-sm font-bold mt-1 text-success leading-none">R$ {fmtShort(gastosStats.totalDeduzido)}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Não Faturado</p>
-                  <p className="text-sm font-bold mt-1 text-destructive leading-none">R$ {fmtShort(gastosStats.totalNaoDeduzido)}</p>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Module: Medições */}
-          <div 
-            onClick={() => navigate("/medicoes")}
-            className="flex flex-col justify-between p-5 rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                    <Clock className="h-5 w-5" />
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Financial Performance Monthly Evolution */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Evolução Mensal: Receitas vs Custos
+                </CardTitle>
+                <CardDescription>Consolidado dos últimos 6 meses com saldo EBITDA</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={mensalFinanceiroData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorCustos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="mes" fontSize={11} tickLine={false} />
+                    <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={fmtShort} />
+                    <Tooltip 
+                      formatter={(value: any) => [`R$ ${Number(value).toLocaleString("pt-BR")}`, ""]}
+                      contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                    />
+                    <Area type="monotone" dataKey="Receitas" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorReceitas)" />
+                    <Area type="monotone" dataKey="Custos" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCustos)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Fleet Metrics & Efficiency */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  Status Operacional da Frota
+                </CardTitle>
+                <CardDescription>Distribuição física dos {frotaStats.total} equipamentos</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary inline-block"></span>Em Locação Ativa</span>
+                    <span className="font-bold text-muted-foreground">{frotaStats.emLocacao} un. ({Math.round(frotaStats.emLocacao / Math.max(1, frotaStats.total) * 100)}%)</span>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Medições & Faturamento</h4>
-                    <p className="text-[10px] text-muted-foreground">Clique para gerenciar medições</p>
+                  <Progress value={(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 100} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-success inline-block"></span>Disponível para Pátio</span>
+                    <span className="font-bold text-muted-foreground">{frotaStats.disponiveis} un. ({Math.round(frotaStats.disponiveis / Math.max(1, frotaStats.total) * 100)}%)</span>
+                  </div>
+                  <Progress value={(frotaStats.disponiveis / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-success/10" style={{ transform: "translateZ(0)" }} />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-warning inline-block"></span>Manutenção / Sinistros</span>
+                    <span className="font-bold text-muted-foreground">{frotaStats.emManutencaoOuSinistro} un. ({Math.round(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total) * 100)}%)</span>
+                  </div>
+                  <Progress value={(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-warning/10" />
+                </div>
+
+                <div className="pt-4 border-t space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Média de Contratos Ativos:</span>
+                    <span className="font-bold text-foreground">{contratosStats.ativos} contratos</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Total Custo Fixo de Apólices/Mês:</span>
+                    <span className="font-bold text-foreground">R$ {fmt(apolicesStats.totalMensal)}</span>
                   </div>
                 </div>
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Total Registros</p>
-                  <p className="text-base font-bold mt-1 text-foreground leading-none">{medicoesStats.total}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Rankings and Controls Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top 5 Clients by Revenue */}
+            <Card className="hover:shadow-sm transition-all">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Top 5 Clientes (Faturamento Acumulado)
+                </CardTitle>
+                <CardDescription>Clientes que mais geraram receita ao caixa da empresa</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 px-6 pb-6">
+                <div className="divide-y text-sm">
+                  {topClientes.map((client, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
+                          #{idx + 1}
+                        </span>
+                        <div>
+                          <p className="font-bold text-foreground">{client.nome}</p>
+                          <p className="text-[10px] text-muted-foreground">{client.contratosCount} contrato(s) ativo(s)</p>
+                        </div>
+                      </div>
+                      <span className="font-black text-success">
+                        R$ {Number(client.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ))}
+                  {topClientes.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhum faturamento registrado.</p>
+                  )}
                 </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Equip. Medidos</p>
-                  <p className="text-base font-bold mt-1 text-primary leading-none">{medicoesStats.medidos}</p>
+              </CardContent>
+            </Card>
+
+            {/* Top 5 Most Profitable Equipments */}
+            <Card className="hover:shadow-sm transition-all">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-primary" />
+                  Top 5 Máquinas Rentáveis
+                </CardTitle>
+                <CardDescription>Equipamentos com maior receita total faturada</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 px-6 pb-6">
+                <div className="divide-y text-sm">
+                  {topEquipamentos.map((equip, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
+                          #{idx + 1}
+                        </span>
+                        <div>
+                          <p className="font-bold text-foreground">{equip.nome}</p>
+                          <p className="text-[10px] text-muted-foreground">Placa: {equip.tag}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-success">
+                          R$ {Number(equip.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                        <Badge variant="outline" className="text-[9px] scale-90 px-1 py-0 border-primary/20 text-primary">
+                          {equip.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                  {topEquipamentos.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhum faturamento de equipamento registrado.</p>
+                  )}
                 </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Reg. Trabalho</p>
-                  <p className="text-base font-bold mt-1 text-success leading-none">{medicoesStats.trabalho}</p>
-                </div>
-                <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  <p className="text-[10px] font-medium text-muted-foreground leading-none">Reg. Indisponíveis</p>
-                  <p className="text-base font-bold mt-1 text-destructive leading-none">{medicoesStats.indisponivel}</p>
-                </div>
-              </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Audit Alert Box */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Insurance Audit Alert */}
+            <Card className="bg-destructive/5 border-destructive/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-destructive flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-destructive" />
+                  Auditoria de Riscos: Máquinas sem Seguro Ativo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs">
+                <p className="text-muted-foreground mb-3">
+                  Equipamentos atualmente alocados que não possuem apólice de seguro ativa ou cadastrada.
+                </p>
+                {equipSemSeguro.length > 0 ? (
+                  <div className="max-h-[120px] overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-background">
+                    {equipSemSeguro.map((eq, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
+                        <span className="font-bold text-foreground">{eq.tipo} {eq.modelo}</span>
+                        <span className="text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">{eq.tag_placa || "Sem Placa"}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 border border-success/20 rounded-lg bg-success/10 text-success font-semibold text-center">
+                    ✓ Todos os equipamentos alocados estão devidamente cobertos por seguros vigentes.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Expiring Contracts Alert */}
+            <Card className="bg-warning/5 border-warning/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-warning flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-warning" />
+                  Renovações Críticas: Contratos a Vencer (&lt;30 dias)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs">
+                <p className="text-muted-foreground mb-3">
+                  Contratos ativos que expiram nos próximos 30 dias e demandam negociação/prorrogação imediata.
+                </p>
+                {contratos.filter(c => c.status === "Ativo" && c.data_fim && !isNaN(parseLocalDate(c.data_fim).getTime()) && parseLocalDate(c.data_fim) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).length > 0 ? (
+                  <div className="max-h-[120px] overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-background">
+                    {contratos
+                      .filter(c => c.status === "Ativo" && c.data_fim && !isNaN(parseLocalDate(c.data_fim).getTime()) && parseLocalDate(c.data_fim) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                      .map((c, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
+                          <span className="font-bold text-foreground truncate max-w-[200px]">{c.empresas?.nome}</span>
+                          <span className="text-warning font-semibold">{parseLocalDate(c.data_fim).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="p-3 border border-success/20 rounded-lg bg-success/10 text-success font-semibold text-center">
+                    ✓ Nenhuma renovação urgente necessária nos próximos 30 dias.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Access Grid */}
+          <div className="pt-4 border-t">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Painel de Acesso Rápido aos Módulos</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <button onClick={() => navigate("/equipamentos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <Truck className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold">Frota</span>
+              </button>
+              <button onClick={() => navigate("/empresas")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <Building2 className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold">Clientes</span>
+              </button>
+              <button onClick={() => navigate("/contratos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <FileText className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold">Contratos</span>
+              </button>
+              <button onClick={() => navigate("/apolices")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <Shield className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold">Seguros</span>
+              </button>
+              <button onClick={() => navigate("/gastos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <DollarSign className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold">Custos</span>
+              </button>
+              <button onClick={() => navigate("/medicoes")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <Clock className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold">Medições</span>
+              </button>
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {mode === "dashboard" && (

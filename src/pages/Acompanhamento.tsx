@@ -413,7 +413,7 @@ const Acompanhamento = () => {
               <LayoutDashboard className="h-4 w-4" /> Acompanhamento
             </TabsTrigger>
             <TabsTrigger value="modulos" className="flex items-center gap-1">
-              <LayoutGrid className="h-4 w-4" /> Módulos
+              <BarChart3 className="h-4 w-4" /> Controladoria & BI
             </TabsTrigger>
             <TabsTrigger value="faturamento" className="flex items-center gap-1">
               <Receipt className="h-4 w-4" /> Faturamento
