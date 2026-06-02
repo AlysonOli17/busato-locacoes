@@ -1913,7 +1913,17 @@ const Contratos = () => {
                   Valor Hora Excedente
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <Checkbox checked={ajusteCampos.hora_minima} onCheckedChange={(v) => setAjusteCampos(prev => ({ ...prev, hora_minima: !!v }))} />
+                  <Checkbox 
+                    checked={ajusteCampos.hora_minima} 
+                    onCheckedChange={(v) => {
+                      setAjusteCampos(prev => ({ ...prev, hora_minima: !!v }));
+                      if (v && ajusteForm.hora_minima === 0) {
+                        const ce = getAllEquipForAjuste(ajustesContrato).find(c => c.equipamento_id === ajusteForm.equipamento_ids[0]);
+                        const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
+                        setAjusteForm(prev => ({ ...prev, hora_minima: origHoraMinima > 0 ? origHoraMinima : 1 }));
+                      }
+                    }} 
+                  />
                   Hora Mínima
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -1937,7 +1947,9 @@ const Contratos = () => {
                       setAjusteCampos(prev => ({ ...prev, hora_minima: true }));
                       setAjusteForm(prev => ({ ...prev, hora_minima: 0 }));
                     } else {
-                      setAjusteCampos(prev => ({ ...prev, hora_minima: false }));
+                      const ce = getAllEquipForAjuste(ajustesContrato).find(c => c.equipamento_id === ajusteForm.equipamento_ids[0]);
+                      const origHoraMinima = ce ? Number(ce.hora_minima) : 0;
+                      setAjusteForm(prev => ({ ...prev, hora_minima: origHoraMinima > 0 ? origHoraMinima : 1 }));
                     }
                   }}
                 />
