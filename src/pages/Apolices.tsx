@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 
 
@@ -638,22 +639,51 @@ const Apolices = () => {
                     <TableRow key={item.id} className={`cursor-pointer ${selected.has(item.id) ? "bg-accent/5" : ""}`} onClick={() => setDetailItem(item)}>
                       <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
                       <TableCell className="font-medium text-sm max-w-[250px]">
-                        <div className="flex flex-wrap gap-1">
-                          {item.apolices_equipamentos?.map(ae => (
-                            <Badge key={ae.id} variant="outline" className="text-xs">
-                              {ae.equipamentos?.tipo} {ae.equipamentos?.modelo}
-                            </Badge>
-                          ))}
-                        </div>
+                        {item.apolices_equipamentos && item.apolices_equipamentos.length > 0 && (() => {
+                          const first = item.apolices_equipamentos[0];
+                          if (item.apolices_equipamentos.length === 1) {
+                            return (
+                              <Badge variant="outline" className="text-xs border-accent/20 bg-accent/5 text-sidebar">
+                                {first.equipamentos?.tipo} {first.equipamentos?.modelo}
+                              </Badge>
+                            );
+                          }
+                          return (
+                            <HoverCard openDelay={100} closeDelay={100}>
+                              <HoverCardTrigger asChild>
+                                <div className="flex items-center gap-1.5 cursor-pointer">
+                                  <Badge variant="outline" className="text-xs border-accent/20 bg-accent/5 text-sidebar font-semibold truncate max-w-[180px]">
+                                    {first.equipamentos?.tipo} {first.equipamentos?.modelo}
+                                  </Badge>
+                                  <Badge className="bg-primary/10 text-primary border-0 text-[10px] font-bold">
+                                    +{item.apolices_equipamentos.length - 1}
+                                  </Badge>
+                                </div>
+                              </HoverCardTrigger>
+                              <HoverCardContent onClick={e => e.stopPropagation()} className="w-80 p-3 bg-card border border-border shadow-md rounded-md z-50">
+                                <p className="text-xs font-semibold text-muted-foreground mb-2">Equipamentos Assegurados ({item.apolices_equipamentos.length})</p>
+                                <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto">
+                                  {item.apolices_equipamentos.map(ae => (
+                                    <Badge key={ae.id} variant="outline" className="text-xs">
+                                      {ae.equipamentos?.tipo} {ae.equipamentos?.modelo} {ae.equipamentos?.tag_placa ? `(${ae.equipamentos.tag_placa})` : ""}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </HoverCardContent>
+                            </HoverCard>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-sm">
-                        <div className="flex flex-wrap gap-1">
-                          {item.apolices_equipamentos?.map(ae => (
-                            <span key={ae.id} className="text-xs text-muted-foreground">
-                              {ae.equipamentos?.tag_placa || "—"}
+                        {(() => {
+                          const tags = item.apolices_equipamentos?.map(ae => ae.equipamentos?.tag_placa).filter(Boolean) || [];
+                          if (tags.length === 0) return <span className="text-muted-foreground">—</span>;
+                          return (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {tags.length === 1 ? tags[0] : `${tags[0]} (+${tags.length - 1})`}
                             </span>
-                          ))}
-                        </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-sm">{item.seguradora}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
