@@ -22,11 +22,22 @@ interface SubNavItem {
 interface NavGroup {
   label: string;
   icon: any;
-  items: SubNavItem[];
+  items?: SubNavItem[];
+  to?: string;
   adminOnly?: boolean;
 }
 
 const allGroups: NavGroup[] = [
+  {
+    label: "Agenda & Kanban",
+    icon: Calendar,
+    to: "/agenda"
+  },
+  {
+    label: "Acompanhamento",
+    icon: BarChart3,
+    to: "/acompanhamento"
+  },
   {
     label: "Cadastros",
     icon: Building2,
@@ -80,11 +91,9 @@ const allGroups: NavGroup[] = [
     ]
   },
   {
-    label: "Gestão & Agenda",
-    icon: BarChart3,
+    label: "Gestão",
+    icon: Users,
     items: [
-      { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },
-      { to: "/agenda", icon: Calendar, label: "Agenda & Kanban" },
       { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
     ]
   }
@@ -139,7 +148,8 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
   // Helper to determine if any item in a group is active
   const isGroupActive = (group: NavGroup) => {
-    return group.items.some(item => isItemActive(item.to));
+    if (group.to) return isItemActive(group.to);
+    return !!(group.items && group.items.some(item => isItemActive(item.to)));
   };
 
   // Auto-expand active group on mount or route change
@@ -157,7 +167,13 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
   // Filter groups and items based on permissions
   const filteredGroups = allGroups.map(group => {
-    const items = group.items.filter(item => {
+    if (group.to) {
+      const pathname = group.to.split('?')[0];
+      const hasPermission = role === "admin" || (permissions || []).includes(pathname);
+      if (!hasPermission) return null;
+      return group;
+    }
+    const items = (group.items || []).filter(item => {
       if (role === "admin") return true;
       if (item.adminOnly) return false;
       
@@ -165,9 +181,11 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
       return (permissions || []).includes(pathname);
     });
     return { ...group, items };
-  }).filter(group => {
+  }).filter((group): group is NavGroup => {
+    if (!group) return false;
     if (role !== "admin" && group.adminOnly) return false;
-    return group.items.length > 0;
+    if (group.to) return true;
+    return !!(group.items && group.items.length > 0);
   });
 
   return (
@@ -211,11 +229,51 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
             const hasActiveItem = isGroupActive(group);
             const isExpanded = !!expandedGroups[group.label];
 
+            if (group.to) {
+              if (collapsed) {
+                return (
+                  <NavLink
+                    key={group.to}
+                    to={group.to}
+                    onClick={() => setSidebarOpen(false)}
+                    title={group.label}
+                    className={cn(
+                      "flex items-center justify-center p-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                      hasActiveItem
+                        ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
+                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <group.icon className="h-[18px] w-[18px] shrink-0" />
+                  </NavLink>
+                );
+              }
+
+              return (
+                <NavLink
+                  key={group.to}
+                  to={group.to}
+                  onClick={() => setSidebarOpen(false)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em] transition-all duration-200",
+                    hasActiveItem
+                      ? "bg-sidebar-accent/60 text-sidebar-primary font-bold"
+                      : "text-sidebar-foreground/45 hover:text-sidebar-foreground/80 hover:bg-sidebar-accent/20"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <group.icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                    <span>{group.label}</span>
+                  </div>
+                </NavLink>
+              );
+            }
+
             if (collapsed) {
               // Collapsed mode: render flat list of sub-items
               return (
                 <div key={group.label} className="space-y-1">
-                  {group.items.map((item) => {
+                  {(group.items || []).map((item) => {
                     const active = isItemActive(item.to);
                     return (
                       <NavLink
@@ -266,7 +324,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
                 {/* Sub items */}
                 {isExpanded && (
                   <div className="pl-3 ml-3 border-l border-sidebar-border/30 space-y-1 animate-fade-in">
-                    {group.items.map((item) => {
+                    {(group.items || []).map((item) => {
                       const active = isItemActive(item.to);
                       return (
                         <NavLink

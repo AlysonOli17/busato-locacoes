@@ -134,7 +134,7 @@ export const FaturamentoTab = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [editDialog, setEditDialog] = useState(false);
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null);
-  const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "", emissao: "" });
+  const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "", emissao: "", valor_total: 0, observacoes: "" });
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -274,6 +274,8 @@ export const FaturamentoTab = () => {
       numero_nota: fatura.numero_nota || "",
       conta_bancaria_id: fatura.conta_bancaria_id || "",
       emissao: fatura.emissao || "",
+      valor_total: Number(fatura.valor_total) || 0,
+      observacoes: (fatura as any).observacoes || "",
     });
     setEditDialog(true);
   };
@@ -285,6 +287,8 @@ export const FaturamentoTab = () => {
       numero_nota: editForm.numero_nota || null,
       conta_bancaria_id: editForm.conta_bancaria_id || null,
       emissao: editForm.emissao || null,
+      valor_total: Number(editForm.valor_total),
+      observacoes: editForm.observacoes || null,
     }).eq("id", editingFatura.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Fatura atualizada" });
@@ -967,6 +971,15 @@ export const FaturamentoTab = () => {
                         >
                           <Mail className="h-3.5 w-3.5" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-accent hover:text-accent hover:bg-accent/10"
+                          title="Editar Fatura"
+                          onClick={() => openEdit(f)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                         {f.status !== "Pago" && f.status !== "Cancelado" && (
                           <Button
                             variant="ghost"
@@ -1046,6 +1059,14 @@ export const FaturamentoTab = () => {
             <div>
               <Label>Data de Emissão</Label>
               <Input type="date" value={editForm.emissao} onChange={e => setEditForm(p => ({ ...p, emissao: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Valor Total (R$)</Label>
+              <CurrencyInput value={editForm.valor_total} onValueChange={v => setEditForm(p => ({ ...p, valor_total: v }))} />
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Textarea value={editForm.observacoes} onChange={e => setEditForm(p => ({ ...p, observacoes: e.target.value }))} rows={3} placeholder="Observações complementares..." />
             </div>
           </div>
           <DialogFooter>
