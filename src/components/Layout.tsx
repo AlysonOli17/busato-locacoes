@@ -107,21 +107,15 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
   // Helper to determine if a specific sub-item is active
   const isItemActive = (to: string) => {
-    try {
-      const isExternalOrAbsolute = to.startsWith("http://") || to.startsWith("https://");
-      const url = new URL(to, window.location.origin);
-      const itemPath = url.pathname;
-      const itemTab = url.searchParams.get("tab");
+    const [itemPath, itemQuery] = to.split('?');
+    const itemTab = itemQuery ? new URLSearchParams(itemQuery).get('tab') : null;
 
-      const currentPath = location.pathname;
-      const currentTab = new URLSearchParams(location.search).get("tab");
+    const currentPath = location.pathname;
+    const currentTab = new URLSearchParams(location.search).get("tab");
 
-      if (currentPath !== itemPath) return false;
-      if (itemTab && currentTab !== itemTab) return false;
-      return true;
-    } catch (e) {
-      return location.pathname === to;
-    }
+    if (currentPath !== itemPath) return false;
+    if (itemTab && currentTab !== itemTab) return false;
+    return true;
   };
 
   // Helper to determine if any item in a group is active
@@ -149,7 +143,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
       if (item.adminOnly) return false;
       
       const pathname = item.to.split('?')[0];
-      return permissions.includes(pathname);
+      return (permissions || []).includes(pathname);
     });
     return { ...group, items };
   }).filter(group => {
