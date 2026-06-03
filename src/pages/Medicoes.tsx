@@ -43,6 +43,13 @@ interface Medicao {
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
 const Medicoes = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "medicoes";
+
+  const handleTabChange = (val: string) => {
+    setSearchParams({ tab: val });
+  };
+
   const [items, setItems] = useState<Medicao[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -131,7 +138,6 @@ const Medicoes = () => {
 
   useEffect(() => {fetchData();}, []);
 
-  // Busca o horímetro registrado ANTES da data selecionada para o equipamento
   const fetchHorimetroPorData = async (equipId: string, data: string, excludeId?: string) => {
     let query = supabase.
     from("medicoes").
@@ -149,7 +155,6 @@ const Medicoes = () => {
     }
   };
 
-  // Validate dataFim: must not exceed last entry date for the selected equipment
   const lastEntryDate = items
     .filter(i => filterEquip === "Todos" || i.equipamento_id === filterEquip)
     .reduce((max, i) => (i.data > max ? i.data : max), "");
@@ -170,7 +175,6 @@ const Medicoes = () => {
     return true;
   });
 
-  // Fetch baselines when filters change
   const fetchBaselines = useCallback(async () => {
     if (!dataInicio) {
       setBaselines(new Map());
@@ -199,7 +203,6 @@ const Medicoes = () => {
 
   useEffect(() => { fetchBaselines(); }, [fetchBaselines]);
 
-  // Group filtered entries by equipment, sorted by date
   const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;mediaHorasDia: number;}>();
   const equipEntries = new Map<string, Medicao[]>();
   filtered.forEach((m) => {
@@ -222,10 +225,8 @@ const Medicoes = () => {
       totalHoras = trabalhoEntries.reduce((sum, e) => sum + Number(e.horas_trabalhadas || 0), 0);
       mediaHorasDia = 0;
     } else if (dataInicio && validDataFim) {
-      // Use interpolation when period filters are active
       const inicioStr = format(dataInicio, "yyyy-MM-dd");
       const fimStr = format(validDataFim, "yyyy-MM-dd");
-      // Build readings array: baseline + in-period readings
       const allReadings: { data: string; horimetro_final: number }[] = [];
       const baseline = baselines.get(eqId);
       if (baseline) {
@@ -238,7 +239,6 @@ const Medicoes = () => {
       totalHoras = result.totalHoras;
       mediaHorasDia = result.mediaHorasDia;
     } else {
-      // No period filter: use simple max - min
       const byDay = new Map<string, number>();
       for (const e of trabalhoEntries) {
         const d = String(e.data);
@@ -257,14 +257,27 @@ const Medicoes = () => {
 
   const totalHorasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalHoras, 0);
 
-  const horasCalculadas = form.tipo === "Indisponível"
-    ? form.horas_indisp
-    : (form.horimetro > 0 ? Math.max(0, form.horimetro - horimetroAnterior) : 0);
+  const isDiaria = form.equipamento_id ? equipMedicaoTypes.get(form.equipamento_id) === "diarias" : false;
+  const horasCalculadas = isDiaria 
+    ? (form.tipo === "Indisponível" ? form.horas_indisp : form.horas_trab)
+    : (form.tipo === "Indisponível"
+      ? form.horas_indisp
+      : Math.max(0, form.horimetro - (form.horimetro_inicial_indisp || horimetroAnterior)));
 
   const openNew = () => {
+    const defaultEquip = equipamentos.length > 0 ? equipamentos[0].id : "";
     setEditingId(null);
-    setForm({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0, horas_trab: 1 });
-    setHorimetroAnterior(0);
+    setForm({
+      equipamento_id: defaultEquip,
+      data: new Date().toISOString().split("T")[0],
+      horimetro: 0,
+      tipo: "Trabalho",
+      observacoes: "",
+      horimetro_inicial_indisp: 0,
+      horas_indisp: 0,
+      horas_trab: 1,
+    });
+    if (defaultEquip) fetchHorimetroPorData(defaultEquip, new Date().toISOString().split("T")[0]);
     setDialogOpen(true);
   };
 
@@ -275,7 +288,7 @@ const Medicoes = () => {
     setForm({ 
       equipamento_id: m.equipamento_id, 
       data: m.data, 
-      horimetro: Number(m.horimetro_final), 
+      horimetro: isDiaria ? 0 : Number(m.horimetro_final), 
       tipo: m.tipo || "Trabalho", 
       observacoes: m.observacoes || "", 
       horimetro_inicial_indisp: isIndisp ? Number(m.horimetro_inicial) : 0, 
@@ -284,7 +297,6 @@ const Medicoes = () => {
     });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
-    // Refresh anterior for this date
     fetchHorimetroPorData(m.equipamento_id, m.data, m.id);
   };
 
@@ -296,7 +308,7 @@ const Medicoes = () => {
 
     const isDiaria = equipMedicaoTypes.get(form.equipamento_id) === "diarias";
 
-    if (!isDiaria && form.horimetro <= 0) {
+    if (!isDiaria && form.horimetro <= 0 && form.tipo !== "Indisponível") {
       toast({ title: "Campos obrigatórios", description: "Informe o horímetro.", variant: "destructive" });
       return;
     }
@@ -353,21 +365,6 @@ const Medicoes = () => {
     fetchData();
   };
 
-  const onEquipChange = (v: string) => {
-    const isDiaria = equipMedicaoTypes.get(v) === "diarias";
-    setForm((prev) => ({ 
-      ...prev, 
-      equipamento_id: v,
-      horas_indisp: isDiaria ? 1 : prev.horas_indisp
-    }));
-    if (form.data) fetchHorimetroPorData(v, form.data, editingId || undefined);
-  };
-
-  const onDataChange = (v: string) => {
-    setForm((prev) => ({ ...prev, data: v }));
-    if (form.equipamento_id) fetchHorimetroPorData(form.equipamento_id, v, editingId || undefined);
-  };
-
   const clearFilters = () => {setFilterEquip("Todos");setDataInicio(undefined);setDataFim(undefined);};
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
@@ -391,7 +388,7 @@ const Medicoes = () => {
 
   return (
     <Layout title="Medições / Faturamento" subtitle="Controle de horímetros e locações">
-      <Tabs defaultValue="medicoes" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList>
           <TabsTrigger value="medicoes" className="gap-2"><Clock className="h-4 w-4" /> Horímetro</TabsTrigger>
           <TabsTrigger value="faturamento" className="gap-2"><Receipt className="h-4 w-4" /> Medição</TabsTrigger>

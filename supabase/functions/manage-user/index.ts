@@ -11,14 +11,14 @@ const CreateUserSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(8).max(128),
   nome: z.string().min(1).max(255).trim(),
-  role: z.enum(["admin", "operador", "visualizador"]),
+  role: z.string().min(1).max(50),
 });
 
 const UpdateUserSchema = z.object({
   action: z.literal("update"),
   user_id: z.string().uuid(),
   nome: z.string().min(1).max(255).trim().optional(),
-  role: z.enum(["admin", "operador", "visualizador"]).optional(),
+  role: z.string().min(1).max(50).optional(),
   status: z.enum(["Ativo", "Bloqueado", "Pendente"]).optional(),
   password: z.string().min(8).max(128).optional(),
 });
@@ -38,7 +38,7 @@ const GetPermissionsSchema = z.object({
 
 const UpdatePermissionsSchema = z.object({
   action: z.literal("update_permissions"),
-  role: z.enum(["admin", "operador", "visualizador"]),
+  role: z.string().min(1).max(50),
   permissions: z.array(z.string().max(255)),
 });
 

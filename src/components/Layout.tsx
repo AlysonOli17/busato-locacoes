@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
-  ChevronLeft, ChevronRight, ClipboardCheck, Calendar
+  ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,17 +12,63 @@ import { NotificationsDropdown, NotificationToastContainer } from "@/components/
 import logoBusato from "@/assets/logo-busato.png";
 import globoBusato from "@/assets/globo-busato.png";
 
-const allNavItems = [
-  { to: "/agenda", icon: Calendar, label: "Agenda & Kanban" },
-  { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
-  { to: "/empresas", icon: Building2, label: "Empresas" },
-  { to: "/contratos", icon: FileText, label: "Contratos" },
-  { to: "/medicoes", icon: Clock, label: "Medições / Faturamento" },
-  { to: "/agregados", icon: CalendarDays, label: "Locação Terceiros" },
-  { to: "/apolices", icon: Shield, label: "Apólices" },
-  { to: "/gastos", icon: DollarSign, label: "Custos" },
-  { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },
-  { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
+interface SubNavItem {
+  to: string;
+  label: string;
+  icon: any;
+  adminOnly?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  icon: any;
+  items: SubNavItem[];
+  adminOnly?: boolean;
+}
+
+const allGroups: NavGroup[] = [
+  {
+    label: "Cadastros",
+    icon: Building2,
+    items: [
+      { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
+      { to: "/empresas", icon: Building2, label: "Empresas" },
+    ]
+  },
+  {
+    label: "Contratos & Seguros",
+    icon: FileText,
+    items: [
+      { to: "/contratos", icon: FileText, label: "Contratos" },
+      { to: "/agregados", icon: CalendarDays, label: "Locação Terceiros" },
+      { to: "/apolices", icon: Shield, label: "Apólices" },
+    ]
+  },
+  {
+    label: "Medições & Faturamento",
+    icon: Clock,
+    items: [
+      { to: "/medicoes?tab=medicoes", icon: Clock, label: "Horímetro" },
+      { to: "/medicoes?tab=faturamento", icon: Receipt, label: "Medição" },
+      { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Faturamento" },
+    ]
+  },
+  {
+    label: "Financeiro & Custos",
+    icon: DollarSign,
+    items: [
+      { to: "/gastos", icon: DollarSign, label: "Custos" },
+    ]
+  },
+  {
+    label: "Gestão & Agenda",
+    icon: BarChart3,
+    items: [
+      { to: "/acompanhamento", icon: BarChart3, label: "Acompanhamento" },
+      { to: "/agenda", icon: Calendar, label: "Agenda & Kanban" },
+      { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
+    ]
+  }
 ];
 
 interface LayoutProps {
@@ -37,11 +83,78 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
     return localStorage.getItem("sidebar-collapsed") === "true";
   });
   const { role, permissions, signOut, profile } = useAuth();
+  const location = useLocation();
 
-  const navItems = allNavItems.filter(item => {
-    if (role === "admin") return true;
-    if (item.adminOnly) return false;
-    return permissions.includes(item.to);
+  // Expanded groups state
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem("sidebar-expanded-groups");
+    return saved ? JSON.parse(saved) : {
+      "Cadastros": true,
+      "Contratos & Seguros": true,
+      "Medições & Faturamento": true,
+      "Financeiro & Custos": true,
+      "Gestão & Agenda": true,
+    };
+  });
+
+  const toggleGroup = (groupLabel: string) => {
+    setExpandedGroups(prev => {
+      const next = { ...prev, [groupLabel]: !prev[groupLabel] };
+      localStorage.setItem("sidebar-expanded-groups", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Helper to determine if a specific sub-item is active
+  const isItemActive = (to: string) => {
+    try {
+      const isExternalOrAbsolute = to.startsWith("http://") || to.startsWith("https://");
+      const url = new URL(to, window.location.origin);
+      const itemPath = url.pathname;
+      const itemTab = url.searchParams.get("tab");
+
+      const currentPath = location.pathname;
+      const currentTab = new URLSearchParams(location.search).get("tab");
+
+      if (currentPath !== itemPath) return false;
+      if (itemTab && currentTab !== itemTab) return false;
+      return true;
+    } catch (e) {
+      return location.pathname === to;
+    }
+  };
+
+  // Helper to determine if any item in a group is active
+  const isGroupActive = (group: NavGroup) => {
+    return group.items.some(item => isItemActive(item.to));
+  };
+
+  // Auto-expand active group on mount or route change
+  useEffect(() => {
+    const activeGroup = allGroups.find(g => isGroupActive(g));
+    if (activeGroup) {
+      setExpandedGroups(prev => {
+        if (prev[activeGroup.label]) return prev;
+        const next = { ...prev, [activeGroup.label]: true };
+        localStorage.setItem("sidebar-expanded-groups", JSON.stringify(next));
+        return next;
+      });
+    }
+  }, [location.pathname, location.search]);
+
+  // Filter groups and items based on permissions
+  const filteredGroups = allGroups.map(group => {
+    const items = group.items.filter(item => {
+      if (role === "admin") return true;
+      if (item.adminOnly) return false;
+      
+      const pathname = item.to.split('?')[0];
+      return permissions.includes(pathname);
+    });
+    return { ...group, items };
+  }).filter(group => {
+    if (role !== "admin" && group.adminOnly) return false;
+    return group.items.length > 0;
   });
 
   return (
@@ -80,28 +193,90 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
         </div>
 
         {/* Nav */}
-        <nav className={cn("flex-1 py-4 space-y-1 overflow-y-auto scrollbar-thin", collapsed ? "px-1.5" : "px-3")}>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              onClick={() => setSidebarOpen(false)}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                  collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
-                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )
-              }
-            >
-              <item.icon className="h-[18px] w-[18px] shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
-          ))}
+        <nav className={cn("flex-1 py-4 space-y-3 overflow-y-auto scrollbar-thin", collapsed ? "px-1.5" : "px-3")}>
+          {filteredGroups.map((group) => {
+            const hasActiveItem = isGroupActive(group);
+            const isExpanded = !!expandedGroups[group.label];
+
+            if (collapsed) {
+              // Collapsed mode: render flat list of sub-items
+              return (
+                <div key={group.label} className="space-y-1">
+                  {group.items.map((item) => {
+                    const active = isItemActive(item.to);
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setSidebarOpen(false)}
+                        title={item.label}
+                        className={cn(
+                          "flex items-center justify-center p-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                          active
+                            ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
+                            : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        )}
+                      >
+                        <item.icon className="h-[18px] w-[18px] shrink-0" />
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            // Expanded mode: Folder structure
+            return (
+              <div key={group.label} className="space-y-1">
+                {/* Group Folder Header */}
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors",
+                    hasActiveItem
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <group.icon className="h-4 w-4 shrink-0" />
+                    <span>{group.label}</span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 transition-transform duration-200 shrink-0",
+                      isExpanded ? "transform rotate-0" : "transform -rotate-90"
+                    )}
+                  />
+                </button>
+
+                {/* Sub items */}
+                {isExpanded && (
+                  <div className="pl-3 ml-3 border-l border-sidebar-border/40 space-y-1 animate-fade-in">
+                    {group.items.map((item) => {
+                      const active = isItemActive(item.to);
+                      return (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setSidebarOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                            active
+                              ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
+                              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                          )}
+                        >
+                          <item.icon className="h-4 w-4 shrink-0" />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Footer */}

@@ -60,6 +60,24 @@ const Usuarios = () => {
   const [permRole, setPermRole] = useState<string>("operador");
   const [permChecked, setPermChecked] = useState<Set<string>>(new Set());
   const [savingPerms, setSavingPerms] = useState(false);
+  const [customRoles, setCustomRoles] = useState<string[]>([]);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDialogOpen, setNewRoleDialogOpen] = useState(false);
+
+  const uniqueRoles = useMemo(() => {
+    const rolesSet = new Set(["operador", "visualizador", ...customRoles]);
+    users.forEach(u => {
+      if (u.role && u.role !== "admin") {
+        rolesSet.add(u.role);
+      }
+    });
+    permissions.forEach(p => {
+      if (p.role && p.role !== "admin") {
+        rolesSet.add(p.role);
+      }
+    });
+    return Array.from(rolesSet);
+  }, [users, permissions, customRoles]);
 
   const { toast } = useToast();
   const { role } = useAuth();
@@ -119,9 +137,12 @@ const Usuarios = () => {
 
   const fetchPermissions = async () => {
     try {
-      const data = await callManageUser({ action: "get_permissions" });
+      const { data, error } = await supabase.from("role_permissions").select("role, permission");
+      if (error) throw error;
       setPermissions(data as RolePerm[]);
-    } catch {}
+    } catch (e: any) {
+      console.error("Erro ao buscar permissões:", e);
+    }
   };
 
   useEffect(() => { fetchUsers(); fetchPermissions(); }, []);
@@ -235,30 +256,46 @@ const Usuarios = () => {
   const savePermissions = async () => {
     setSavingPerms(true);
     try {
-      await callManageUser({
-        action: "update_permissions",
-        role: permRole,
-        permissions: Array.from(permChecked),
-      });
-      toast({ title: "Permissões salvas" });
+      const { error: delError } = await supabase
+        .from("role_permissions")
+        .delete()
+        .eq("role", permRole as any);
+      if (delError) throw delError;
+
+      if (permChecked.size > 0) {
+        const { error: insError } = await supabase
+          .from("role_permissions")
+          .insert(
+            Array.from(permChecked).map(p => ({
+              id: crypto.randomUUID(),
+              role: permRole as any,
+              permission: p
+            }))
+          );
+        if (insError) throw insError;
+      }
+
+      toast({ title: "Permissões salvas com sucesso!" });
       fetchPermissions();
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao salvar permissões", description: e.message, variant: "destructive" });
     }
     setSavingPerms(false);
   };
 
   const roleLabel = (r: string | null) => {
+    if (!r) return "Sem perfil";
     if (r === "admin") return "Administrador";
     if (r === "operador") return "Operador";
     if (r === "visualizador") return "Visualizador";
-    return "Sem perfil";
+    return r.charAt(0).toUpperCase() + r.slice(1);
   };
 
   const roleColor = (r: string | null) => {
     if (r === "admin") return "bg-primary text-primary-foreground";
     if (r === "operador") return "bg-accent/10 text-accent border-0";
-    return "bg-muted text-muted-foreground";
+    if (r === "visualizador") return "bg-muted text-muted-foreground";
+    return "bg-secondary text-secondary-foreground";
   };
 
   return (
@@ -359,13 +396,25 @@ const Usuarios = () => {
                 <div>
                   <Label className="text-base font-semibold">Selecione o Perfil</Label>
                   <p className="text-sm text-muted-foreground mb-3">Administradores sempre têm acesso total. Configure as permissões dos outros perfis.</p>
-                  <Select value={permRole} onValueChange={setPermRole}>
-                    <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="operador">Operador</SelectItem>
-                      <SelectItem value="visualizador">Visualizador</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-3">
+                    <Select value={permRole} onValueChange={setPermRole}>
+                      <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {uniqueRoles.map(r => (
+                          <SelectItem key={r} value={r}>
+                            {roleLabel(r)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => { setNewRoleName(""); setNewRoleDialogOpen(true); }}
+                      className="border-dashed"
+                    >
+                      + Criar Novo Perfil
+                    </Button>
+                  </div>
                 </div>
 
                 <div>
@@ -408,12 +457,15 @@ const Usuarios = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Perfil</Label>
-                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                <Select value={form.role || "operador"} onValueChange={(v) => setForm({ ...form, role: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin" disabled={role !== 'admin'}>Administrador</SelectItem>
-                    <SelectItem value="operador">Operador</SelectItem>
-                    <SelectItem value="visualizador">Visualizador</SelectItem>
+                    {uniqueRoles.map(r => (
+                      <SelectItem key={r} value={r}>
+                        {roleLabel(r)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -433,6 +485,52 @@ const Usuarios = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving} className="bg-accent text-accent-foreground hover:bg-accent/90">{saving ? "Salvando..." : "Salvar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newRoleDialogOpen} onOpenChange={setNewRoleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Criar Novo Perfil</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="role-name">Nome do Perfil</Label>
+              <Input
+                id="role-name"
+                placeholder="Ex: financeiro, suporte, etc."
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewRoleDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                const name = newRoleName.trim().toLowerCase();
+                if (!name) return;
+                if (name === "admin" || uniqueRoles.includes(name)) {
+                  toast({
+                    title: "Erro",
+                    description: "Este perfil já existe ou é reservado.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setCustomRoles((prev) => [...prev, name]);
+                setPermRole(name);
+                setNewRoleDialogOpen(false);
+                setNewRoleName("");
+                toast({ title: "Perfil criado localmente", description: "Configure as permissões e salve para persistir." });
+              }}
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              Criar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
