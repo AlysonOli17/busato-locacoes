@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { getEquipLabel, calcularHorasInterpoladas } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
@@ -28,6 +27,9 @@ import { FaturamentoContent } from "./Faturamento";
 import { FaturamentoTab } from "@/components/FaturamentoTab";
 
 
+import { useLocation } from "react-router-dom";
+
+
 interface Equipamento {id: string;tipo: string;modelo: string;tag_placa: string | null;numero_serie: string | null;}
 interface Medicao {
   id: string;
@@ -44,11 +46,21 @@ interface Medicao {
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
 const Medicoes = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "medicoes";
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    return new URLSearchParams(window.location.search).get("tab") || "medicoes";
+  });
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab") || "medicoes";
+    setActiveTab(tab);
+  }, [location.search]);
 
   const handleTabChange = (val: string) => {
-    setSearchParams({ tab: val });
+    setActiveTab(val);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", val);
+    window.history.pushState({}, "", url.pathname + url.search);
   };
 
   const [items, setItems] = useState<Medicao[]>([]);
