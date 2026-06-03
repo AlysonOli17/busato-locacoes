@@ -765,4 +765,45 @@ const Medicoes = () => {
 
 };
 
-export default Medicoes;
+import React from "react";
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 max-w-xl mx-auto bg-destructive/10 text-destructive rounded-lg border border-destructive/20 mt-10">
+          <h2 className="text-lg font-bold mb-2">Ops! Algo deu errado ao carregar a página.</h2>
+          <p className="text-sm font-semibold mb-4">{this.state.error?.toString()}</p>
+          <pre className="text-xs bg-card p-3 rounded border overflow-auto max-h-60 text-foreground">
+            {this.state.error?.stack}
+          </pre>
+          <Button onClick={() => window.location.reload()} className="mt-4 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Recarregar Página
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const MedicoesWithErrorBoundary = () => (
+  <ErrorBoundary>
+    <Medicoes />
+  </ErrorBoundary>
+);
+
+export default MedicoesWithErrorBoundary;
