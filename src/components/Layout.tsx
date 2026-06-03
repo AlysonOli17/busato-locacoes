@@ -227,24 +227,24 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
             // Expanded mode: Folder structure
             return (
-              <div key={group.label} className="space-y-1">
+              <div key={group.label} className="space-y-1.5">
                 {/* Group Folder Header */}
                 <button
                   onClick={() => toggleGroup(group.label)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors",
+                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em] transition-all duration-200",
                     hasActiveItem
-                      ? "text-sidebar-primary"
-                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                      ? "text-sidebar-foreground/80 font-bold"
+                      : "text-sidebar-foreground/45 hover:text-sidebar-foreground/80 hover:bg-sidebar-accent/20"
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <group.icon className="h-4 w-4 shrink-0" />
+                    <group.icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
                     <span>{group.label}</span>
                   </div>
                   <ChevronDown
                     className={cn(
-                      "h-3 w-3 transition-transform duration-200 shrink-0",
+                      "h-3 w-3 transition-transform duration-200 shrink-0 opacity-50",
                       isExpanded ? "transform rotate-0" : "transform -rotate-90"
                     )}
                   />
@@ -252,7 +252,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
                 {/* Sub items */}
                 {isExpanded && (
-                  <div className="pl-3 ml-3 border-l border-sidebar-border/40 space-y-1 animate-fade-in">
+                  <div className="pl-3 ml-3 border-l border-sidebar-border/30 space-y-1 animate-fade-in">
                     {group.items.map((item) => {
                       const active = isItemActive(item.to);
                       return (
@@ -261,13 +261,13 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
                           to={item.to}
                           onClick={() => setSidebarOpen(false)}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                            "flex items-center gap-2.5 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 relative",
                             active
-                              ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
-                              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                              ? "bg-sidebar-accent/60 text-sidebar-primary shadow-sm font-semibold border-l-2 border-sidebar-primary pl-[8px]"
+                              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground pl-2.5"
                           )}
                         >
-                          <item.icon className="h-4 w-4 shrink-0" />
+                          <item.icon className="h-3.5 w-3.5 shrink-0" />
                           <span>{item.label}</span>
                         </NavLink>
                       );
