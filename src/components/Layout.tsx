@@ -45,18 +45,18 @@ const allGroups: NavGroup[] = [
     ]
   },
   {
-    label: "Medições & Faturamento",
+    label: "Medições",
     icon: Clock,
     items: [
       { to: "/medicoes?tab=medicoes", icon: Clock, label: "Horímetro" },
       { to: "/medicoes?tab=faturamento", icon: Receipt, label: "Medição" },
-      { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Faturamento" },
     ]
   },
   {
     label: "Financeiro & Custos",
     icon: DollarSign,
     items: [
+      { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Faturamento" },
       { to: "/gastos", icon: DollarSign, label: "Custos" },
     ]
   },
@@ -91,7 +91,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
     return saved ? JSON.parse(saved) : {
       "Cadastros": true,
       "Contratos & Seguros": true,
-      "Medições & Faturamento": true,
+      "Medições": true,
       "Financeiro & Custos": true,
       "Gestão & Agenda": true,
     };

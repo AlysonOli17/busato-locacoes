@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { getEquipLabel, calcularHorasInterpoladas } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
