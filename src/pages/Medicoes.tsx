@@ -378,6 +378,21 @@ const Medicoes = () => {
     fetchData();
   };
 
+  const onEquipChange = (v: string) => {
+    const isDiaria = equipMedicaoTypes.get(v) === "diarias";
+    setForm((prev) => ({ 
+      ...prev, 
+      equipamento_id: v,
+      horas_indisp: isDiaria ? 1 : prev.horas_indisp
+    }));
+    if (form.data) fetchHorimetroPorData(v, form.data, editingId || undefined);
+  };
+
+  const onDataChange = (v: string) => {
+    setForm((prev) => ({ ...prev, data: v }));
+    if (form.equipamento_id) fetchHorimetroPorData(form.equipamento_id, v, editingId || undefined);
+  };
+
   const clearFilters = () => {setFilterEquip("Todos");setDataInicio(undefined);setDataFim(undefined);};
   const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
 
