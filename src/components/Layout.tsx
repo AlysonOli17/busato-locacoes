@@ -41,8 +41,19 @@ const allGroups: NavGroup[] = [
     items: [
       { to: "/contratos?tab=contratos", icon: FileText, label: "Contratos" },
       { to: "/contratos?tab=propostas", icon: FileSignature, label: "Propostas" },
-      { to: "/agregados", icon: CalendarDays, label: "Locação Terceiros" },
       { to: "/apolices", icon: Shield, label: "Apólices" },
+    ]
+  },
+  {
+    label: "Locação Terceiros",
+    icon: CalendarDays,
+    items: [
+      { to: "/agregados?tab=fornecedores", icon: Building2, label: "Fornecedores" },
+      { to: "/agregados?tab=equipamentos", icon: Wrench, label: "Equipamentos" },
+      { to: "/agregados?tab=contratos", icon: FileText, label: "Contratos" },
+      { to: "/agregados?tab=horimetro", icon: Clock, label: "Lançamento" },
+      { to: "/agregados?tab=medicao", icon: Receipt, label: "Medição" },
+      { to: "/agregados?tab=custos", icon: DollarSign, label: "Custos" },
     ]
   },
   {

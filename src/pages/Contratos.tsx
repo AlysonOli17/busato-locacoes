@@ -1092,10 +1092,6 @@ const Contratos = () => {
   return (
     <Layout title="Contratos" subtitle="Gestão de contratos e locações">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="contratos" className="gap-2"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
-          <TabsTrigger value="propostas" className="gap-2"><FileSignature className="h-4 w-4" /> Propostas Comerciais</TabsTrigger>
-        </TabsList>
         <TabsContent value="contratos">
           <div className="space-y-6">
 
