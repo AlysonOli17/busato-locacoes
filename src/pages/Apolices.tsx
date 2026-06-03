@@ -961,9 +961,8 @@ const Apolices = () => {
             </Card>
           </div>
 
-          {/* Sinistro Form Dialog */}
           <Dialog open={sinistroDialogOpen} onOpenChange={setSinistroDialogOpen}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingSinistro ? "Editar Sinistro" : "Novo Sinistro"}</DialogTitle>
               </DialogHeader>
