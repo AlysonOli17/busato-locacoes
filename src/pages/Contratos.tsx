@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { getEquipLabel } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
@@ -54,6 +55,23 @@ interface AditivoForm {
 const emptyForm = { empresa_id: "", equipamento_id: "", valor_hora: 0, horas_contratadas: 0, data_inicio: "", data_fim: "", observacoes: "", status: "Ativo", dia_medicao_inicio: 1, dia_medicao_fim: 30, prazo_faturamento: 30, tipo_medicao: "horas" };
 
 const Contratos = () => {
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    return new URLSearchParams(window.location.search).get("tab") || "contratos";
+  });
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab") || "contratos";
+    setActiveTab(tab);
+  }, [location.search]);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", val);
+    window.history.pushState({}, "", url.pathname + url.search);
+  };
+
   const [items, setItems] = useState<Contrato[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
@@ -1073,7 +1091,7 @@ const Contratos = () => {
 
   return (
     <Layout title="Contratos" subtitle="Gestão de contratos e locações">
-      <Tabs defaultValue="contratos" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList>
           <TabsTrigger value="contratos" className="gap-2"><FileText className="h-4 w-4" /> Contratos</TabsTrigger>
           <TabsTrigger value="propostas" className="gap-2"><FileSignature className="h-4 w-4" /> Propostas Comerciais</TabsTrigger>
