@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { getEquipLabel } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,23 @@ const emptyForm = {
 };
 
 const Apolices = () => {
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    return new URLSearchParams(window.location.search).get("tab") || "apolices";
+  });
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab") || "apolices";
+    setActiveTab(tab);
+  }, [location.search]);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", val);
+    window.history.pushState({}, "", url.pathname + url.search);
+  };
+
   const [items, setItems] = useState<Apolice[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -550,11 +568,7 @@ const Apolices = () => {
 
   return (
     <Layout title="Apólices de Seguro" subtitle={`${items.length} apólices cadastradas`}>
-      <Tabs defaultValue="apolices" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="apolices" className="gap-2"><Shield className="h-4 w-4" /> Apólices</TabsTrigger>
-          <TabsTrigger value="sinistro" className="gap-2"><AlertCircle className="h-4 w-4" /> Acionamento de Sinistro</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsContent value="apolices">
           <div className="space-y-6">
             {/* Action Bar */}
