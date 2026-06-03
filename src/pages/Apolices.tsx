@@ -567,7 +567,10 @@ const Apolices = () => {
   ];
 
   return (
-    <Layout title="Apólices de Seguro" subtitle={`${items.length} apólices cadastradas`}>
+    <Layout
+      title={activeTab === "sinistro" ? "Acionamento de Sinistro" : "Apólices de Seguro"}
+      subtitle={activeTab === "sinistro" ? `${sinistros.length} sinistro(s) registrado(s) · ${sinistrosAbertos.length} aberto(s)` : `${items.length} apólices cadastradas`}
+    >
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsContent value="apolices">
           <div className="space-y-6">
@@ -822,13 +825,7 @@ const Apolices = () => {
         </TabsContent>
         <TabsContent value="sinistro">
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Acionamento de Sinistro</h1>
-                <p className="text-sm text-muted-foreground">
-                  {sinistros.length} sinistro(s) registrado(s) · {sinistrosAbertos.length} aberto(s)
-                </p>
-              </div>
+            <div className="flex justify-end">
               <Button onClick={openNewSinistro} className="bg-accent text-accent-foreground hover:bg-accent/90">
                 <Plus className="h-4 w-4 mr-2" /> Novo Sinistro
               </Button>

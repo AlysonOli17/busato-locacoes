@@ -827,11 +827,7 @@ export const FaturamentoTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Faturamento</h1>
-          <p className="text-sm text-muted-foreground">Faturas emitidas a partir de medições aprovadas</p>
-        </div>
+      <div className="flex justify-end">
         <Button variant="outline" size="sm" onClick={exportRelatorioFinanceiro}>
           <FileText className="h-4 w-4 mr-1" /> Relatório Financeiro
         </Button>

@@ -414,8 +414,21 @@ const Medicoes = () => {
     return sortAsc ? cmp : -cmp;
   });
 
+  const getLayoutHeader = () => {
+    switch (activeTab) {
+      case "faturamento":
+        return { title: "Medição", subtitle: "Controle de medições de locações" };
+      case "faturamento-novo":
+        return { title: "Faturamento", subtitle: "Lançamento e controle de faturamentos" };
+      default:
+        return { title: "Horímetro", subtitle: "Controle de horímetros e diárias" };
+    }
+  };
+
+  const header = getLayoutHeader();
+
   return (
-    <Layout title="Medições / Faturamento" subtitle="Controle de horímetros e locações">
+    <Layout title={header.title} subtitle={header.subtitle}>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsContent value="medicoes">
       <div className="space-y-6">
