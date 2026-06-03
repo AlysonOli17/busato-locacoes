@@ -36,11 +36,17 @@ const allGroups: NavGroup[] = [
     ]
   },
   {
-    label: "Contratos & Seguros",
+    label: "Contratos",
     icon: FileText,
     items: [
       { to: "/contratos?tab=contratos", icon: FileText, label: "Contratos" },
       { to: "/contratos?tab=propostas", icon: FileSignature, label: "Propostas" },
+    ]
+  },
+  {
+    label: "Seguros",
+    icon: Shield,
+    items: [
       { to: "/apolices?tab=apolices", icon: Shield, label: "Apólices" },
       { to: "/apolices?tab=sinistro", icon: AlertCircle, label: "Sinistros" },
     ]
