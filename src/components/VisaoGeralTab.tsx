@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, Building2,
   Wrench, FileText, Activity, BarChart3, PieChart, CalendarClock, Shield, Truck,
-  Target, Zap, ArrowUpRight, ArrowDownRight, Info
+  Target, Zap, ArrowUpRight, ArrowDownRight, Info, Receipt
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent
@@ -948,7 +948,7 @@ export const VisaoGeralTab = ({
           {/* Quick Access Grid */}
           <div className="pt-4 border-t">
             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Painel de Acesso Rápido aos Módulos</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
               <button onClick={() => navigate("/equipamentos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
                 <Truck className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-bold">Frota</span>
@@ -957,21 +957,33 @@ export const VisaoGeralTab = ({
                 <Building2 className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-bold">Clientes</span>
               </button>
-              <button onClick={() => navigate("/contratos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <button onClick={() => navigate("/contratos?tab=contratos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
                 <FileText className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-bold">Contratos</span>
               </button>
-              <button onClick={() => navigate("/apolices")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <button onClick={() => navigate("/apolices?tab=apolices")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
                 <Shield className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-bold">Seguros</span>
+              </button>
+              <button onClick={() => navigate("/medicoes?tab=medicoes")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <Clock className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold">Horímetro</span>
+              </button>
+              <button onClick={() => navigate("/medicoes?tab=faturamento")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <Receipt className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold whitespace-nowrap">Emitir medição</span>
+              </button>
+              <button onClick={() => navigate("/medicoes?tab=faturamento-novo")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <DollarSign className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold whitespace-nowrap">Emissão de faturas</span>
+              </button>
+              <button onClick={() => navigate("/medicoes?tab=historico-faturamento")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+                <BarChart3 className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold whitespace-nowrap">Histórico Financeiro</span>
               </button>
               <button onClick={() => navigate("/gastos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
                 <DollarSign className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-bold">Custos</span>
-              </button>
-              <button onClick={() => navigate("/medicoes")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <Clock className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold">Medições</span>
               </button>
             </div>
           </div>
