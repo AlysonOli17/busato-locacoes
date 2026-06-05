@@ -752,152 +752,170 @@ export function HistoricoFaturamentoView() {
               </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
-            <Table className="min-w-[800px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10"></TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead className="text-center">Contratos</TableHead>
-                  <TableHead className="text-center">Faturas</TableHead>
-                  <TableHead className="text-center text-success">Pagas</TableHead>
-                  <TableHead className="text-center text-warning">Pendentes</TableHead>
-                  <TableHead className="text-center text-destructive">Em Atraso</TableHead>
-                  <TableHead className="text-right">Total Faturado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      Carregando consolidado...
-                    </TableCell>
-                  </TableRow>
-                ) : companyRows.map((row) => {
-                  const isExpanded = !!expandedCompanies[row.key];
-                  const companyInvoices = [...sortedFaturas]
-                    .filter(f => {
-                      const ct = contratos.find(c => c.id === f.contrato_id);
-                      return ct && row.ids.includes(ct.empresa_id);
-                    })
-                    .sort((a, b) => {
-                      if (a.numero_sequencial && b.numero_sequencial) {
-                        return a.numero_sequencial - b.numero_sequencial;
-                      }
-                      const notaA = a.numero_nota || "";
-                      const notaB = b.numero_nota || "";
-                      return notaA.localeCompare(notaB, undefined, { numeric: true, sensitivity: 'base' });
-                    });
+          <CardContent className="p-0">
+            <div className="flex flex-col gap-2 p-4">
+            {/* Cabeçalho sutil (desktop) */}
+            <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="w-[40px]"></div>
+              <div className="flex-1 min-w-0">Empresa</div>
+              <div className="w-[100px] text-center">Contratos</div>
+              <div className="w-[100px] text-center">Faturas</div>
+              <div className="w-[100px] text-center text-success">Pagas</div>
+              <div className="w-[100px] text-center text-warning">Pendentes</div>
+              <div className="w-[100px] text-center text-destructive">Em Atraso</div>
+              <div className="w-[140px] text-right">Total Faturado</div>
+            </div>
 
-                  return (
-                    <React.Fragment key={row.key}>
-                      <TableRow 
-                        onClick={() => toggleCompany(row.key)} 
-                        className="hover:bg-muted/30 transition-colors cursor-pointer select-none"
-                      >
-                        <TableCell className="p-2 text-center">
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                          </Button>
-                        </TableCell>
-                        <TableCell className="p-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                              <Building2 className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-sm leading-none flex items-center gap-2">
-                                {row.nome}
-                                {row.obra && (
-                                  <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
-                                    {row.obra}
-                                  </Badge>
-                                )}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1 font-mono">{row.cnpjs.join(", ")}</p>
-                            </div>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
+                Carregando consolidado...
+              </div>
+            ) : companyRows.map((row) => {
+              const isExpanded = !!expandedCompanies[row.key];
+              const companyInvoices = [...sortedFaturas]
+                .filter(f => {
+                  const ct = contratos.find(c => c.id === f.contrato_id);
+                  return ct && row.ids.includes(ct.empresa_id);
+                })
+                .sort((a, b) => {
+                  if (a.numero_sequencial && b.numero_sequencial) {
+                    return a.numero_sequencial - b.numero_sequencial;
+                  }
+                  const notaA = a.numero_nota || "";
+                  const notaB = b.numero_nota || "";
+                  return notaA.localeCompare(notaB, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
+              return (
+                <div key={row.key} className="flex flex-col gap-2">
+                  <div 
+                    onClick={() => toggleCompany(row.key)} 
+                    className="group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative cursor-pointer"
+                  >
+                    
+                    {/* Toggle Icon */}
+                    <div className="absolute top-4 right-4 md:static md:w-[40px] flex justify-center text-muted-foreground">
+                      {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    </div>
+
+                    {/* Empresa */}
+                    <div className="flex-1 min-w-0 pr-8 md:pr-0">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                          <Building2 className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-sm text-foreground truncate flex items-center gap-2">
+                            {row.nome}
+                            {row.obra && (
+                              <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent border-accent/20">
+                                {row.obra}
+                              </Badge>
+                            )}
+                          </h3>
+                          <p className="text-xs text-muted-foreground font-mono mt-1 truncate">{row.cnpjs.join(", ")}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Resumo Quantidades */}
+                    <div className="flex items-center gap-4 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                      <div className="md:w-[100px] flex flex-col md:items-center">
+                        <span className="text-[10px] text-muted-foreground uppercase md:hidden mb-0.5">Contratos</span>
+                        <span className="font-semibold text-sm">{row.empContratos}</span>
+                      </div>
+                      <div className="md:w-[100px] flex flex-col md:items-center">
+                        <span className="text-[10px] text-muted-foreground uppercase md:hidden mb-0.5">Faturas</span>
+                        <span className="font-semibold text-sm">{row.empFaturas}</span>
+                      </div>
+                    </div>
+
+                    {/* Status Faturas */}
+                    <div className="flex items-center gap-4 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                      <div className="md:w-[100px] flex flex-col md:items-center">
+                        <span className="text-[10px] text-success uppercase md:hidden mb-0.5">Pagas</span>
+                        <span className="font-bold text-sm text-success">{row.pagas}</span>
+                      </div>
+                      <div className="md:w-[100px] flex flex-col md:items-center">
+                        <span className="text-[10px] text-warning uppercase md:hidden mb-0.5">Pendentes</span>
+                        <span className="font-bold text-sm text-warning">{row.pendentes}</span>
+                      </div>
+                      <div className="md:w-[100px] flex flex-col md:items-center">
+                        <span className="text-[10px] text-destructive uppercase md:hidden mb-0.5">Atraso</span>
+                        <span className="font-bold text-sm text-destructive">{row.atraso}</span>
+                      </div>
+                    </div>
+
+                    {/* Total Faturado */}
+                    <div className="md:w-[140px] md:text-right flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                      <span className="text-[10px] text-muted-foreground uppercase md:hidden mb-0.5">Total Faturado</span>
+                      <span className="font-bold text-sm text-foreground">
+                        R$ {row.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                  </div>
+
+                  {/* Expanded View */}
+                  {isExpanded && (
+                    <div className="ml-0 md:ml-10 bg-accent/5 rounded-xl border border-border p-4 shadow-inner space-y-2 relative">
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent/20 rounded-l-xl"></div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 ml-2">
+                        Detalhamento de Notas Emitidas — {row.nome}
+                      </h4>
+                      
+                      {companyInvoices.length === 0 ? (
+                        <div className="text-center py-4 text-xs text-muted-foreground">
+                          Nenhuma fatura encontrada sob os filtros aplicados.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="hidden md:flex items-center px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            <div className="w-[100px]">Nº Nota</div>
+                            <div className="flex-1">Equipamento</div>
+                            <div className="w-[140px]">Período Medição</div>
+                            <div className="w-[100px]">Emissão</div>
+                            <div className="w-[100px]">Vencimento</div>
+                            <div className="w-[120px] text-right">Valor</div>
+                            <div className="w-[100px] text-center ml-4">Status</div>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-center font-medium">{row.empContratos}</TableCell>
-                        <TableCell className="text-center">{row.empFaturas}</TableCell>
-                        <TableCell className="text-center text-success font-bold">{row.pagas}</TableCell>
-                        <TableCell className="text-center text-warning font-bold">{row.pendentes}</TableCell>
-                        <TableCell className="text-center text-destructive font-bold">{row.atraso}</TableCell>
-                        <TableCell className="text-right font-bold text-sm text-foreground">
-                          R$ {row.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && (
-                        <TableRow className="bg-muted/10">
-                          <TableCell colSpan={8} className="p-4 border-t border-b border-border/40">
-                            <div className="rounded-lg border bg-background shadow-inner overflow-hidden">
-                              <div className="bg-muted/40 px-4 py-2 border-b text-xs font-semibold text-muted-foreground">
-                                Detalhamento de Notas Emitidas — {row.nome}
+                          {companyInvoices.map(f => {
+                            const status = getDisplayStatus(f);
+                            return (
+                              <div key={f.id} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-0 bg-background border border-border/50 rounded-lg p-3 hover:bg-muted/20 transition-colors">
+                                <div className="md:w-[100px] font-mono text-xs font-semibold">{f.numero_nota || "—"}</div>
+                                <div className="flex-1 text-xs truncate pr-2" title={`${f.contratos?.equipamentos?.tipo} ${f.contratos?.equipamentos?.modelo}`}>
+                                  {f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}
+                                </div>
+                                <div className="md:w-[140px] text-xs text-muted-foreground">
+                                  {f.periodo_medicao_inicio && f.periodo_medicao_fim
+                                    ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+                                    : "—"}
+                                </div>
+                                <div className="md:w-[100px] text-xs">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</div>
+                                <div className="md:w-[100px] text-xs font-medium">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</div>
+                                <div className="md:w-[120px] text-right text-xs font-bold text-foreground">
+                                  R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                </div>
+                                <div className="md:w-[100px] flex justify-end md:justify-center mt-2 md:mt-0 md:ml-4">
+                                  <Badge className={
+                                    status === "Pago" ? "bg-success text-success-foreground text-[10px] py-0 px-1.5 w-fit" :
+                                    status === "Em Atraso" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5 w-fit" :
+                                    status === "Cancelado" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5 w-fit" :
+                                    "bg-warning text-warning-foreground text-[10px] py-0 px-1.5 w-fit"
+                                  }>
+                                    {status}
+                                  </Badge>
+                                </div>
                               </div>
-                              <Table>
-                                <TableHeader className="bg-muted/10">
-                                  <TableRow className="hover:bg-transparent">
-                                    <TableHead className="text-xs">Nº Nota</TableHead>
-                                    <TableHead className="text-xs">Equipamento</TableHead>
-                                    <TableHead className="text-xs">Período Medição</TableHead>
-                                    <TableHead className="text-xs">Emissão</TableHead>
-                                    <TableHead className="text-xs">Vencimento</TableHead>
-                                    <TableHead className="text-right text-xs">Valor</TableHead>
-                                    <TableHead className="text-xs">Status</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {companyInvoices.length === 0 ? (
-                                    <TableRow>
-                                      <TableCell colSpan={7} className="text-center py-4 text-xs text-muted-foreground">
-                                        Nenhuma fatura encontrada sob os filtros aplicados.
-                                      </TableCell>
-                                    </TableRow>
-                                  ) : companyInvoices.map(f => {
-                                    const status = getDisplayStatus(f);
-                                    return (
-                                      <TableRow key={f.id} className="hover:bg-muted/30">
-                                        <TableCell className="font-mono text-xs py-2">{f.numero_nota || "—"}</TableCell>
-                                        <TableCell className="text-xs py-2">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground py-2">
-                                          {f.periodo_medicao_inicio && f.periodo_medicao_fim
-                                            ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-                                            : "—"}
-                                        </TableCell>
-                                        <TableCell className="text-xs py-2">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                                        <TableCell className="text-xs py-2">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
-                                        <TableCell className="font-semibold text-right text-xs py-2">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="py-2">
-                                          <Badge className={
-                                            status === "Pago" ? "bg-success text-success-foreground text-[10px] py-0 px-1.5" :
-                                            status === "Em Atraso" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5" :
-                                            status === "Cancelado" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5" :
-                                            "bg-warning text-warning-foreground text-[10px] py-0 px-1.5"
-                                          }>
-                                            {status}
-                                          </Badge>
-                                        </TableCell>
-                                      </TableRow>
-                                    );
-                                  })}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-                {!loading && companyRows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      Nenhuma empresa com faturamento encontrada sob os filtros.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                            );
+                          })}
+                        </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>
