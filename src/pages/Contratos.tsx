@@ -1094,18 +1094,7 @@ const Contratos = () => {
     <Layout title="Contratos" subtitle="Gestão de contratos e locações">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
 
-        {/* Main tab navigation */}
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="contratos" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" /> Contratos
-          </TabsTrigger>
-          <TabsTrigger value="propostas" className="flex items-center gap-2">
-            <FilePlus2 className="h-4 w-4" /> Propostas
-          </TabsTrigger>
-          <TabsTrigger value="modelo" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" /> Modelo de Contrato
-          </TabsTrigger>
-        </TabsList>
+        {/* Main tab navigation removed - now managed via Sidebar */}
 
         <TabsContent value="contratos">
           <div className="space-y-6">
