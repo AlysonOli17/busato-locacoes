@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -86,6 +87,15 @@ export const VisaoGeralTab = ({
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().slice(0, 10));
   const [filtroEquipamento, setFiltroEquipamento] = useState("all");
   const [activeModal, setActiveModal] = useState<"clientes" | "maquinas" | "seguros" | "vencimentos" | null>(null);
+  const [faturamentoEquipamentosList, setFaturamentoEquipamentosList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadFaturamentoEquipamentos = async () => {
+      const { data } = await supabase.from("faturamento_equipamentos").select("*");
+      if (data) setFaturamentoEquipamentosList(data);
+    };
+    loadFaturamentoEquipamentos();
+  }, []);
 
   // ============ MULTI-PAGE AGGREGATED CALCULATIONS ============
 
@@ -353,30 +363,43 @@ export const VisaoGeralTab = ({
     return todosClientes.slice(0, 5);
   }, [todosClientes]);
 
-  const todosEquipamentos = useMemo(() => {
-    const map = new Map<string, { nome: string; tag: string; total: number; status: string }>();
-    faturas.forEach(f => {
-      if (!f) return;
-      const contrato = f.contratos;
-      if (!contrato || !contrato.equipamento_id) return;
-      const eq = equipamentos.find(e => e.id === contrato.equipamento_id);
-      if (!eq) return;
-      
-      const key = eq.id;
-      const valor = Number(f.valor_total || 0);
-      if (!map.has(key)) {
-        map.set(key, { 
-          nome: `${eq.tipo || "Equipamento"} ${eq.modelo || ""}`.trim(), 
-          tag: eq.tag_placa || "S/T", 
-          total: 0, 
-          status: eq.status || "Ativo" 
-        });
+  const faturamentoPorEquipamento = useMemo(() => {
+    const map = new Map<string, number>();
+    faturamentoEquipamentosList.forEach(item => {
+      const fat = faturas.find(f => f.id === item.faturamento_id);
+      if (fat && fat.status === "Pago") {
+        const horasNormais = Number(item.horas_normais ?? item.horas_medidas ?? 0);
+        const valorHora = Number(item.valor_hora ?? 0);
+        const horasExcedentes = Number(item.horas_excedentes ?? 0);
+        const valorHoraExcedente = Number(item.valor_hora_excedente ?? item.valor_excedente_hora ?? 0);
+        
+        const totalItem = (horasNormais * valorHora) + (horasExcedentes * valorHoraExcedente);
+        map.set(item.equipamento_id, (map.get(item.equipamento_id) || 0) + totalItem);
       }
-      map.get(key)!.total += valor;
     });
-    
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [faturas, equipamentos]);
+    return map;
+  }, [faturamentoEquipamentosList, faturas]);
+
+  const todosEquipamentos = useMemo(() => {
+    return equipamentos.map(eq => {
+      const receita = faturamentoPorEquipamento.get(eq.id) || 0;
+      const eqGastos = gastos.filter(g => g.equipamento_id === eq.id);
+      const despesa = eqGastos.reduce((s, g) => s + Number(g.valor), 0);
+      const margem = receita - despesa;
+      const percentual = receita > 0 ? (margem / receita) * 100 : 0;
+      
+      return {
+        id: eq.id,
+        nome: `${eq.tipo} ${eq.modelo}`,
+        tag: eq.tag_placa || "Sem Placa",
+        receita,
+        despesa,
+        margem,
+        percentual,
+        status: eq.status
+      };
+    }).sort((a, b) => b.receita - a.receita);
+  }, [equipamentos, faturamentoPorEquipamento, gastos]);
 
   const topEquipamentos = useMemo(() => {
     return todosEquipamentos.slice(0, 5);
@@ -705,7 +728,7 @@ export const VisaoGeralTab = ({
                       </div>
                       <div className="text-right">
                         <p className="font-black text-success">
-                          R$ {Number(equip.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          R$ {Number(equip.receita).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
                         <Badge variant="outline" className="text-[9px] scale-90 px-1 py-0 border-primary/20 text-primary">
                           {equip.status}
@@ -1076,11 +1099,11 @@ export const VisaoGeralTab = ({
 
       {/* 2. Máquinas Modal */}
       <Dialog open={activeModal === "maquinas"} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-primary" />
-              Detalhamento de Faturamento por Máquina
+              Detalhamento de Faturamento e Custos por Máquina (Real)
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
@@ -1089,30 +1112,47 @@ export const VisaoGeralTab = ({
                 <TableRow>
                   <TableHead className="w-12 text-center">Posição</TableHead>
                   <TableHead>Equipamento</TableHead>
-                  <TableHead>Identificador / Placa</TableHead>
+                  <TableHead>Placa</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Total Faturado</TableHead>
+                  <TableHead className="text-right">Faturamento Real</TableHead>
+                  <TableHead className="text-right text-destructive">Custo Real</TableHead>
+                  <TableHead className="text-right">Margem Líquida</TableHead>
+                  <TableHead className="text-right">Rentabilidade</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {todosEquipamentos.map((equip, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="text-center font-bold text-muted-foreground">#{idx + 1}</TableCell>
-                    <TableCell className="font-semibold">{equip.nome}</TableCell>
-                    <TableCell className="font-mono text-xs">{equip.tag}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px] px-2 py-0 border-primary/20 text-primary">
-                        {equip.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-success">
-                      R$ {Number(equip.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {todosEquipamentos.map((equip, idx) => {
+                  const isPositive = equip.margem >= 0;
+                  return (
+                    <TableRow key={idx} className="hover:bg-muted/30">
+                      <TableCell className="text-center font-bold text-muted-foreground">#{idx + 1}</TableCell>
+                      <TableCell className="font-semibold">{equip.nome}</TableCell>
+                      <TableCell className="font-mono text-xs">{equip.tag}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] px-2 py-0 border-primary/20 text-primary">
+                          {equip.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-success">
+                        R$ {equip.receita.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right text-destructive font-semibold">
+                        R$ {equip.despesa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className={`text-right font-bold ${isPositive ? "text-success" : "text-destructive"}`}>
+                        R$ {equip.margem.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge className={isPositive ? "bg-success/15 text-success hover:bg-success/20 border-success/10" : "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10"}>
+                          {isPositive ? "▲" : "▼"} {equip.percentual.toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {todosEquipamentos.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Nenhum faturamento de equipamento registrado.</TableCell>
+                    <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">Nenhum faturamento de equipamento registrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
