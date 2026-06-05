@@ -100,17 +100,20 @@ export const VisaoGeralTab = ({
   // ============ MULTI-PAGE AGGREGATED CALCULATIONS ============
 
   // 1. Frota & Equipamentos
-  const frotaStats = useMemo(() => {
-    const total = equipamentos.length;
+  // Active contract IDs Set helper
+  const activeContratoIds = useMemo(() => {
+    return new Set(contratos.filter(c => c.status === "Ativo").map(c => c.id));
+  }, [contratos]);
+
+  // Set of currently rented equipment IDs
+  const rentedEquipamentosIds = useMemo(() => {
     const hoje = new Date().toISOString().slice(0, 10);
-    
-    const ativosSet = new Set(contratos.filter(c => c.status === "Ativo").map(c => c.id));
-    const ceList = (contratosEquipamentos || []).filter(ce => ativosSet.has(ce.contrato_id));
-    const aditivosAtivos = (contratosAditivos || []).filter(a => ativosSet.has(a.contrato_id));
-    
     const rented = new Set<string>();
     const aditivoEquipMap = new Map<string, Set<string>>();
     const latestAditivoEntry = new Map<string, { numero: number; data_devolucao: string | null }>();
+
+    const aditivosAtivos = (contratosAditivos || []).filter(a => activeContratoIds.has(a.contrato_id));
+    const ceList = (contratosEquipamentos || []).filter(ce => activeContratoIds.has(ce.contrato_id));
 
     if (aditivosAtivos.length > 0 && aditivosEquipamentos.length > 0) {
       const aditivoIds = new Set(aditivosAtivos.map(a => a.id));
@@ -146,15 +149,21 @@ export const VisaoGeralTab = ({
       rented.add(r.equipamento_id);
     });
 
+    return rented;
+  }, [activeContratoIds, contratosAditivos, aditivosEquipamentos, contratosEquipamentos]);
+
+  // 1. Frota & Equipamentos
+  const frotaStats = useMemo(() => {
+    const total = equipamentos.length;
     const sinistroSet = new Set<string>();
     (sinistros || []).filter(s => s.status === "Aberto").forEach(s => sinistroSet.add(s.equipamento_id));
 
     const emManutencaoOuSinistro = equipamentos.filter(i => i.status === "Manutenção" || sinistroSet.has(i.id)).length;
-    const emLocacao = equipamentos.filter(i => rented.has(i.id) && !sinistroSet.has(i.id)).length;
-    const disponiveis = equipamentos.filter(i => !rented.has(i.id) && i.status !== "Manutenção" && !sinistroSet.has(i.id)).length;
+    const emLocacao = equipamentos.filter(i => rentedEquipamentosIds.has(i.id) && !sinistroSet.has(i.id)).length;
+    const disponiveis = equipamentos.filter(i => !rentedEquipamentosIds.has(i.id) && i.status !== "Manutenção" && !sinistroSet.has(i.id)).length;
 
     return { total, disponiveis, emLocacao, emManutencaoOuSinistro };
-  }, [equipamentos, contratos, contratosEquipamentos, contratosAditivos, aditivosEquipamentos, sinistros]);
+  }, [equipamentos, rentedEquipamentosIds, sinistros]);
 
   // 2. Contratos & Locações
   const contratosStats = useMemo(() => {
@@ -349,6 +358,7 @@ export const VisaoGeralTab = ({
     // Initialize all companies from faturas and contracts
     faturas.forEach(f => {
       if (!f || f.status === "Cancelado") return;
+      if (!f.contrato_id || !activeContratoIds.has(f.contrato_id)) return;
       const empresa = f.contratos?.empresas;
       if (!empresa) return;
       const key = String(empresa.id || empresa.nome);
@@ -375,6 +385,7 @@ export const VisaoGeralTab = ({
     
     contratos.forEach(c => {
       if (c && c.empresas) {
+        if (c.status !== "Ativo") return;
         const key = String(c.empresas.id || c.empresas.nome);
         if (!map.has(key)) {
           map.set(key, {
@@ -388,9 +399,7 @@ export const VisaoGeralTab = ({
             confiabilidade: 0
           });
         }
-        if (c.status === "Ativo") {
-          map.get(key)!.contratosCount += 1;
-        }
+        map.get(key)!.contratosCount += 1;
       }
     });
 
@@ -412,7 +421,7 @@ export const VisaoGeralTab = ({
       if (faturaId) {
         const fatura = faturas.find(f => f.id === faturaId);
         const contrato = fatura ? contratos.find(c => c.id === fatura.contrato_id) : null;
-        if (contrato && contrato.empresas) {
+        if (contrato && contrato.status === "Ativo" && contrato.empresas) {
           const key = String(contrato.empresas.id || contrato.empresas.nome);
           const entry = map.get(key);
           if (entry) {
@@ -427,7 +436,7 @@ export const VisaoGeralTab = ({
       if (!gDate || !g.equipamento_id) return;
 
       for (const c of contratos) {
-        if (!c.empresas) continue;
+        if (c.status !== "Ativo" || !c.empresas) continue;
         
         const belongsToContract = (contratosEquipamentos || []).some((ce: any) => {
           if (ce.contrato_id !== c.id || ce.equipamento_id !== g.equipamento_id) return false;
@@ -462,13 +471,13 @@ export const VisaoGeralTab = ({
     });
 
     return Array.from(map.values()).sort((a, b) => b.percentual - a.percentual);
-  }, [faturas, contratos, gastos, faturamentoGastos, contratosEquipamentos, aditivosEquipamentos, contratosAditivos]);
+  }, [faturas, contratos, gastos, faturamentoGastos, contratosEquipamentos, aditivosEquipamentos, contratosAditivos, activeContratoIds]);
 
   const overallReliability = useMemo(() => {
-    const totalInvoiced = faturas.filter(f => f && f.status !== "Cancelado").reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
-    const totalPaid = faturas.filter(f => f && f.status === "Pago").reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    const totalInvoiced = faturas.filter(f => f && f.status !== "Cancelado" && activeContratoIds.has(f.contrato_id)).reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    const totalPaid = faturas.filter(f => f && f.status === "Pago" && activeContratoIds.has(f.contrato_id)).reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
     return totalInvoiced > 0 ? (totalPaid / totalInvoiced) * 100 : 100;
-  }, [faturas]);
+  }, [faturas, activeContratoIds]);
 
   const topClientes = useMemo(() => {
     return todosClientes.slice(0, 5);
@@ -478,7 +487,7 @@ export const VisaoGeralTab = ({
     const map = new Map<string, number>();
     faturamentoEquipamentosList.forEach(item => {
       const fat = faturas.find(f => f.id === item.faturamento_id);
-      if (fat && fat.status === "Pago") {
+      if (fat && fat.status === "Pago" && fat.contrato_id && activeContratoIds.has(fat.contrato_id)) {
         const horasNormais = Number(item.horas_normais ?? item.horas_medidas ?? 0);
         const valorHora = Number(item.valor_hora ?? 0);
         const horasExcedentes = Number(item.horas_excedentes ?? 0);
@@ -489,12 +498,32 @@ export const VisaoGeralTab = ({
       }
     });
     return map;
-  }, [faturamentoEquipamentosList, faturas]);
+  }, [faturamentoEquipamentosList, faturas, activeContratoIds]);
 
   const todosEquipamentos = useMemo(() => {
     return equipamentos.map(eq => {
       const receita = faturamentoPorEquipamento.get(eq.id) || 0;
-      const eqGastos = gastos.filter(g => g.equipamento_id === eq.id);
+      const eqGastos = gastos.filter(g => {
+        if (g.equipamento_id !== eq.id) return false;
+        
+        // Exclude expenses associated with finished contracts
+        const fatId = (faturamentoGastos || []).find(fg => fg.gasto_id === g.id)?.faturamento_id;
+        if (fatId) {
+          const fat = faturas.find(f => f.id === fatId);
+          return fat && activeContratoIds.has(fat.contrato_id);
+        }
+
+        const belongsToConcluded = contratos.some(c => {
+          if (c.status === "Ativo") return false;
+          return (contratosEquipamentos || []).some((ce: any) => {
+            if (ce.contrato_id !== c.id || ce.equipamento_id !== g.equipamento_id) return false;
+            const start = ce.data_inicio || c.data_inicio || "1970-01-01";
+            const end = ce.data_devolucao || c.data_fim || "9999-12-31";
+            return g.data >= start && g.data <= end;
+          });
+        });
+        return !belongsToConcluded;
+      });
       const despesa = eqGastos.reduce((s, g) => s + Number(g.valor), 0);
       const margem = receita - despesa;
       const percentual = receita > 0 ? (margem / receita) * 100 : 0;
@@ -510,7 +539,7 @@ export const VisaoGeralTab = ({
         status: eq.status
       };
     }).sort((a, b) => b.percentual - a.percentual);
-  }, [equipamentos, faturamentoPorEquipamento, gastos]);
+  }, [equipamentos, faturamentoPorEquipamento, gastos, activeContratoIds, faturamentoGastos, faturas, contratos, contratosEquipamentos]);
 
   const topEquipamentos = useMemo(() => {
     return todosEquipamentos.slice(0, 5);
@@ -947,7 +976,7 @@ export const VisaoGeralTab = ({
                     <ArrowUpRight className="h-3 w-3" /> Mais Rentáveis
                   </h5>
                   <div className="divide-y text-xs">
-                    {todosEquipamentos.slice(0, 3).map((equip, idx) => (
+                    {todosEquipamentos.filter(e => rentedEquipamentosIds.has(e.id)).slice(0, 3).map((equip, idx) => (
                       <div key={idx} className="flex justify-between items-center py-2">
                         <div className="truncate max-w-[160px]">
                           <span className="font-semibold">{equip.nome}</span>
