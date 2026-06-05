@@ -800,7 +800,7 @@ export const VisaoGeralTab = ({
           </div>
 
           {/* Rankings and Controls Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Top 5 Clients by Revenue */}
             <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("clientes")}>
               <CardHeader className="pb-3">
@@ -842,41 +842,102 @@ export const VisaoGeralTab = ({
               </CardContent>
             </Card>
 
+            {/* Confiabilidade Contratual Card (Middle) */}
+            <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("confiabilidade")}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Confiabilidade Contratual
+                </CardTitle>
+                <CardDescription>Índices de adimplência e cumprimento de faturas</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 px-6 pb-6">
+                <div className="space-y-4 text-sm">
+                  {/* Top 3 Confiáveis */}
+                  <div>
+                    <h5 className="text-xs font-bold text-success uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <ArrowUpRight className="h-3 w-3" /> Mais Adimplentes
+                    </h5>
+                    <div className="divide-y text-xs">
+                      {todosClientes.filter(c => c.total > 0).sort((a, b) => b.confiabilidade - a.confiabilidade).slice(0, 3).map((client, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-2">
+                          <span className="font-semibold truncate max-w-[160px]">{client.nome}</span>
+                          <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold">
+                            {client.confiabilidade.toFixed(0)}%
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Bottom 2 Confiáveis */}
+                  <div className="pt-2 border-t">
+                    <h5 className="text-xs font-bold text-destructive uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <ArrowDownRight className="h-3 w-3" /> Menos Adimplentes
+                    </h5>
+                    <div className="divide-y text-xs">
+                      {todosClientes.filter(c => c.total > 0).sort((a, b) => a.confiabilidade - b.confiabilidade).slice(0, 2).map((client, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-2">
+                          <span className="font-semibold truncate max-w-[160px]">{client.nome}</span>
+                          <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold">
+                            {client.confiabilidade.toFixed(0)}%
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Top 5 Most Profitable Equipments */}
             <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("maquinas")}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Truck className="h-4 w-4 text-primary" />
-                  Top 5 Máquinas Rentáveis
+                  Máquinas & Rentabilidade Real
                 </CardTitle>
-                <CardDescription>Equipamentos com maior receita total faturada</CardDescription>
+                <CardDescription>Equipamentos mais e menos rentáveis apurados no sistema</CardDescription>
               </CardHeader>
               <CardContent className="p-0 px-6 pb-6">
-                <div className="divide-y text-sm">
-                  {topEquipamentos.map((equip, idx) => (
-                    <div key={idx} className="flex justify-between items-center py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
-                          #{idx + 1}
-                        </span>
-                        <div>
-                          <p className="font-bold text-foreground">{equip.nome}</p>
-                          <p className="text-[10px] text-muted-foreground">Placa: {equip.tag}</p>
+                <div className="space-y-4 text-sm">
+                  {/* Top 3 Rentáveis */}
+                  <div>
+                    <h5 className="text-xs font-bold text-success uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <ArrowUpRight className="h-3 w-3" /> Mais Rentáveis
+                    </h5>
+                    <div className="divide-y text-xs">
+                      {todosEquipamentos.slice(0, 3).map((equip, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-2">
+                          <div className="truncate max-w-[160px]">
+                            <span className="font-semibold">{equip.nome}</span>
+                            <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
+                          </div>
+                          <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold">
+                            R$ {fmtShort(equip.receita)}
+                          </Badge>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-success">
-                          R$ {Number(equip.receita).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </p>
-                        <Badge variant="outline" className="text-[9px] scale-90 px-1 py-0 border-primary/20 text-primary">
-                          {equip.status}
-                        </Badge>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                  {topEquipamentos.length === 0 && (
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhum faturamento de equipamento registrado.</p>
-                  )}
+                  </div>
+                  {/* Bottom 2 Rentáveis */}
+                  <div className="pt-2 border-t">
+                    <h5 className="text-xs font-bold text-destructive uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <ArrowDownRight className="h-3 w-3" /> Menos Rentáveis / Ociosas
+                    </h5>
+                    <div className="divide-y text-xs">
+                      {todosEquipamentos.filter(e => e.receita >= 0).sort((a, b) => a.receita - b.receita).slice(0, 2).map((equip, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-2">
+                          <div className="truncate max-w-[160px]">
+                            <span className="font-semibold">{equip.nome}</span>
+                            <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
+                          </div>
+                          <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold">
+                            R$ {fmtShort(equip.receita)}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
