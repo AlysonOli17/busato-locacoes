@@ -325,101 +325,98 @@ const Equipamentos = () => {
             ))}
         </div>
 
-        <Card className="shadow-sm border-border overflow-hidden">
-          <CardContent className="p-0 overflow-x-auto">
-            <Table className="min-w-[700px]">
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
-                  <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag / Placa</SortableTableHead>
-                  <SortableTableHead column="modelo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Modelo</SortableTableHead>
-                  <SortableTableHead column="serie" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Série</SortableTableHead>
-                  <SortableTableHead column="ano" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Ano</SortableTableHead>
-                  <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor do Bem</SortableTableHead>
-                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
-                  <TableHead className="text-center">Seguro</TableHead>
-                  <TableHead className="text-center">Locação</TableHead>
-                  <TableHead className="w-24">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TooltipProvider>
-                <TableBody>
-                  {sorted.map((item) => {
-                    const isInsured = insuredIds.has(item.id);
-                    const isRented = rentedIds.has(item.id);
-                    const hasSinistro = sinistroIds.has(item.id);
-                    return (
-                      <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded bg-accent/10 flex items-center justify-center text-accent">
-                              <Tractor className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm leading-none">{item.tipo}</p>
-                              <p className="text-xs text-muted-foreground mt-1 hidden sm:block">{item.modelo}</p>
-                            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {sorted.map((item) => {
+            const isInsured = insuredIds.has(item.id);
+            const isRented = rentedIds.has(item.id);
+            const hasSinistro = sinistroIds.has(item.id);
+            
+            const getBorderColor = () => {
+              if (item.status === "Manutenção") return "var(--warning)";
+              if (item.status === "Inativo") return "var(--destructive)";
+              return "var(--primary)";
+            };
+
+            return (
+              <Card key={item.id} className="group hover:shadow-md transition-all glass-panel overflow-hidden relative border-l-4" style={{ borderLeftColor: `hsl(${getBorderColor()})` }}>
+                {/* Actions Hover Overlay */}
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-lg shadow-sm border border-border p-1 flex gap-1 z-10">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0 shadow-inner">
+                      <Tractor className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-lg leading-none truncate">{item.tipo}</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 truncate">{item.modelo}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-[10px] font-mono bg-background/50">{item.tag_placa || "S/ PLACA"}</Badge>
+                        <Badge className={cn("text-[10px]", statusColor(item.status))}>{item.status}</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm bg-muted/20 rounded-lg p-3 border border-border/30">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Nº Série</p>
+                      <p className="font-medium truncate">{item.numero_serie || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Ano</p>
+                      <p className="font-medium">{item.ano || "—"}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Valor do Bem</p>
+                      <p className="font-medium text-primary">{formatCurrency(item.valor_bem)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-help", isInsured ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+                            {isInsured ? <ShieldCheck className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
+                            {isInsured ? "Assegurado" : "S/ Seguro"}
                           </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{item.tag_placa || "—"}</TableCell>
-                        <TableCell className="hidden md:table-cell">{item.modelo}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm hidden lg:table-cell">{item.numero_serie || "—"}</TableCell>
-                        <TableCell>{item.ano || "—"}</TableCell>
-                        <TableCell>{formatCurrency(item.valor_bem)}</TableCell>
-                        <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
-                        <TableCell className="text-center">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex">
-                                {isInsured ? (
-                                  <ShieldCheck className="h-5 w-5 text-success" />
-                                ) : (
-                                  <ShieldOff className="h-5 w-5 text-destructive/60" />
-                                )}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>{isInsured ? "Assegurado" : "Sem seguro"}</TooltipContent>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex">
-                                {hasSinistro ? (
-                                  <Badge className="bg-destructive/10 text-destructive border-destructive/30 text-xs gap-1">
-                                    <AlertCircle className="h-3.5 w-3.5" /> Indisponível
-                                  </Badge>
-                                ) : isRented ? (
-                                  <Badge className="bg-primary/10 text-primary border-primary/30 text-xs gap-1">
-                                    <Truck className="h-3.5 w-3.5" /> Locado
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-muted-foreground text-xs gap-1">
-                                    <ParkingSquare className="h-3.5 w-3.5" /> Disponível
-                                  </Badge>
-                                )}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>{hasSinistro ? "Em sinistro — equipamento indisponível" : isRented ? "Em contrato ativo" : "Disponível para locação"}</TooltipContent>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{isInsured ? "Possui apólice vigente" : "Sem cobertura de seguro"}</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-help", hasSinistro ? "bg-destructive/10 text-destructive" : isRented ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                            {hasSinistro ? <AlertCircle className="h-4 w-4" /> : isRented ? <Truck className="h-4 w-4" /> : <ParkingSquare className="h-4 w-4" />}
+                            {hasSinistro ? "Sinistro" : isRented ? "Locado" : "Disponível"}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!loading && sorted.length === 0 && (
-                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhum equipamento encontrado</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </TooltipProvider>
-            </Table>
-          </CardContent>
-        </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>{hasSinistro ? "Equipamento em sinistro" : isRented ? "Em contrato ativo" : "Pátio / Disponível"}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          
+          {!loading && sorted.length === 0 && (
+            <div className="col-span-full py-12 text-center text-muted-foreground glass-panel rounded-xl">
+              <Box className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-lg font-medium">Nenhum equipamento encontrado</p>
+              <p className="text-sm opacity-70">Tente ajustar seus filtros ou busca.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
