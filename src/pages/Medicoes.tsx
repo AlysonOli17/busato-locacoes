@@ -418,15 +418,13 @@ const Medicoes = () => {
   const getLayoutHeader = () => {
     switch (activeTab) {
       case "faturamento":
-        return { title: "Medição", subtitle: "Controle de medições de locações" };
+        return { title: "Emitir Medição", subtitle: "Controle de medições de locações" };
       case "faturamento-novo":
-        return { title: "Faturamento", subtitle: "Lançamento e controle de faturamentos" };
+        return { title: "Emissão de Faturas", subtitle: "Lançamento e controle de faturamentos" };
       case "pendentes-medicao":
         return { title: "Pendente de Medição", subtitle: "Alertas de medições e faturamentos pendentes" };
       case "historico-faturamento":
-        return { title: "Histórico de Faturamento", subtitle: "Histórico completo de notas emitidas e pagamentos" };
-      case "resumo-empresa":
-        return { title: "Resumo por Empresa", subtitle: "Consolidado de contratos e faturamentos por cliente" };
+        return { title: "Histórico Financeiro", subtitle: "Consolidado de contratos, resumos e histórico de faturamentos" };
       default:
         return { title: "Horímetro", subtitle: "Controle de horímetros e diárias" };
     }
@@ -638,9 +636,6 @@ const Medicoes = () => {
         </TabsContent>
         <TabsContent value="historico-faturamento">
           <HistoricoFaturamentoView />
-        </TabsContent>
-        <TabsContent value="resumo-empresa">
-          <ResumoEmpresaView />
         </TabsContent>
       </Tabs>
 

@@ -79,17 +79,16 @@ const allGroups: NavGroup[] = [
     icon: Clock,
     items: [
       { to: "/medicoes?tab=medicoes", icon: Clock, label: "Horímetro" },
-      { to: "/medicoes?tab=faturamento", icon: Receipt, label: "Medição" },
+      { to: "/medicoes?tab=faturamento", icon: Receipt, label: "Emitir medição" },
+      { to: "/medicoes?tab=pendentes-medicao", icon: AlertCircle, label: "Pendente de Medição" },
     ]
   },
   {
     label: "Financeiro & Custos",
     icon: DollarSign,
     items: [
-      { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Faturamento" },
-      { to: "/medicoes?tab=pendentes-medicao", icon: Clock, label: "Pendente de Medição" },
-      { to: "/medicoes?tab=historico-faturamento", icon: Receipt, label: "Histórico de Faturamento" },
-      { to: "/medicoes?tab=resumo-empresa", icon: Building2, label: "Resumo por Empresa" },
+      { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Emissão de faturas" },
+      { to: "/medicoes?tab=historico-faturamento", icon: Receipt, label: "Histórico Financeiro" },
       { to: "/gastos", icon: DollarSign, label: "Custos" },
     ]
   },
