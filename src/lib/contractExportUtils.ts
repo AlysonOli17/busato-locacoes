@@ -129,3 +129,73 @@ export const exportSimplePDF = async (data: any[], equipamentos: any[]) => {
 
   doc.save(`contrato_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
 };
+
+export const exportContractDocument = async (
+  contrato: any,
+  clausulas: { numero: number; titulo: string; texto: string }[],
+  isModeloPreview: boolean = false
+) => {
+  const { default: jsPDF } = await import("jspdf");
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const margin = 20;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const contentWidth = pageWidth - margin * 2;
+  let y = await addLetterhead(doc, isModeloPreview ? "Modelo de Contrato - Preview" : "Contrato de Locação");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(50, 50, 50);
+
+  if (!isModeloPreview && contrato && contrato.empresas) {
+    const emp = contrato.empresas;
+    const headerText = `CONTRATANTE: ${emp.razao_social || emp.nome}, CNPJ: ${emp.cnpj || "—"}\nEndereço: ${emp.endereco_logradouro || "—"}, ${emp.endereco_numero || "—"} - ${emp.endereco_cidade || "—"}/${emp.endereco_uf || "—"}\n\nCONTRATADA: BUSATO LOCAÇÕES E SERVIÇOS LTDA, CNPJ: 54.167.719/0001-40`;
+    
+    const splitHeader = doc.splitTextToSize(headerText, contentWidth);
+    doc.text(splitHeader, margin, y);
+    y += splitHeader.length * 5 + 10;
+  } else if (isModeloPreview) {
+    doc.text("Este é um documento de visualização do modelo padrão de cláusulas.", margin, y);
+    y += 15;
+  }
+
+  clausulas.forEach((clausula) => {
+    // Check page break
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(clausula.titulo, margin, y);
+    y += 7;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const splitText = doc.splitTextToSize(clausula.texto, contentWidth);
+    
+    // Quick page break logic for text blocks
+    for (let i = 0; i < splitText.length; i++) {
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(splitText[i], margin, y);
+      y += 5;
+    }
+    y += 5; // space between clauses
+  });
+
+  if (!isModeloPreview) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    y += 20;
+    doc.line(margin, y, margin + 70, y);
+    doc.text("CONTRATANTE", margin, y + 5);
+    
+    doc.line(pageWidth - margin - 70, y, pageWidth - margin, y);
+    doc.text("CONTRATADA", pageWidth - margin - 70, y + 5);
+  }
+
+  doc.save(isModeloPreview ? "modelo_contrato_preview.pdf" : `contrato_locacao_${contrato?.id?.slice(0,6) || "doc"}.pdf`);
+};

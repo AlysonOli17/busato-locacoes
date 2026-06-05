@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Save, FileText,
-  RefreshCw, BookOpen, AlertCircle, CheckCircle2
+  RefreshCw, BookOpen, AlertCircle, CheckCircle2, Download
 } from "lucide-react";
+import { exportContractDocument } from "@/lib/contractExportUtils";
 
 export interface ModeloClausula {
   id?: string;
@@ -329,6 +330,9 @@ export const ModeloClausulasTab = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => exportContractDocument(null, clausulas, true)}>
+            <Download className="h-4 w-4 mr-2" /> PDF do Modelo
+          </Button>
           <Button variant="outline" size="sm" onClick={resetToDefault}>
             <RefreshCw className="h-4 w-4 mr-2" /> Restaurar Padrão
           </Button>
@@ -439,9 +443,10 @@ export const ModeloClausulasTab = () => {
 // ─── ContratoClausulasTab (inside contract management dialog) ────────────────
 interface ContratoClausulasTabProps {
   contratoId: string;
+  contrato?: any;
 }
 
-export const ContratoClausulasTab = ({ contratoId }: ContratoClausulasTabProps) => {
+export const ContratoClausulasTab = ({ contratoId, contrato }: ContratoClausulasTabProps) => {
   const { toast } = useToast();
   const [clausulas, setClausulas] = useState<(ModeloClausula & { is_customizada?: boolean })[]>([]);
   const [modelo, setModelo] = useState<ModeloClausula[]>([]);
@@ -569,6 +574,11 @@ export const ContratoClausulasTab = ({ contratoId }: ContratoClausulasTabProps) 
           )}
         </div>
         <div className="flex items-center gap-2">
+          {contrato && (
+            <Button variant="outline" size="sm" onClick={() => exportContractDocument(contrato, clausulas, false)} className="border-primary text-primary hover:bg-primary/5">
+              <Download className="h-4 w-4 mr-1.5" /> Contrato PDF
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={applyFullModelo}>
             <RefreshCw className="h-4 w-4 mr-1.5" /> Aplicar Modelo Global
           </Button>

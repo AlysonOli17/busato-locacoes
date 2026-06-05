@@ -1901,7 +1901,7 @@ const Contratos = () => {
             {/* Cláusulas do Contrato */}
             <TabsContent value="clausulas" className="mt-4">
               {ajustesContrato && (
-                <ContratoClausulasTab contratoId={ajustesContrato.id} />
+                <ContratoClausulasTab contratoId={ajustesContrato.id} contrato={ajustesContrato} />
               )}
             </TabsContent>
           </Tabs>
