@@ -1126,48 +1126,62 @@ const Contratos = () => {
               </div>
             </div>
 
-            <Card className="shadow-sm border-border overflow-hidden">
-          <CardContent className="p-0 overflow-x-auto">
-            <Table className="min-w-[900px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
-                  <TableHead>Equipamentos</TableHead>
-                  <SortableTableHead column="periodo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Período</SortableTableHead>
-                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
-                  <TableHead className="w-28">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((item) => {
-                  const ces = getContratoEquipamentos(item);
-                  return (
-                    <TableRow key={item.id} className={`${selected.has(item.id) ? "bg-accent/5" : ""} hover:bg-muted/30 transition-colors`}>
-                      <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                            <Briefcase className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm leading-none flex items-center gap-2">
-                              {item.empresas?.nome}
-                              {item.empresas?.obra && (
-                                <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
-                                  {item.empresas.obra}
-                                </Badge>
-                              )}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1 font-mono">{item.empresas?.cnpj}</p>
-                          </div>
+            <div className="flex flex-col gap-2">
+              {/* Cabeçalho sutil (desktop) */}
+              {sorted.length > 0 && (
+                <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="w-[40px]"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></div>
+                  <div className="flex-1 min-w-0 cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("empresa")}>
+                    Empresa / Obra {sortCol === "empresa" && (sortAsc ? "↑" : "↓")}
+                  </div>
+                  <div className="w-[220px]">Equipamentos</div>
+                  <div className="w-[180px] cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("periodo")}>
+                    Período {sortCol === "periodo" && (sortAsc ? "↑" : "↓")}
+                  </div>
+                  <div className="w-[100px] text-center cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("status")}>
+                    Status {sortCol === "status" && (sortAsc ? "↑" : "↓")}
+                  </div>
+                  <div className="w-[180px] text-right">Ações</div>
+                </div>
+              )}
+
+              {sorted.map((item) => {
+                const ces = getContratoEquipamentos(item);
+                return (
+                  <div key={item.id} className={`group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative ${selected.has(item.id) ? "ring-1 ring-accent" : ""}`}>
+                    
+                    {/* Checkbox */}
+                    <div className="absolute top-4 right-4 md:static md:w-[40px]">
+                      <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                    </div>
+
+                    {/* Info Empresa */}
+                    <div className="flex-1 min-w-0 pr-8 md:pr-0">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                          <Briefcase className="h-5 w-5" />
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <button className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors cursor-pointer">
-                              <Package className="h-4 w-4 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-sm text-foreground truncate">{item.empresas?.nome}</h3>
+                            {item.empresas?.obra && (
+                              <Badge variant="secondary" className="font-normal text-[9px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20 truncate max-w-[120px]">
+                                {item.empresas.obra}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground font-mono">{item.empresas?.cnpj}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Equipamentos */}
+                    <div className="md:w-[220px] pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <button className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors cursor-pointer bg-muted/30 px-2.5 py-1.5 rounded-md w-fit">
+                            <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="truncate max-w-[100px]">
                               {(() => {
                                 const hoje = new Date().toISOString().slice(0, 10);
                                 const allAditivos = (aditivosPorContrato[item.id] || []);
@@ -1182,105 +1196,122 @@ const Contratos = () => {
                                     .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje).length;
                                 }
                                 return ces.filter((ce: any) => !ce.data_devolucao || ce.data_devolucao > hoje).length;
-                              })()} equipamento(s)
-                              {(aditivosPorContrato[item.id] || []).length > 0 && (
-                                <Badge variant="outline" className="text-[10px]">{(aditivosPorContrato[item.id] || []).length} aditivo(s)</Badge>
-                              )}
-                            </button>
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-96 max-h-80 overflow-y-auto" align="start">
-                            <div className="space-y-2">
-                              {(() => {
-                                const hoje = new Date().toISOString().slice(0, 10);
-                                const allAditivos = (aditivosPorContrato[item.id] || []);
+                              })()} equip(s)
+                            </span>
+                            {(aditivosPorContrato[item.id] || []).length > 0 && (
+                              <Badge variant="outline" className="text-[10px] ml-1 shrink-0 py-0 h-4 bg-background">{(aditivosPorContrato[item.id] || []).length} aditivo(s)</Badge>
+                            )}
+                          </button>
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-96 max-h-80 overflow-y-auto z-50" align="start">
+                          <div className="space-y-2">
+                            {(() => {
+                              const hoje = new Date().toISOString().slice(0, 10);
+                              const allAditivos = (aditivosPorContrato[item.id] || []);
 
-                                const vigentes = allAditivos.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
-                                const ultimoAditivo = vigentes.length > 0
-                                  ? vigentes.reduce((latest, ad) => ad.numero > latest.numero ? ad : latest, vigentes[0])
-                                  : null;
+                              const vigentes = allAditivos.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
+                              const ultimoAditivo = vigentes.length > 0
+                                ? vigentes.reduce((latest, ad) => ad.numero > latest.numero ? ad : latest, vigentes[0])
+                                : null;
 
-                                if (ultimoAditivo) {
-                                  const activeEquips = (ultimoAditivo.aditivos_equipamentos || [])
-                                    .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje);
-                                  return (
-                                    <>
-                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                        Aditivo #{ultimoAditivo.numero} — Vigente
-                                      </p>
-                                      {activeEquips.map((ae: any) => {
-                                        const eq = equipamentos.find(e => e.id === ae.equipamento_id);
-                                        return (
-                                          <div key={ae.id} className="flex items-center gap-2 flex-wrap">
-                                            <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-                                              {eq ? `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}` : ae.equipamento_id}
-                                            </Badge>
-                                            <span className="text-xs text-muted-foreground">
-                                              R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
-                                              {Number(ae.hora_minima) > 0 && <span className="text-accent"> · Mín: {ae.hora_minima}h</span>}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
-                                      {activeEquips.length === 0 && <span className="text-xs text-muted-foreground">Nenhum equipamento ativo</span>}
-                                    </>
-                                  );
-                                }
-
-                                // No active addendum — show base contract
-                                const activeBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
+                              if (ultimoAditivo) {
+                                const activeEquips = (ultimoAditivo.aditivos_equipamentos || [])
+                                  .filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje);
                                 return (
                                   <>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
-                                    {activeBase.map(ce => (
-                                      <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
-                                        <Badge variant="outline" className="text-xs">
-                                          {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
-                                        </Badge>
-                                        <span className="text-xs text-muted-foreground">
-                                          R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
-                                          {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
-                                        </span>
-                                      </div>
-                                    ))}
-                                    {activeBase.length === 0 && <span className="text-xs text-muted-foreground">Nenhum equipamento ativo</span>}
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                      Aditivo #{ultimoAditivo.numero} — Vigente
+                                    </p>
+                                    {activeEquips.map((ae: any) => {
+                                      const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+                                      return (
+                                        <div key={ae.id} className="flex items-center gap-2 flex-wrap">
+                                          <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                                            {eq ? `${eq.tipo} ${eq.modelo}${eq.tag_placa ? ` (${eq.tag_placa})` : ""}` : ae.equipamento_id}
+                                          </Badge>
+                                          <span className="text-xs text-muted-foreground">
+                                            R$ {Number(ae.valor_hora).toFixed(2)}/h · {ae.horas_contratadas}h
+                                            {Number(ae.hora_minima) > 0 && <span className="text-accent"> · Mín: {ae.hora_minima}h</span>}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                    {activeEquips.length === 0 && <span className="text-xs text-muted-foreground">Nenhum equipamento ativo</span>}
                                   </>
                                 );
-                              })()}
-                            </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatLocalDate(item.data_inicio)} - {formatLocalDate(item.data_fim)}
-                      </TableCell>
-                      <TableCell><Badge className={statusColor(item.status)}>{item.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Gestão do Contrato">
-                            <Settings2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => openDashboard(item)} title="Dashboard de uso">
-                            <BarChart3 className="h-4 w-4 text-accent" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                          {item.status === "Ativo" && (
-                            <Button variant="ghost" size="icon" onClick={() => openFinalizar(item)} title="Finalizar Contrato">
-                              <Ban className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum contrato encontrado</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                              }
+
+                              // No active addendum — show base contract
+                              const activeBase = ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje);
+                              return (
+                                <>
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato Original</p>
+                                  {activeBase.map(ce => (
+                                    <div key={ce.equipamento_id} className="flex items-center gap-2 flex-wrap">
+                                      <Badge variant="outline" className="text-xs">
+                                        {ce.equipamentos.tipo} {ce.equipamentos.modelo} {ce.equipamentos.tag_placa ? `(${ce.equipamentos.tag_placa})` : ""}
+                                      </Badge>
+                                      <span className="text-xs text-muted-foreground">
+                                        R$ {Number(ce.valor_hora).toFixed(2)}/h · {ce.horas_contratadas}h
+                                        {Number(ce.hora_minima) > 0 && <span className="text-accent"> · Mín: {ce.hora_minima}h</span>}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {activeBase.length === 0 && <span className="text-xs text-muted-foreground">Nenhum equipamento ativo</span>}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
+                    </div>
+
+                    {/* Período */}
+                    <div className="md:w-[180px] flex flex-col pt-2 md:pt-0">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <CalendarRange className="h-3.5 w-3.5" />
+                        <span>Início: <strong className="text-foreground font-medium">{formatLocalDate(item.data_inicio)}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CalendarRange className="h-3.5 w-3.5 opacity-0" />
+                        <span>Fim: <strong className="text-foreground font-medium">{formatLocalDate(item.data_fim)}</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <div className="md:w-[100px] flex md:justify-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                      <Badge className={statusColor(item.status)}>{item.status}</Badge>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="md:w-[180px] flex flex-wrap justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0">
+                      <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Gestão do Contrato" className="h-8 w-8 hover:bg-muted/50">
+                        <Settings2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => openDashboard(item)} title="Dashboard de uso" className="h-8 w-8 hover:bg-muted/50">
+                        <BarChart3 className="h-4 w-4 text-accent" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(item)} className="h-8 w-8 hover:bg-muted/50">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {item.status === "Ativo" && (
+                        <Button variant="ghost" size="icon" onClick={() => openFinalizar(item)} title="Finalizar Contrato" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                          <Ban className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {!loading && filtered.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
+                  Nenhum contrato encontrado
+                </div>
+              )}
+            </div>
       </div>
 
       {/* Dashboard Dialog */}
