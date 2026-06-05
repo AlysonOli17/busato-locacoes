@@ -1104,11 +1104,21 @@ export const VisaoGeralTab = ({
         </div>
 
         {/* Insight Box */}
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
-          <Info className="h-5 w-5 text-primary mt-0.5" />
-          <div className="text-sm text-primary-foreground/80">
-            <p className="font-bold text-primary">Insight do Cockpit:</p>
-            <p>Sua frota está com <strong>{taxaUtilizacao}%</strong> de utilização. Equipamentos em manutenção ou parados estão gerando custos. Fique atento aos contratos a vencer para garantir a receita projetada de R$ {fmtShort(forecastData[1]?.valor || 0)} para o próximo mês.</p>
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 flex items-start gap-3">
+          <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-bold text-primary mb-1">Insight do Cockpit:</p>
+            <p className="text-foreground leading-relaxed">
+              Sua frota está com <strong className="text-primary">{taxaUtilizacao}%</strong> de ocupação ({frotaStats.emLocacao} locadas de {frotaStats.total} disponíveis).
+              {frotaStats.emManutencaoOuSinistro > 0 && (
+                <> <span className="text-warning font-semibold">{frotaStats.emManutencaoOuSinistro} equipamento(s)</span> em manutenção ou sinistro estão gerando custos sem gerar receita.</>
+              )}
+              {frotaStats.disponiveis > 0 && (
+                <> <span className="text-muted-foreground font-semibold">{frotaStats.disponiveis} disponível(is) no pátio</span> sem utilização.</>
+              )}
+              {' '}Fique atento aos contratos a vencer para garantir a receita projetada de{' '}
+              <strong className="text-primary">R$ {fmtShort(forecastData[1]?.valor || 0)}</strong> para o próximo mês.
+            </p>
           </div>
         </div>
 
