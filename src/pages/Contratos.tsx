@@ -16,7 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban, Briefcase, Activity } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban, Briefcase, Activity, BookOpen } from "lucide-react";
+import { ModeloClausulasTab, ContratoClausulasTab } from "@/components/ModeloClausulasTab";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropostasContent } from "@/pages/Propostas";
@@ -1092,6 +1093,20 @@ const Contratos = () => {
   return (
     <Layout title="Contratos" subtitle="Gestão de contratos e locações">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+
+        {/* Main tab navigation */}
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="contratos" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Contratos
+          </TabsTrigger>
+          <TabsTrigger value="propostas" className="flex items-center gap-2">
+            <FilePlus2 className="h-4 w-4" /> Propostas
+          </TabsTrigger>
+          <TabsTrigger value="modelo" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" /> Modelo de Contrato
+          </TabsTrigger>
+        </TabsList>
+
         <TabsContent value="contratos">
           <div className="space-y-6">
 
@@ -1593,6 +1608,7 @@ const Contratos = () => {
               <TabsTrigger value="ajustes" className="flex-1">Ajustes Temporários</TabsTrigger>
               <TabsTrigger value="aditivos" className="flex-1">Aditivos</TabsTrigger>
               <TabsTrigger value="prorrogacao" className="flex-1">Prorrogação</TabsTrigger>
+              <TabsTrigger value="clausulas" className="flex-1">Cláusulas</TabsTrigger>
             </TabsList>
 
             <TabsContent value="ajustes" className="space-y-4 mt-4">
@@ -1890,6 +1906,13 @@ const Contratos = () => {
                     </Button>
                   </div>
                 </div>
+              )}
+            </TabsContent>
+
+            {/* Cláusulas do Contrato */}
+            <TabsContent value="clausulas" className="mt-4">
+              {ajustesContrato && (
+                <ContratoClausulasTab contratoId={ajustesContrato.id} />
               )}
             </TabsContent>
           </Tabs>
@@ -2318,6 +2341,9 @@ const Contratos = () => {
         </TabsContent>
         <TabsContent value="propostas">
           <PropostasContent />
+        </TabsContent>
+        <TabsContent value="modelo">
+          <ModeloClausulasTab />
         </TabsContent>
       </Tabs>
     </Layout>
