@@ -338,30 +338,39 @@ export const VisaoGeralTab = ({
     const map = new Map<string, { 
       nome: string; 
       total: number; 
+      totalPago: number;
       contratosCount: number;
       despesa: number;
       margem: number;
       percentual: number;
+      confiabilidade: number;
     }>();
 
     // Initialize all companies from faturas and contracts
     faturas.forEach(f => {
-      if (!f) return;
+      if (!f || f.status === "Cancelado") return;
       const empresa = f.contratos?.empresas;
       if (!empresa) return;
       const key = String(empresa.id || empresa.nome);
       const valor = Number(f.valor_total || 0);
+      const isPago = f.status === "Pago";
       if (!map.has(key)) {
         map.set(key, { 
           nome: empresa.nome || "Cliente sem Nome", 
           total: 0, 
+          totalPago: 0,
           contratosCount: 0,
           despesa: 0,
           margem: 0,
-          percentual: 0
+          percentual: 0,
+          confiabilidade: 0
         });
       }
-      map.get(key)!.total += valor;
+      const entry = map.get(key)!;
+      entry.total += valor;
+      if (isPago) {
+        entry.totalPago += valor;
+      }
     });
     
     contratos.forEach(c => {
@@ -371,10 +380,12 @@ export const VisaoGeralTab = ({
           map.set(key, {
             nome: c.empresas.nome || "Cliente sem Nome",
             total: 0,
+            totalPago: 0,
             contratosCount: 0,
             despesa: 0,
             margem: 0,
-            percentual: 0
+            percentual: 0,
+            confiabilidade: 0
           });
         }
         if (c.status === "Ativo") {
@@ -445,12 +456,19 @@ export const VisaoGeralTab = ({
 
     // Calculate margins and percentages
     map.forEach(entry => {
-      entry.margem = entry.total - entry.despesa;
-      entry.percentual = entry.total > 0 ? (entry.margem / entry.total) * 100 : 0;
+      entry.margem = entry.totalPago - entry.despesa;
+      entry.percentual = entry.totalPago > 0 ? (entry.margem / entry.totalPago) * 100 : 0;
+      entry.confiabilidade = entry.total > 0 ? (entry.totalPago / entry.total) * 100 : 100;
     });
 
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [faturas, contratos, gastos, faturamentoGastos, contratosEquipamentos, aditivosEquipamentos, contratosAditivos]);
+
+  const overallReliability = useMemo(() => {
+    const totalInvoiced = faturas.filter(f => f && f.status !== "Cancelado").reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    const totalPaid = faturas.filter(f => f && f.status === "Pago").reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    return totalInvoiced > 0 ? (totalPaid / totalInvoiced) * 100 : 100;
+  }, [faturas]);
 
   const topClientes = useMemo(() => {
     return todosClientes.slice(0, 5);
@@ -595,7 +613,7 @@ export const VisaoGeralTab = ({
           </div>
 
           {/* Premium BI KPI Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* KPI 1: Yield Operacional */}
             <Card className="hover:shadow-md transition-all border-l-4 border-l-primary">
               <CardContent className="p-6">
@@ -656,8 +674,28 @@ export const VisaoGeralTab = ({
               </CardContent>
             </Card>
 
-            {/* KPI 4: Taxa de Ocupação da Frota */}
+            {/* KPI 4: Confiabilidade Contratual */}
             <Card className="hover:shadow-md transition-all border-l-4 border-l-info">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Confiabilidade Contratual</p>
+                    <h3 className="text-2xl font-black text-info mt-2">
+                      {overallReliability.toFixed(1)}%
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Faturas Pagas vs Emitido Geral
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 bg-info/10 rounded-xl flex items-center justify-center text-info">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* KPI 5: Taxa de Ocupação da Frota */}
+            <Card className="hover:shadow-md transition-all border-l-4 border-l-accent">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
@@ -768,9 +806,9 @@ export const VisaoGeralTab = ({
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-primary" />
-                  Top 5 Clientes (Faturamento Acumulado)
+                  Top 5 Clientes (Faturamento & Confiabilidade)
                 </CardTitle>
-                <CardDescription>Clientes que mais geraram receita ao caixa da empresa</CardDescription>
+                <CardDescription>Clientes ordenados por faturamento emitido e nível de adimplência</CardDescription>
               </CardHeader>
               <CardContent className="p-0 px-6 pb-6">
                 <div className="divide-y text-sm">
@@ -781,13 +819,20 @@ export const VisaoGeralTab = ({
                           #{idx + 1}
                         </span>
                         <div>
-                          <p className="font-bold text-foreground">{client.nome}</p>
-                          <p className="text-[10px] text-muted-foreground">{client.contratosCount} contrato(s) ativo(s)</p>
+                          <p className="font-bold text-foreground truncate max-w-[180px] md:max-w-[240px]">{client.nome}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {client.contratosCount} contrato(s) ativo(s) — <span className="font-semibold text-primary">{client.confiabilidade.toFixed(0)}% Pago</span>
+                          </p>
                         </div>
                       </div>
-                      <span className="font-black text-success">
-                        R$ {Number(client.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </span>
+                      <div className="text-right">
+                        <span className="font-black text-success block">
+                          R$ {Number(client.totalPago).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Emitido: R$ {fmtShort(client.total)}
+                        </span>
+                      </div>
                     </div>
                   ))}
                   {topClientes.length === 0 && (
