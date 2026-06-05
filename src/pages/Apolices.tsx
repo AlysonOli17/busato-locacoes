@@ -614,37 +614,43 @@ const Apolices = () => {
               </div>
             </div>
 
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <Table className="min-w-[800px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tag</TableHead>
-                  <TableHead>Seguradora</TableHead>
-                  <TableHead>Vigência</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Adesão</TableHead>
-                  <TableHead>Parcelas</TableHead>
-                  <TableHead>Renov.</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-24">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((item) => {
-                  const valorParcela = item.tem_parcelamento && item.numero_parcelas > 0 ? item.valor / item.numero_parcelas : item.valor;
-                  return (
-                    <TableRow key={item.id} className={`cursor-pointer ${selected.has(item.id) ? "bg-accent/5" : ""}`} onClick={() => setDetailItem(item)}>
-                      <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
-                      <TableCell className="font-medium text-sm max-w-[250px]">
+        <div className="flex flex-col gap-2">
+          {/* Cabeçalho sutil (desktop) */}
+          {filtered.length > 0 && (
+            <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="w-[40px]"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></div>
+              <div className="flex-1 min-w-0">Seguradora / Equipamentos</div>
+              <div className="w-[180px]">Vigência</div>
+              <div className="w-[120px] text-right">Valor</div>
+              <div className="w-[160px] text-center">Detalhes</div>
+              <div className="w-[100px] text-center">Status</div>
+              <div className="w-[100px] text-right">Ações</div>
+            </div>
+          )}
+
+          {filtered.map((item) => {
+            const valorParcela = item.tem_parcelamento && item.numero_parcelas > 0 ? item.valor / item.numero_parcelas : item.valor;
+            return (
+              <div key={item.id} className={`group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative cursor-pointer ${selected.has(item.id) ? "ring-1 ring-accent" : ""}`} onClick={() => setDetailItem(item)}>
+                
+                <div className="absolute top-4 right-4 md:static md:w-[40px]" onClick={e => e.stopPropagation()}>
+                  <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                </div>
+
+                <div className="flex-1 min-w-0 pr-8 md:pr-0">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-sm text-foreground truncate">{item.seguradora}</h3>
+                      <div className="mt-1 flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
                         {item.apolices_equipamentos && item.apolices_equipamentos.length > 0 && (() => {
                           const first = item.apolices_equipamentos[0];
                           if (item.apolices_equipamentos.length === 1) {
                             return (
-                              <Badge variant="outline" className="text-xs border-accent/20 bg-accent/5 text-sidebar">
-                                {first.equipamentos?.tipo} {first.equipamentos?.modelo}
+                              <Badge variant="outline" className="text-[10px] border-accent/20 bg-accent/5 text-sidebar">
+                                {first.equipamentos?.tipo} {first.equipamentos?.modelo} {first.equipamentos?.tag_placa ? `(${first.equipamentos.tag_placa})` : ""}
                               </Badge>
                             );
                           }
@@ -652,10 +658,10 @@ const Apolices = () => {
                             <HoverCard openDelay={100} closeDelay={100}>
                               <HoverCardTrigger asChild>
                                 <div className="flex items-center gap-1.5 cursor-pointer">
-                                  <Badge variant="outline" className="text-xs border-accent/20 bg-accent/5 text-sidebar font-semibold truncate max-w-[180px]">
+                                  <Badge variant="outline" className="text-[10px] border-accent/20 bg-accent/5 text-sidebar font-semibold truncate max-w-[150px]">
                                     {first.equipamentos?.tipo} {first.equipamentos?.modelo}
                                   </Badge>
-                                  <Badge className="bg-primary/10 text-primary border-0 text-[10px] font-bold">
+                                  <Badge className="bg-primary/10 text-primary border-0 text-[10px] font-bold h-4 py-0">
                                     +{item.apolices_equipamentos.length - 1}
                                   </Badge>
                                 </div>
@@ -673,57 +679,64 @@ const Apolices = () => {
                             </HoverCard>
                           );
                         })()}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {(() => {
-                          const tags = item.apolices_equipamentos?.map(ae => ae.equipamentos?.tag_placa).filter(Boolean) || [];
-                          if (tags.length === 0) return <span className="text-muted-foreground">—</span>;
-                          return (
-                            <span className="text-xs text-muted-foreground font-mono">
-                              {tags.length === 1 ? tags[0] : `${tags[0]} (+${tags.length - 1})`}
-                            </span>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-sm">{item.seguradora}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(item.vigencia_inicio).toLocaleDateString("pt-BR")} - {new Date(item.vigencia_fim).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell className="font-semibold text-sm">R$ {fmt(item.valor)}</TableCell>
-                      <TableCell className="text-sm">
-                        {item.tem_adesao ? <Badge variant="outline" className="text-xs">R$ {fmt(item.valor_adesao)}</Badge> : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {item.tem_parcelamento ? `${item.numero_parcelas}x R$ ${fmt(valorParcela)}` : "À vista"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {item.renovacao_automatica ? (
-                          <Badge className="bg-success/10 text-success border-0 text-xs"><RefreshCw className="h-3 w-3 mr-1" />Auto</Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">Manual</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
-                          {item.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell onClick={e => e.stopPropagation()}>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma apólice encontrada</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:w-[180px] flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    <span>Início: <strong className="text-foreground font-medium">{new Date(item.vigencia_inicio).toLocaleDateString("pt-BR")}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CalendarClock className="h-3.5 w-3.5 opacity-0" />
+                    <span>Fim: <strong className="text-foreground font-medium">{new Date(item.vigencia_fim).toLocaleDateString("pt-BR")}</strong></span>
+                  </div>
+                </div>
+
+                <div className="md:w-[120px] md:text-right flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  <span className="font-semibold text-sm text-foreground">R$ {fmt(item.valor)}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
+                    {item.tem_parcelamento ? `${item.numero_parcelas}x R$ ${fmt(valorParcela)}` : "À vista"}
+                  </span>
+                </div>
+
+                <div className="md:w-[160px] md:text-center flex flex-col md:items-center gap-1 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  {item.tem_adesao && (
+                    <Badge variant="outline" className="text-[10px] bg-muted/30 w-fit">Adesão R$ {fmt(item.valor_adesao)}</Badge>
+                  )}
+                  {item.renovacao_automatica ? (
+                    <Badge className="bg-success/10 text-success border-0 text-[10px] w-fit"><RefreshCw className="h-3 w-3 mr-1" />Renov. Auto</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground border-border border-dashed w-fit">Renov. Manual</Badge>
+                  )}
+                </div>
+
+                <div className="md:w-[100px] flex md:justify-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
+                    {item.status}
+                  </Badge>
+                </div>
+
+                <div className="md:w-[100px] flex justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0" onClick={e => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(item)} className="h-8 w-8 hover:bg-muted/50">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+
+              </div>
+            );
+          })}
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
+              Nenhuma apólice encontrada
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Form Dialog */}
@@ -903,62 +916,89 @@ const Apolices = () => {
               <Input placeholder="Buscar sinistros..." value={sinistroSearch} onChange={(e) => setSinistroSearch(e.target.value)} className="pl-9" />
             </div>
 
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Equipamento</TableHead>
-                    <TableHead>Seguradora</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Data Sinistro</TableHead>
-                    <TableHead>Franquia</TableHead>
-                    <TableHead>Prev. Retorno</TableHead>
-                    <TableHead>Retorno</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[100px]">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSinistros.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                        Nenhum sinistro registrado
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredSinistros.map(s => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium">{getEquipLabelFromEquip(s.equipamentos)}</TableCell>
-                        <TableCell>{s.apolices?.seguradora || "—"}</TableCell>
-                        <TableCell>{s.tipo_sinistro}</TableCell>
-                        <TableCell>{new Date(s.data_sinistro).toLocaleDateString("pt-BR")}</TableCell>
-                        <TableCell>R$ {fmt(s.franquia)}</TableCell>
-                        <TableCell>{s.data_previsao_retorno ? new Date(s.data_previsao_retorno).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                        <TableCell>{s.data_retorno ? new Date(s.data_retorno).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                        <TableCell>
-                          <Badge className={s.status === "Aberto" ? "bg-destructive text-destructive-foreground" : "bg-success text-success-foreground"}>
-                            {s.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => setSinistroDetailItem(s)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => openEditSinistro(s)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSinistro(s.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </Card>
+            <div className="flex flex-col gap-2">
+              {/* Cabeçalho sutil (desktop) */}
+              {filteredSinistros.length > 0 && (
+                <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="flex-1 min-w-0">Equipamento / Seguradora</div>
+                  <div className="w-[150px]">Tipo</div>
+                  <div className="w-[180px]">Datas</div>
+                  <div className="w-[120px] text-right">Franquia</div>
+                  <div className="w-[100px] text-center">Status</div>
+                  <div className="w-[140px] text-right">Ações</div>
+                </div>
+              )}
+
+              {filteredSinistros.map((s) => (
+                <div key={s.id} className="group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative">
+                  
+                  {/* Equipamento / Seguradora */}
+                  <div className="flex-1 min-w-0 pr-8 md:pr-0">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive shrink-0">
+                        <AlertTriangle className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-sm text-foreground truncate">{getEquipLabelFromEquip(s.equipamentos)}</h3>
+                        <p className="text-xs text-muted-foreground truncate">{s.apolices?.seguradora || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tipo */}
+                  <div className="md:w-[150px] pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                    <span className="text-sm font-medium">{s.tipo_sinistro}</span>
+                  </div>
+
+                  {/* Datas */}
+                  <div className="md:w-[180px] flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      <span>Sinistro: <strong className="text-foreground font-medium">{new Date(s.data_sinistro).toLocaleDateString("pt-BR")}</strong></span>
+                    </div>
+                    {(s.data_previsao_retorno || s.data_retorno) && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CalendarClock className="h-3.5 w-3.5 opacity-0" />
+                        <span>Retorno: <strong className="text-foreground font-medium">
+                          {s.data_retorno ? new Date(s.data_retorno).toLocaleDateString("pt-BR") : new Date(s.data_previsao_retorno!).toLocaleDateString("pt-BR")}
+                        </strong></span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Franquia */}
+                  <div className="md:w-[120px] md:text-right flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                    <span className="font-semibold text-sm text-foreground">R$ {fmt(s.franquia)}</span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="md:w-[100px] flex md:justify-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                    <Badge className={s.status === "Aberto" ? "bg-destructive text-destructive-foreground" : "bg-success text-success-foreground"}>
+                      {s.status}
+                    </Badge>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="md:w-[140px] flex justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0">
+                    <Button variant="ghost" size="icon" onClick={() => setSinistroDetailItem(s)} className="h-8 w-8 hover:bg-muted/50">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => openEditSinistro(s)} className="h-8 w-8 hover:bg-muted/50">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteSinistro(s.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                </div>
+              ))}
+              {filteredSinistros.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
+                  Nenhum sinistro registrado
+                </div>
+              )}
+            </div>
           </div>
 
           <Dialog open={sinistroDialogOpen} onOpenChange={setSinistroDialogOpen}>
