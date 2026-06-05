@@ -94,13 +94,15 @@ function useFinanceiroData() {
   const [loading, setLoading] = useState(true);
 
   const refreshFaturas = async () => {
-    const [fatRes, ctRes, empRes, eqRes, ceRes, medRes] = await Promise.all([
+    const [fatRes, ctRes, empRes, eqRes, ceRes, medRes, adRes, aeRes] = await Promise.all([
       supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, obra").order("nome"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
       supabase.from("contratos_equipamentos").select("*"),
-      supabase.from("medicoes").select("*").order("data", { ascending: false })
+      supabase.from("medicoes").select("*").order("data", { ascending: false }),
+      supabase.from("contratos_aditivos").select("*"),
+      supabase.from("aditivos_equipamentos").select("*")
     ]);
 
     if (fatRes.data && ctRes.data && empRes.data && eqRes.data) {
@@ -121,11 +123,33 @@ function useFinanceiroData() {
         });
       }
 
+      const aeMap = new Map<string, any[]>();
+      if (aeRes.data) {
+        aeRes.data.forEach((ae: any) => {
+          const list = aeMap.get(ae.aditivo_id) || [];
+          list.push(ae);
+          aeMap.set(ae.aditivo_id, list);
+        });
+      }
+
+      const adMap = new Map<string, any[]>();
+      if (adRes.data) {
+        adRes.data.forEach((ad: any) => {
+          const list = adMap.get(ad.contrato_id) || [];
+          list.push({
+            ...ad,
+            aditivos_equipamentos: aeMap.get(ad.id) || []
+          });
+          adMap.set(ad.contrato_id, list);
+        });
+      }
+
       const mappedContratos = ctRes.data.map((c: any) => ({
         ...c,
         empresas: empMap.get(c.empresa_id) || null,
         equipamentos: eqMap.get(c.equipamento_id) || null,
-        contratos_equipamentos: ceMap.get(c.id) || []
+        contratos_equipamentos: ceMap.get(c.id) || [],
+        contratos_aditivos: adMap.get(c.id) || []
       }));
       setContratos(mappedContratos as unknown as Contrato[]);
 
@@ -348,6 +372,44 @@ export function PendenteMedicaoView() {
         if (period.inicio < primeiraMedicao) continue;
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue;
+
+        // Check if all equipments in this contract have been returned before this period starts
+        const ces = ct.contratos_equipamentos || [];
+        const ads = (ct as any).contratos_aditivos || [];
+        const globalDev: Record<string, string> = {};
+        for (const ce of ces) {
+          if (ce.data_devolucao && (!globalDev[ce.equipamento_id] || ce.data_devolucao > globalDev[ce.equipamento_id])) {
+            globalDev[ce.equipamento_id] = ce.data_devolucao;
+          }
+        }
+        for (const ad of ads) {
+          for (const ae of (ad.aditivos_equipamentos || [])) {
+            if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id])) {
+              globalDev[ae.equipamento_id] = ae.data_devolucao;
+            }
+          }
+        }
+
+        const allEquipIds = new Set<string>();
+        for (const ce of ces) {
+          allEquipIds.add(ce.equipamento_id);
+        }
+        for (const ad of ads) {
+          for (const ae of (ad.aditivos_equipamentos || [])) {
+            allEquipIds.add(ae.equipamento_id);
+          }
+        }
+        if (allEquipIds.size === 0 && ct.equipamento_id) {
+          allEquipIds.add(ct.equipamento_id);
+        }
+
+        if (allEquipIds.size > 0) {
+          const allReturnedBeforePeriod = Array.from(allEquipIds).every(eqId => {
+            const devDate = globalDev[eqId];
+            return devDate && devDate <= period.inicio;
+          });
+          if (allReturnedBeforePeriod) continue;
+        }
 
         const competencias = new Set([monthKey(period.inicio), monthKey(period.fim)]);
         const faturado = faturasContrato.some(f => {

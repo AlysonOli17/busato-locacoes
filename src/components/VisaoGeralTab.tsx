@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, Building2,
   Wrench, FileText, Activity, BarChart3, PieChart, CalendarClock, Shield, Truck,
@@ -83,6 +85,7 @@ export const VisaoGeralTab = ({
   });
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().slice(0, 10));
   const [filtroEquipamento, setFiltroEquipamento] = useState("all");
+  const [activeModal, setActiveModal] = useState<"clientes" | "maquinas" | "seguros" | "vencimentos" | null>(null);
 
   // ============ MULTI-PAGE AGGREGATED CALCULATIONS ============
 
@@ -321,7 +324,7 @@ export const VisaoGeralTab = ({
     return result;
   }, [faturas, gastos]);
 
-  const topClientes = useMemo(() => {
+  const todosClientes = useMemo(() => {
     const map = new Map<string, { nome: string; total: number; contratosCount: number }>();
     faturas.forEach(f => {
       if (!f) return;
@@ -343,12 +346,14 @@ export const VisaoGeralTab = ({
       }
     });
 
-    return Array.from(map.values())
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [faturas, contratos]);
 
-  const topEquipamentos = useMemo(() => {
+  const topClientes = useMemo(() => {
+    return todosClientes.slice(0, 5);
+  }, [todosClientes]);
+
+  const todosEquipamentos = useMemo(() => {
     const map = new Map<string, { nome: string; tag: string; total: number; status: string }>();
     faturas.forEach(f => {
       if (!f) return;
@@ -370,10 +375,19 @@ export const VisaoGeralTab = ({
       map.get(key)!.total += valor;
     });
     
-    return Array.from(map.values())
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [faturas, equipamentos]);
+
+  const topEquipamentos = useMemo(() => {
+    return todosEquipamentos.slice(0, 5);
+  }, [todosEquipamentos]);
+
+  const todosContratosAVencer = useMemo(() => {
+    const limitDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    return contratos
+      .filter(c => c.status === "Ativo" && c.data_fim && !isNaN(parseLocalDate(c.data_fim).getTime()) && parseLocalDate(c.data_fim) < limitDate)
+      .sort((a, b) => parseLocalDate(a.data_fim).getTime() - parseLocalDate(b.data_fim).getTime());
+  }, [contratos]);
 
   const inadimplenciaStats = useMemo(() => {
     const hoje = new Date();
@@ -634,7 +648,7 @@ export const VisaoGeralTab = ({
           {/* Rankings and Controls Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top 5 Clients by Revenue */}
-            <Card className="hover:shadow-sm transition-all">
+            <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("clientes")}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-primary" />
@@ -668,7 +682,7 @@ export const VisaoGeralTab = ({
             </Card>
 
             {/* Top 5 Most Profitable Equipments */}
-            <Card className="hover:shadow-sm transition-all">
+            <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("maquinas")}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Truck className="h-4 w-4 text-primary" />
@@ -710,7 +724,7 @@ export const VisaoGeralTab = ({
           {/* Audit Alert Box */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Insurance Audit Alert */}
-            <Card className="bg-destructive/5 border-destructive/20">
+            <Card className="bg-destructive/5 border-destructive/20 hover:bg-destructive/10 hover:border-destructive/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("seguros")}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-destructive flex items-center gap-2">
                   <Shield className="h-4 w-4 text-destructive" />
@@ -739,7 +753,7 @@ export const VisaoGeralTab = ({
             </Card>
 
             {/* Expiring Contracts Alert */}
-            <Card className="bg-warning/5 border-warning/20">
+            <Card className="bg-warning/5 border-warning/20 hover:bg-warning/10 hover:border-warning/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("vencimentos")}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-warning flex items-center gap-2">
                   <CalendarClock className="h-4 w-4 text-warning" />
@@ -1017,6 +1031,183 @@ export const VisaoGeralTab = ({
         </div>
       </div>
       )}
+
+      {/* Dialogs for detailing info from clicked cards */}
+      {/* 1. Clientes Modal */}
+      <Dialog open={activeModal === "clientes"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Detalhamento de Faturamento por Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12 text-center">Posição</TableHead>
+                  <TableHead>Cliente / Empresa</TableHead>
+                  <TableHead className="text-center">Contratos Ativos</TableHead>
+                  <TableHead className="text-right">Total Faturado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {todosClientes.map((client, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-center font-bold text-muted-foreground">#{idx + 1}</TableCell>
+                    <TableCell className="font-semibold">{client.nome}</TableCell>
+                    <TableCell className="text-center">{client.contratosCount}</TableCell>
+                    <TableCell className="text-right font-bold text-success">
+                      R$ {Number(client.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {todosClientes.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">Nenhum faturamento registrado.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 2. Máquinas Modal */}
+      <Dialog open={activeModal === "maquinas"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-primary" />
+              Detalhamento de Faturamento por Máquina
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12 text-center">Posição</TableHead>
+                  <TableHead>Equipamento</TableHead>
+                  <TableHead>Identificador / Placa</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Total Faturado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {todosEquipamentos.map((equip, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-center font-bold text-muted-foreground">#{idx + 1}</TableCell>
+                    <TableCell className="font-semibold">{equip.nome}</TableCell>
+                    <TableCell className="font-mono text-xs">{equip.tag}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px] px-2 py-0 border-primary/20 text-primary">
+                        {equip.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-success">
+                      R$ {Number(equip.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {todosEquipamentos.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Nenhum faturamento de equipamento registrado.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 3. Seguros Modal */}
+      <Dialog open={activeModal === "seguros"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Shield className="h-5 w-5 text-destructive" />
+              Equipamentos sem Seguro Ativo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Equipamento</TableHead>
+                  <TableHead>Placa / Identificação</TableHead>
+                  <TableHead>Status Operacional</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {equipSemSeguro.map((eq, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-semibold">{eq.tipo} {eq.modelo}</TableCell>
+                    <TableCell className="font-mono text-xs bg-muted/30 px-2 py-0.5 rounded w-fit">{eq.tag_placa || "Sem Placa"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px] px-2 py-0 border-destructive/20 text-destructive">
+                        {eq.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {equipSemSeguro.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-4 text-success font-semibold">
+                      ✓ Todos os equipamentos alocados estão devidamente cobertos por seguros vigentes.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 4. Vencimentos Modal */}
+      <Dialog open={activeModal === "vencimentos"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <CalendarClock className="h-5 w-5 text-warning" />
+              Contratos a Vencer nos Próximos 30 Dias
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa / Cliente</TableHead>
+                  <TableHead>Data de Início</TableHead>
+                  <TableHead>Data de Fim (Expiração)</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {todosContratosAVencer.map((c, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-semibold">{c.empresas?.nome}</TableCell>
+                    <TableCell>{parseLocalDate(c.data_inicio).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="font-bold text-warning">{parseLocalDate(c.data_fim).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px] px-2 py-0 border-warning/20 text-warning">
+                        {c.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {todosContratosAVencer.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4 text-success font-semibold">
+                      ✓ Nenhuma renovação de contrato necessária nos próximos 30 dias.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
