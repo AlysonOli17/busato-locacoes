@@ -43,7 +43,7 @@
     --input: 210 18% 84%;
     --ring: 205 70% 48%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 220 45% 16%;
     --sidebar-foreground: 210 20% 90%;
@@ -149,5 +149,11 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted)) transparent;
+  }
+  .glass {
+    @apply bg-background/70 backdrop-blur-md border border-border/50 shadow-sm;
+  }
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
   }
 }
