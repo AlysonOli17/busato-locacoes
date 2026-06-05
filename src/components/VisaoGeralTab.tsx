@@ -335,7 +335,16 @@ export const VisaoGeralTab = ({
   }, [faturas, gastos]);
 
   const todosClientes = useMemo(() => {
-    const map = new Map<string, { nome: string; total: number; contratosCount: number }>();
+    const map = new Map<string, { 
+      nome: string; 
+      total: number; 
+      contratosCount: number;
+      despesa: number;
+      margem: number;
+      percentual: number;
+    }>();
+
+    // Initialize all companies from faturas and contracts
     faturas.forEach(f => {
       if (!f) return;
       const empresa = f.contratos?.empresas;
@@ -343,21 +352,105 @@ export const VisaoGeralTab = ({
       const key = String(empresa.id || empresa.nome);
       const valor = Number(f.valor_total || 0);
       if (!map.has(key)) {
-        map.set(key, { nome: empresa.nome || "Cliente sem Nome", total: 0, contratosCount: 0 });
+        map.set(key, { 
+          nome: empresa.nome || "Cliente sem Nome", 
+          total: 0, 
+          contratosCount: 0,
+          despesa: 0,
+          margem: 0,
+          percentual: 0
+        });
       }
       map.get(key)!.total += valor;
     });
     
     contratos.forEach(c => {
-      if (c && c.status === "Ativo" && c.empresas) {
+      if (c && c.empresas) {
         const key = String(c.empresas.id || c.empresas.nome);
-        const entry = map.get(key);
-        if (entry) entry.contratosCount += 1;
+        if (!map.has(key)) {
+          map.set(key, {
+            nome: c.empresas.nome || "Cliente sem Nome",
+            total: 0,
+            contratosCount: 0,
+            despesa: 0,
+            margem: 0,
+            percentual: 0
+          });
+        }
+        if (c.status === "Ativo") {
+          map.get(key)!.contratosCount += 1;
+        }
       }
     });
 
+    // Map gastos to their invoice fatura if linked via faturamentoGastos
+    const gastoToFaturaMap = new Map<string, string>();
+    (faturamentoGastos || []).forEach(fg => {
+      if (fg.gasto_id && fg.faturamento_id) {
+        gastoToFaturaMap.set(fg.gasto_id, fg.faturamento_id);
+      }
+    });
+
+    // Attribute gastos to the company
+    gastos.forEach(g => {
+      const valor = Number(g.valor || 0);
+      if (valor === 0) return;
+
+      // Check if linked to an invoice fatura
+      const faturaId = gastoToFaturaMap.get(g.id);
+      if (faturaId) {
+        const fatura = faturas.find(f => f.id === faturaId);
+        const contrato = fatura ? contratos.find(c => c.id === fatura.contrato_id) : null;
+        if (contrato && contrato.empresas) {
+          const key = String(contrato.empresas.id || contrato.empresas.nome);
+          const entry = map.get(key);
+          if (entry) {
+            entry.despesa += valor;
+            return;
+          }
+        }
+      }
+
+      // Check machine allocation dates if not explicitly linked to an invoice
+      const gDate = g.data;
+      if (!gDate || !g.equipamento_id) return;
+
+      for (const c of contratos) {
+        if (!c.empresas) continue;
+        
+        const belongsToContract = (contratosEquipamentos || []).some((ce: any) => {
+          if (ce.contrato_id !== c.id || ce.equipamento_id !== g.equipamento_id) return false;
+          const start = ce.data_inicio || c.data_inicio || "1970-01-01";
+          const end = ce.data_devolucao || c.data_fim || "9999-12-31";
+          return gDate >= start && gDate <= end;
+        }) || (aditivosEquipamentos || []).some((ae: any) => {
+          if (ae.equipamento_id !== g.equipamento_id) return false;
+          const aditivo = (contratosAditivos || []).find(ad => ad.id === ae.aditivo_id && ad.contrato_id === c.id);
+          if (!aditivo) return false;
+          const start = aditivo.data_inicio || c.data_inicio || "1970-01-01";
+          const end = ae.data_devolucao || aditivo.data_fim || c.data_fim || "9999-12-31";
+          return gDate >= start && gDate <= end;
+        });
+
+        if (belongsToContract) {
+          const key = String(c.empresas.id || c.empresas.nome);
+          const entry = map.get(key);
+          if (entry) {
+            entry.despesa += valor;
+            break; 
+          }
+        }
+      }
+    });
+
+    // Calculate margins and percentages
+    map.forEach(entry => {
+      entry.margem = entry.total - entry.despesa;
+      entry.percentual = entry.total > 0 ? (entry.margem / entry.total) * 100 : 0;
+    });
+
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [faturas, contratos]);
+  }, [faturas, contratos, gastos, faturamentoGastos, contratosEquipamentos, aditivosEquipamentos, contratosAditivos]);
 
   const topClientes = useMemo(() => {
     return todosClientes.slice(0, 5);
@@ -1058,11 +1151,11 @@ export const VisaoGeralTab = ({
       {/* Dialogs for detailing info from clicked cards */}
       {/* 1. Clientes Modal */}
       <Dialog open={activeModal === "clientes"} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />
-              Detalhamento de Faturamento por Cliente
+              Detalhamento de Faturamento e Custos por Cliente
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 overflow-y-auto flex-1 pr-1">
@@ -1073,22 +1166,39 @@ export const VisaoGeralTab = ({
                   <TableHead className="bg-background">Cliente / Empresa</TableHead>
                   <TableHead className="text-center bg-background">Contratos Ativos</TableHead>
                   <TableHead className="text-right bg-background">Total Faturado</TableHead>
+                  <TableHead className="text-right text-destructive bg-background">Custo Real</TableHead>
+                  <TableHead className="text-right bg-background">Margem Líquida</TableHead>
+                  <TableHead className="text-right bg-background">Rentabilidade</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {todosClientes.map((client, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="text-center font-bold text-muted-foreground">#{idx + 1}</TableCell>
-                    <TableCell className="font-semibold">{client.nome}</TableCell>
-                    <TableCell className="text-center">{client.contratosCount}</TableCell>
-                    <TableCell className="text-right font-bold text-success">
-                      R$ {Number(client.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {todosClientes.map((client, idx) => {
+                  const isPositive = client.margem >= 0;
+                  return (
+                    <TableRow key={idx} className="hover:bg-muted/30">
+                      <TableCell className="text-center font-bold text-muted-foreground">#{idx + 1}</TableCell>
+                      <TableCell className="font-semibold">{client.nome}</TableCell>
+                      <TableCell className="text-center">{client.contratosCount}</TableCell>
+                      <TableCell className="text-right font-bold text-success">
+                        R$ {Number(client.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right text-destructive font-semibold">
+                        R$ {Number(client.despesa).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className={`text-right font-bold ${isPositive ? "text-success" : "text-destructive"}`}>
+                        R$ {Number(client.margem).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge className={isPositive ? "bg-success/15 text-success hover:bg-success/20 border-success/10" : "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10"}>
+                          {isPositive ? "▲" : "▼"} {client.percentual.toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {todosClientes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">Nenhum faturamento registrado.</TableCell>
+                    <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">Nenhum faturamento registrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
