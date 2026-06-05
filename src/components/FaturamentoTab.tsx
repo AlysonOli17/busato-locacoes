@@ -864,158 +864,185 @@ export const FaturamentoTab = () => {
         </Button>
       </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[900px]">
-            <TableHeader>
-              <TableRow>
-                <SortableTableHead column="numero" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Fatura</SortableTableHead>
-                <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
-                <TableHead>Equipamento</TableHead>
-                <TableHead>Período</TableHead>
-                <SortableTableHead column="emissao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Emissão</SortableTableHead>
-                <SortableTableHead column="vencimento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Vencimento</SortableTableHead>
-                <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor</SortableTableHead>
+      <div className="flex flex-col gap-2">
+        {/* Cabeçalho sutil (desktop) */}
+        {sortedFaturas.length > 0 && (
+          <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="w-[120px] cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("numero")}>
+              Nº Fatura {sortCol === "numero" && (sortAsc ? "↑" : "↓")}
+            </div>
+            <div className="flex-1 min-w-0 cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("empresa")}>
+              Empresa / Equipamento {sortCol === "empresa" && (sortAsc ? "↑" : "↓")}
+            </div>
+            <div className="w-[160px] cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("emissao")}>
+              Datas {sortCol === "emissao" && (sortAsc ? "↑" : "↓")}
+            </div>
+            <div className="w-[140px] text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("valor")}>
+              Valor {sortCol === "valor" && (sortAsc ? "↑" : "↓")}
+            </div>
+            <div className="w-[120px] text-center cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("status")}>
+              Status {sortCol === "status" && (sortAsc ? "↑" : "↓")}
+            </div>
+            <div className="w-[180px] text-right">Ações</div>
+          </div>
+        )}
+
+        {sortedFaturas.map(f => {
+          const ct = getContrato(f.contrato_id);
+          const status = getDisplayStatus(f);
+          return (
+            <div key={f.id} className="group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative">
+              
+              {/* Nº Fatura */}
+              <div className="md:w-[120px] flex flex-col justify-center">
+                <span className="font-mono font-bold text-sm text-foreground">
+                  {f.numero_nota || String(f.numero_sequencial).padStart(3, "0")}
+                </span>
+                {!f.numero_nota && (
+                  <Badge variant="outline" className="mt-1 text-[9px] py-0 px-1 border-warning text-warning bg-warning/5 font-sans font-normal w-fit whitespace-nowrap">
+                    Pendente de Emissão
+                  </Badge>
+                )}
+              </div>
+
+              {/* Empresa / Equipamento */}
+              <div className="flex-1 min-w-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-bold text-sm text-foreground truncate">{ct?.empresas?.nome || "—"}</h3>
+                  {ct?.empresas?.obra && (
+                    <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20 truncate max-w-[120px]">
+                      {ct.empresas.obra}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground font-mono mb-1">{ct?.empresas?.cnpj}</p>
                 
-                <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
-                <TableHead className="w-36">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedFaturas.map(f => {
-                const ct = getContrato(f.contrato_id);
-                const status = getDisplayStatus(f);
-                return (
-                  <TableRow key={f.id}>
-                    <TableCell className="font-mono font-bold text-sm">
-                      {f.numero_nota || String(f.numero_sequencial).padStart(3, "0")}
-                      {!f.numero_nota && (
-                        <Badge variant="outline" className="ml-2 text-[9px] py-0 px-1 border-warning text-warning bg-warning/5 font-sans font-normal whitespace-nowrap">
-                          Pendente de Emissão
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-medium text-sm flex items-center gap-2">
-                        {ct?.empresas?.nome || "—"}
-                        {ct?.empresas?.obra && (
-                          <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
-                            {ct.empresas.obra}
-                          </Badge>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground font-mono">{ct?.empresas?.cnpj}</p>
-                      {f.empresa_faturamento_id && (() => {
-                        const ef = empresas.find(e => e.id === f.empresa_faturamento_id);
-                        return ef ? <p className="text-xs text-warning mt-0.5 font-sans">Faturar: {ef.nome}{ef.obra ? ` (Obra: ${ef.obra})` : ""}</p> : null;
-                      })()}
-                    </TableCell>
-                    <TableCell className="text-sm">{getEquipLabel(ct?.equipamentos)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {f.periodo_medicao_inicio && f.periodo_medicao_fim
-                        ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                    <TableCell className="text-sm">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
-                    <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                    
-                    <TableCell>
-                      <Badge className={statusColor(status)}>{status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {!f.numero_nota && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
-                            title="Emitir Fatura"
-                            onClick={() => {
-                              setGenerateItemId(f.id);
-                              setGenerateNumeroNota("");
-                              setGenerateEmissao(new Date().toISOString().slice(0, 10));
-                              
-                              const ct = getContrato(f.contrato_id);
-                              const obra = ct?.empresas?.obra;
-                              const inicio = f.periodo_medicao_inicio ? parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR") : "";
-                              const fim = f.periodo_medicao_fim ? parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR") : "";
-                              
-                              let obs = "";
-                              if (obra) {
-                                obs += `Obra: ${obra}`;
-                              }
-                              if (inicio && fim) {
-                                if (obs) obs += " - ";
-                                obs += `Período: ${inicio} a ${fim}`;
-                              }
-                              setGenerateObservacoes(obs);
-                              setGenerateDialogOpen(true);
-                            }}
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
-                          <FileDown className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
-                          title="Enviar por E-mail"
-                          onClick={() => handleSendEmail(f)}
-                        >
-                          <Mail className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-accent hover:text-accent hover:bg-accent/10"
-                          title="Editar Fatura"
-                          onClick={() => openEdit(f)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        {f.status !== "Pago" && f.status !== "Cancelado" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
-                            title="Confirmar Pagamento"
-                            onClick={() => setPayId(f.id)}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Cancelar Fatura"
-                          onClick={() => {
-                            setCancelId(f.id);
-                            setCancelReason("");
-                            setCancelDialogOpen(true);
-                          }}
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {!loading && sortedFaturas.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                {f.empresa_faturamento_id && (() => {
+                  const ef = empresas.find(e => e.id === f.empresa_faturamento_id);
+                  return ef ? <p className="text-[10px] text-warning mb-1 font-sans">Faturar: {ef.nome}{ef.obra ? ` (Obra: ${ef.obra})` : ""}</p> : null;
+                })()}
+
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <Badge variant="outline" className="text-[10px] bg-muted/30 border-muted-foreground/20 font-medium text-sidebar">
+                    {getEquipLabel(ct?.equipamentos)}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Datas */}
+              <div className="md:w-[160px] flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <span>Emissão: <strong className="text-foreground font-medium">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <span>Venc.: <strong className="text-foreground font-medium">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5 opacity-80">
+                  <span>Período: {f.periodo_medicao_inicio && f.periodo_medicao_fim
+                    ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+                    : "—"}</span>
+                </div>
+              </div>
+
+              {/* Valor */}
+              <div className="md:w-[140px] md:text-right flex flex-col justify-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                <span className="font-bold text-sm text-foreground">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+
+              {/* Status */}
+              <div className="md:w-[120px] flex md:justify-center items-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                <Badge className={statusColor(status)}>{status}</Badge>
+              </div>
+
+              {/* Ações */}
+              <div className="md:w-[180px] flex justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0 flex-wrap">
+                {!f.numero_nota && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                    title="Emitir Fatura"
+                    onClick={() => {
+                      setGenerateItemId(f.id);
+                      setGenerateNumeroNota("");
+                      setGenerateEmissao(new Date().toISOString().slice(0, 10));
+                      
+                      const ct = getContrato(f.contrato_id);
+                      const obra = ct?.empresas?.obra;
+                      const inicio = f.periodo_medicao_inicio ? parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR") : "";
+                      const fim = f.periodo_medicao_fim ? parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR") : "";
+                      
+                      let obs = "";
+                      if (obra) {
+                        obs += `Obra: ${obra}`;
+                      }
+                      if (inicio && fim) {
+                        if (obs) obs += " - ";
+                        obs += `Período: ${inicio} a ${fim}`;
+                      }
+                      setGenerateObservacoes(obs);
+                      setGenerateDialogOpen(true);
+                    }}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
+                  <FileDown className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                  title="Enviar por E-mail"
+                  onClick={() => handleSendEmail(f)}
+                >
+                  <Mail className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-accent hover:text-accent hover:bg-accent/10"
+                  title="Editar Fatura"
+                  onClick={() => openEdit(f)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                {f.status !== "Pago" && f.status !== "Cancelado" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                    title="Confirmar Pagamento"
+                    onClick={() => setPayId(f.id)}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  title="Cancelar Fatura"
+                  onClick={() => {
+                    setCancelId(f.id);
+                    setCancelReason("");
+                    setCancelDialogOpen(true);
+                  }}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+
+            </div>
+          );
+        })}
+        {!loading && sortedFaturas.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
+            Nenhuma fatura encontrada
+          </div>
+        )}
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={editDialog} onOpenChange={setEditDialog}>
