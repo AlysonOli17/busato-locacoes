@@ -831,39 +831,37 @@ export const FaturamentoTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={exportRelatorioFinanceiro}>
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex flex-wrap gap-3 flex-1">
+          <div className="w-64">
+            <SearchableSelect
+              value={filterEmpresa}
+              onValueChange={setFilterEmpresa}
+              placeholder="Todas as Empresas"
+              searchPlaceholder="Pesquisar empresa..."
+              options={[
+                { value: "all", label: "Todas as Empresas" },
+                ...empresasComFatura.map(e => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""}` })),
+              ]}
+            />
+          </div>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todos os Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Pago">Pago</SelectItem>
+              <SelectItem value="Em Atraso">Em Atraso</SelectItem>
+              <SelectItem value="Cancelado">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" size="sm" onClick={exportRelatorioFinanceiro} className="shrink-0">
           <FileText className="h-4 w-4 mr-1" /> Relatório Financeiro
         </Button>
-      </div>
-
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="w-64">
-          <SearchableSelect
-            value={filterEmpresa}
-            onValueChange={setFilterEmpresa}
-            placeholder="Todas as Empresas"
-            searchPlaceholder="Pesquisar empresa..."
-            options={[
-              { value: "all", label: "Todas as Empresas" },
-              ...empresasComFatura.map(e => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""}` })),
-            ]}
-          />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Todos os Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="Pendente">Pendente</SelectItem>
-            <SelectItem value="Pago">Pago</SelectItem>
-            <SelectItem value="Em Atraso">Em Atraso</SelectItem>
-            <SelectItem value="Cancelado">Cancelado</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Table */}

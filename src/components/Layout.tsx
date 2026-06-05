@@ -87,6 +87,9 @@ const allGroups: NavGroup[] = [
     icon: DollarSign,
     items: [
       { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Faturamento" },
+      { to: "/medicoes?tab=pendentes-medicao", icon: Clock, label: "Pendente de Medição" },
+      { to: "/medicoes?tab=historico-faturamento", icon: Receipt, label: "Histórico de Faturamento" },
+      { to: "/medicoes?tab=resumo-empresa", icon: Building2, label: "Resumo por Empresa" },
       { to: "/gastos", icon: DollarSign, label: "Custos" },
     ]
   },
@@ -132,6 +135,21 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
       return next;
     });
   };
+
+  // Preserve sidebar scroll position
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    sessionStorage.setItem("sidebar-scroll-position", String(e.currentTarget.scrollTop));
+  };
+
+  useEffect(() => {
+    const navElement = document.getElementById("sidebar-nav");
+    if (navElement) {
+      const saved = sessionStorage.getItem("sidebar-scroll-position");
+      if (saved) {
+        navElement.scrollTop = parseFloat(saved);
+      }
+    }
+  }, [location.pathname, location.search]);
 
   // Helper to determine if a specific sub-item is active
   const isItemActive = (to: string) => {
@@ -224,7 +242,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
         </div>
 
         {/* Nav */}
-        <nav className={cn("flex-1 py-4 space-y-3 overflow-y-auto scrollbar-thin", collapsed ? "px-1.5" : "px-3")}>
+        <nav id="sidebar-nav" onScroll={handleScroll} className={cn("flex-1 py-4 space-y-3 overflow-y-auto scrollbar-thin", collapsed ? "px-1.5" : "px-3")}>
           {filteredGroups.map((group) => {
             const hasActiveItem = isGroupActive(group);
             const isExpanded = !!expandedGroups[group.label];

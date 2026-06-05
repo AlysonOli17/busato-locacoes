@@ -1,0 +1,863 @@
+import { useState, useEffect, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { SortableTableHead } from "@/components/SortableTableHead";
+import { 
+  Building2, Receipt, Clock, AlertTriangle, TrendingUp, 
+  FileDown, FileSpreadsheet, Link2, CalendarClock 
+} from "lucide-react";
+import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+
+interface Empresa {
+  id: string;
+  nome: string;
+  cnpj: string;
+  obra: string | null;
+}
+
+interface Contrato {
+  id: string;
+  empresa_id: string;
+  equipamento_id: string;
+  status: string;
+  data_inicio: string;
+  data_fim: string;
+  dia_medicao_inicio?: number;
+  dia_medicao_fim?: number;
+  prazo_faturamento?: number;
+  empresas?: Empresa | null;
+  equipamentos?: { tipo: string; modelo: string } | null;
+  contratos_equipamentos?: any[];
+}
+
+interface Fatura {
+  id: string;
+  contrato_id: string;
+  numero_sequencial: number;
+  periodo: string;
+  valor_total: number;
+  status: string;
+  emissao: string;
+  numero_nota: string | null;
+  periodo_medicao_inicio: string | null;
+  periodo_medicao_fim: string | null;
+  contratos: Contrato;
+  data_aprovacao: string | null;
+}
+
+const parseLocalDate = (dateStr: any): Date => {
+  const mkFallback = () => {
+    const d = new Date(NaN);
+    (d as any).toLocaleDateString = () => "—";
+    return d;
+  };
+  if (!dateStr) return mkFallback();
+  const str = String(dateStr).trim();
+  if (!str || str === "null" || str === "undefined") return mkFallback();
+  const d = str.includes("T") ? new Date(str) : new Date(str + "T00:00:00");
+  if (isNaN(d.getTime())) return mkFallback();
+  return d;
+};
+
+const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const monthKey = (dateStr: string) => dateStr.slice(0, 7);
+const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.inicio);
+const formatCompetencia = (key: string) => {
+  const [year, month] = key.split("-").map(Number);
+  return `${meses[(month || 1) - 1]}/${year}`;
+};
+
+const parsePeriodoKey = (periodo?: string | null) => {
+  if (!periodo) return null;
+  const normalized = periodo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const monthIndex = meses.findIndex(m => normalized.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()));
+  const year = periodo.match(/\b(20\d{2}|19\d{2})\b/)?.[1];
+  if (monthIndex < 0 || !year) return null;
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+};
+
+// Custom Hook to load all shared data for billing reports
+function useFinanceiroData() {
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [faturas, setFaturas] = useState<Fatura[]>([]);
+  const [medicoes, setMedicoes] = useState<any[]>([]);
+  const [equipamentos, setEquipamentos] = useState<any[]>([]);
+  const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshFaturas = async () => {
+    const [fatRes, ctRes, empRes, eqRes, ceRes, medRes] = await Promise.all([
+      supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
+      supabase.from("contratos").select("*").order("created_at", { ascending: false }),
+      supabase.from("empresas").select("id, nome, cnpj, obra").order("nome"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
+      supabase.from("contratos_equipamentos").select("*"),
+      supabase.from("medicoes").select("*").order("data", { ascending: false })
+    ]);
+
+    if (fatRes.data && ctRes.data && empRes.data && eqRes.data) {
+      setEmpresas(empRes.data as Empresa[]);
+      setEquipamentos(eqRes.data);
+      if (medRes.data) setMedicoes(medRes.data);
+      if (ceRes.data) setContratosEquipamentos(ceRes.data);
+
+      const empMap = new Map(empRes.data.map((e: any) => [e.id, e]));
+      const eqMap = new Map(eqRes.data.map((e: any) => [e.id, e]));
+      
+      const ceMap = new Map<string, any[]>();
+      if (ceRes.data) {
+        ceRes.data.forEach((ce: any) => {
+          const list = ceMap.get(ce.contrato_id) || [];
+          list.push(ce);
+          ceMap.set(ce.contrato_id, list);
+        });
+      }
+
+      const mappedContratos = ctRes.data.map((c: any) => ({
+        ...c,
+        empresas: empMap.get(c.empresa_id) || null,
+        equipamentos: eqMap.get(c.equipamento_id) || null,
+        contratos_equipamentos: ceMap.get(c.id) || []
+      }));
+      setContratos(mappedContratos as unknown as Contrato[]);
+
+      const ctMap = new Map(mappedContratos.map(c => [c.id, c]));
+      const mappedFaturas = fatRes.data.map((f: any) => ({
+        ...f,
+        contratos: ctMap.get(f.contrato_id) || null
+      }));
+      setFaturas(mappedFaturas as unknown as Fatura[]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refreshFaturas();
+  }, []);
+
+  return { empresas, contratos, faturas, medicoes, equipamentos, contratosEquipamentos, loading, refreshFaturas };
+}
+
+function getVencimento(fatura: Fatura) {
+  const prazo = fatura.contratos?.prazo_faturamento || 30;
+  const dateStr = fatura.data_aprovacao || fatura.emissao;
+  if (!dateStr) return null;
+  const baseDate = parseLocalDate(dateStr);
+  if (isNaN(baseDate.getTime())) return null;
+  const venc = new Date(baseDate);
+  venc.setDate(venc.getDate() + prazo);
+  return venc;
+}
+
+function getDisplayStatus(fatura: Fatura) {
+  if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
+  const venc = getVencimento(fatura);
+  if (venc && new Date() > venc) return "Em Atraso";
+  return "Pendente";
+}
+
+const calcPeriodForMonth = (ct: Contrato, year: number, month: number) => {
+  const diaInicio = ct.dia_medicao_inicio || 1;
+  const diaFim = ct.dia_medicao_fim || 30;
+  let mesInicio = month;
+  let anoInicio = year;
+  let mesFim = month;
+  let anoFim = year;
+  if (diaFim < diaInicio) {
+    mesFim = month;
+    anoFim = year;
+    mesInicio = month - 1;
+    if (mesInicio < 0) { mesInicio = 11; anoInicio--; }
+  }
+  const lastDayInicio = new Date(anoInicio, mesInicio + 1, 0).getDate();
+  const lastDayFim = new Date(anoFim, mesFim + 1, 0).getDate();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const inicio = `${anoInicio}-${pad(mesInicio + 1)}-${pad(Math.min(diaInicio, lastDayInicio))}`;
+  const fim = `${anoFim}-${pad(mesFim + 1)}-${pad(Math.min(diaFim, lastDayFim))}`;
+  return { inicio, fim };
+};
+
+// Base view wrapper providing filters and KPI cards
+interface BaseViewProps {
+  children: React.ReactNode;
+  filtroEmpresa: string;
+  setFiltroEmpresa: (id: string) => void;
+  empresas: Empresa[];
+  faturasFiltered: Fatura[];
+  contratosAtivos: Contrato[];
+  getExportData: () => any;
+}
+
+function SharedDashboardHeader({
+  children,
+  filtroEmpresa,
+  setFiltroEmpresa,
+  empresas,
+  faturasFiltered,
+  contratosAtivos,
+  getExportData
+}: BaseViewProps) {
+  const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
+  const totalPendente = faturasFiltered.filter(f => getDisplayStatus(f) === "Pendente").reduce((s, f) => s + Number(f.valor_total), 0);
+  const totalAtraso = faturasFiltered.filter(f => getDisplayStatus(f) === "Em Atraso").reduce((s, f) => s + Number(f.valor_total), 0);
+  const qtdAtraso = faturasFiltered.filter(f => getDisplayStatus(f) === "Em Atraso").length;
+
+  return (
+    <div className="space-y-6">
+      {/* Action Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+          <div className="relative w-full sm:w-80">
+            <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Filtrar por empresa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Empresas</SelectItem>
+                {empresas.map(e => (
+                  <SelectItem key={e.id} value={e.id}>{e.nome}{e.obra ? ` (Obra: ${e.obra})` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())} className="bg-background">
+              <FileDown className="h-4 w-4 mr-1 text-primary" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background">
+              <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-card shadow-sm border-border">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Faturado (Pago)</p>
+              <h3 className="text-2xl font-bold mt-1 text-success">R$ {totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card shadow-sm border-border">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pendente</p>
+              <h3 className="text-2xl font-bold mt-1 text-warning">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center text-warning">
+              <Clock className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card shadow-sm border-border">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Em Atraso</p>
+              <h3 className="text-2xl font-bold mt-1 text-destructive">R$ {totalAtraso.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+              {qtdAtraso > 0 && <p className="text-xs text-destructive mt-1">{qtdAtraso} fatura(s) em atraso</p>}
+            </div>
+            <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card shadow-sm border-border">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Contratos Ativos</p>
+              <h3 className="text-2xl font-bold mt-1">{contratosAtivos.length}</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+              <Building2 className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {children}
+    </div>
+  );
+}
+
+// 1. PENDENTE DE MEDIÇÃO VIEW
+export function PendenteMedicaoView() {
+  const { empresas, contratos, faturas, medicoes, loading, refreshFaturas } = useFinanceiroData();
+  const [filtroEmpresa, setFiltroEmpresa] = useState("all");
+  const [vincularDialog, setVincularDialog] = useState<{ open: boolean; alerta: any | null; faturaId: string }>({ open: false, alerta: null, faturaId: "" });
+  const { toast } = useToast();
+
+  const contratosAtivos = useMemo(() => {
+    return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
+  }, [contratos, filtroEmpresa]);
+
+  const alertasPendentes = useMemo(() => {
+    const hoje = new Date();
+    type Alerta = {
+      contrato: Contrato;
+      period: { inicio: string; fim: string };
+      tipo: "medicao" | "faturamento";
+    };
+    const alertas: Alerta[] = [];
+
+    contratosAtivos.forEach(ct => {
+      const dataInicio = parseLocalDate(ct.data_inicio);
+      if (isNaN(dataInicio.getTime()) || hoje < dataInicio) return;
+
+      const faturasContrato = faturas.filter(f => f.contrato_id === ct.id);
+      if (faturasContrato.length === 0) return;
+
+      const primeiraMedicao = faturasContrato
+        .map(f => f.periodo_medicao_inicio || (() => {
+          const periodoKey = parsePeriodoKey(f.periodo);
+          return periodoKey ? `${periodoKey}-01` : null;
+        })())
+        .filter((p): p is string => !!p)
+        .sort()[0];
+      if (!primeiraMedicao) return;
+
+      for (let offset = 0; offset <= 3; offset++) {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth() - offset, 1);
+        const period = calcPeriodForMonth(ct, d.getFullYear(), d.getMonth());
+
+        if (period.inicio < ct.data_inicio) continue;
+        if (period.inicio < primeiraMedicao) continue;
+        const periodEnd = parseLocalDate(period.fim);
+        if (hoje <= periodEnd) continue;
+
+        const competencias = new Set([monthKey(period.inicio), monthKey(period.fim)]);
+        const faturado = faturasContrato.some(f => {
+          const periodoKey = parsePeriodoKey(f.periodo);
+          if (f.periodo_medicao_inicio && f.periodo_medicao_fim) {
+            return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;
+          }
+          if (f.periodo_medicao_inicio) return f.periodo_medicao_inicio >= period.inicio && f.periodo_medicao_inicio <= period.fim;
+          if (f.periodo_medicao_fim) return f.periodo_medicao_fim >= period.inicio && f.periodo_medicao_fim <= period.fim;
+          return !!periodoKey && competencias.has(periodoKey);
+        });
+        if (faturado) continue;
+
+        const contratoEquipIds = new Set([ct.equipamento_id, ...(ct.contratos_equipamentos || []).map(e => e.equipamento_id)]);
+        const temMedicao = medicoes.some(m => {
+          if (!contratoEquipIds.has(m.equipamento_id)) return false;
+          return m.data >= period.inicio && m.data <= period.fim;
+        });
+
+        if (!temMedicao) {
+          alertas.push({ contrato: ct, period, tipo: "medicao" });
+        } else {
+          alertas.push({ contrato: ct, period, tipo: "faturamento" });
+        }
+      }
+    });
+
+    return alertas;
+  }, [contratosAtivos, faturas, medicoes]);
+
+  const faturasFiltered = useMemo(() => {
+    if (filtroEmpresa === "all") return faturas;
+    return faturas.filter(f => f.contratos?.empresa_id === filtroEmpresa);
+  }, [faturas, filtroEmpresa]);
+
+  const vincularFaturaAoPeriodo = async () => {
+    if (!vincularDialog.alerta || !vincularDialog.faturaId) return;
+    const { alerta, faturaId } = vincularDialog;
+    const { error } = await supabase
+      .from("faturamento")
+      .update({ periodo_medicao_inicio: alerta.period.inicio, periodo_medicao_fim: alerta.period.fim })
+      .eq("id", faturaId);
+    if (error) {
+      toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Período vinculado", description: "Fatura associada ao período corretamente." });
+    setVincularDialog({ open: false, alerta: null, faturaId: "" });
+    await refreshFaturas();
+  };
+
+  const getExportData = () => {
+    const headers = ["Empresa", "Competência", "Período", "Status / Pendência"];
+    const rows = alertasPendentes.map(a => [
+      a.contrato.empresas?.nome || "",
+      formatCompetencia(competenciaFromPeriod(a.period)),
+      `${parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — ${parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}`,
+      a.tipo === "medicao" ? "Pendente de Medição" : "Pendente de Faturamento"
+    ]);
+    return { title: "Relatório de Pendências de Medição e Faturamento", headers, rows, filename: `pendencias_${new Date().toISOString().slice(0, 10)}` };
+  };
+
+  const empresasComAlerta = empresas.filter(emp => {
+    if (filtroEmpresa !== "all" && emp.id !== filtroEmpresa) return false;
+    return alertasPendentes.some(a => a.contrato.empresa_id === emp.id);
+  });
+
+  const alertasMedicao = alertasPendentes.filter(a => a.tipo === "medicao");
+  const alertasFat = alertasPendentes.filter(a => a.tipo === "faturamento");
+
+  return (
+    <SharedDashboardHeader
+      filtroEmpresa={filtroEmpresa}
+      setFiltroEmpresa={setFiltroEmpresa}
+      empresas={empresas}
+      faturasFiltered={faturasFiltered}
+      contratosAtivos={contratosAtivos}
+      getExportData={getExportData}
+    >
+      {loading ? (
+        <div className="text-center py-10 text-muted-foreground">Carregando dados...</div>
+      ) : empresasComAlerta.length === 0 ? (
+        <div className="text-center py-10 border border-dashed rounded-lg bg-card text-muted-foreground">
+          Nenhuma medição ou faturamento pendente no momento.
+        </div>
+      ) : (
+        <div className="space-y-6 mt-6">
+          {alertasMedicao.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Pendente de Medição ({alertasMedicao.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {empresasComAlerta.filter(emp => alertasMedicao.some(a => a.contrato.empresa_id === emp.id)).map(emp => {
+                  const alertasEmp = alertasMedicao.filter(a => a.contrato.empresa_id === emp.id);
+                  return (
+                    <Card key={`med-${emp.id}`} className="border-destructive/50 bg-destructive/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-destructive" />
+                          {emp.nome}{emp.obra ? ` (Obra: ${emp.obra})` : ""}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {alertasEmp.map((a, i) => (
+                          <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
+                            <p className="font-medium">Competência: {formatCompetencia(competenciaFromPeriod(a.period))}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
+                            </p>
+                            <Badge className="bg-destructive text-destructive-foreground text-xs">
+                              Contrato sem medição registrada
+                            </Badge>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {alertasFat.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <CalendarClock className="h-5 w-5 text-warning" />
+                Pendente de Faturamento ({alertasFat.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {empresasComAlerta.filter(emp => alertasFat.some(a => a.contrato.empresa_id === emp.id)).map(emp => {
+                  const alertasEmp = alertasFat.filter(a => a.contrato.empresa_id === emp.id);
+                  return (
+                    <Card key={`fat-${emp.id}`} className="border-warning/50 bg-warning/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-warning" />
+                          {emp.nome}{emp.obra ? ` (Obra: ${emp.obra})` : ""}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {alertasEmp.map((a, i) => (
+                          <div key={i} className="p-2 rounded bg-background border text-sm space-y-1">
+                            <p className="font-medium">Competência: {formatCompetencia(competenciaFromPeriod(a.period))}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Período: {parseLocalDate(a.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(a.period.fim).toLocaleDateString("pt-BR")}
+                            </p>
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <Badge className="bg-warning text-warning-foreground text-xs">
+                                Contrato com faturamento pendente
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => setVincularDialog({ open: true, alerta: a, faturaId: "" })}
+                              >
+                                <Link2 className="h-3 w-3 mr-1" /> Vincular Fatura
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Dialog open={vincularDialog.open} onOpenChange={(o) => !o && setVincularDialog({ open: false, alerta: null, faturaId: "" })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vincular Fatura ao Período</DialogTitle>
+          </DialogHeader>
+          {vincularDialog.alerta && (
+            <div className="space-y-4">
+              <div className="space-y-2 mt-4 text-sm border-t pt-4">
+                <p className="font-semibold mb-2">Detalhes do Alerta:</p>
+                <p>
+                  <span className="text-muted-foreground">Empresa:</span>{" "}
+                  <span className="font-medium">
+                    {vincularDialog.alerta.contrato.empresas?.nome}
+                    {vincularDialog.alerta.contrato.empresas?.obra ? ` (Obra: ${vincularDialog.alerta.contrato.empresas.obra})` : ""}
+                  </span>
+                </p>
+                <p><span className="text-muted-foreground">Competência:</span> <span className="font-medium">{formatCompetencia(competenciaFromPeriod(vincularDialog.alerta.period))}</span></p>
+                <p><span className="text-muted-foreground">Equipamento:</span> {vincularDialog.alerta.contrato.equipamentos?.tipo} {vincularDialog.alerta.contrato.equipamentos?.modelo}</p>
+                <p><span className="text-muted-foreground">Período:</span> {parseLocalDate(vincularDialog.alerta.period.inicio).toLocaleDateString("pt-BR")} — {parseLocalDate(vincularDialog.alerta.period.fim).toLocaleDateString("pt-BR")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Selecione a fatura existente que cobre este período:</label>
+                <Select value={vincularDialog.faturaId} onValueChange={(v) => setVincularDialog(prev => ({ ...prev, faturaId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha uma fatura..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {faturas
+                      .filter(f => f.contrato_id === vincularDialog.alerta.contrato.id)
+                      .sort((a, b) => (b.emissao || "").localeCompare(a.emissao || ""))
+                      .map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.numero_nota ? `Nº ${f.numero_nota}` : "(sem número)"} — {parseLocalDate(f.emissao).toLocaleDateString("pt-BR")} — R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          {f.periodo_medicao_inicio && f.periodo_medicao_fim ? ` [${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")}-${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}]` : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">O período de medição da fatura selecionada será atualizado para este intervalo, removendo o alerta.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVincularDialog({ open: false, alerta: null, faturaId: "" })}>Cancelar</Button>
+            <Button onClick={vincularFaturaAoPeriodo} disabled={!vincularDialog.faturaId}>Vincular</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </SharedDashboardHeader>
+  );
+}
+
+// 2. HISTÓRICO DE FATURAMENTO VIEW
+export function HistoricoFaturamentoView() {
+  const { empresas, contratos, faturas, loading } = useFinanceiroData();
+  const [filtroEmpresa, setFiltroEmpresa] = useState("all");
+  const [sortCol, setSortCol] = useState("emissao");
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const toggleSort = (col: string) => { 
+    if (sortCol === col) setSortAsc(!sortAsc); 
+    else { setSortCol(col); setSortAsc(true); } 
+  };
+
+  const contratosAtivos = useMemo(() => {
+    return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
+  }, [contratos, filtroEmpresa]);
+
+  const faturasFiltered = useMemo(() => {
+    if (filtroEmpresa === "all") return faturas;
+    return faturas.filter(f => f.contratos?.empresa_id === filtroEmpresa);
+  }, [faturas, filtroEmpresa]);
+
+  const sortedFaturas = useMemo(() => {
+    return [...faturasFiltered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "empresa": cmp = (a.contratos?.empresas?.nome || "").localeCompare(b.contratos?.empresas?.nome || ""); break;
+        case "nota": cmp = (a.numero_nota || "").localeCompare(b.numero_nota || ""); break;
+        case "equipamento": cmp = `${a.contratos?.equipamentos?.tipo} ${a.contratos?.equipamentos?.modelo}`.localeCompare(`${b.contratos?.equipamentos?.tipo} ${b.contratos?.equipamentos?.modelo}`); break;
+        case "emissao": cmp = (a.emissao || "").localeCompare(b.emissao || ""); break;
+        case "vencimento": {
+          const vencA = getVencimento(a);
+          const vencB = getVencimento(b);
+          cmp = (vencA ? vencA.getTime() : 0) - (vencB ? vencB.getTime() : 0);
+          break;
+        }
+        case "valor": cmp = Number(a.valor_total) - Number(b.valor_total); break;
+        case "status": cmp = getDisplayStatus(a).localeCompare(getDisplayStatus(b)); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [faturasFiltered, sortCol, sortAsc]);
+
+  const getExportData = () => {
+    const headers = ["Empresa", "CNPJ", "Equipamento", "Período Medição", "Emissão", "Vencimento", "Valor (R$)", "Status"];
+    const rows = faturasFiltered.map(f => {
+      const status = getDisplayStatus(f);
+      const venc = getVencimento(f);
+      return [
+        f.contratos?.empresas?.nome || "",
+        f.contratos?.empresas?.cnpj || "",
+        `${f.contratos?.equipamentos?.tipo} ${f.contratos?.equipamentos?.modelo}`,
+        f.periodo_medicao_inicio && f.periodo_medicao_fim ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}` : "—",
+        f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—",
+        venc ? venc.toLocaleDateString("pt-BR") : "—",
+        Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+        status,
+      ];
+    });
+    return { title: "Relatório de Histórico de Faturamento", headers, rows, filename: `historico_faturamento_${new Date().toISOString().slice(0, 10)}` };
+  };
+
+  return (
+    <SharedDashboardHeader
+      filtroEmpresa={filtroEmpresa}
+      setFiltroEmpresa={setFiltroEmpresa}
+      empresas={empresas}
+      faturasFiltered={faturasFiltered}
+      contratosAtivos={contratosAtivos}
+      getExportData={getExportData}
+    >
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-accent" />
+            Histórico de Faturamento
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[700px]">
+            <TableHeader>
+              <TableRow>
+                <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
+                <SortableTableHead column="nota" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Nota</SortableTableHead>
+                <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
+                <TableHead>Período Medição</TableHead>
+                <SortableTableHead column="emissao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Emissão</SortableTableHead>
+                <SortableTableHead column="vencimento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Vencimento</SortableTableHead>
+                <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor (R$)</SortableTableHead>
+                <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Carregando dados...
+                  </TableCell>
+                </TableRow>
+              ) : sortedFaturas.map(f => {
+                const status = getDisplayStatus(f);
+                return (
+                  <TableRow key={f.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                          <Building2 className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm leading-none flex items-center gap-2">
+                            {f.contratos?.empresas?.nome}
+                            {f.contratos?.empresas?.obra && (
+                              <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
+                                {f.contratos.empresas.obra}
+                              </Badge>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 font-mono">{f.contratos?.empresas?.cnpj}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{f.numero_nota || "—"}</TableCell>
+                    <TableCell className="text-sm">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {f.periodo_medicao_inicio && f.periodo_medicao_fim
+                        ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                    <TableCell className="text-sm">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
+                    <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell>
+                      <Badge className={
+                        status === "Pago" ? "bg-success text-success-foreground" :
+                        status === "Em Atraso" ? "bg-destructive text-destructive-foreground" :
+                        status === "Cancelado" ? "bg-destructive text-destructive-foreground" :
+                        "bg-warning text-warning-foreground"
+                      }>
+                        {status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {!loading && sortedFaturas.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Nenhuma fatura encontrada
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </SharedDashboardHeader>
+  );
+}
+
+// 3. RESUMO POR EMPRESA VIEW
+export function ResumoEmpresaView() {
+  const { empresas, contratos, faturas, loading } = useFinanceiroData();
+  const [filtroEmpresa, setFiltroEmpresa] = useState("all");
+
+  const contratosAtivos = useMemo(() => {
+    return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
+  }, [contratos, filtroEmpresa]);
+
+  const faturasFiltered = useMemo(() => {
+    if (filtroEmpresa === "all") return faturas;
+    return faturas.filter(f => f.contratos?.empresa_id === filtroEmpresa);
+  }, [faturas, filtroEmpresa]);
+
+  const tableRows = useMemo(() => {
+    const empresasFiltradas = empresas.filter(e => filtroEmpresa === "all" || e.id === filtroEmpresa);
+    const grouped: Record<string, { ids: string[]; cnpjs: string[]; nome: string; obra: string | null }> = {};
+    empresasFiltradas.forEach(emp => {
+      const key = `${emp.nome}${emp.obra ? ` (Obra: ${emp.obra})` : ""}`;
+      if (!grouped[key]) grouped[key] = { ids: [], cnpjs: [], nome: emp.nome, obra: emp.obra };
+      grouped[key].ids.push(emp.id);
+      if (!grouped[key].cnpjs.includes(emp.cnpj)) grouped[key].cnpjs.push(emp.cnpj);
+    });
+
+    return Object.entries(grouped)
+      .map(([key, { ids, cnpjs, nome, obra }]) => {
+        const empContratos = contratos.filter(c => ids.includes(c.empresa_id));
+        const empFaturas = faturas.filter(f => {
+          const ct = contratos.find(c => c.id === f.contrato_id);
+          return ct && ids.includes(ct.empresa_id);
+        });
+        const pagas = empFaturas.filter(f => f.status === "Pago").length;
+        const pendentes = empFaturas.filter(f => getDisplayStatus(f) === "Pendente").length;
+        const atraso = empFaturas.filter(f => getDisplayStatus(f) === "Em Atraso").length;
+        const total = empFaturas.reduce((s, f) => s + Number(f.valor_total), 0);
+        if (empContratos.length === 0 && empFaturas.length === 0) return null;
+        return { key, nome, obra, cnpjs, empContratos: empContratos.length, empFaturas: empFaturas.length, pagas, pendentes, atraso, total };
+      })
+      .filter((r): r is Exclude<typeof r, null> => r !== null)
+      .sort((a, b) => b.empContratos - a.empContratos);
+  }, [empresas, contratos, faturas, filtroEmpresa]);
+
+  const getExportData = () => {
+    const headers = ["Empresa", "Contratos Ativos", "Faturas Emitidas", "Pagas", "Pendentes", "Em Atraso", "Total Faturado (R$)"];
+    const rows = tableRows.map(r => [
+      r.nome + (r.obra ? ` (Obra: ${r.obra})` : ""),
+      r.empContratos,
+      r.empFaturas,
+      r.pagas,
+      r.pendentes,
+      r.atraso,
+      r.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+    ]);
+    return { title: "Relatório de Resumo de Faturamento por Empresa", headers, rows, filename: `resumo_empresa_${new Date().toISOString().slice(0, 10)}` };
+  };
+
+  return (
+    <SharedDashboardHeader
+      filtroEmpresa={filtroEmpresa}
+      setFiltroEmpresa={setFiltroEmpresa}
+      empresas={empresas}
+      faturasFiltered={faturasFiltered}
+      contratosAtivos={contratosAtivos}
+      getExportData={getExportData}
+    >
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-accent" />
+            Resumo por Empresa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[700px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Empresa</TableHead>
+                <TableHead>Contratos</TableHead>
+                <TableHead>Faturas Emitidas</TableHead>
+                <TableHead>Pagas</TableHead>
+                <TableHead>Pendentes</TableHead>
+                <TableHead>Em Atraso</TableHead>
+                <TableHead>Total Faturado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Carregando dados...
+                  </TableCell>
+                </TableRow>
+              ) : tableRows.map((row) => (
+                <TableRow key={row.key} className="hover:bg-muted/30 transition-colors">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm leading-none flex items-center gap-2">
+                          {row.nome}
+                          {row.obra && (
+                            <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
+                              {row.obra}
+                            </Badge>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono">{row.cnpjs.join(", ")}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{row.empContratos}</TableCell>
+                  <TableCell className="text-sm">{row.empFaturas}</TableCell>
+                  <TableCell className="text-sm text-success font-semibold">{row.pagas}</TableCell>
+                  <TableCell className="text-sm text-warning font-semibold">{row.pendentes}</TableCell>
+                  <TableCell className="text-sm text-destructive font-semibold">{row.atraso}</TableCell>
+                  <TableCell className="font-bold text-sm">R$ {row.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                </TableRow>
+              ))}
+              {!loading && tableRows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Nenhuma empresa com faturamento encontrada.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </SharedDashboardHeader>
+  );
+}

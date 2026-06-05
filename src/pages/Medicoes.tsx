@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
 import { FaturamentoTab } from "@/components/FaturamentoTab";
+import { PendenteMedicaoView, HistoricoFaturamentoView, ResumoEmpresaView } from "@/components/FinanceiroViews";
 
 
 import { useLocation } from "react-router-dom";
@@ -420,6 +421,12 @@ const Medicoes = () => {
         return { title: "Medição", subtitle: "Controle de medições de locações" };
       case "faturamento-novo":
         return { title: "Faturamento", subtitle: "Lançamento e controle de faturamentos" };
+      case "pendentes-medicao":
+        return { title: "Pendente de Medição", subtitle: "Alertas de medições e faturamentos pendentes" };
+      case "historico-faturamento":
+        return { title: "Histórico de Faturamento", subtitle: "Histórico completo de notas emitidas e pagamentos" };
+      case "resumo-empresa":
+        return { title: "Resumo por Empresa", subtitle: "Consolidado de contratos e faturamentos por cliente" };
       default:
         return { title: "Horímetro", subtitle: "Controle de horímetros e diárias" };
     }
@@ -625,6 +632,15 @@ const Medicoes = () => {
         </TabsContent>
         <TabsContent value="faturamento-novo">
           <FaturamentoTab />
+        </TabsContent>
+        <TabsContent value="pendentes-medicao">
+          <PendenteMedicaoView />
+        </TabsContent>
+        <TabsContent value="historico-faturamento">
+          <HistoricoFaturamentoView />
+        </TabsContent>
+        <TabsContent value="resumo-empresa">
+          <ResumoEmpresaView />
         </TabsContent>
       </Tabs>
 
