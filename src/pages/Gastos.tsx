@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { getEquipLabel } from "@/lib/utils";
+import { getEquipLabel, cn } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -230,61 +230,71 @@ const Gastos = () => {
           </div>
         </div>
 
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <Table className="min-w-[900px]">
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
-                  <SortableTableHead column="tag" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tag/Placa</SortableTableHead>
-                  <SortableTableHead column="descricao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Descrição</SortableTableHead>
-                  <SortableTableHead column="tipo" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Tipo</SortableTableHead>
-                  <SortableTableHead column="classificacao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Classificação</SortableTableHead>
-                  <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor</SortableTableHead>
-                  <SortableTableHead column="data" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Data</SortableTableHead>
-                  <TableHead>Fatura</TableHead>
-                  <TableHead className="w-24">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium text-sm">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.equipamentos?.tag_placa || "—"}</TableCell>
-                    <TableCell className="text-sm">{item.descricao}</TableCell>
-                    <TableCell><Badge className={tipoColor(item.tipo)}>{item.tipo}</Badge></TableCell>
-                    <TableCell>
-                      <Badge className={item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0"}>
-                        {item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-semibold text-sm">R$ {fmt(item.valor)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(item.data + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {sorted.map((item) => {
+            return (
+              <Card key={item.id} className="group hover:shadow-md transition-all glass-panel overflow-hidden relative">
+                {/* Actions Hover Overlay */}
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-lg shadow-sm border border-border p-1 flex gap-1 z-10">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className={cn("text-[10px]", tipoColor(item.tipo))}>{item.tipo}</Badge>
+                        <Badge className={cn("text-[10px]", item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0")}>
+                          {item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                        </Badge>
+                      </div>
+                      <h3 className="font-bold text-base leading-tight truncate mt-2">{item.descricao}</h3>
+                      <p className="text-2xl font-bold text-foreground mt-1">R$ {fmt(item.valor)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm bg-muted/20 rounded-lg p-3 border border-border/30">
+                    <div className="col-span-2">
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Equipamento</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-medium truncate">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</span>
+                        <Badge variant="outline" className="text-[9px] font-mono bg-background/50">{item.equipamentos?.tag_placa || "S/ PLACA"}</Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Data</p>
+                      <p className="font-medium">{new Date(item.data + "T00:00:00").toLocaleDateString("pt-BR")}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Fatura</p>
                       {item.fatura ? (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-medium text-foreground">Fatura {item.fatura.numero_nota || `#${item.fatura.numero_sequencial}`}</span>
-                          <Badge className={`text-[10px] ${faturaStatusColor(item.fatura.status)}`}>{item.fatura.status}</Badge>
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="font-medium text-xs leading-none truncate">#{item.fatura.numero_nota || item.fatura.numero_sequencial}</span>
+                          <Badge className={cn("text-[9px] px-1 py-0 border-0", faturaStatusColor(item.fatura.status))}>{item.fatura.status}</Badge>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-muted-foreground text-xs">—</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!loading && sorted.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhum custo encontrado</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {!loading && sorted.length === 0 && (
+            <div className="col-span-full py-12 text-center text-muted-foreground glass-panel rounded-xl">
+              <DollarSign className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-lg font-medium">Nenhum custo encontrado</p>
+              <p className="text-sm opacity-70">Tente ajustar seus filtros ou busca.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

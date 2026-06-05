@@ -12,6 +12,7 @@ import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MapPin, Check
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Empresa {
   id: string;
@@ -276,63 +277,70 @@ const Empresas = () => {
           </div>
         </div>
 
-        <Card className="shadow-sm border-border overflow-hidden">
-          <CardContent className="p-0 overflow-x-auto">
-            <Table className="min-w-[600px]">
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead column="cnpj" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>CNPJ</SortableTableHead>
-                  <SortableTableHead column="razao_social" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Razão Social</SortableTableHead>
-                  <SortableTableHead column="nome_fantasia" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nome Fantasia</SortableTableHead>
-                  <SortableTableHead column="cidade" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Cidade/UF</SortableTableHead>
-                  <SortableTableHead column="telefone" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Telefone</SortableTableHead>
-                  <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
-                  <TableHead className="w-24">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-mono text-sm">{item.cnpj}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                          <Building2 className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm leading-none">
-                            {item.razao_social || item.nome}
-                            {item.obra && <span className="text-xs text-muted-foreground ml-2">(Obra: {item.obra})</span>}
-                          </p>
-                          {item.nome_fantasia && <p className="text-xs text-muted-foreground mt-1 hidden sm:block">{item.nome_fantasia}</p>}
-                        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {sorted.map((item) => {
+            const getBorderColor = () => {
+              if (item.status === "Ativa") return "var(--success)";
+              if (item.status === "Inativa") return "var(--destructive)";
+              return "var(--primary)";
+            };
+
+            return (
+              <Card key={item.id} className="group hover:shadow-md transition-all glass-panel overflow-hidden relative border-l-4" style={{ borderLeftColor: `hsl(${getBorderColor()})` }}>
+                {/* Actions Hover Overlay */}
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-lg shadow-sm border border-border p-1 flex gap-1 z-10">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 shadow-inner">
+                      <Building2 className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-lg leading-none truncate">{item.razao_social || item.nome}</h3>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm hidden md:table-cell">{item.nome_fantasia || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {item.endereco_cidade && item.endereco_uf ? `${item.endereco_cidade}/${item.endereco_uf}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{item.telefone || "—"}</TableCell>
-                    <TableCell>
-                      <Badge className={item.status === "Ativa" ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <p className="text-sm text-muted-foreground mt-1 truncate">{item.nome_fantasia || "Sem nome fantasia"}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-[10px] font-mono bg-background/50">{item.cnpj}</Badge>
+                        <Badge className={cn("text-[10px]", item.status === "Ativa" ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground")}>{item.status}</Badge>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!loading && sorted.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma empresa encontrada</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm bg-muted/20 rounded-lg p-3 border border-border/30">
+                    <div className="col-span-2">
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider flex items-center gap-1"><MapPin className="h-3 w-3" /> Localização</p>
+                      <p className="font-medium truncate">{item.endereco_cidade && item.endereco_uf ? `${item.endereco_cidade} / ${item.endereco_uf}` : "Não informada"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Telefone</p>
+                      <p className="font-medium">{item.telefone || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Obras</p>
+                      <p className="font-medium truncate">{item.obra || "—"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {!loading && sorted.length === 0 && (
+            <div className="col-span-full py-12 text-center text-muted-foreground glass-panel rounded-xl">
+              <Building2 className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-lg font-medium">Nenhuma empresa encontrada</p>
+              <p className="text-sm opacity-70">Tente ajustar seus filtros ou busca.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
