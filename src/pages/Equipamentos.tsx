@@ -16,6 +16,7 @@ import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import { cn } from "@/lib/utils";
 
 interface Equipment {
   id: string;
