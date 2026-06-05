@@ -297,7 +297,7 @@ export const VisaoGeralTab = ({
         percentual,
         status: eq.status
       };
-    }).sort((a, b) => b.margem - a.margem);
+    }).sort((a, b) => b.percentual - a.percentual);
   }, [equipamentos, faturas, gastos, contratos]);
 
   const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s: number, f: any) => s + Number(f.valor_total), 0);
@@ -461,7 +461,7 @@ export const VisaoGeralTab = ({
       entry.confiabilidade = entry.total > 0 ? (entry.totalPago / entry.total) * 100 : 100;
     });
 
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+    return Array.from(map.values()).sort((a, b) => b.percentual - a.percentual);
   }, [faturas, contratos, gastos, faturamentoGastos, contratosEquipamentos, aditivosEquipamentos, contratosAditivos]);
 
   const overallReliability = useMemo(() => {
@@ -509,7 +509,7 @@ export const VisaoGeralTab = ({
         percentual,
         status: eq.status
       };
-    }).sort((a, b) => b.receita - a.receita);
+    }).sort((a, b) => b.percentual - a.percentual);
   }, [equipamentos, faturamentoPorEquipamento, gastos]);
 
   const topEquipamentos = useMemo(() => {
@@ -579,692 +579,553 @@ export const VisaoGeralTab = ({
 
   return (
     <div className="space-y-8">
-      {mode === "dashboard" && (
-        /* HEADER EXECUTIVO */
-        <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
+      <div className="space-y-8 animate-in fade-in duration-300">
+        {/* Dashboard Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 rounded-2xl border border-primary/10">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-sidebar">Painel de Acompanhamento Geral</h2>
-            <p className="text-muted-foreground text-sm">Resumo operacional e financeiro consolidado de todo o sistema.</p>
+            <h2 className="text-2xl font-black text-foreground flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-primary animate-pulse" />
+              Cockpit Executivo & B.I.
+            </h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              Análise macro-estratégica, eficiência operacional e indicadores financeiros integrados em tempo real.
+            </p>
           </div>
-          <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg border">
-            <CalendarClock className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium">Período: {parseLocalDate(dataInicio).toLocaleDateString("pt-BR")} - {parseLocalDate(dataFim).toLocaleDateString("pt-BR")}</span>
-          </div>
-        </div>
-      )}
-
-      {mode === "modules" && (
-        <div className="space-y-8 animate-in fade-in duration-300">
-          {/* Dashboard Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 rounded-2xl border border-primary/10">
-            <div>
-              <h2 className="text-2xl font-black text-foreground flex items-center gap-2">
-                <BarChart3 className="h-6 w-6 text-primary animate-pulse" />
-                Cockpit Executivo & B.I.
-              </h2>
-              <p className="text-muted-foreground text-sm mt-1">
-                Análise macro-estratégica, eficiência operacional e indicadores financeiros integrados.
-              </p>
-            </div>
-            <div className="bg-background px-4 py-2 rounded-xl shadow-sm border text-xs font-semibold text-muted-foreground flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-success animate-ping"></span>
-              Dados Consolidados em Tempo Real
-            </div>
-          </div>
-
-          {/* Premium BI KPI Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* KPI 1: Yield Operacional */}
-            <Card className="hover:shadow-md transition-all border-l-4 border-l-primary">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Yield Operacional / Máq</p>
-                    <h3 className="text-2xl font-black text-foreground mt-2">
-                      R$ {fmt(totalFaturado / Math.max(1, frotaStats.emLocacao))}
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                      Faturamento total dividido por {frotaStats.emLocacao} locados
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                    <Activity className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* KPI 2: EBITDA / Resultado Líquido */}
-            <Card className="hover:shadow-md transition-all border-l-4 border-l-success">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Resultado da Operação</p>
-                    <h3 className="text-2xl font-black text-success mt-2">
-                      R$ {fmt(totalFaturado - totalGastos)}
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                      Margem EBITDA: <span className="font-bold text-success">{margemGeral.toFixed(1)}%</span>
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 bg-success/10 rounded-xl flex items-center justify-center text-success">
-                    <DollarSign className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* KPI 3: Inadimplência */}
-            <Card className="hover:shadow-md transition-all border-l-4 border-l-warning">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Inadimplência / Atrasos</p>
-                    <h3 className="text-2xl font-black text-warning mt-2">
-                      R$ {fmtShort(inadimplenciaStats.valor)}
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                      {inadimplenciaStats.quantidade} fatura(s) — <span className="font-bold text-warning">{inadimplenciaStats.percentual.toFixed(1)}%</span> do faturado
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 bg-warning/10 rounded-xl flex items-center justify-center text-warning">
-                    <AlertTriangle className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* KPI 4: Confiabilidade Contratual */}
-            <Card className="hover:shadow-md transition-all border-l-4 border-l-info cursor-pointer select-none" onClick={() => setActiveModal("confiabilidade")}>
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Confiabilidade Contratual</p>
-                    <h3 className="text-2xl font-black text-info mt-2">
-                      {overallReliability.toFixed(1)}%
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Faturas Pagas vs Emitido Geral
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 bg-info/10 rounded-xl flex items-center justify-center text-info">
-                    <Shield className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* KPI 5: Taxa de Ocupação da Frota */}
-            <Card className="hover:shadow-md transition-all border-l-4 border-l-accent">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ocupação da Frota</p>
-                    <h3 className="text-2xl font-black text-foreground mt-2">
-                      {taxaUtilizacao}%
-                    </h3>
-                    <div className="w-full bg-muted h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div className="bg-primary h-1.5 rounded-full" style={{ width: `${taxaUtilizacao}%` }} />
-                    </div>
-                  </div>
-                  <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                    <Truck className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Financial Performance Monthly Evolution */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Evolução Mensal: Receitas vs Custos
-                </CardTitle>
-                <CardDescription>Consolidado dos últimos 6 meses com saldo EBITDA</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mensalFinanceiroData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorCustos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="mes" fontSize={11} tickLine={false} />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={fmtShort} />
-                    <Tooltip 
-                      formatter={(value: any) => [`R$ ${Number(value).toLocaleString("pt-BR")}`, ""]}
-                      contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
-                    />
-                    <Area type="monotone" dataKey="Receitas" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorReceitas)" />
-                    <Area type="monotone" dataKey="Custos" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCustos)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Fleet Metrics & Efficiency */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-primary" />
-                  Status Operacional da Frota
-                </CardTitle>
-                <CardDescription>Distribuição física dos {frotaStats.total} equipamentos</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary inline-block"></span>Em Locação Ativa</span>
-                    <span className="font-bold text-muted-foreground">{frotaStats.emLocacao} un. ({Math.round(frotaStats.emLocacao / Math.max(1, frotaStats.total) * 100)}%)</span>
-                  </div>
-                  <Progress value={(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 100} className="h-2" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-success inline-block"></span>Disponível para Pátio</span>
-                    <span className="font-bold text-muted-foreground">{frotaStats.disponiveis} un. ({Math.round(frotaStats.disponiveis / Math.max(1, frotaStats.total) * 100)}%)</span>
-                  </div>
-                  <Progress value={(frotaStats.disponiveis / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-success/10" style={{ transform: "translateZ(0)" }} />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-warning inline-block"></span>Manutenção / Sinistros</span>
-                    <span className="font-bold text-muted-foreground">{frotaStats.emManutencaoOuSinistro} un. ({Math.round(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total) * 100)}%)</span>
-                  </div>
-                  <Progress value={(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-warning/10" />
-                </div>
-
-                <div className="pt-4 border-t space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Média de Contratos Ativos:</span>
-                    <span className="font-bold text-foreground">{contratosStats.ativos} contratos</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Total Custo Fixo de Apólices/Mês:</span>
-                    <span className="font-bold text-foreground">R$ {fmt(apolicesStats.totalMensal)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Rankings and Controls Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Top 5 Clients by Revenue */}
-            <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("clientes")}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-primary" />
-                  Top 5 Clientes (Faturamento & Confiabilidade)
-                </CardTitle>
-                <CardDescription>Clientes ordenados por faturamento emitido e nível de adimplência</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 px-6 pb-6">
-                <div className="divide-y text-sm">
-                  {topClientes.map((client, idx) => (
-                    <div key={idx} className="flex justify-between items-center py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
-                          #{idx + 1}
-                        </span>
-                        <div>
-                          <p className="font-bold text-foreground truncate max-w-[180px] md:max-w-[240px]">{client.nome}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {client.contratosCount} contrato(s) ativo(s) — <span className="font-semibold text-primary">{client.confiabilidade.toFixed(0)}% Pago</span>
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-black text-success block">
-                          R$ {Number(client.totalPago).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          Emitido: R$ {fmtShort(client.total)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {topClientes.length === 0 && (
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhum faturamento registrado.</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Confiabilidade Contratual Card (Middle) */}
-            <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("confiabilidade")}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" />
-                  Confiabilidade Contratual
-                </CardTitle>
-                <CardDescription>Índices de adimplência e cumprimento de faturas</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 px-6 pb-6">
-                <div className="space-y-4 text-sm">
-                  {/* Top 3 Confiáveis */}
-                  <div>
-                    <h5 className="text-xs font-bold text-success uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <ArrowUpRight className="h-3 w-3" /> Mais Adimplentes
-                    </h5>
-                    <div className="divide-y text-xs">
-                      {todosClientes.filter(c => c.total > 0).sort((a, b) => b.confiabilidade - a.confiabilidade).slice(0, 3).map((client, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2">
-                          <span className="font-semibold truncate max-w-[160px]">{client.nome}</span>
-                          <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold">
-                            {client.confiabilidade.toFixed(0)}%
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Bottom 2 Confiáveis */}
-                  <div className="pt-2 border-t">
-                    <h5 className="text-xs font-bold text-destructive uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <ArrowDownRight className="h-3 w-3" /> Menos Adimplentes
-                    </h5>
-                    <div className="divide-y text-xs">
-                      {todosClientes.filter(c => c.total > 0).sort((a, b) => a.confiabilidade - b.confiabilidade).slice(0, 2).map((client, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2">
-                          <span className="font-semibold truncate max-w-[160px]">{client.nome}</span>
-                          <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold">
-                            {client.confiabilidade.toFixed(0)}%
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Top 5 Most Profitable Equipments */}
-            <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("maquinas")}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-primary" />
-                  Máquinas & Rentabilidade Real
-                </CardTitle>
-                <CardDescription>Equipamentos mais e menos rentáveis apurados no sistema</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 px-6 pb-6">
-                <div className="space-y-4 text-sm">
-                  {/* Top 3 Rentáveis */}
-                  <div>
-                    <h5 className="text-xs font-bold text-success uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <ArrowUpRight className="h-3 w-3" /> Mais Rentáveis
-                    </h5>
-                    <div className="divide-y text-xs">
-                      {todosEquipamentos.slice(0, 3).map((equip, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2">
-                          <div className="truncate max-w-[160px]">
-                            <span className="font-semibold">{equip.nome}</span>
-                            <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
-                          </div>
-                          <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold">
-                            R$ {fmtShort(equip.receita)}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Bottom 2 Rentáveis */}
-                  <div className="pt-2 border-t">
-                    <h5 className="text-xs font-bold text-destructive uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <ArrowDownRight className="h-3 w-3" /> Menos Rentáveis / Ociosas
-                    </h5>
-                    <div className="divide-y text-xs">
-                      {todosEquipamentos.filter(e => e.receita >= 0).sort((a, b) => a.receita - b.receita).slice(0, 2).map((equip, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2">
-                          <div className="truncate max-w-[160px]">
-                            <span className="font-semibold">{equip.nome}</span>
-                            <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
-                          </div>
-                          <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold">
-                            R$ {fmtShort(equip.receita)}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Audit Alert Box */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Insurance Audit Alert */}
-            <Card className="bg-destructive/5 border-destructive/20 hover:bg-destructive/10 hover:border-destructive/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("seguros")}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-destructive flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-destructive" />
-                  Auditoria de Riscos: Máquinas sem Seguro Ativo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs">
-                <p className="text-muted-foreground mb-3">
-                  Equipamentos atualmente alocados que não possuem apólice de seguro ativa ou cadastrada.
-                </p>
-                {equipSemSeguro.length > 0 ? (
-                  <div className="max-h-[120px] overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-background">
-                    {equipSemSeguro.map((eq, idx) => (
-                      <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
-                        <span className="font-bold text-foreground">{eq.tipo} {eq.modelo}</span>
-                        <span className="text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">{eq.tag_placa || "Sem Placa"}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-3 border border-success/20 rounded-lg bg-success/10 text-success font-semibold text-center">
-                    ✓ Todos os equipamentos alocados estão devidamente cobertos por seguros vigentes.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Expiring Contracts Alert */}
-            <Card className="bg-warning/5 border-warning/20 hover:bg-warning/10 hover:border-warning/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("vencimentos")}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-warning flex items-center gap-2">
-                  <CalendarClock className="h-4 w-4 text-warning" />
-                  Renovações Críticas: Contratos a Vencer (&lt;30 dias)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs">
-                <p className="text-muted-foreground mb-3">
-                  Contratos ativos que expiram nos próximos 30 dias e demandam negociação/prorrogação imediata.
-                </p>
-                {contratos.filter(c => c.status === "Ativo" && c.data_fim && !isNaN(parseLocalDate(c.data_fim).getTime()) && parseLocalDate(c.data_fim) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).length > 0 ? (
-                  <div className="max-h-[120px] overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-background">
-                    {contratos
-                      .filter(c => c.status === "Ativo" && c.data_fim && !isNaN(parseLocalDate(c.data_fim).getTime()) && parseLocalDate(c.data_fim) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
-                      .map((c, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
-                          <span className="font-bold text-foreground truncate max-w-[200px]">{c.empresas?.nome}</span>
-                          <span className="text-warning font-semibold">{parseLocalDate(c.data_fim).toLocaleDateString("pt-BR")}</span>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="p-3 border border-success/20 rounded-lg bg-success/10 text-success font-semibold text-center">
-                    ✓ Nenhuma renovação urgente necessária nos próximos 30 dias.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Access Grid */}
-          <div className="pt-4 border-t">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Painel de Acesso Rápido aos Módulos</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
-              <button onClick={() => navigate("/equipamentos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <Truck className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold">Frota</span>
-              </button>
-              <button onClick={() => navigate("/empresas")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <Building2 className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold">Clientes</span>
-              </button>
-              <button onClick={() => navigate("/contratos?tab=contratos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <FileText className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold">Contratos</span>
-              </button>
-              <button onClick={() => navigate("/apolices?tab=apolices")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <Shield className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold">Seguros</span>
-              </button>
-              <button onClick={() => navigate("/medicoes?tab=medicoes")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <Clock className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold">Horímetro</span>
-              </button>
-              <button onClick={() => navigate("/medicoes?tab=faturamento")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <Receipt className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold whitespace-nowrap">Emitir medição</span>
-              </button>
-              <button onClick={() => navigate("/medicoes?tab=faturamento-novo")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <DollarSign className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold whitespace-nowrap">Emissão de faturas</span>
-              </button>
-              <button onClick={() => navigate("/medicoes?tab=historico-faturamento")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <BarChart3 className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold whitespace-nowrap">Histórico Financeiro</span>
-              </button>
-              <button onClick={() => navigate("/gastos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
-                <DollarSign className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold">Custos</span>
-              </button>
-            </div>
+          <div className="bg-background px-4 py-2 rounded-xl shadow-sm border text-xs font-semibold text-muted-foreground flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-success animate-ping"></span>
+            Dados Consolidados em Tempo Real
           </div>
         </div>
-      )}
 
-      {mode === "dashboard" && (
-        <div className="space-y-6">
-          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Métricas de Performance Operacional</h3>
-
-        {/* KPI CARDS - NÍVEL EXECUTIVO */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="relative overflow-hidden border-l-4 border-l-success">
+        {/* Premium BI KPI Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* KPI 1: Yield Operacional */}
+          <Card className="hover:shadow-md transition-all border-l-4 border-l-primary">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">EBITDA Estimado</p>
-                  <h3 className="text-2xl font-bold mt-1">R$ {fmt(totalFaturado - totalGastos)}</h3>
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Yield Operacional / Máq</p>
+                  <h3 className="text-2xl font-black text-foreground mt-2">
+                    R$ {fmt(totalFaturado / Math.max(1, frotaStats.emLocacao))}
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                    Faturamento total dividido por {frotaStats.emLocacao} locados
+                  </p>
                 </div>
-                <div className="h-12 w-12 bg-success/10 rounded-full flex items-center justify-center">
-                  <Target className="h-6 w-6 text-success" />
+                <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <Activity className="h-5 w-5" />
                 </div>
-              </div>
-              <div className="flex items-center mt-4 text-xs">
-                <ArrowUpRight className="h-3 w-3 text-success mr-1" />
-                <span className="text-success font-bold">{margemGeral.toFixed(1)}%</span>
-                <span className="text-muted-foreground ml-1">de margem operacional</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-l-4 border-l-primary">
+          {/* KPI 2: EBITDA / Resultado Líquido */}
+          <Card className="hover:shadow-md transition-all border-l-4 border-l-success">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Utilização da Frota</p>
-                  <h3 className="text-2xl font-bold mt-1">{taxaUtilizacao}%</h3>
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Resultado da Operação</p>
+                  <h3 className="text-2xl font-black text-success mt-2">
+                    R$ {fmt(totalFaturado - totalGastos)}
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                    Margem EBITDA: <span className="font-bold text-success">{margemGeral.toFixed(1)}%</span>
+                  </p>
                 </div>
-                <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Activity className="h-6 w-6 text-primary" />
+                <div className="h-10 w-10 bg-success/10 rounded-xl flex items-center justify-center text-success">
+                  <DollarSign className="h-5 w-5" />
                 </div>
-              </div>
-              <div className="mt-4">
-                <Progress value={taxaUtilizacao} className="h-1.5" />
-                <p className="text-[10px] text-muted-foreground mt-2">{equipAtivos} de {equipamentos.length} máquinas operando</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-l-4 border-l-accent">
+          {/* KPI 3: Inadimplência */}
+          <Card className="hover:shadow-md transition-all border-l-4 border-l-warning">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Receita Projetada</p>
-                  <h3 className="text-2xl font-bold mt-1">R$ {fmtShort(forecastData[1]?.valor || 0)}</h3>
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Inadimplência / Atrasos</p>
+                  <h3 className="text-2xl font-black text-warning mt-2">
+                    R$ {fmtShort(inadimplenciaStats.valor)}
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                    {inadimplenciaStats.quantidade} fatura(s) — <span className="font-bold text-warning">{inadimplenciaStats.percentual.toFixed(1)}%</span> do faturado
+                  </p>
                 </div>
-                <div className="h-12 w-12 bg-accent/10 rounded-full flex items-center justify-center">
-                  <Zap className="h-6 w-6 text-accent" />
+                <div className="h-10 w-10 bg-warning/10 rounded-xl flex items-center justify-center text-warning">
+                  <AlertTriangle className="h-5 w-5" />
                 </div>
-              </div>
-              <div className="flex items-center mt-4 text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                <span>Expectativa para o próximo mês</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-l-4 border-l-warning">
+          {/* KPI 4: Confiabilidade Contratual */}
+          <Card className="hover:shadow-md transition-all border-l-4 border-l-info cursor-pointer select-none" onClick={() => setActiveModal("confiabilidade")}>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Contratos Críticos</p>
-                  <h3 className="text-2xl font-bold mt-1">{contratos.filter(c => c.status === "Ativo" && c.data_fim && !isNaN(parseLocalDate(c.data_fim).getTime()) && parseLocalDate(c.data_fim) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).length}</h3>
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Confiabilidade Contratual</p>
+                  <h3 className="text-2xl font-black text-info mt-2">
+                    {overallReliability.toFixed(1)}%
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Faturas Pagas vs Emitido Geral
+                  </p>
                 </div>
-                <div className="h-12 w-12 bg-warning/10 rounded-full flex items-center justify-center">
-                  <Shield className="h-6 w-6 text-warning" />
+                <div className="h-10 w-10 bg-info/10 rounded-xl flex items-center justify-center text-info">
+                  <Shield className="h-5 w-5" />
                 </div>
               </div>
-              <div className="flex items-center mt-4 text-xs text-warning font-medium">
-                <Clock className="h-3 w-3 mr-1" />
-                <span>Vencendo nos próximos 30 dias</span>
+            </CardContent>
+          </Card>
+
+          {/* KPI 5: Taxa de Ocupação da Frota */}
+          <Card className="hover:shadow-md transition-all border-l-4 border-l-accent">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ocupação da Frota</p>
+                  <h3 className="text-2xl font-black text-foreground mt-2">
+                    {taxaUtilizacao}%
+                  </h3>
+                  <div className="w-full bg-muted h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div className="bg-primary h-1.5 rounded-full" style={{ width: `${taxaUtilizacao}%` }} />
+                  </div>
+                </div>
+                <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <Truck className="h-5 w-5" />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* GRÁFICO DE PREVISÃO DE RECEITA */}
-          <Card className="lg:col-span-2">
+        {/* Charts & Projections Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Evolução Mensal */}
+          <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Evolução Mensal: Receitas vs Custos
+              </CardTitle>
+              <CardDescription>Consolidado dos últimos 6 meses com saldo EBITDA</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={mensalFinanceiroData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorCustos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="mes" fontSize={11} tickLine={false} />
+                  <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={fmtShort} />
+                  <Tooltip 
+                    formatter={(value: any) => [`R$ ${Number(value).toLocaleString("pt-BR")}`, ""]}
+                    contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                  />
+                  <Area type="monotone" dataKey="Receitas" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorReceitas)" />
+                  <Area type="monotone" dataKey="Custos" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCustos)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Previsão de Receita Forecast */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-primary" /> Previsão de Receita (Cashflow Forecast)
               </CardTitle>
               <CardDescription>Baseado em contratos ativos e recorrentes</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={forecastData}>
-                    <defs>
-                      <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                    <XAxis dataKey="mes" axisLine={false} tickLine={false} className="text-xs" />
-                    <YAxis axisLine={false} tickLine={false} className="text-xs" tickFormatter={(v) => `R$ ${fmtShort(v)}`} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: "hsl(var(--background))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                      formatter={(v: number) => [`R$ ${fmt(v)}`, "Projeção"]}
-                    />
-                    <Area type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+                  <XAxis dataKey="mes" axisLine={false} tickLine={false} className="text-xs" />
+                  <YAxis axisLine={false} tickLine={false} className="text-xs" tickFormatter={(v) => `R$ ${fmtShort(v)}`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "hsl(var(--background))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                    formatter={(v: number) => [`R$ ${fmt(v)}`, "Projeção"]}
+                  />
+                  <Area type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* RANKING DE LUCRATIVIDADE */}
+          {/* Centro de Custos Operacionais */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-success" /> Top Ativos (Rentabilidade)
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <PieChart className="h-5 w-5 text-primary" />
+                Centro de Custos Operacionais
               </CardTitle>
-              <CardDescription>Máquinas com maior margem líquida</CardDescription>
+              <CardDescription>Distribuição de gastos por categoria</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {equipmentHealth.slice(0, 5).map((eq, idx) => (
-                  <div key={eq.id} className="flex items-center justify-between border-b pb-2 last:border-0">
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold truncate max-w-[150px]">{eq.nome}</p>
-                      <Badge variant="outline" className="text-[10px] py-0">{eq.tag || "Sem Tag"}</Badge>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-success">+ R$ {fmtShort(eq.margem)}</p>
-                      <p className="text-[10px] text-muted-foreground">{eq.percentual.toFixed(0)}% de margem</p>
-                    </div>
-                  </div>
-                ))}
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={useMemo(() => {
+                  const map: Record<string, number> = {};
+                  gastosFiltered.forEach(g => { map[g.tipo] = (map[g.tipo] || 0) + Number(g.valor); });
+                  return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+                }, [gastosFiltered])} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+                  <XAxis dataKey="name" className="text-[10px]" axisLine={false} tickLine={false} />
+                  <YAxis className="text-[10px]" axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${fmtShort(v)}`} />
+                  <Tooltip formatter={(v: number) => [`R$ ${fmt(v)}`, "Gasto"]} />
+                  <Bar dataKey="value" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} barSize={30} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Status Operacional da Frota */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Status Operacional da Frota
+              </CardTitle>
+              <CardDescription>Distribuição física dos {frotaStats.total} equipamentos</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary inline-block"></span>Em Locação Ativa</span>
+                  <span className="font-bold text-muted-foreground">{frotaStats.emLocacao} un. ({Math.round(frotaStats.emLocacao / Math.max(1, frotaStats.total) * 100)}%)</span>
+                </div>
+                <Progress value={(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 100} className="h-2" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-success inline-block"></span>Disponível para Pátio</span>
+                  <span className="font-bold text-muted-foreground">{frotaStats.disponiveis} un. ({Math.round(frotaStats.disponiveis / Math.max(1, frotaStats.total) * 100)}%)</span>
+                </div>
+                <Progress value={(frotaStats.disponiveis / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-success/10" style={{ transform: "translateZ(0)" }} />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-warning inline-block"></span>Manutenção / Sinistros</span>
+                  <span className="font-bold text-muted-foreground">{frotaStats.emManutencaoOuSinistro} un. ({Math.round(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total) * 100)}%)</span>
+                </div>
+                <Progress value={(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-warning/10" />
+              </div>
+
+              <div className="pt-4 border-t space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Média de Contratos Ativos:</span>
+                  <span className="font-bold text-foreground">{contratosStats.ativos} contratos</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Total Custo Fixo de Apólices/Mês:</span>
+                  <span className="font-bold text-foreground">R$ {fmt(apolicesStats.totalMensal)}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* COMPOSIÇÃO DE GASTOS */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Centro de Custos Operacionais</CardTitle>
-              <CardDescription>Distribuição de gastos por categoria</CardDescription>
+        {/* Rankings and Controls Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Top 5 Clients by Revenue */}
+          <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("clientes")}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                Top 5 Clientes (Rentabilidade)
+              </CardTitle>
+              <CardDescription>Clientes ordenados por nível de rentabilidade real e confiabilidade</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={useMemo(() => {
-                    const map: Record<string, number> = {};
-                    gastosFiltered.forEach(g => { map[g.tipo] = (map[g.tipo] || 0) + Number(g.valor); });
-                    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
-                  }, [gastosFiltered])}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                    <XAxis dataKey="name" className="text-[10px]" axisLine={false} tickLine={false} />
-                    <YAxis className="text-[10px]" axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${fmtShort(v)}`} />
-                    <Tooltip formatter={(v: number) => [`R$ ${fmt(v)}`, "Gasto"]} />
-                    <Bar dataKey="value" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} barSize={30} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ALERTA DE OCIOSIDADE */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-warning" /> Alerta de Ociosidade
-                </CardTitle>
-                <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">Atenção</Badge>
-              </div>
-              <CardDescription>Equipamentos parados ou em manutenção</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {equipamentos.filter(e => e.status !== "Ativo").slice(0, 4).map((eq) => (
-                  <div key={eq.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
-                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${eq.status === 'Manutenção' ? 'bg-warning/20' : 'bg-destructive/20'}`}>
-                      {eq.status === 'Manutenção' ? <Wrench className="h-5 w-5 text-warning" /> : <Clock className="h-5 w-5 text-destructive" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold">{eq.tipo} {eq.modelo}</p>
-                      <p className="text-xs text-muted-foreground">Status: {eq.status}</p>
+            <CardContent className="p-0 px-6 pb-6">
+              <div className="divide-y text-sm">
+                {topClientes.map((client, idx) => (
+                  <div key={idx} className="flex justify-between items-center py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
+                        #{idx + 1}
+                      </span>
+                      <div>
+                        <p className="font-bold text-foreground truncate max-w-[180px] md:max-w-[240px]">{client.nome}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {client.contratosCount} contrato(s) ativo(s) — <span className="font-semibold text-primary">{client.confiabilidade.toFixed(0)}% Pago</span>
+                        </p>
+                      </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-medium text-destructive">Gerando Custo Fixo</p>
+                      <span className="font-black text-success block">
+                        R$ {Number(client.totalPago).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Emitido: R$ {fmtShort(client.total)}
+                      </span>
                     </div>
                   </div>
                 ))}
-                {equipamentos.filter(e => e.status !== "Ativo").length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                    <Shield className="h-8 w-8 mb-2 opacity-20" />
-                    <p className="text-sm italic">Toda a frota está ativa e produzindo!</p>
-                  </div>
+                {topClientes.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Nenhum faturamento registrado.</p>
                 )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Confiabilidade Contratual Card (Middle) */}
+          <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("confiabilidade")}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" />
+                Confiabilidade Contratual
+              </CardTitle>
+              <CardDescription>Índices de adimplência e cumprimento de faturas</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 px-6 pb-6">
+              <div className="space-y-4 text-sm">
+                {/* Top 3 Confiáveis */}
+                <div>
+                  <h5 className="text-xs font-bold text-success uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <ArrowUpRight className="h-3 w-3" /> Mais Adimplentes
+                  </h5>
+                  <div className="divide-y text-xs">
+                    {todosClientes.filter(c => c.total > 0).sort((a, b) => b.confiabilidade - a.confiabilidade).slice(0, 3).map((client, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2">
+                        <span className="font-semibold truncate max-w-[160px]">{client.nome}</span>
+                        <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold">
+                          {client.confiabilidade.toFixed(0)}%
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Bottom 2 Confiáveis */}
+                <div className="pt-2 border-t">
+                  <h5 className="text-xs font-bold text-destructive uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <ArrowDownRight className="h-3 w-3" /> Menos Adimplentes
+                  </h5>
+                  <div className="divide-y text-xs">
+                    {todosClientes.filter(c => c.total > 0).sort((a, b) => a.confiabilidade - b.confiabilidade).slice(0, 2).map((client, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2">
+                        <span className="font-semibold truncate max-w-[160px]">{client.nome}</span>
+                        <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold">
+                          {client.confiabilidade.toFixed(0)}%
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top 5 Most Profitable Equipments */}
+          <Card className="hover:shadow-md hover:border-primary/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("maquinas")}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Truck className="h-4 w-4 text-primary" />
+                Máquinas & Rentabilidade Real
+              </CardTitle>
+              <CardDescription>Equipamentos mais e menos rentáveis apurados no sistema</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 px-6 pb-6">
+              <div className="space-y-4 text-sm">
+                {/* Top 3 Rentáveis */}
+                <div>
+                  <h5 className="text-xs font-bold text-success uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <ArrowUpRight className="h-3 w-3" /> Mais Rentáveis
+                  </h5>
+                  <div className="divide-y text-xs">
+                    {todosEquipamentos.slice(0, 3).map((equip, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2">
+                        <div className="truncate max-w-[160px]">
+                          <span className="font-semibold">{equip.nome}</span>
+                          <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
+                        </div>
+                        <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold">
+                          {equip.percentual.toFixed(1)}%
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Bottom 2 Rentáveis */}
+                <div className="pt-2 border-t">
+                  <h5 className="text-xs font-bold text-destructive uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <ArrowDownRight className="h-3 w-3" /> Menos Rentáveis / Ociosas
+                  </h5>
+                  <div className="divide-y text-xs">
+                    {todosEquipamentos.slice().reverse().slice(0, 2).map((equip, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2">
+                        <div className="truncate max-w-[160px]">
+                          <span className="font-semibold">{equip.nome}</span>
+                          <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
+                        </div>
+                        <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold">
+                          {equip.percentual.toFixed(1)}%
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* FOOTER INFO */}
+        {/* Audit / Alerts Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Insurance Alert */}
+          <Card className="bg-destructive/5 border-destructive/20 hover:bg-destructive/10 hover:border-destructive/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("seguros")}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold text-destructive flex items-center gap-2">
+                <Shield className="h-4 w-4 text-destructive" />
+                Auditoria de Riscos: Sem Seguro Ativo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs">
+              <p className="text-muted-foreground mb-3">
+                Equipamentos atualmente alocados que não possuem apólice de seguro ativa.
+              </p>
+              {equipSemSeguro.length > 0 ? (
+                <div className="max-h-[120px] overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-background">
+                  {equipSemSeguro.map((eq, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
+                      <span className="font-bold text-foreground">{eq.tipo} {eq.modelo}</span>
+                      <span className="text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">{eq.tag_placa || "Sem Placa"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 border border-success/20 rounded-lg bg-success/10 text-success font-semibold text-center">
+                  ✓ Todos os equipamentos alocados têm cobertura de seguro.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Renovations Alert */}
+          <Card className="bg-warning/5 border-warning/20 hover:bg-warning/10 hover:border-warning/40 cursor-pointer transition-all select-none" onClick={() => setActiveModal("vencimentos")}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold text-warning flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-warning" />
+                Renovações Críticas: Vencer (&lt;30 dias)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs">
+              <p className="text-muted-foreground mb-3">
+                Contratos ativos que expiram nos próximos 30 dias e exigem negociação.
+              </p>
+              {todosContratosAVencer.length > 0 ? (
+                <div className="max-h-[120px] overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-background">
+                  {todosContratosAVencer.map((c, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
+                      <span className="font-bold text-foreground truncate max-w-[200px]">{c.empresas?.nome}</span>
+                      <span className="text-warning font-semibold">{parseLocalDate(c.data_fim).toLocaleDateString("pt-BR")}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 border border-success/20 rounded-lg bg-success/10 text-success font-semibold text-center">
+                  ✓ Sem contratos expirando nos próximos 30 dias.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Alerta de Ociosidade */}
+          <Card className="bg-warning/5 border-warning/20 hover:bg-warning/10 hover:border-warning/40 select-none">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold text-warning flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                Alerta de Ociosidade & Manutenção
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs">
+              <p className="text-muted-foreground mb-3">
+                Equipamentos parados ou em manutenção gerando custos operacionais.
+              </p>
+              {equipamentos.filter(e => e.status !== "Ativo").length > 0 ? (
+                <div className="max-h-[120px] overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-background">
+                  {equipamentos.filter(e => e.status !== "Ativo").slice(0, 4).map((eq) => (
+                    <div key={eq.id} className="flex justify-between items-center py-1 border-b last:border-0">
+                      <span className="font-bold text-foreground truncate max-w-[140px]">{eq.tipo} {eq.modelo}</span>
+                      <span className="text-destructive font-semibold text-[10px]">{eq.status}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 border border-success/20 rounded-lg bg-success/10 text-success font-semibold text-center">
+                  ✓ Toda a frota está ativa e operando!
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Insight Box */}
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
           <Info className="h-5 w-5 text-primary mt-0.5" />
           <div className="text-sm text-primary-foreground/80">
-            <p className="font-bold text-primary">Insight do Sistema:</p>
-            <p>Sua frota está com <strong>{taxaUtilizacao}%</strong> de utilização. Equipamentos em manutenção estão impactando a margem operacional em aproximadamente <strong>R$ {fmt(gastosFiltered.filter(g => g.tipo === 'Manutenção').reduce((s, g) => s + Number(g.valor), 0))}</strong> este mês.</p>
+            <p className="font-bold text-primary">Insight do Cockpit:</p>
+            <p>Sua frota está com <strong>{taxaUtilizacao}%</strong> de utilização. Equipamentos em manutenção ou parados estão gerando custos. Fique atento aos contratos a vencer para garantir a receita projetada de R$ {fmtShort(forecastData[1]?.valor || 0)} para o próximo mês.</p>
+          </div>
+        </div>
+
+        {/* Quick Access Grid */}
+        <div className="pt-4 border-t">
+          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Painel de Acesso Rápido aos Módulos</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
+            <button onClick={() => navigate("/equipamentos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <Truck className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold">Frota</span>
+            </button>
+            <button onClick={() => navigate("/empresas")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <Building2 className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold">Clientes</span>
+            </button>
+            <button onClick={() => navigate("/contratos?tab=contratos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <FileText className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold">Contratos</span>
+            </button>
+            <button onClick={() => navigate("/apolices?tab=apolices")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <Shield className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold">Seguros</span>
+            </button>
+            <button onClick={() => navigate("/medicoes?tab=medicoes")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <Clock className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold">Horímetro</span>
+            </button>
+            <button onClick={() => navigate("/medicoes?tab=faturamento")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <Receipt className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold whitespace-nowrap">Emitir medição</span>
+            </button>
+            <button onClick={() => navigate("/medicoes?tab=faturamento-novo")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <DollarSign className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold whitespace-nowrap">Emissão de faturas</span>
+            </button>
+            <button onClick={() => navigate("/medicoes?tab=historico-faturamento")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <BarChart3 className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold whitespace-nowrap">Histórico Financeiro</span>
+            </button>
+            <button onClick={() => navigate("/gastos")} className="flex flex-col items-center justify-center p-3 border rounded-xl bg-card hover:bg-muted/50 transition-all gap-1.5 group">
+              <DollarSign className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-bold">Custos</span>
+            </button>
           </div>
         </div>
       </div>
-      )}
 
       {/* Dialogs for detailing info from clicked cards */}
       {/* 1. Clientes Modal */}
@@ -1500,7 +1361,7 @@ export const VisaoGeralTab = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {todosClientes.map((client, idx) => {
+                {todosClientes.slice().sort((a, b) => b.confiabilidade - a.confiabilidade).map((client, idx) => {
                   const emAberto = client.total - client.totalPago;
                   const isReliable = client.confiabilidade >= 90;
                   const isMediumReliable = client.confiabilidade >= 70;

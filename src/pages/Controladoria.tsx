@@ -1,19 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, Receipt, Building2, FileDown, FileSpreadsheet, TrendingUp, TrendingDown, CalendarClock, LayoutDashboard, Link2, LayoutGrid, BarChart3 } from "lucide-react";
-import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
-import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 
 interface Empresa {
   id: string;
@@ -63,36 +51,7 @@ interface Fatura {
   };
 }
 
-const parseLocalDate = (dateStr: any): Date => {
-  const mkFallback = () => {
-    const d = new Date(NaN);
-    (d as any).toLocaleDateString = () => "—";
-    return d;
-  };
-  if (!dateStr) return mkFallback();
-  const str = String(dateStr).trim();
-  if (!str || str === "null" || str === "undefined") return mkFallback();
-  const d = str.includes("T") ? new Date(str) : new Date(str + "T00:00:00");
-  if (isNaN(d.getTime())) return mkFallback();
-  return d;
-};
-const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const monthKey = (dateStr: string) => dateStr.slice(0, 7);
-const competenciaFromPeriod = (period: { inicio: string; fim: string }) => monthKey(period.inicio);
-const formatCompetencia = (key: string) => {
-  const [year, month] = key.split("-").map(Number);
-  return `${meses[(month || 1) - 1]}/${year}`;
-};
-const parsePeriodoKey = (periodo?: string | null) => {
-  if (!periodo) return null;
-  const normalized = periodo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const monthIndex = meses.findIndex(m => normalized.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()));
-  const year = periodo.match(/\b(20\d{2}|19\d{2})\b/)?.[1];
-  if (monthIndex < 0 || !year) return null;
-  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
-};
-
-const Acompanhamento = () => {
+const Controladoria = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [faturas, setFaturas] = useState<Fatura[]>([]);
@@ -187,63 +146,29 @@ const Acompanhamento = () => {
     fetchAll();
   }, []);
 
-
-
   return (
-    <Layout title="Acompanhamento Geral" subtitle="Visão completa de faturamento, vencimentos e alertas">
+    <Layout title="Controladoria & B.I." subtitle="Cockpit executivo e indicadores de performance">
       <div className="space-y-6">
-
-        <Tabs defaultValue="acompanhamento" className="w-full">
-          <TabsList>
-            <TabsTrigger value="acompanhamento" className="flex items-center gap-1">
-              <LayoutDashboard className="h-4 w-4" /> Acompanhamento
-            </TabsTrigger>
-            <TabsTrigger value="modulos" className="flex items-center gap-1">
-              <BarChart3 className="h-4 w-4" /> Controladoria & BI
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="acompanhamento" className="mt-6">
-            <VisaoGeralTab
-              mode="dashboard"
-              empresas={empresas}
-              contratos={contratos}
-              faturas={faturas}
-              equipamentos={equipamentos}
-              gastos={gastos}
-              medicoes={medicoes}
-              apolices={apolices}
-              apolicesEquipamentos={apolicesEquipamentos}
-              contratosAditivos={contratosAditivos}
-              aditivosEquipamentos={aditivosEquipamentos}
-              sinistros={sinistros}
-              faturamentoGastos={faturamentoGastos}
-              contratosEquipamentos={contratosEquipamentos}
-            />
-          </TabsContent>
-
-          <TabsContent value="modulos" className="mt-6">
-            <VisaoGeralTab
-              mode="modules"
-              empresas={empresas}
-              contratos={contratos}
-              faturas={faturas}
-              equipamentos={equipamentos}
-              gastos={gastos}
-              medicoes={medicoes}
-              apolices={apolices}
-              apolicesEquipamentos={apolicesEquipamentos}
-              contratosAditivos={contratosAditivos}
-              aditivosEquipamentos={aditivosEquipamentos}
-              sinistros={sinistros}
-              faturamentoGastos={faturamentoGastos}
-              contratosEquipamentos={contratosEquipamentos}
-            />
-          </TabsContent>
-        </Tabs>
+        {!loading && (
+          <VisaoGeralTab
+            empresas={empresas}
+            contratos={contratos}
+            faturas={faturas}
+            equipamentos={equipamentos}
+            gastos={gastos}
+            medicoes={medicoes}
+            apolices={apolices}
+            apolicesEquipamentos={apolicesEquipamentos}
+            contratosAditivos={contratosAditivos}
+            aditivosEquipamentos={aditivosEquipamentos}
+            sinistros={sinistros}
+            faturamentoGastos={faturamentoGastos}
+            contratosEquipamentos={contratosEquipamentos}
+          />
+        )}
       </div>
     </Layout>
   );
 };
 
-export default Acompanhamento;
+export default Controladoria;

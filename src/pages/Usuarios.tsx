@@ -40,7 +40,7 @@ const ALL_ROUTES = [
   { path: "/faturamento", label: "Faturamento" },
   { path: "/apolices", label: "Apólices" },
   { path: "/gastos", label: "Gastos" },
-  { path: "/acompanhamento", label: "Acompanhamento" },
+  { path: "/controladoria", label: "Controladoria" },
   { path: "/agenda", label: "Agenda & Kanban" },
 ];
 

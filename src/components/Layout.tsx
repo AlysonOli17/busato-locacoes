@@ -34,9 +34,9 @@ const allGroups: NavGroup[] = [
     to: "/agenda"
   },
   {
-    label: "Acompanhamento",
+    label: "Controladoria",
     icon: BarChart3,
-    to: "/acompanhamento"
+    to: "/controladoria"
   },
   {
     label: "Cadastros",

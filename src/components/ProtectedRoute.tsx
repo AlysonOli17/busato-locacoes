@@ -25,7 +25,13 @@ export const ProtectedRoute = ({ children, requiredPermission }: Props) => {
   if (role === "admin") return <>{children}</>;
 
   // Check specific permission
-  if (requiredPermission && !permissions.includes(requiredPermission)) {
+  const hasPermission = requiredPermission
+    ? (requiredPermission === "/controladoria"
+      ? (permissions.includes("/controladoria") || permissions.includes("/acompanhamento"))
+      : permissions.includes(requiredPermission))
+    : true;
+
+  if (requiredPermission && !hasPermission) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">

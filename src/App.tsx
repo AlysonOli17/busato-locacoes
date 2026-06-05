@@ -14,7 +14,7 @@ import Faturamento from "./pages/Faturamento";
 import Apolices from "./pages/Apolices";
 import Gastos from "./pages/Gastos";
 import Usuarios from "./pages/Usuarios";
-import Acompanhamento from "./pages/Acompanhamento";
+import Controladoria from "./pages/Controladoria";
 import Agregados from "./pages/Agregados";
 import Login from "./pages/Login";
 import Agenda from "./pages/Agenda";
@@ -41,7 +41,8 @@ const App = () => (
             <Route path="/apolices" element={<ProtectedRoute requiredPermission="/apolices"><Apolices /></ProtectedRoute>} />
             <Route path="/gastos" element={<ProtectedRoute requiredPermission="/gastos"><Gastos /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />
-            <Route path="/acompanhamento" element={<ProtectedRoute requiredPermission="/acompanhamento"><Acompanhamento /></ProtectedRoute>} />
+            <Route path="/controladoria" element={<ProtectedRoute requiredPermission="/controladoria"><Controladoria /></ProtectedRoute>} />
+            <Route path="/acompanhamento" element={<Navigate to="/controladoria" replace />} />
             <Route path="/agregados" element={<ProtectedRoute requiredPermission="/agregados"><Agregados /></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute requiredPermission="/agenda"><Agenda /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
