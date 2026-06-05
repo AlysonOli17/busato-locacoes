@@ -230,60 +230,66 @@ const Gastos = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="flex flex-col gap-2">
+          {/* Cabeçalho sutil (desktop) */}
+          {sorted.length > 0 && (
+            <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="w-1/3">Descrição / Equipamento</div>
+              <div className="w-1/6 text-center">Tipo</div>
+              <div className="w-1/6 text-center">Data / Fatura</div>
+              <div className="w-1/6 text-right">Valor</div>
+              <div className="w-[80px]"></div>
+            </div>
+          )}
+          
           {sorted.map((item) => {
             return (
-              <Card key={item.id} className="group hover:shadow-md transition-all glass-panel overflow-hidden relative">
-                {/* Actions Hover Overlay */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-lg shadow-sm border border-border p-1 flex gap-1 z-10">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+              <div key={item.id} className="group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all relative">
+                
+                {/* Info Principal */}
+                <div className="flex-1 min-w-0 md:w-1/3">
+                  <h3 className="font-bold text-sm text-foreground truncate">{item.descricao}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground truncate">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</span>
+                    <Badge variant="outline" className="text-[9px] bg-background/50 px-1 py-0">{item.equipamentos?.tag_placa || "S/ PLACA"}</Badge>
+                  </div>
                 </div>
 
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge className={cn("text-[10px]", tipoColor(item.tipo))}>{item.tipo}</Badge>
-                        <Badge className={cn("text-[10px]", item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0")}>
-                          {item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
-                        </Badge>
-                      </div>
-                      <h3 className="font-bold text-base leading-tight truncate mt-2">{item.descricao}</h3>
-                      <p className="text-2xl font-bold text-foreground mt-1">R$ {fmt(item.valor)}</p>
-                    </div>
-                  </div>
+                {/* Classificação / Tipo */}
+                <div className="md:w-1/6 flex flex-col md:items-center gap-1.5">
+                   <Badge className={cn("text-[10px]", tipoColor(item.tipo))}>{item.tipo}</Badge>
+                   <Badge className={cn("text-[9px] px-1 py-0", item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0")}>
+                      {item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                   </Badge>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm bg-muted/20 rounded-lg p-3 border border-border/30">
-                    <div className="col-span-2">
-                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Equipamento</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="font-medium truncate">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</span>
-                        <Badge variant="outline" className="text-[9px] font-mono bg-background/50">{item.equipamentos?.tag_placa || "S/ PLACA"}</Badge>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Data</p>
-                      <p className="font-medium">{new Date(item.data + "T00:00:00").toLocaleDateString("pt-BR")}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Fatura</p>
-                      {item.fatura ? (
-                        <div className="flex flex-col items-start gap-1">
-                          <span className="font-medium text-xs leading-none truncate">#{item.fatura.numero_nota || item.fatura.numero_sequencial}</span>
-                          <Badge className={cn("text-[9px] px-1 py-0 border-0", faturaStatusColor(item.fatura.status))}>{item.fatura.status}</Badge>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Data / Fatura */}
+                <div className="md:w-1/6 flex flex-col md:items-center gap-1.5">
+                   <span className="text-xs font-medium">{new Date(item.data + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+                   {item.fatura ? (
+                     <Badge className={cn("text-[9px] px-1.5 py-0 border-0", faturaStatusColor(item.fatura.status))}>
+                       Fat. #{item.fatura.numero_nota || item.fatura.numero_sequencial}
+                     </Badge>
+                   ) : (
+                     <span className="text-[10px] text-muted-foreground">S/ Fatura</span>
+                   )}
+                </div>
+
+                {/* Valor */}
+                <div className="md:w-1/6 flex flex-col md:items-end">
+                   <span className="font-bold text-base text-foreground whitespace-nowrap">R$ {fmt(item.valor)}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="absolute top-2 right-2 md:static md:w-[80px] flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
+                     <Pencil className="h-4 w-4" />
+                   </Button>
+                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                </div>
+              </div>
             );
           })}
 
