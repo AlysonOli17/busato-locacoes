@@ -1058,21 +1058,21 @@ export const VisaoGeralTab = ({
       {/* Dialogs for detailing info from clicked cards */}
       {/* 1. Clientes Modal */}
       <Dialog open={activeModal === "clientes"} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />
               Detalhamento de Faturamento por Cliente
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
                 <TableRow>
-                  <TableHead className="w-12 text-center">Posição</TableHead>
-                  <TableHead>Cliente / Empresa</TableHead>
-                  <TableHead className="text-center">Contratos Ativos</TableHead>
-                  <TableHead className="text-right">Total Faturado</TableHead>
+                  <TableHead className="w-12 text-center bg-background">Posição</TableHead>
+                  <TableHead className="bg-background">Cliente / Empresa</TableHead>
+                  <TableHead className="text-center bg-background">Contratos Ativos</TableHead>
+                  <TableHead className="text-right bg-background">Total Faturado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1099,25 +1099,25 @@ export const VisaoGeralTab = ({
 
       {/* 2. Máquinas Modal */}
       <Dialog open={activeModal === "maquinas"} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-primary" />
               Detalhamento de Faturamento e Custos por Máquina (Real)
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
                 <TableRow>
-                  <TableHead className="w-12 text-center">Posição</TableHead>
-                  <TableHead>Equipamento</TableHead>
-                  <TableHead>Placa</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Faturamento Real</TableHead>
-                  <TableHead className="text-right text-destructive">Custo Real</TableHead>
-                  <TableHead className="text-right">Margem Líquida</TableHead>
-                  <TableHead className="text-right">Rentabilidade</TableHead>
+                  <TableHead className="w-12 text-center bg-background">Posição</TableHead>
+                  <TableHead className="bg-background">Equipamento</TableHead>
+                  <TableHead className="bg-background">Placa</TableHead>
+                  <TableHead className="bg-background">Status</TableHead>
+                  <TableHead className="text-right bg-background">Faturamento Real</TableHead>
+                  <TableHead className="text-right text-destructive bg-background">Custo Real</TableHead>
+                  <TableHead className="text-right bg-background">Margem Líquida</TableHead>
+                  <TableHead className="text-right bg-background">Rentabilidade</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1163,20 +1163,20 @@ export const VisaoGeralTab = ({
 
       {/* 3. Seguros Modal */}
       <Dialog open={activeModal === "seguros"} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <Shield className="h-5 w-5 text-destructive" />
               Equipamentos sem Seguro Ativo
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
                 <TableRow>
-                  <TableHead>Equipamento</TableHead>
-                  <TableHead>Placa / Identificação</TableHead>
-                  <TableHead>Status Operacional</TableHead>
+                  <TableHead className="bg-background">Equipamento</TableHead>
+                  <TableHead className="bg-background">Placa / Identificação</TableHead>
+                  <TableHead className="bg-background">Status Operacional</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1206,21 +1206,21 @@ export const VisaoGeralTab = ({
 
       {/* 4. Vencimentos Modal */}
       <Dialog open={activeModal === "vencimentos"} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-warning">
               <CalendarClock className="h-5 w-5 text-warning" />
               Contratos a Vencer nos Próximos 30 Dias
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
                 <TableRow>
-                  <TableHead>Empresa / Cliente</TableHead>
-                  <TableHead>Data de Início</TableHead>
-                  <TableHead>Data de Fim (Expiração)</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="bg-background">Empresa / Cliente</TableHead>
+                  <TableHead className="bg-background">Data de Início</TableHead>
+                  <TableHead className="bg-background">Data de Fim (Expiração)</TableHead>
+                  <TableHead className="bg-background">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
