@@ -187,11 +187,14 @@ const Usuarios = () => {
   const saveRolePermissions = async (role: string, checkedPaths: Set<string>) => {
     setSavingPerms(true);
     try {
-      await supabase.from("role_permissions").delete().eq("role", role);
+      const { error: delError } = await supabase.from("role_permissions").delete().eq("role", role);
+      if (delError) throw delError;
+
       if (checkedPaths.size > 0) {
-        await supabase.from("role_permissions").insert(
+        const { error: insError } = await supabase.from("role_permissions").insert(
           Array.from(checkedPaths).map(p => ({ role, permission: p }))
         );
+        if (insError) throw insError;
       }
       toast({ title: "Permissões do Perfil salvas!" });
       fetchPermissions();
@@ -217,10 +220,12 @@ const Usuarios = () => {
   const toggleUserPermission = async (userId: string, path: string, isCurrentlyEnabled: boolean) => {
     try {
       if (isCurrentlyEnabled) {
-        await supabase.from("user_permissions").delete().match({ user_id: userId, permission: path });
+        const { error } = await supabase.from("user_permissions").delete().match({ user_id: userId, permission: path });
+        if (error) throw error;
         setUserPermissions(prev => prev.filter(p => !(p.user_id === userId && p.permission === path)));
       } else {
-        await supabase.from("user_permissions").insert({ user_id: userId, permission: path });
+        const { error } = await supabase.from("user_permissions").insert({ user_id: userId, permission: path });
+        if (error) throw error;
         setUserPermissions(prev => [...prev, { user_id: userId, permission: path }]);
       }
       toast({ title: "Permissão individual atualizada" });
