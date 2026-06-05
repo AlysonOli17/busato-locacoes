@@ -241,53 +241,59 @@ function SharedDashboardHeader({
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-card shadow-sm border-border">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Faturado (Pago)</p>
-              <h3 className="text-2xl font-bold mt-1 text-success">R$ {totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+      {/* KPI Cards - Compact Premium Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="bg-card/45 backdrop-blur-sm border-border/80 shadow-sm transition-all hover:shadow-md">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center text-success shrink-0">
+              <TrendingUp className="h-4 w-4" />
             </div>
-            <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card shadow-sm border-border">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Pendente</p>
-              <h3 className="text-2xl font-bold mt-1 text-warning">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center text-warning">
-              <Clock className="h-5 w-5" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Faturado (Pago)</p>
+              <h3 className="text-base font-bold text-success truncate mt-0.5">R$ {totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card shadow-sm border-border">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Em Atraso</p>
-              <h3 className="text-2xl font-bold mt-1 text-destructive">R$ {totalAtraso.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
-              {qtdAtraso > 0 && <p className="text-xs text-destructive mt-1">{qtdAtraso} fatura(s) em atraso</p>}
+        <Card className="bg-card/45 backdrop-blur-sm border-border/80 shadow-sm transition-all hover:shadow-md">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center text-warning shrink-0">
+              <Clock className="h-4 w-4" />
             </div>
-            <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
-              <AlertTriangle className="h-5 w-5" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pendente</p>
+              <h3 className="text-base font-bold text-warning truncate mt-0.5">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card shadow-sm border-border">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Contratos Ativos</p>
-              <h3 className="text-2xl font-bold mt-1">{contratosAtivos.length}</h3>
+        <Card className="bg-card/45 backdrop-blur-sm border-border/80 shadow-sm transition-all hover:shadow-md">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive shrink-0">
+              <AlertTriangle className="h-4 w-4" />
             </div>
-            <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
-              <Building2 className="h-5 w-5" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Em Atraso</p>
+                {qtdAtraso > 0 && (
+                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-destructive/15 text-destructive animate-pulse">
+                    {qtdAtraso}
+                  </span>
+                )}
+              </div>
+              <h3 className="text-base font-bold text-destructive truncate mt-0.5">R$ {totalAtraso.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/45 backdrop-blur-sm border-border/80 shadow-sm transition-all hover:shadow-md">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent shrink-0">
+              <Building2 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Contratos Ativos</p>
+              <h3 className="text-base font-bold text-foreground mt-0.5">{contratosAtivos.length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -573,7 +579,6 @@ export function PendenteMedicaoView() {
 export function HistoricoFaturamentoView() {
   const { empresas, contratos, faturas, loading } = useFinanceiroData();
   const [filtroEmpresa, setFiltroEmpresa] = useState("all");
-  const [viewMode, setViewMode] = useState<"agrupado" | "flat">("agrupado");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortCol, setSortCol] = useState("emissao");
   const [sortAsc, setSortAsc] = useState(false);
@@ -694,25 +699,7 @@ export function HistoricoFaturamentoView() {
       getExportData={getExportData}
     >
       <div className="space-y-4 mt-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/30 p-2 rounded-lg border border-border">
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
-            <Button 
-              variant={viewMode === "agrupado" ? "default" : "ghost"} 
-              size="sm" 
-              onClick={() => setViewMode("agrupado")}
-              className="flex-1 sm:flex-none text-xs h-8"
-            >
-              <Building2 className="h-3.5 w-3.5 mr-1" /> Por Cliente (Agrupado)
-            </Button>
-            <Button 
-              variant={viewMode === "flat" ? "default" : "ghost"} 
-              size="sm" 
-              onClick={() => setViewMode("flat")}
-              className="flex-1 sm:flex-none text-xs h-8"
-            >
-              <Receipt className="h-3.5 w-3.5 mr-1" /> Todas as Faturas
-            </Button>
-          </div>
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
           <div className="w-full sm:w-72">
             <Input 
               placeholder="Buscar por Nota, Empresa ou Equipamento..." 
@@ -723,244 +710,166 @@ export function HistoricoFaturamentoView() {
           </div>
         </div>
 
-        {viewMode === "agrupado" ? (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-accent" />
-                  Resumo Financeiro Consolidado
-                </span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  Clique na empresa para ver as notas correspondentes
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <Table className="min-w-[800px]">
-                <TableHeader>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-accent" />
+                Resumo Financeiro Consolidado
+              </span>
+              <span className="text-xs text-muted-foreground font-normal">
+                Clique na empresa para ver as faturas correspondentes
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[800px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10"></TableHead>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead className="text-center">Contratos</TableHead>
+                  <TableHead className="text-center">Faturas</TableHead>
+                  <TableHead className="text-center text-success">Pagas</TableHead>
+                  <TableHead className="text-center text-warning">Pendentes</TableHead>
+                  <TableHead className="text-center text-destructive">Em Atraso</TableHead>
+                  <TableHead className="text-right">Total Faturado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
                   <TableRow>
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead className="text-center">Contratos</TableHead>
-                    <TableHead className="text-center">Faturas</TableHead>
-                    <TableHead className="text-center text-success">Pagas</TableHead>
-                    <TableHead className="text-center text-warning">Pendentes</TableHead>
-                    <TableHead className="text-center text-destructive">Em Atraso</TableHead>
-                    <TableHead className="text-right">Total Faturado</TableHead>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      Carregando consolidado...
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Carregando consolidado...
-                      </TableCell>
-                    </TableRow>
-                  ) : companyRows.map((row) => {
-                    const isExpanded = !!expandedCompanies[row.key];
-                    const companyInvoices = sortedFaturas.filter(f => {
+                ) : companyRows.map((row) => {
+                  const isExpanded = !!expandedCompanies[row.key];
+                  const companyInvoices = [...sortedFaturas]
+                    .filter(f => {
                       const ct = contratos.find(c => c.id === f.contrato_id);
                       return ct && row.ids.includes(ct.empresa_id);
+                    })
+                    .sort((a, b) => {
+                      if (a.numero_sequencial && b.numero_sequencial) {
+                        return a.numero_sequencial - b.numero_sequencial;
+                      }
+                      const notaA = a.numero_nota || "";
+                      const notaB = b.numero_nota || "";
+                      return notaA.localeCompare(notaB, undefined, { numeric: true, sensitivity: 'base' });
                     });
 
-                    return (
-                      <React.Fragment key={row.key}>
-                        <TableRow 
-                          onClick={() => toggleCompany(row.key)} 
-                          className="hover:bg-muted/30 transition-colors cursor-pointer select-none"
-                        >
-                          <TableCell className="p-2 text-center">
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            </Button>
-                          </TableCell>
-                          <TableCell className="p-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                                <Building2 className="h-4 w-4" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-sm leading-none flex items-center gap-2">
-                                  {row.nome}
-                                  {row.obra && (
-                                    <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
-                                      {row.obra}
-                                    </Badge>
-                                  )}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1 font-mono">{row.cnpjs.join(", ")}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center font-medium">{row.empContratos}</TableCell>
-                          <TableCell className="text-center">{row.empFaturas}</TableCell>
-                          <TableCell className="text-center text-success font-bold">{row.pagas}</TableCell>
-                          <TableCell className="text-center text-warning font-bold">{row.pendentes}</TableCell>
-                          <TableCell className="text-center text-destructive font-bold">{row.atraso}</TableCell>
-                          <TableCell className="text-right font-bold text-sm text-foreground">
-                            R$ {row.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        </TableRow>
-                        {isExpanded && (
-                          <TableRow className="bg-muted/10">
-                            <TableCell colSpan={8} className="p-4 border-t border-b border-border/40">
-                              <div className="rounded-lg border bg-background shadow-inner overflow-hidden">
-                                <div className="bg-muted/40 px-4 py-2 border-b text-xs font-semibold text-muted-foreground">
-                                  Detalhamento de Notas Emitidas — {row.nome}
-                                </div>
-                                <Table>
-                                  <TableHeader className="bg-muted/10">
-                                    <TableRow className="hover:bg-transparent">
-                                      <TableHead className="text-xs">Nº Nota</TableHead>
-                                      <TableHead className="text-xs">Equipamento</TableHead>
-                                      <TableHead className="text-xs">Período Medição</TableHead>
-                                      <TableHead className="text-xs">Emissão</TableHead>
-                                      <TableHead className="text-xs">Vencimento</TableHead>
-                                      <TableHead className="text-right text-xs">Valor</TableHead>
-                                      <TableHead className="text-xs">Status</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {companyInvoices.length === 0 ? (
-                                      <TableRow>
-                                        <TableCell colSpan={7} className="text-center py-4 text-xs text-muted-foreground">
-                                          Nenhuma fatura encontrada sob os filtros aplicados.
-                                        </TableCell>
-                                      </TableRow>
-                                    ) : companyInvoices.map(f => {
-                                      const status = getDisplayStatus(f);
-                                      return (
-                                        <TableRow key={f.id} className="hover:bg-muted/30">
-                                          <TableCell className="font-mono text-xs py-2">{f.numero_nota || "—"}</TableCell>
-                                          <TableCell className="text-xs py-2">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
-                                          <TableCell className="text-xs text-muted-foreground py-2">
-                                            {f.periodo_medicao_inicio && f.periodo_medicao_fim
-                                              ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-                                              : "—"}
-                                          </TableCell>
-                                          <TableCell className="text-xs py-2">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                                          <TableCell className="text-xs py-2">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
-                                          <TableCell className="font-semibold text-right text-xs py-2">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                                          <TableCell className="py-2">
-                                            <Badge className={
-                                              status === "Pago" ? "bg-success text-success-foreground text-[10px] py-0 px-1.5" :
-                                              status === "Em Atraso" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5" :
-                                              status === "Cancelado" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5" :
-                                              "bg-warning text-warning-foreground text-[10px] py-0 px-1.5"
-                                            }>
-                                              {status}
-                                            </Badge>
-                                          </TableCell>
-                                        </TableRow>
-                                      );
-                                    })}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                  {!loading && companyRows.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Nenhuma empresa com faturamento encontrada sob os filtros.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-accent" />
-                Histórico Completo de Notas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <Table className="min-w-[700px]">
-                <TableHeader>
-                  <TableRow>
-                    <SortableTableHead column="empresa" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Empresa</SortableTableHead>
-                    <SortableTableHead column="nota" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nº Nota</SortableTableHead>
-                    <SortableTableHead column="equipamento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Equipamento</SortableTableHead>
-                    <TableHead>Período Medição</TableHead>
-                    <SortableTableHead column="emissao" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Emissão</SortableTableHead>
-                    <SortableTableHead column="vencimento" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Vencimento</SortableTableHead>
-                    <SortableTableHead column="valor" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Valor (R$)</SortableTableHead>
-                    <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Carregando faturas...
-                      </TableCell>
-                    </TableRow>
-                  ) : sortedFaturas.map(f => {
-                    const status = getDisplayStatus(f);
-                    return (
-                      <TableRow key={f.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
+                  return (
+                    <React.Fragment key={row.key}>
+                      <TableRow 
+                        onClick={() => toggleCompany(row.key)} 
+                        className="hover:bg-muted/30 transition-colors cursor-pointer select-none"
+                      >
+                        <TableCell className="p-2 text-center">
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="p-3">
+                          <div className="flex items-center gap-2.5">
                             <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
                               <Building2 className="h-4 w-4" />
                             </div>
                             <div>
-                              <p className="font-medium text-sm leading-none flex items-center gap-2">
-                                {f.contratos?.empresas?.nome}
-                                {f.contratos?.empresas?.obra && (
+                              <p className="font-semibold text-sm leading-none flex items-center gap-2">
+                                {row.nome}
+                                {row.obra && (
                                   <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
-                                    {f.contratos.empresas.obra}
+                                    {row.obra}
                                   </Badge>
                                 )}
                               </p>
-                              <p className="text-xs text-muted-foreground mt-1 font-mono">{f.contratos?.empresas?.cnpj}</p>
+                              <p className="text-xs text-muted-foreground mt-1 font-mono">{row.cnpjs.join(", ")}</p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{f.numero_nota || "—"}</TableCell>
-                        <TableCell className="text-sm">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {f.periodo_medicao_inicio && f.periodo_medicao_fim
-                            ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                        <TableCell className="text-sm">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
-                        <TableCell className="font-bold text-sm">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell>
-                          <Badge className={
-                            status === "Pago" ? "bg-success text-success-foreground" :
-                            status === "Em Atraso" ? "bg-destructive text-destructive-foreground" :
-                            status === "Cancelado" ? "bg-destructive text-destructive-foreground" :
-                            "bg-warning text-warning-foreground"
-                          }>
-                            {status}
-                          </Badge>
+                        <TableCell className="text-center font-medium">{row.empContratos}</TableCell>
+                        <TableCell className="text-center">{row.empFaturas}</TableCell>
+                        <TableCell className="text-center text-success font-bold">{row.pagas}</TableCell>
+                        <TableCell className="text-center text-warning font-bold">{row.pendentes}</TableCell>
+                        <TableCell className="text-center text-destructive font-bold">{row.atraso}</TableCell>
+                        <TableCell className="text-right font-bold text-sm text-foreground">
+                          R$ {row.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                  {!loading && sortedFaturas.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Nenhuma fatura encontrada.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
+                      {isExpanded && (
+                        <TableRow className="bg-muted/10">
+                          <TableCell colSpan={8} className="p-4 border-t border-b border-border/40">
+                            <div className="rounded-lg border bg-background shadow-inner overflow-hidden">
+                              <div className="bg-muted/40 px-4 py-2 border-b text-xs font-semibold text-muted-foreground">
+                                Detalhamento de Notas Emitidas — {row.nome}
+                              </div>
+                              <Table>
+                                <TableHeader className="bg-muted/10">
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableHead className="text-xs">Nº Nota</TableHead>
+                                    <TableHead className="text-xs">Equipamento</TableHead>
+                                    <TableHead className="text-xs">Período Medição</TableHead>
+                                    <TableHead className="text-xs">Emissão</TableHead>
+                                    <TableHead className="text-xs">Vencimento</TableHead>
+                                    <TableHead className="text-right text-xs">Valor</TableHead>
+                                    <TableHead className="text-xs">Status</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {companyInvoices.length === 0 ? (
+                                    <TableRow>
+                                      <TableCell colSpan={7} className="text-center py-4 text-xs text-muted-foreground">
+                                        Nenhuma fatura encontrada sob os filtros aplicados.
+                                      </TableCell>
+                                    </TableRow>
+                                  ) : companyInvoices.map(f => {
+                                    const status = getDisplayStatus(f);
+                                    return (
+                                      <TableRow key={f.id} className="hover:bg-muted/30">
+                                        <TableCell className="font-mono text-xs py-2">{f.numero_nota || "—"}</TableCell>
+                                        <TableCell className="text-xs py-2">{f.contratos?.equipamentos?.tipo} {f.contratos?.equipamentos?.modelo}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground py-2">
+                                          {f.periodo_medicao_inicio && f.periodo_medicao_fim
+                                            ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="text-xs py-2">{f.emissao ? parseLocalDate(f.emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                                        <TableCell className="text-xs py-2">{(() => { const venc = getVencimento(f); return venc ? venc.toLocaleDateString("pt-BR") : "—"; })()}</TableCell>
+                                        <TableCell className="font-semibold text-right text-xs py-2">R$ {Number(f.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="py-2">
+                                          <Badge className={
+                                            status === "Pago" ? "bg-success text-success-foreground text-[10px] py-0 px-1.5" :
+                                            status === "Em Atraso" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5" :
+                                            status === "Cancelado" ? "bg-destructive text-destructive-foreground text-[10px] py-0 px-1.5" :
+                                            "bg-warning text-warning-foreground text-[10px] py-0 px-1.5"
+                                          }>
+                                            {status}
+                                          </Badge>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+                {!loading && companyRows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      Nenhuma empresa com faturamento encontrada sob os filtros.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </SharedDashboardHeader>
   );
