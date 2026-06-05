@@ -15,7 +15,8 @@ import {
   ChartContainer, ChartTooltip, ChartTooltipContent
 } from "@/components/ui/chart";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, AreaChart, Area
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
+  AreaChart, Area, ComposedChart, Cell
 } from "recharts";
 
 const parseLocalDate = (dateStr: any): Date => {
@@ -44,6 +45,88 @@ const fmtShort = (v: any) => {
   if (val >= 1000) return (val / 1000).toFixed(1) + "k";
   return val.toFixed(0);
 };
+
+// ─── CostChart sub-component ────────────────────────────────────────────────
+const COST_COLORS = ["#6366f1", "#f59e0b", "#ef4444", "#10b981", "#3b82f6", "#ec4899"];
+
+const CostChart = ({ gastosFiltered, fmt, fmtShort }: { gastosFiltered: any[]; fmt: (v: any) => string; fmtShort: (v: any) => string }) => {
+  const data = useMemo(() => {
+    const map: Record<string, number> = {};
+    gastosFiltered.forEach(g => { map[g.tipo] = (map[g.tipo] || 0) + Number(g.valor); });
+    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+  }, [gastosFiltered]);
+
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-bold flex items-center gap-2">
+            <PieChart className="h-4 w-4 text-primary" />
+            Centro de Custos Operacionais
+          </CardTitle>
+          {total > 0 && (
+            <span className="text-[10px] font-bold bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
+              Total: R$ {fmtShort(total)}
+            </span>
+          )}
+        </div>
+        <CardDescription>Distribuição por categoria — passe o mouse para valores completos</CardDescription>
+      </CardHeader>
+      <CardContent className="h-[300px] px-2 pb-2">
+        {data.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+            Nenhum gasto registrado no período.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 36 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.6} />
+              <XAxis
+                dataKey="name"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
+                angle={-30}
+                textAnchor="end"
+                interval={0}
+              />
+              <YAxis hide />
+              <Tooltip
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                content={({ active, payload }: any) => {
+                  if (!active || !payload?.length) return null;
+                  const item = payload[0];
+                  const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
+                  return (
+                    <div className="bg-background border border-border rounded-xl shadow-xl p-3 min-w-[180px]">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{item.payload.name}</p>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-xs font-semibold text-foreground">Valor</span>
+                        <span className="text-sm font-black text-destructive">R$ {Number(item.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 mt-1">
+                        <span className="text-xs font-semibold text-muted-foreground">% do Total</span>
+                        <span className="text-xs font-bold text-foreground">{pct}%</span>
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+              <Bar dataKey="value" radius={[5, 5, 0, 0]} barSize={32}>
+                {data.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={COST_COLORS[index % COST_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface VisaoGeralTabProps {
   empresas: Array<any>;
@@ -731,97 +814,140 @@ export const VisaoGeralTab = ({
 
         {/* Charts & Projections Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Evolução Mensal */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Evolução Mensal: Receitas vs Custos
-              </CardTitle>
-              <CardDescription>Consolidado dos últimos 6 meses com saldo EBITDA</CardDescription>
+
+          {/* Evolução Mensal — ComposedChart com tooltip rico */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  Evolução Mensal: Receitas vs Custos
+                </CardTitle>
+                <div className="flex items-center gap-3 text-[10px] font-semibold">
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500"/> Receitas</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500"/> Custos</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/30"/> Resultado</span>
+                </div>
+              </div>
+              <CardDescription>Últimos 6 meses — passe o mouse sobre o gráfico para ver os valores</CardDescription>
             </CardHeader>
-            <CardContent className="h-[280px]">
+            <CardContent className="h-[300px] px-2 pb-2">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mensalFinanceiroData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <ComposedChart data={mensalFinanceiroData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <linearGradient id="gradReceitas" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.35}/>
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.02}/>
                     </linearGradient>
-                    <linearGradient id="colorCustos" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    <linearGradient id="gradCustos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3}/>
+                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="mes" fontSize={11} tickLine={false} />
-                  <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={fmtShort} />
-                  <Tooltip 
-                    formatter={(value: any) => [`R$ ${Number(value).toLocaleString("pt-BR")}`, ""]}
-                    contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.6} />
+                  <XAxis
+                    dataKey="mes"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
                   />
-                  <Area type="monotone" dataKey="Receitas" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorReceitas)" />
-                  <Area type="monotone" dataKey="Custos" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCustos)" />
-                </AreaChart>
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1, strokeDasharray: "4 4" }}
+                    content={({ active, payload, label }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const rec = payload.find((p: any) => p.dataKey === "Receitas")?.value || 0;
+                      const cus = payload.find((p: any) => p.dataKey === "Custos")?.value || 0;
+                      const res = rec - cus;
+                      return (
+                        <div className="bg-background border border-border rounded-xl shadow-xl p-3 min-w-[200px]">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Receitas</span>
+                              <span className="text-xs font-black text-emerald-600">R$ {Number(rec).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="flex items-center gap-1.5 text-xs text-red-500 font-semibold"><span className="h-2 w-2 rounded-full bg-red-500"/>Custos</span>
+                              <span className="text-xs font-black text-red-500">R$ {Number(cus).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="border-t border-border pt-1.5 flex items-center justify-between gap-4">
+                              <span className="text-xs font-bold text-foreground">Resultado</span>
+                              <span className={`text-xs font-black ${res >= 0 ? "text-emerald-600" : "text-red-500"}`}>R$ {Number(res).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="Resultado" fill="hsl(var(--primary))" opacity={0.18} radius={[3, 3, 0, 0]} barSize={28} />
+                  <Area type="monotone" dataKey="Receitas" stroke="#10b981" strokeWidth={2.5} fill="url(#gradReceitas)" dot={false} activeDot={{ r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="Custos" stroke="#ef4444" strokeWidth={2.5} fill="url(#gradCustos)" dot={false} activeDot={{ r: 5, fill: "#ef4444", stroke: "#fff", strokeWidth: 2 }} />
+                </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
           {/* Previsão de Receita Forecast */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" /> Previsão de Receita (Cashflow Forecast)
-              </CardTitle>
-              <CardDescription>Baseado em contratos ativos e recorrentes</CardDescription>
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" /> Cashflow Forecast
+                </CardTitle>
+                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">Próximos 5 meses</span>
+              </div>
+              <CardDescription>Projeção baseada em contratos ativos — passe o mouse para ver valores</CardDescription>
             </CardHeader>
-            <CardContent className="h-[280px]">
+            <CardContent className="h-[300px] px-2 pb-2">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={forecastData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    <linearGradient id="gradForecast" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                  <XAxis dataKey="mes" axisLine={false} tickLine={false} className="text-xs" />
-                  <YAxis axisLine={false} tickLine={false} className="text-xs" tickFormatter={(v) => `R$ ${fmtShort(v)}`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: "hsl(var(--background))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                    formatter={(v: number) => [`R$ ${fmt(v)}`, "Projeção"]}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.6} />
+                  <XAxis
+                    dataKey="mes"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
                   />
-                  <Area type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" />
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1, strokeDasharray: "4 4" }}
+                    content={({ active, payload, label }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const val = payload[0]?.value || 0;
+                      return (
+                        <div className="bg-background border border-border rounded-xl shadow-xl p-3 min-w-[180px]">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="flex items-center gap-1.5 text-xs text-primary font-semibold"><span className="h-2 w-2 rounded-full bg-primary"/>Projeção</span>
+                            <span className="text-sm font-black text-primary">R$ {Number(val).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="valor"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    fill="url(#gradForecast)"
+                    dot={{ r: 4, fill: "hsl(var(--primary))", stroke: "#fff", strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "#fff", strokeWidth: 2 }}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
           {/* Centro de Custos Operacionais */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <PieChart className="h-5 w-5 text-primary" />
-                Centro de Custos Operacionais
-              </CardTitle>
-              <CardDescription>Distribuição de gastos por categoria</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={useMemo(() => {
-                  const map: Record<string, number> = {};
-                  gastosFiltered.forEach(g => { map[g.tipo] = (map[g.tipo] || 0) + Number(g.valor); });
-                  return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
-                }, [gastosFiltered])} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                  <XAxis dataKey="name" className="text-[10px]" axisLine={false} tickLine={false} />
-                  <YAxis className="text-[10px]" axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${fmtShort(v)}`} />
-                  <Tooltip formatter={(v: number) => [`R$ ${fmt(v)}`, "Gasto"]} />
-                  <Bar dataKey="value" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} barSize={30} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <CostChart gastosFiltered={gastosFiltered} fmt={fmt} fmtShort={fmtShort} />
 
           {/* Status Operacional da Frota */}
           <Card>
