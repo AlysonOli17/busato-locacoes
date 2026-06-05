@@ -86,7 +86,7 @@ export const VisaoGeralTab = ({
   });
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().slice(0, 10));
   const [filtroEquipamento, setFiltroEquipamento] = useState("all");
-  const [activeModal, setActiveModal] = useState<"clientes" | "maquinas" | "seguros" | "vencimentos" | null>(null);
+  const [activeModal, setActiveModal] = useState<"clientes" | "maquinas" | "seguros" | "vencimentos" | "confiabilidade" | null>(null);
   const [faturamentoEquipamentosList, setFaturamentoEquipamentosList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -675,7 +675,7 @@ export const VisaoGeralTab = ({
             </Card>
 
             {/* KPI 4: Confiabilidade Contratual */}
-            <Card className="hover:shadow-md transition-all border-l-4 border-l-info">
+            <Card className="hover:shadow-md transition-all border-l-4 border-l-info cursor-pointer select-none" onClick={() => setActiveModal("confiabilidade")}>
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
@@ -1396,6 +1396,72 @@ export const VisaoGeralTab = ({
                     <TableCell colSpan={4} className="text-center py-4 text-success font-semibold">
                       ✓ Nenhuma renovação de contrato necessária nos próximos 30 dias.
                     </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 5. Confiabilidade Modal */}
+      <Dialog open={activeModal === "confiabilidade"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Detalhamento de Confiabilidade Contratual por Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+                <TableRow>
+                  <TableHead className="w-12 text-center bg-background">Posição</TableHead>
+                  <TableHead className="bg-background">Cliente / Empresa</TableHead>
+                  <TableHead className="text-center bg-background">Contratos Ativos</TableHead>
+                  <TableHead className="text-right bg-background">Faturamento Emitido</TableHead>
+                  <TableHead className="text-right bg-background text-success">Faturamento Recebido</TableHead>
+                  <TableHead className="text-right bg-background text-destructive">Em Aberto / Atrasado</TableHead>
+                  <TableHead className="text-center bg-background">Confiabilidade de Pagamento</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {todosClientes.map((client, idx) => {
+                  const emAberto = client.total - client.totalPago;
+                  const isReliable = client.confiabilidade >= 90;
+                  const isMediumReliable = client.confiabilidade >= 70;
+                  return (
+                    <TableRow key={idx} className="hover:bg-muted/30">
+                      <TableCell className="text-center font-bold text-muted-foreground">#{idx + 1}</TableCell>
+                      <TableCell className="font-semibold">{client.nome}</TableCell>
+                      <TableCell className="text-center">{client.contratosCount}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        R$ {Number(client.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-success">
+                        R$ {Number(client.totalPago).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-destructive">
+                        R$ {emAberto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={
+                          isReliable 
+                            ? "bg-success/15 text-success hover:bg-success/20 border-success/10" 
+                            : isMediumReliable 
+                              ? "bg-warning/15 text-warning hover:bg-warning/20 border-warning/10" 
+                              : "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10"
+                        }>
+                          {client.confiabilidade.toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {todosClientes.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">Nenhum faturamento registrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
