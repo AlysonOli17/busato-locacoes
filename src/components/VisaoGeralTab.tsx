@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/chart";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
-  AreaChart, Area, ComposedChart, Cell
+  AreaChart, Area, ComposedChart, Cell,
+  PieChart, Pie
 } from "recharts";
 
 const parseLocalDate = (dateStr: any): Date => {
@@ -396,8 +397,8 @@ export const VisaoGeralTab = ({
   const totalGastos = gastosFiltered.reduce((s: number, g: any) => s + Number(g.valor), 0);
   const margemGeral = totalFaturado > 0 ? ((totalFaturado - totalGastos) / totalFaturado) * 100 : 0;
 
-  const equipAtivos = equipamentos.filter(e => e.status === "Ativo").length;
-  const taxaUtilizacao = equipamentos.length > 0 ? Math.round((equipAtivos / equipamentos.length) * 100) : 0;
+  // Ocupação real = máquinas efetivamente locadas / total da frota
+  const taxaUtilizacao = frotaStats.total > 0 ? Math.round((frotaStats.emLocacao / frotaStats.total) * 100) : 0;
 
   // ============ ADVANCED BI CALCULATIONS ============
   const mensalFinanceiroData = useMemo(() => {
@@ -791,26 +792,181 @@ export const VisaoGeralTab = ({
             </CardContent>
           </Card>
 
-          {/* KPI 5: Taxa de Ocupação da Frota */}
-          <Card className="hover:shadow-md transition-all border-l-4 border-l-accent">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ocupação da Frota</p>
-                  <h3 className="text-2xl font-black text-foreground mt-2">
-                    {taxaUtilizacao}%
-                  </h3>
-                  <div className="w-full bg-muted h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div className="bg-primary h-1.5 rounded-full" style={{ width: `${taxaUtilizacao}%` }} />
+          {/* KPI 5: Ocupação da Frota — Donut Gauge */}
+          <Card className="hover:shadow-md transition-all border-l-4 border-l-accent relative overflow-hidden">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between gap-2">
+                {/* Donut SVG gauge */}
+                <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
+                  <svg width="88" height="88" viewBox="0 0 88 88">
+                    {/* Track */}
+                    <circle cx="44" cy="44" r="36" fill="none" stroke="hsl(var(--muted))" strokeWidth="10"/>
+                    {/* Locado arc — green */}
+                    <circle
+                      cx="44" cy="44" r="36" fill="none"
+                      stroke="#10b981"
+                      strokeWidth="10"
+                      strokeDasharray={`${(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 226.2} 226.2`}
+                      strokeLinecap="round"
+                      transform="rotate(-90 44 44)"
+                    />
+                    {/* Manutenção arc — orange, offset after locado */}
+                    {frotaStats.emManutencaoOuSinistro > 0 && (
+                      <circle
+                        cx="44" cy="44" r="36" fill="none"
+                        stroke="#f59e0b"
+                        strokeWidth="10"
+                        strokeDasharray={`${(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 226.2} 226.2`}
+                        strokeLinecap="round"
+                        strokeDashoffset={`-${(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 226.2}`}
+                        transform="rotate(-90 44 44)"
+                      />
+                    )}
+                  </svg>
+                  {/* Center label */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-black text-foreground leading-none">{taxaUtilizacao}%</span>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5">Locado</span>
                   </div>
                 </div>
-                <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                  <Truck className="h-5 w-5" />
+
+                {/* Breakdown */}
+                <div className="flex-1 space-y-2 min-w-0">
+                  <p className="text-xs font-black text-muted-foreground uppercase tracking-wider">Ocupação da Frota</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 font-semibold">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0"/>
+                        Locado
+                      </span>
+                      <span className="font-black text-emerald-600">{frotaStats.emLocacao} <span className="font-normal text-muted-foreground">/ {frotaStats.total}</span></span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 font-semibold text-muted-foreground">
+                        <span className="h-2 w-2 rounded-full bg-muted-foreground shrink-0"/>
+                        No Pátio
+                      </span>
+                      <span className="font-bold text-muted-foreground">{frotaStats.disponiveis}</span>
+                    </div>
+                    {frotaStats.emManutencaoOuSinistro > 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1.5 font-semibold text-warning">
+                          <span className="h-2 w-2 rounded-full bg-warning shrink-0"/>
+                          Manutenção
+                        </span>
+                        <span className="font-bold text-warning">{frotaStats.emManutencaoOuSinistro}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* ── Painel Premium de Ocupação da Frota ── */}
+        <Card className="overflow-hidden border-0 shadow-md bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row items-center gap-8">
+
+              {/* Grande Gauge SVG central */}
+              <div className="relative shrink-0" style={{ width: 160, height: 160 }}>
+                <svg width="160" height="160" viewBox="0 0 160 160">
+                  {/* Track */}
+                  <circle cx="80" cy="80" r="68" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="14"/>
+                  {/* Disponível arc — slate */}
+                  <circle
+                    cx="80" cy="80" r="68" fill="none"
+                    stroke="rgba(255,255,255,0.18)"
+                    strokeWidth="14"
+                    strokeDasharray={`${(frotaStats.disponiveis / Math.max(1, frotaStats.total)) * 427.3} 427.3`}
+                    strokeLinecap="round"
+                    strokeDashoffset={`-${(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 427.3}`}
+                    transform="rotate(-90 80 80)"
+                  />
+                  {/* Manutenção arc — amber */}
+                  {frotaStats.emManutencaoOuSinistro > 0 && (
+                    <circle
+                      cx="80" cy="80" r="68" fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="14"
+                      strokeDasharray={`${(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 427.3} 427.3`}
+                      strokeLinecap="round"
+                      strokeDashoffset={`-${((frotaStats.emLocacao + frotaStats.disponiveis) / Math.max(1, frotaStats.total)) * 427.3}`}
+                      transform="rotate(-90 80 80)"
+                    />
+                  )}
+                  {/* Locado arc — emerald (primeiro) */}
+                  <circle
+                    cx="80" cy="80" r="68" fill="none"
+                    stroke="#10b981"
+                    strokeWidth="14"
+                    strokeDasharray={`${(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 427.3} 427.3`}
+                    strokeLinecap="round"
+                    transform="rotate(-90 80 80)"
+                    style={{ filter: "drop-shadow(0 0 6px #10b981aa)" }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-4xl font-black text-white leading-none">{taxaUtilizacao}%</span>
+                  <span className="text-[11px] font-bold text-white/60 uppercase tracking-wide mt-1">Ocupação</span>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Locado */}
+                <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-2xl p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]"/>
+                    <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Locado</span>
+                  </div>
+                  <p className="text-3xl font-black text-white">{frotaStats.emLocacao}</p>
+                  <div className="w-full bg-white/10 rounded-full h-1.5">
+                    <div className="bg-emerald-400 h-1.5 rounded-full transition-all" style={{ width: `${(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 100}%` }}/>
+                  </div>
+                  <p className="text-[11px] text-emerald-300/70 font-semibold">{Math.round((frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 100)}% da frota</p>
+                </div>
+
+                {/* Disponível no Pátio */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-white/40"/>
+                    <span className="text-xs font-bold text-white/50 uppercase tracking-wider">No Pátio</span>
+                  </div>
+                  <p className="text-3xl font-black text-white/70">{frotaStats.disponiveis}</p>
+                  <div className="w-full bg-white/10 rounded-full h-1.5">
+                    <div className="bg-white/30 h-1.5 rounded-full transition-all" style={{ width: `${(frotaStats.disponiveis / Math.max(1, frotaStats.total)) * 100}%` }}/>
+                  </div>
+                  <p className="text-[11px] text-white/40 font-semibold">{Math.round((frotaStats.disponiveis / Math.max(1, frotaStats.total)) * 100)}% sem utilização</p>
+                </div>
+
+                {/* Manutenção / Sinistros */}
+                <div className={`rounded-2xl p-4 flex flex-col gap-2 border ${frotaStats.emManutencaoOuSinistro > 0 ? "bg-amber-500/15 border-amber-500/30" : "bg-white/5 border-white/10"}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-3 w-3 rounded-full ${frotaStats.emManutencaoOuSinistro > 0 ? "bg-amber-400" : "bg-white/20"}`}/>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${frotaStats.emManutencaoOuSinistro > 0 ? "text-amber-300" : "text-white/30"}`}>Manutenção</span>
+                  </div>
+                  <p className={`text-3xl font-black ${frotaStats.emManutencaoOuSinistro > 0 ? "text-amber-300" : "text-white/30"}`}>{frotaStats.emManutencaoOuSinistro}</p>
+                  <div className="w-full bg-white/10 rounded-full h-1.5">
+                    <div className="bg-amber-400 h-1.5 rounded-full transition-all" style={{ width: `${(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 100}%` }}/>
+                  </div>
+                  <p className={`text-[11px] font-semibold ${frotaStats.emManutencaoOuSinistro > 0 ? "text-amber-300/70" : "text-white/20"}`}>
+                    {frotaStats.emManutencaoOuSinistro === 0 ? "✓ Tudo operacional" : `${Math.round((frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 100)}% indisponível`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Resumo lateral */}
+              <div className="shrink-0 text-center lg:text-right">
+                <p className="text-4xl font-black text-white">{frotaStats.total}</p>
+                <p className="text-sm text-white/50 font-semibold">equipamentos</p>
+                <p className="text-xs text-white/30 mt-1">total da frota</p>
+              </div>
+
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Charts & Projections Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
