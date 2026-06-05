@@ -13,7 +13,6 @@ import {
   Building2, Receipt, Clock, AlertTriangle, TrendingUp, 
   FileDown, FileSpreadsheet, Link2, CalendarClock, ChevronDown, ChevronRight 
 } from "lucide-react";
-import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 interface Empresa {
   id: string;
@@ -217,7 +216,6 @@ interface BaseViewProps {
   empresas: Empresa[];
   faturasFiltered: Fatura[];
   contratosAtivos: Contrato[];
-  getExportData: () => any;
 }
 
 function SharedDashboardHeader({
@@ -226,8 +224,7 @@ function SharedDashboardHeader({
   setFiltroEmpresa,
   empresas,
   faturasFiltered,
-  contratosAtivos,
-  getExportData
+  contratosAtivos
 }: BaseViewProps) {
   const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
   const totalPendente = faturasFiltered.filter(f => getDisplayStatus(f) === "Pendente").reduce((s, f) => s + Number(f.valor_total), 0);
@@ -236,34 +233,7 @@ function SharedDashboardHeader({
 
   return (
     <div className="space-y-6">
-      {/* Action Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm mb-6">
-        <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
-          <div className="relative w-full sm:w-80">
-            <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Filtrar por empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Empresas</SelectItem>
-                {empresas.map(e => (
-                  <SelectItem key={e.id} value={e.id}>{e.nome}{e.obra ? ` (Obra: ${e.obra})` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportToPDF(getExportData())} className="bg-background">
-              <FileDown className="h-4 w-4 mr-1 text-primary" /> PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background">
-              <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
-            </Button>
-          </div>
-        </div>
-      </div>
+
 
       {/* KPI Cards - Compact Premium Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -487,7 +457,6 @@ export function PendenteMedicaoView() {
       empresas={empresas}
       faturasFiltered={faturasFiltered}
       contratosAtivos={contratosAtivos}
-      getExportData={getExportData}
     >
       {loading ? (
         <div className="text-center py-10 text-muted-foreground">Carregando dados...</div>
@@ -758,7 +727,6 @@ export function HistoricoFaturamentoView() {
       empresas={empresas}
       faturasFiltered={faturasFiltered}
       contratosAtivos={contratosAtivos}
-      getExportData={getExportData}
     >
       <div className="space-y-4 mt-6">
         <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
