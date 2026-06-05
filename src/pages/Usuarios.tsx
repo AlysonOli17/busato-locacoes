@@ -5,14 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Pencil, Trash2, UserCog, ShieldCheck, Lock, Unlock, KeyRound } from "lucide-react";
-import { SortableTableHead } from "@/components/SortableTableHead";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Plus, Search, Pencil, Trash2, UserCog, ShieldCheck, Lock, Unlock, Shield, Settings2, UserPlus, FileText, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +27,11 @@ interface UserItem {
 
 interface RolePerm {
   role: string;
+  permission: string;
+}
+
+interface UserPerm {
+  user_id: string;
   permission: string;
 }
 
@@ -48,59 +52,50 @@ const emptyForm = { nome: "", email: "", password: "", role: "operador", status:
 
 const Usuarios = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<UserItem | null>(null);
-  const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  
+  // Create User State
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  // Permissions tab
-  const [permissions, setPermissions] = useState<RolePerm[]>([]);
-  const [permRole, setPermRole] = useState<string>("operador");
-  const [permChecked, setPermChecked] = useState<Set<string>>(new Set());
-  const [savingPerms, setSavingPerms] = useState(false);
+  // Edit User State (Drawer)
+  const [editUser, setEditUser] = useState<UserItem | null>(null);
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+
+  // Permissions Data
+  const [rolePermissions, setRolePermissions] = useState<RolePerm[]>([]);
+  const [userPermissions, setUserPermissions] = useState<UserPerm[]>([]);
+  
+  // Custom Roles State
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDialogOpen, setNewRoleDialogOpen] = useState(false);
 
+  // Permissions Tab State
+  const [permRole, setPermRole] = useState<string>("operador");
+  const [savingPerms, setSavingPerms] = useState(false);
+
+  const { toast } = useToast();
+  const { role: currentUserRole } = useAuth();
+
   const uniqueRoles = useMemo(() => {
     const rolesSet = new Set(["operador", "visualizador", ...customRoles]);
     users.forEach(u => {
-      if (u.role && u.role !== "admin") {
-        rolesSet.add(u.role);
-      }
+      if (u.role && u.role !== "admin") rolesSet.add(u.role);
     });
-    permissions.forEach(p => {
-      if (p.role && p.role !== "admin") {
-        rolesSet.add(p.role);
-      }
+    rolePermissions.forEach(p => {
+      if (p.role && p.role !== "admin") rolesSet.add(p.role);
     });
     return Array.from(rolesSet);
-  }, [users, permissions, customRoles]);
-
-  const { toast } = useToast();
-  const { role } = useAuth();
-  const [sortCol, setSortCol] = useState("nome");
-  const [sortAsc, setSortAsc] = useState(true);
-  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
+  }, [users, rolePermissions, customRoles]);
 
   const callManageUser = async (body: any) => {
     try {
       const { data, error } = await supabase.functions.invoke("manage-user", { body });
-      
-      if (error) {
-        console.error("Erro na Edge Function:", error);
-        if (error.message?.includes("Failed to send a request")) {
-          throw new Error("A função 'manage-user' não foi encontrada ou o servidor está fora do ar. Verifique se ela foi implantada no Supabase.");
-        }
-        throw new Error(error.message || "Erro na operação");
-      }
-
-      if (data && data.error) {
-        throw new Error(data.error);
-      }
-
+      if (error) throw new Error(error.message || "Erro na operação");
+      if (data && data.error) throw new Error(data.error);
       return data;
     } catch (e: any) {
       console.error("Erro ao invocar função:", e);
@@ -110,36 +105,28 @@ const Usuarios = () => {
 
   const fetchUsers = async () => {
     try {
-      // Tenta primeiro via Edge Function (método completo)
       const data = await callManageUser({ action: "list" });
       setUsers(data as UserItem[]);
     } catch (e: any) {
-      console.warn("Edge Function falhou, tentando busca direta no banco:", e.message);
-      
-      // Fallback: Busca direta nas tabelas de perfis
-      const { data: profiles, error: pError } = await supabase.from("profiles").select("*").order("created_at");
-      const { data: roles, error: rError } = await supabase.from("user_roles").select("*");
-      
-      if (pError) {
-        toast({ title: "Erro ao carregar usuários", description: pError.message, variant: "destructive" });
-        return;
+      console.warn("Fallback to direct fetch:", e.message);
+      const { data: profiles } = await supabase.from("profiles").select("*").order("created_at");
+      const { data: roles } = await supabase.from("user_roles").select("*");
+      if (profiles) {
+        setUsers(profiles.map(p => ({
+          ...p,
+          role: roles?.find(r => r.user_id === p.user_id)?.role || null,
+        })) as UserItem[]);
       }
-
-      const mergedUsers = (profiles || []).map(p => ({
-        ...p,
-        role: roles?.find(r => r.user_id === p.user_id)?.role || null,
-      }));
-      
-      setUsers(mergedUsers as UserItem[]);
     }
     setLoading(false);
   };
 
   const fetchPermissions = async () => {
     try {
-      const { data, error } = await supabase.from("role_permissions").select("role, permission");
-      if (error) throw error;
-      setPermissions(data as RolePerm[]);
+      const { data: rp } = await supabase.from("role_permissions").select("role, permission");
+      if (rp) setRolePermissions(rp as RolePerm[]);
+      const { data: up } = await supabase.from("user_permissions").select("user_id, permission");
+      if (up) setUserPermissions(up as UserPerm[]);
     } catch (e: any) {
       console.error("Erro ao buscar permissões:", e);
     }
@@ -147,79 +134,31 @@ const Usuarios = () => {
 
   useEffect(() => { fetchUsers(); fetchPermissions(); }, []);
 
-  useEffect(() => {
-    const permsForRole = permissions.filter(p => p.role === permRole).map(p => p.permission);
-    setPermChecked(new Set(permsForRole));
-  }, [permRole, permissions]);
-
-  const filtered = users.filter((u) =>
+  const filteredUsers = users.filter((u) =>
     u.nome.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      let cmp = 0;
-      switch (sortCol) {
-        case "nome": cmp = a.nome.localeCompare(b.nome); break;
-        case "email": cmp = a.email.localeCompare(b.email); break;
-        case "role": cmp = (a.role || "").localeCompare(b.role || ""); break;
-        case "status": cmp = a.status.localeCompare(b.status); break;
-        case "created_at": cmp = a.created_at.localeCompare(b.created_at); break;
-      }
-      return sortAsc ? cmp : -cmp;
-    });
-  }, [filtered, sortCol, sortAsc]);
-
-  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (item: UserItem) => {
-    setEditing(item);
-    setForm({ nome: item.nome, email: item.email, password: "", role: item.role || "operador", status: item.status });
-    setDialogOpen(true);
-  };
-
-  const handleSave = async () => {
+  const handleCreateUser = async () => {
     const erros: string[] = [];
     if (!form.nome.trim()) erros.push("• Nome é obrigatório");
     if (!form.email.trim()) erros.push("• E-mail é obrigatório");
-    if (!editing && !form.password) erros.push("• Senha é obrigatória");
+    if (!form.password) erros.push("• Senha é obrigatória");
     if (form.password && form.password.length < 8) erros.push("• Senha deve ter no mínimo 8 caracteres");
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) erros.push("• E-mail inválido");
 
     if (erros.length > 0) {
-      toast({ title: "Preencha os campos corretamente", description: erros.join("\n"), variant: "destructive" });
+      toast({ title: "Preencha os campos", description: erros.join("\n"), variant: "destructive" });
       return;
     }
 
     setSaving(true);
     try {
-      if (editing) {
-        await callManageUser({
-          action: "update",
-          user_id: editing.user_id,
-          nome: form.nome,
-          role: form.role,
-          status: form.status,
-          ...(form.password ? { password: form.password } : {}),
-        });
-        toast({ title: "Usuário atualizado com sucesso" });
-      } else {
-        await callManageUser({
-          action: "create",
-          email: form.email,
-          password: form.password,
-          nome: form.nome,
-          role: form.role,
-        });
-        toast({ title: "Usuário criado com sucesso" });
-      }
-      setDialogOpen(false);
-      setTimeout(() => fetchUsers(), 500);
+      await callManageUser({ action: "create", email: form.email, password: form.password, nome: form.nome, role: form.role });
+      toast({ title: "Usuário criado com sucesso" });
+      setCreateDialogOpen(false);
+      fetchUsers();
     } catch (e: any) {
-      const msg = e.message || "Erro desconhecido";
-      const description = msg.includes("already been registered")
-        ? "Este e-mail já está cadastrado no sistema."
-        : msg;
-      toast({ title: "Erro ao salvar usuário", description, variant: "destructive" });
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
     setSaving(false);
   };
@@ -228,7 +167,7 @@ const Usuarios = () => {
     try {
       await callManageUser({ action: "delete", user_id: userId });
       toast({ title: "Usuário removido" });
-      setTimeout(() => fetchUsers(), 500);
+      fetchUsers();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
@@ -239,297 +178,359 @@ const Usuarios = () => {
     try {
       await callManageUser({ action: "update", user_id: item.user_id, status: newStatus });
       toast({ title: `Usuário ${newStatus === "Ativo" ? "desbloqueado" : "bloqueado"}` });
-      setTimeout(() => fetchUsers(), 500);
+      fetchUsers();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
   };
 
-  const togglePerm = (path: string) => {
-    setPermChecked(prev => {
-      const n = new Set(prev);
-      n.has(path) ? n.delete(path) : n.add(path);
-      return n;
-    });
-  };
-
-  const savePermissions = async () => {
+  const saveRolePermissions = async (role: string, checkedPaths: Set<string>) => {
     setSavingPerms(true);
     try {
-      const { error: delError } = await supabase
-        .from("role_permissions")
-        .delete()
-        .eq("role", permRole as any);
-      if (delError) throw delError;
-
-      if (permChecked.size > 0) {
-        const { error: insError } = await supabase
-          .from("role_permissions")
-          .insert(
-            Array.from(permChecked).map(p => ({
-              id: crypto.randomUUID(),
-              role: permRole as any,
-              permission: p
-            }))
-          );
-        if (insError) throw insError;
+      await supabase.from("role_permissions").delete().eq("role", role);
+      if (checkedPaths.size > 0) {
+        await supabase.from("role_permissions").insert(
+          Array.from(checkedPaths).map(p => ({ role, permission: p }))
+        );
       }
-
-      toast({ title: "Permissões salvas com sucesso!" });
+      toast({ title: "Permissões do Perfil salvas!" });
       fetchPermissions();
     } catch (e: any) {
-      toast({ title: "Erro ao salvar permissões", description: e.message, variant: "destructive" });
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
     setSavingPerms(false);
+  };
+
+  // --- User Editing Drawer Logic ---
+  const handleEditUserUpdate = async (updates: Partial<UserItem>) => {
+    if (!editUser) return;
+    try {
+      await callManageUser({ action: "update", user_id: editUser.user_id, ...updates });
+      setEditUser({ ...editUser, ...updates });
+      toast({ title: "Usuário atualizado" });
+      fetchUsers();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const toggleUserPermission = async (userId: string, path: string, isCurrentlyEnabled: boolean) => {
+    try {
+      if (isCurrentlyEnabled) {
+        await supabase.from("user_permissions").delete().match({ user_id: userId, permission: path });
+        setUserPermissions(prev => prev.filter(p => !(p.user_id === userId && p.permission === path)));
+      } else {
+        await supabase.from("user_permissions").insert({ user_id: userId, permission: path });
+        setUserPermissions(prev => [...prev, { user_id: userId, permission: path }]);
+      }
+      toast({ title: "Permissão individual atualizada" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
   };
 
   const roleLabel = (r: string | null) => {
     if (!r) return "Sem perfil";
     if (r === "admin") return "Administrador";
-    if (r === "operador") return "Operador";
-    if (r === "visualizador") return "Visualizador";
     return r.charAt(0).toUpperCase() + r.slice(1);
-  };
-
-  const roleColor = (r: string | null) => {
-    if (r === "admin") return "bg-primary text-primary-foreground";
-    if (r === "operador") return "bg-accent/10 text-accent border-0";
-    if (r === "visualizador") return "bg-muted text-muted-foreground";
-    return "bg-secondary text-secondary-foreground";
   };
 
   return (
     <Layout title="Usuários & Permissões" subtitle={`${users.length} usuários cadastrados`}>
-      <div className="space-y-6">
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList className="bg-card border border-border shadow-sm">
+          <TabsTrigger value="users" className="gap-2"><UserCog className="h-4 w-4" /> Usuários</TabsTrigger>
+          <TabsTrigger value="permissions" className="gap-2"><ShieldCheck className="h-4 w-4" /> Perfis e Acessos Globais</TabsTrigger>
+        </TabsList>
 
-
-        <Tabs defaultValue="users">
-          <TabsList>
-            <TabsTrigger value="users"><UserCog className="h-4 w-4 mr-1" /> Usuários</TabsTrigger>
-            <TabsTrigger value="permissions"><ShieldCheck className="h-4 w-4 mr-1" /> Permissões</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="users" className="space-y-4">
-            {/* Action Bar */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm mb-6">
-              <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
-                <div className="relative w-full sm:w-80">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar usuários..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
-                <div className="flex gap-2"></div>
-                <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
-                  <Plus className="h-4 w-4 mr-2" /> Novo Usuário
-                </Button>
-              </div>
+        {/* =========================================
+            TAB USUÁRIOS
+        ========================================= */}
+        <TabsContent value="users" className="space-y-4 animate-in fade-in-50 duration-300">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border border-border shadow-sm">
+            <div className="relative w-full sm:w-96">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar por nome ou e-mail..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background rounded-full" />
             </div>
+            <Button onClick={() => { setForm(emptyForm); setCreateDialogOpen(true); }} className="w-full sm:w-auto rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+              <UserPlus className="h-4 w-4 mr-2" /> Cadastrar Usuário
+            </Button>
+          </div>
 
-            <Card>
-              <CardContent className="p-0 overflow-x-auto">
-                <Table className="min-w-[600px]">
-                  <TableHeader>
-                    <TableRow>
-                      <SortableTableHead column="nome" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Nome</SortableTableHead>
-                      <SortableTableHead column="email" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Email</SortableTableHead>
-                      <SortableTableHead column="role" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Perfil</SortableTableHead>
-                      <SortableTableHead column="status" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Status</SortableTableHead>
-                      <SortableTableHead column="created_at" sortCol={sortCol} sortAsc={sortAsc} onSort={toggleSort}>Cadastro</SortableTableHead>
-                      <TableHead className="w-32">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-                    ) : sorted.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum usuário encontrado</TableCell></TableRow>
-                    ) : sorted.map((item) => (
-                      <TableRow key={item.user_id}>
-                        <TableCell className="font-medium text-sm">{item.nome}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.email}</TableCell>
-                        <TableCell><Badge className={roleColor(item.role)}>{roleLabel(item.role)}</Badge></TableCell>
-                        <TableCell>
-                          <Badge className={
-                            item.status === "Ativo" ? "bg-success text-success-foreground" :
-                            item.status === "Pendente" ? "bg-warning text-warning-foreground" :
-                            "bg-destructive/10 text-destructive"
-                          }>
-                            {item.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{new Date(item.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(item)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleToggleStatus(item)} title={item.status === "Ativo" ? "Bloquear" : "Desbloquear"}>
-                              {item.status === "Ativo" ? <Lock className="h-4 w-4 text-warning" /> : <Unlock className="h-4 w-4 text-success" />}
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                  <AlertDialogDescription>Deseja realmente excluir o usuário "{item.nome}"? Esta ação não pode ser desfeita.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(item.user_id)} className="bg-destructive text-destructive-foreground">Excluir</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-40 bg-card rounded-xl animate-pulse"></div>)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredUsers.map(user => {
+                const isBlocked = user.status !== "Ativo";
+                return (
+                  <Card key={user.user_id} className={`group overflow-hidden border-border transition-all hover:shadow-md hover:border-primary/50 cursor-pointer ${isBlocked ? 'opacity-70 grayscale' : ''}`} onClick={() => { setEditUser(user); setEditSheetOpen(true); }}>
+                    <div className={`h-1.5 w-full ${user.role === 'admin' ? 'bg-primary' : isBlocked ? 'bg-destructive' : 'bg-success'}`} />
+                    <CardContent className="p-5">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-lg">
+                            {user.nome.charAt(0).toUpperCase()}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          <div>
+                            <h3 className="font-bold text-foreground leading-tight">{user.nome}</h3>
+                            <p className="text-xs text-muted-foreground">{user.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-6">
+                        <Badge variant="outline" className="bg-background">
+                          <Shield className="h-3 w-3 mr-1 text-muted-foreground" /> {roleLabel(user.role)}
+                        </Badge>
+                        <Badge variant="secondary" className={`${user.status === 'Ativo' ? 'text-success bg-success/10' : 'text-destructive bg-destructive/10'}`}>
+                          {user.status}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* =========================================
+            TAB PERFIS
+        ========================================= */}
+        <TabsContent value="permissions" className="animate-in fade-in-50 duration-300">
+          <div className="grid lg:grid-cols-[250px_1fr] gap-6">
+            {/* Sidebar de Perfis */}
+            <Card className="h-fit">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Perfis do Sistema</Label>
+                </div>
+                <div className="space-y-1">
+                  {uniqueRoles.map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setPermRole(r)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${permRole === r ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'}`}
+                    >
+                      {roleLabel(r)}
+                      {r === 'admin' && <Lock className="h-3 w-3 opacity-50" />}
+                    </button>
+                  ))}
+                </div>
+                <Button variant="outline" className="w-full border-dashed" onClick={() => setNewRoleDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Novo Perfil
+                </Button>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          <TabsContent value="permissions" className="space-y-4">
+            {/* Configuração de Permissões do Perfil Selecionado */}
             <Card>
-              <CardContent className="p-6 space-y-6">
-                <div>
-                  <Label className="text-base font-semibold">Selecione o Perfil</Label>
-                  <p className="text-sm text-muted-foreground mb-3">Administradores sempre têm acesso total. Configure as permissões dos outros perfis.</p>
-                  <div className="flex items-center gap-3">
-                    <Select value={permRole} onValueChange={setPermRole}>
-                      <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+              <CardContent className="p-6">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      Acessos do Perfil: <span className="text-primary">{roleLabel(permRole)}</span>
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {permRole === 'admin' 
+                        ? 'Administradores possuem acesso total a todos os módulos por padrão.'
+                        : 'Ligue as chaves dos módulos que este perfil pode acessar.'}
+                    </p>
+                  </div>
+                  {permRole !== 'admin' && (
+                    <Button 
+                      onClick={() => {
+                        const currentPaths = new Set(rolePermissions.filter(p => p.role === permRole).map(p => p.permission));
+                        saveRolePermissions(permRole, currentPaths);
+                      }} 
+                      disabled={savingPerms}
+                    >
+                      {savingPerms ? "Salvando..." : "Salvar Padrão do Perfil"}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {ALL_ROUTES.map(route => {
+                    const isChecked = permRole === 'admin' || rolePermissions.some(p => p.role === permRole && p.permission === route.path);
+                    return (
+                      <div key={route.path} className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${isChecked ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:bg-muted/30'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isChecked ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className={`text-sm font-semibold ${isChecked ? 'text-foreground' : 'text-muted-foreground'}`}>{route.label}</p>
+                            <p className="text-[10px] text-muted-foreground opacity-70">{route.path}</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isChecked}
+                          disabled={permRole === 'admin'}
+                          onCheckedChange={(val) => {
+                            if (val) setRolePermissions(prev => [...prev, { role: permRole, permission: route.path }]);
+                            else setRolePermissions(prev => prev.filter(p => !(p.role === permRole && p.permission === route.path)));
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* =========================================
+          DRAWER: EDIÇÃO & PERMISSÕES DO USUÁRIO
+      ========================================= */}
+      <Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0">
+          {editUser && (
+            <div className="flex flex-col min-h-full">
+              <div className="p-6 bg-muted/30 border-b border-border">
+                <SheetHeader>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl">
+                      {editUser.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <SheetTitle className="text-xl">{editUser.nome}</SheetTitle>
+                      <SheetDescription>{editUser.email}</SheetDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={editUser.role || "operador"} onValueChange={(v) => handleEditUserUpdate({ role: v })}>
+                      <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {uniqueRoles.map(r => (
-                          <SelectItem key={r} value={r}>
-                            {roleLabel(r)}
-                          </SelectItem>
-                        ))}
+                        {uniqueRoles.map(r => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => { setNewRoleName(""); setNewRoleDialogOpen(true); }}
-                      className="border-dashed"
-                    >
-                      + Criar Novo Perfil
-                    </Button>
+                    <Select value={editUser.status} onValueChange={(v) => handleEditUserUpdate({ status: v })}>
+                      <SelectTrigger className={`h-8 text-xs w-[120px] ${editUser.status === 'Ativo' ? 'text-success' : 'text-destructive'}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Ativo">Ativo</SelectItem>
+                        <SelectItem value="Bloqueado">Bloqueado</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
+                </SheetHeader>
+              </div>
 
+              <div className="p-6 flex-1 space-y-6">
                 <div>
-                  <Label className="text-base font-semibold mb-3 block">Páginas com Acesso</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {ALL_ROUTES.map(route => (
-                      <label key={route.path} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                        <Checkbox
-                          checked={permChecked.has(route.path)}
-                          onCheckedChange={() => togglePerm(route.path)}
-                        />
-                        <span className="text-sm font-medium">{route.label}</span>
-                      </label>
-                    ))}
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Settings2 className="h-4 w-4" /> Acessos Individuais
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Ative permissões extras específicas apenas para este usuário. Chaves verdes bloqueadas indicam que o usuário já possui acesso via Perfil.
+                  </p>
+                  <div className="space-y-2">
+                    {ALL_ROUTES.map(route => {
+                      const hasRolePerm = editUser.role === 'admin' || rolePermissions.some(p => p.role === editUser.role && p.permission === route.path);
+                      const hasUserPerm = userPermissions.some(p => p.user_id === editUser.user_id && p.permission === route.path);
+                      const isGranted = hasRolePerm || hasUserPerm;
+
+                      return (
+                        <div key={route.path} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isGranted ? 'border-primary/20 bg-primary/5' : 'border-transparent hover:bg-muted/50'}`}>
+                          <div className="flex items-center gap-3">
+                            <span className={`text-sm ${isGranted ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{route.label}</span>
+                            {hasRolePerm && <Badge variant="outline" className="text-[10px] h-5 py-0 px-1.5 bg-background text-muted-foreground">Via Perfil</Badge>}
+                          </div>
+                          <Switch
+                            checked={isGranted}
+                            disabled={hasRolePerm}
+                            onCheckedChange={() => toggleUserPermission(editUser.user_id, route.path, hasUserPerm)}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+              </div>
 
-                <Button onClick={savePermissions} disabled={savingPerms} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                  {savingPerms ? "Salvando..." : "Salvar Permissões"}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+              <div className="p-6 bg-background border-t border-border flex justify-between items-center mt-auto">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+                      <AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => { handleDelete(editUser.user_id); setEditSheetOpen(false); }} className="bg-destructive text-destructive-foreground">Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <Button variant="outline" onClick={() => setEditSheetOpen(false)}>Fechar</Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><UserCog className="h-5 w-5 text-accent" />{editing ? "Editar Usuário" : "Novo Usuário"}</DialogTitle></DialogHeader>
+      {/* =========================================
+          DIALOG: NOVO USUÁRIO
+      ========================================= */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Cadastrar Novo Usuário</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
+            <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome completo" /></div>
+            <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@busato.com.br" /></div>
+            <div><Label>Senha (Mín. 8 caracteres)</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div>
-              <Label>Email</Label>
-              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} disabled={!!editing} />
-            </div>
-            <div>
-              <Label>{editing ? "Nova Senha (deixe vazio para manter)" : "Senha"}</Label>
-              <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editing ? "••••••••" : ""} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Perfil</Label>
-                <Select value={form.role || "operador"} onValueChange={(v) => setForm({ ...form, role: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin" disabled={role !== 'admin'}>Administrador</SelectItem>
-                    {uniqueRoles.map(r => (
-                      <SelectItem key={r} value={r}>
-                        {roleLabel(r)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Bloqueado">Bloqueado</SelectItem>
-                    <SelectItem value="Pendente">Pendente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label>Perfil Inicial</Label>
+              <Select value={form.role || "operador"} onValueChange={(v) => setForm({ ...form, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin" disabled={currentUserRole !== 'admin'}>Administrador</SelectItem>
+                  {uniqueRoles.filter(r => r !== 'admin').map(r => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving} className="bg-accent text-accent-foreground hover:bg-accent/90">{saving ? "Salvando..." : "Salvar"}</Button>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateUser} disabled={saving} className="bg-primary text-primary-foreground">{saving ? "Cadastrando..." : "Cadastrar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* =========================================
+          DIALOG: NOVO PERFIL
+      ========================================= */}
       <Dialog open={newRoleDialogOpen} onOpenChange={setNewRoleDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Criar Novo Perfil</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="role-name">Nome do Perfil</Label>
-              <Input
-                id="role-name"
-                placeholder="Ex: financeiro, suporte, etc."
-                value={newRoleName}
-                onChange={(e) => setNewRoleName(e.target.value)}
-              />
-            </div>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Criar Novo Perfil</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-2">
+            <Label>Nome do Perfil</Label>
+            <Input placeholder="Ex: Financeiro, Diretoria" value={newRoleName} onChange={(e) => setNewRoleName(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewRoleDialogOpen(false)}>
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => setNewRoleDialogOpen(false)}>Cancelar</Button>
             <Button
               onClick={() => {
                 const name = newRoleName.trim().toLowerCase();
-                if (!name) return;
-                if (name === "admin" || uniqueRoles.includes(name)) {
-                  toast({
-                    title: "Erro",
-                    description: "Este perfil já existe ou é reservado.",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                setCustomRoles((prev) => [...prev, name]);
+                if (!name || name === "admin" || uniqueRoles.includes(name)) return;
+                setCustomRoles(prev => [...prev, name]);
                 setPermRole(name);
                 setNewRoleDialogOpen(false);
                 setNewRoleName("");
-                toast({ title: "Perfil criado localmente", description: "Configure as permissões e salve para persistir." });
               }}
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
-              Criar
+              Criar Perfil
             </Button>
           </DialogFooter>
         </DialogContent>
