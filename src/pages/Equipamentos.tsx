@@ -326,22 +326,107 @@ const Equipamentos = () => {
             ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="flex flex-col gap-2">
+          {/* Cabeçalho sutil (desktop) */}
+          {sorted.length > 0 && (
+            <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="w-[48px]"></div>
+              <div className="flex-1 min-w-0">Equipamento</div>
+              <div className="w-[140px]">Série / Ano</div>
+              <div className="w-[140px] text-right">Valor do Bem</div>
+              <div className="w-[100px] text-center ml-4">Status</div>
+              <div className="w-[100px] text-center">Seguro</div>
+              <div className="w-[100px] text-center">Locação</div>
+              <div className="w-[80px]"></div>
+            </div>
+          )}
+
           {sorted.map((item) => {
             const isInsured = insuredIds.has(item.id);
             const isRented = rentedIds.has(item.id);
             const hasSinistro = sinistroIds.has(item.id);
             
             const getBorderColor = () => {
-              if (item.status === "Manutenção") return "var(--warning)";
-              if (item.status === "Inativo") return "var(--destructive)";
-              return "var(--primary)";
+              if (item.status === "Manutenção") return "border-warning";
+              if (item.status === "Inativo") return "border-destructive";
+              return "border-primary";
             };
 
             return (
-              <Card key={item.id} className="group hover:shadow-md transition-all glass-panel overflow-hidden relative border-l-4" style={{ borderLeftColor: `hsl(${getBorderColor()})` }}>
-                {/* Actions Hover Overlay */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-lg shadow-sm border border-border p-1 flex gap-1 z-10">
+              <div 
+                key={item.id} 
+                className={`group bg-card hover:bg-accent/5 border border-border rounded-xl p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative border-l-4 ${getBorderColor()}`}
+              >
+                {/* Ícone */}
+                <div className="hidden md:flex h-10 w-10 rounded-lg bg-accent/10 items-center justify-center text-accent shrink-0">
+                  <Tractor className="h-5 w-5" />
+                </div>
+
+                {/* Info Principal */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-foreground truncate">{item.tipo}</h3>
+                    <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent border-accent/20">
+                      {item.tag_placa || "S/ PLACA"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{item.modelo}</p>
+                </div>
+
+                {/* Série / Ano */}
+                <div className="flex items-center gap-4 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  <div className="md:w-[140px] flex flex-col">
+                    <span className="text-[10px] text-muted-foreground uppercase md:hidden mb-0.5">Série / Ano</span>
+                    <span className="font-medium text-xs truncate" title={item.numero_serie || "S/N"}>{item.numero_serie || "—"}</span>
+                    <span className="text-xs text-muted-foreground">{item.ano || "—"}</span>
+                  </div>
+                </div>
+
+                {/* Valor do Bem */}
+                <div className="flex items-center gap-4 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  <div className="md:w-[140px] md:text-right flex flex-col">
+                    <span className="text-[10px] text-muted-foreground uppercase md:hidden mb-0.5">Valor do Bem</span>
+                    <span className="font-bold text-sm text-foreground">{formatCurrency(item.valor_bem)}</span>
+                  </div>
+                </div>
+
+                {/* Badges de Status (Status, Seguro, Locação) */}
+                <div className="flex items-center gap-2 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0 flex-wrap md:flex-nowrap">
+                  <div className="md:w-[100px] flex justify-start md:justify-center md:ml-4">
+                    <Badge className={cn("text-[10px] py-0 px-1.5", statusColor(item.status))}>{item.status}</Badge>
+                  </div>
+
+                  <div className="md:w-[100px] flex justify-start md:justify-center">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn("flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors cursor-help w-fit", isInsured ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+                            {isInsured ? <ShieldCheck className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+                            {isInsured ? "Assegurado" : "S/ Seguro"}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>{isInsured ? "Possui apólice vigente" : "Sem cobertura de seguro"}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+
+                  <div className="md:w-[100px] flex justify-start md:justify-center">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn("flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors cursor-help w-fit", hasSinistro ? "bg-destructive/10 text-destructive" : isRented ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                            {hasSinistro ? <AlertCircle className="h-3 w-3" /> : isRented ? <Truck className="h-3 w-3" /> : <ParkingSquare className="h-3 w-3" />}
+                            {hasSinistro ? "Sinistro" : isRented ? "Locado" : "Disp."}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>{hasSinistro ? "Equipamento em sinistro" : isRented ? "Em contrato ativo" : "Pátio / Disponível"}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+
+                {/* Actions (Sempre visível no mobile, visível no hover no desktop) */}
+                <div className="flex md:w-[80px] justify-end gap-1 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0 md:opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -349,72 +434,15 @@ const Equipamentos = () => {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0 shadow-inner">
-                      <Tractor className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-bold text-lg leading-none truncate">{item.tipo}</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1 truncate">{item.modelo}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline" className="text-[10px] font-mono bg-background/50">{item.tag_placa || "S/ PLACA"}</Badge>
-                        <Badge className={cn("text-[10px]", statusColor(item.status))}>{item.status}</Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm bg-muted/20 rounded-lg p-3 border border-border/30">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Nº Série</p>
-                      <p className="font-medium truncate">{item.numero_serie || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Ano</p>
-                      <p className="font-medium">{item.ano || "—"}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Valor do Bem</p>
-                      <p className="font-medium text-primary">{formatCurrency(item.valor_bem)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-help", isInsured ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-                            {isInsured ? <ShieldCheck className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
-                            {isInsured ? "Assegurado" : "S/ Seguro"}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>{isInsured ? "Possui apólice vigente" : "Sem cobertura de seguro"}</TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-help", hasSinistro ? "bg-destructive/10 text-destructive" : isRented ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                            {hasSinistro ? <AlertCircle className="h-4 w-4" /> : isRented ? <Truck className="h-4 w-4" /> : <ParkingSquare className="h-4 w-4" />}
-                            {hasSinistro ? "Sinistro" : isRented ? "Locado" : "Disponível"}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>{hasSinistro ? "Equipamento em sinistro" : isRented ? "Em contrato ativo" : "Pátio / Disponível"}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
             );
           })}
           
           {!loading && sorted.length === 0 && (
-            <div className="col-span-full py-12 text-center text-muted-foreground glass-panel rounded-xl">
+            <div className="py-12 text-center text-muted-foreground bg-card rounded-xl border border-border border-dashed">
               <Box className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p className="text-lg font-medium">Nenhum equipamento encontrado</p>
-              <p className="text-sm opacity-70">Tente ajustar seus filtros ou busca.</p>
+              <p className="text-sm font-medium">Nenhum equipamento encontrado</p>
+              <p className="text-xs opacity-70 mt-1">Tente ajustar seus filtros ou busca.</p>
             </div>
           )}
         </div>
