@@ -173,7 +173,7 @@ function useFinanceiroData() {
 
 function getVencimento(fatura: Fatura) {
   const prazo = fatura.contratos?.prazo_faturamento || 30;
-  const dateStr = fatura.data_aprovacao || fatura.emissao;
+  const dateStr = fatura.emissao || fatura.data_aprovacao;
   if (!dateStr) return null;
   const baseDate = parseLocalDate(dateStr);
   if (isNaN(baseDate.getTime())) return null;
