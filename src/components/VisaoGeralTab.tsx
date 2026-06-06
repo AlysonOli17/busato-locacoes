@@ -693,22 +693,6 @@ export const VisaoGeralTab = ({
   return (
     <div className="space-y-8">
       <div className="space-y-8 animate-in fade-in duration-300">
-        {/* Dashboard Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 rounded-2xl border border-primary/10">
-          <div>
-            <h2 className="text-2xl font-black text-foreground flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-primary animate-pulse" />
-              Cockpit Executivo & B.I.
-            </h2>
-            <p className="text-muted-foreground text-sm mt-1">
-              Análise macro-estratégica, eficiência operacional e indicadores financeiros integrados em tempo real.
-            </p>
-          </div>
-          <div className="bg-background px-4 py-2 rounded-xl shadow-sm border text-xs font-semibold text-muted-foreground flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-success animate-ping"></span>
-            Dados Consolidados em Tempo Real
-          </div>
-        </div>
 
         {/* Premium BI KPI Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

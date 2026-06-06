@@ -19,6 +19,7 @@ import { calcularHorasInterpoladas, parseLocalDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
 import { ContasBancariasDialog, type ContaBancaria } from "@/components/ContasBancariasDialog";
+import { ImportFaturasDialog } from "@/components/ImportFaturasDialog";
 
 interface ContratoEquip {
   equipamento_id: string;
@@ -143,6 +144,7 @@ export const FaturamentoContent = () => {
   const [items, setItems] = useState<Fatura[]>([]);
   const [contratos, setContratos] = useState<ContratoRef[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Fatura | null>(null);
   const [search, setSearch] = useState("");
   const [filterPeriodoInicio, setFilterPeriodoInicio] = useState("");
@@ -1141,6 +1143,7 @@ export const FaturamentoContent = () => {
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10"><FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel</Button>
               <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10"><FileDown className="h-4 w-4 mr-1 text-primary" /> PDF</Button>
+              <Button onClick={() => setImportDialogOpen(true)} variant="outline" size="sm" className="bg-background/50 backdrop-blur-sm border-emerald-500/30 text-emerald-600 hover:bg-emerald-50"><FileSpreadsheet className="h-4 w-4 mr-1" /> Importar</Button>
             </div>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
           </div>
@@ -1813,6 +1816,14 @@ export const FaturamentoContent = () => {
         onOpenChange={setContasDialogOpen}
         contas={contasBancarias}
         onRefresh={fetchData}
+      />
+
+      <ImportFaturasDialog
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={fetchData}
+        empresasMap={new Map(empresasList.map(e => [e.id, e]))}
+        contratos={contratos}
       />
 
       {/* Mobilização/Desmobilização Alert Dialog */}

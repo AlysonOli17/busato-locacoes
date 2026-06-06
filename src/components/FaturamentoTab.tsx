@@ -11,11 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail } from "lucide-react";
+import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { ImportFaturasDialog } from "./ImportFaturasDialog";
 // jsPDF is now imported dynamically to reduce bundle size
 import type jsPDF from "jspdf";
 
@@ -132,6 +133,7 @@ export const FaturamentoTab = () => {
   const [generateEmissao, setGenerateEmissao] = useState("");
   const [filterEmpresa, setFilterEmpresa] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null);
   const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "", emissao: "", valor_total: 0, observacoes: "" });
@@ -859,6 +861,9 @@ export const FaturamentoTab = () => {
             </SelectContent>
           </Select>
         </div>
+        <Button onClick={() => setImportDialogOpen(true)} variant="outline" size="sm" className="bg-background/50 backdrop-blur-sm border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 shrink-0">
+          <FileSpreadsheet className="h-4 w-4 mr-1" /> Importar Histórico
+        </Button>
         <Button variant="outline" size="sm" onClick={exportRelatorioFinanceiro} className="shrink-0">
           <FileText className="h-4 w-4 mr-1" /> Relatório Financeiro
         </Button>
@@ -1204,6 +1209,14 @@ export const FaturamentoTab = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportFaturasDialog
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={fetchData}
+        empresasMap={new Map(empresas.map(e => [e.id, e]))}
+        contratos={contratos}
+      />
     </div>
   );
 };
