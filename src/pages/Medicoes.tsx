@@ -15,12 +15,13 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, CalendarIcon, FileBarChart, FileDown, Pencil, Trash2, Receipt, DollarSign, AlertTriangle, Activity, PenTool } from "lucide-react";
+import { CalendarIcon, Clock, PenTool, Trash2, TrendingUp, AlertTriangle, CheckCircle2, ChevronDown, Filter, CalendarCheck2, HardHat, Cog, ShieldCheck, CheckSquare, Search, FileSpreadsheet, Plus, FileBarChart, FileDown, Pencil, Receipt, DollarSign, Activity } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { withCache, clearCache } from "@/lib/cache";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
@@ -81,15 +82,16 @@ const Medicoes = () => {
   const [equipMedicaoTypes, setEquipMedicaoTypes] = useState<Map<string, "horas" | "diarias">>(new Map());
   const { toast } = useToast();
 
-  const fetchData = async () => {
-    const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes] = await Promise.all([
+  const fetchData = async (force = false) => {
+    if (force) clearCache("medicoes_main");
+    const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id").eq("status", "Ativo"),
       supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id"),
       supabase.from("contratos_aditivos").select("id, contrato_id"),
       supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id")
-    ]);
+    ]));
     
     if (equipRes.data) setEquipamentos(equipRes.data);
 
@@ -375,8 +377,9 @@ const Medicoes = () => {
     if (!deleteId) return;
     const { error } = await supabase.from("medicoes").delete().eq("id", deleteId);
     if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
+    toast({ title: "Horímetro excluído" });
     setDeleteId(null);
-    fetchData();
+    fetchData(true);
   };
 
   const onEquipChange = (v: string) => {

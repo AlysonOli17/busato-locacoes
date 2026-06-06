@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { withCache, clearCache } from "@/lib/cache";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,8 +93,9 @@ function useFinanceiroData() {
   const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const refreshFaturas = async () => {
-    const [fatRes, ctRes, empRes, eqRes, ceRes, medRes, adRes, aeRes] = await Promise.all([
+  const refreshFaturas = async (force = false) => {
+    if (force) clearCache("financeiro_views");
+    const [fatRes, ctRes, empRes, eqRes, ceRes, medRes, adRes, aeRes] = await withCache("financeiro_views", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, obra").order("nome"),
@@ -102,7 +104,7 @@ function useFinanceiroData() {
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("contratos_aditivos").select("*"),
       supabase.from("aditivos_equipamentos").select("*")
-    ]);
+    ]));
 
     if (fatRes.data && ctRes.data && empRes.data && eqRes.data) {
       setEmpresas(empRes.data as Empresa[]);
@@ -428,7 +430,7 @@ export function PendenteMedicaoView() {
     }
     toast({ title: "Período vinculado", description: "Fatura associada ao período corretamente." });
     setVincularDialog({ open: false, alerta: null, faturaId: "" });
-    await refreshFaturas();
+    await refreshFaturas(true);
   };
 
   const getExportData = () => {

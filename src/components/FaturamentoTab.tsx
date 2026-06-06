@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { withCache, clearCache } from "@/lib/cache";
 import { useToast } from "@/hooks/use-toast";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { CurrencyInput } from "@/components/CurrencyInput";
@@ -150,14 +152,15 @@ export const FaturamentoTab = () => {
   useEffect(() => { sessionStorage.setItem("fat_filterStatus", filterStatus); }, [filterStatus]);
   useEffect(() => { sessionStorage.setItem("fat_sortCol", sortCol); sessionStorage.setItem("fat_sortAsc", String(sortAsc)); }, [sortCol, sortAsc]);
 
-  const fetchData = async () => {
-    const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
+  const fetchData = async (force = false) => {
+    if (force) clearCache("faturamento_tab");
+    const [fatRes, ctRes, empRes, contasRes, equipRes] = await withCache("faturamento_tab", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("faturamento").select("*").in("status", ["Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("*"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, obra, email"),
       supabase.from("contas_bancarias").select("*"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
-    ]);
+    ]));
 
     const empresasMap = new Map((empRes.data || []).map(e => [e.id, e]));
     const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
@@ -299,7 +302,7 @@ export const FaturamentoTab = () => {
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Fatura atualizada" });
     setEditDialog(false);
-    fetchData();
+    fetchData(true);
   };
 
   const handleEmitirFatura = async (id: string, numeroNota: string, emissaoDate: string, observacoes: string) => {
