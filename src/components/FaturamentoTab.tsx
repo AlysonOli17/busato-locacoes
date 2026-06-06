@@ -153,7 +153,7 @@ export const FaturamentoTab = () => {
   useEffect(() => { sessionStorage.setItem("fat_sortCol", sortCol); sessionStorage.setItem("fat_sortAsc", String(sortAsc)); }, [sortCol, sortAsc]);
 
   const fetchData = async (force = false) => {
-    if (force) clearCache("faturamento_tab");
+    if (force) clearCache();
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await withCache("faturamento_tab", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("faturamento").select("*").in("status", ["Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("*"),
@@ -342,19 +342,14 @@ export const FaturamentoTab = () => {
 
       const { error } = await supabase
         .from("faturamento")
-        .update({
-          status: "Pendente",
-          data_aprovacao: null,
-          numero_nota: null,
-          observacoes: updatedObs,
-        } as any)
+        .delete()
         .eq("id", id);
 
       if (error) throw error;
 
       toast({
-        title: "Fatura Cancelada",
-        description: "A fatura foi cancelada e retornou como medição pendente.",
+        title: "Fatura Excluída",
+        description: "A fatura foi permanentemente removida do sistema.",
         variant: "default",
       });
       setCancelDialogOpen(false);
@@ -1123,7 +1118,7 @@ export const FaturamentoTab = () => {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            A fatura retornará para a aba de Medições como pendente. Por favor, insira o motivo do cancelamento:
+            <strong className="text-destructive">A fatura será permanentemente excluída do sistema</strong> e não constará em nenhum relatório ou cálculo. Esta ação não pode ser desfeita. Por favor, insira o motivo do cancelamento/exclusão (opcional):
           </p>
           <div className="space-y-4 py-2">
             <div>

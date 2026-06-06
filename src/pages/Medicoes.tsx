@@ -83,7 +83,7 @@ const Medicoes = () => {
   const { toast } = useToast();
 
   const fetchData = async (force = false) => {
-    if (force) clearCache("medicoes_main");
+    if (force) clearCache();
     const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),

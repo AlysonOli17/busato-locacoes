@@ -94,7 +94,7 @@ function useFinanceiroData() {
   const [loading, setLoading] = useState(true);
 
   const refreshFaturas = async (force = false) => {
-    if (force) clearCache("financeiro_views");
+    if (force) clearCache();
     const [fatRes, ctRes, empRes, eqRes, ceRes, medRes, adRes, aeRes] = await withCache("financeiro_views", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
