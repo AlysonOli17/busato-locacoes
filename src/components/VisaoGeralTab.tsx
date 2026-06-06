@@ -622,7 +622,7 @@ export const VisaoGeralTab = ({
         percentual,
         status: eq.status
       };
-    }).sort((a, b) => b.percentual - a.percentual);
+    }).sort((a, b) => b.margem - a.margem);
   }, [equipamentos, faturamentoPorEquipamento, gastos, activeContratoIds, faturamentoGastos, faturas, contratos, contratosEquipamentos]);
 
   const topEquipamentos = useMemo(() => {
@@ -1144,8 +1144,8 @@ export const VisaoGeralTab = ({
                           <span className="font-semibold">{equip.nome}</span>
                           <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
                         </div>
-                        <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold">
-                          {equip.percentual.toFixed(1)}%
+                        <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/10 text-[10px] py-0 px-1.5 font-bold" title={`${equip.percentual.toFixed(1)}% de Margem`}>
+                          R$ {fmtShort(equip.margem)}
                         </Badge>
                       </div>
                     ))}
@@ -1163,8 +1163,8 @@ export const VisaoGeralTab = ({
                           <span className="font-semibold">{equip.nome}</span>
                           <p className="text-[9px] text-muted-foreground">Placa: {equip.tag}</p>
                         </div>
-                        <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold">
-                          {equip.percentual.toFixed(1)}%
+                        <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/10 text-[10px] py-0 px-1.5 font-bold" title={`${equip.percentual.toFixed(1)}% de Margem`}>
+                          R$ {fmtShort(equip.margem)}
                         </Badge>
                       </div>
                     ))}
