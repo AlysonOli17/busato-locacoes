@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Busato Locacoes</string>
+    <string name="title_activity_main">Busato Locacoes</string>
+    <string name="package_name">br.com.busato.app</string>
+    <string name="custom_url_scheme">br.com.busato.app</string>
+</resources>

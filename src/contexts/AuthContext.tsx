@@ -52,6 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setLoading(true); // Evita o erro de "duplo login"
         // Use setTimeout to avoid Supabase auth deadlock
         setTimeout(async () => {
           if (!mounted) return;
