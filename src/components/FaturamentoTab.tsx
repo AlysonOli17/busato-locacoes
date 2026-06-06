@@ -1199,7 +1199,7 @@ export const FaturamentoTab = () => {
                     toast({ title: "Erro", description: error.message, variant: "destructive" });
                   } else {
                     toast({ title: "Fatura paga", description: "O status da fatura foi alterado para Pago." });
-                    fetchData();
+                    fetchData(true);
                   }
                   setPayId(null);
                 }
@@ -1215,7 +1215,7 @@ export const FaturamentoTab = () => {
       <ImportFaturasDialog
         isOpen={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
-        onSuccess={fetchData}
+        onSuccess={() => fetchData(true)}
         empresasMap={new Map(empresas.map(e => [e.id, e]))}
         contratos={contratos}
       />
