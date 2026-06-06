@@ -131,8 +131,8 @@ export const FaturamentoTab = () => {
   const [generateNumeroNota, setGenerateNumeroNota] = useState("");
   const [generateObservacoes, setGenerateObservacoes] = useState("");
   const [generateEmissao, setGenerateEmissao] = useState("");
-  const [filterEmpresa, setFilterEmpresa] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterEmpresa, setFilterEmpresa] = useState(() => sessionStorage.getItem("fat_filterEmpresa") || "all");
+  const [filterStatus, setFilterStatus] = useState(() => sessionStorage.getItem("fat_filterStatus") || "all");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [editingFatura, setEditingFatura] = useState<Fatura | null>(null);
@@ -142,9 +142,13 @@ export const FaturamentoTab = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [payId, setPayId] = useState<string | null>(null);
   const { toast } = useToast();
-  const [sortCol, setSortCol] = useState("numero");
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortCol, setSortCol] = useState(() => sessionStorage.getItem("fat_sortCol") || "numero");
+  const [sortAsc, setSortAsc] = useState(() => sessionStorage.getItem("fat_sortAsc") !== "false");
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
+
+  useEffect(() => { sessionStorage.setItem("fat_filterEmpresa", filterEmpresa); }, [filterEmpresa]);
+  useEffect(() => { sessionStorage.setItem("fat_filterStatus", filterStatus); }, [filterStatus]);
+  useEffect(() => { sessionStorage.setItem("fat_sortCol", sortCol); sessionStorage.setItem("fat_sortAsc", String(sortAsc)); }, [sortCol, sortAsc]);
 
   const fetchData = async () => {
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await Promise.all([
@@ -821,7 +825,7 @@ export const FaturamentoTab = () => {
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 8;
-    const total = data.reduce((s, f) => s + Number(f.valor_total), 0);
+    const total = data.reduce((s, f) => f.status === "Cancelado" ? s : s + Number(f.valor_total), 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(41, 128, 185);

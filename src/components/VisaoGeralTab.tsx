@@ -372,7 +372,7 @@ export const VisaoGeralTab = ({
   // 2. Saúde da Frota (Profitability per Machine)
   const equipmentHealth = useMemo(() => {
     return equipamentos.map(eq => {
-      const eqFaturas = faturas.filter(f => f.contrato_id && contratos.find(c => c.id === f.contrato_id && c.equipamento_id === eq.id));
+      const eqFaturas = faturas.filter(f => f.status !== "Cancelado" && f.contrato_id && contratos.find(c => c.id === f.contrato_id && c.equipamento_id === eq.id));
       const eqGastos = gastos.filter(g => g.equipamento_id === eq.id);
       
       const receita = eqFaturas.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
@@ -410,7 +410,7 @@ export const VisaoGeralTab = ({
       const monthKey = d.toISOString().slice(0, 7);
       
       const receitasMes = faturas
-        .filter(f => f && f.emissao && typeof f.emissao === "string" && f.emissao.slice(0, 7) === monthKey)
+        .filter(f => f && f.status !== "Cancelado" && f.emissao && typeof f.emissao === "string" && f.emissao.slice(0, 7) === monthKey)
         .reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
         
       const custosMes = gastos
