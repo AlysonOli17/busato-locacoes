@@ -911,11 +911,13 @@ export function HistoricoFaturamentoView() {
                             );
                           })}
                         </div>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })}
+            </div>
           </CardContent>
         </Card>
       </div>
