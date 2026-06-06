@@ -15,6 +15,7 @@ import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { withCache, clearCache } from "@/lib/cache";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { CurrencyInput } from "@/components/CurrencyInput";
@@ -144,6 +145,7 @@ export const FaturamentoTab = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [payId, setPayId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { role } = useAuth();
   const [sortCol, setSortCol] = useState(() => sessionStorage.getItem("fat_sortCol") || "numero");
   const [sortAsc, setSortAsc] = useState(() => sessionStorage.getItem("fat_sortAsc") !== "false");
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
@@ -1006,15 +1008,17 @@ export const FaturamentoTab = () => {
                 >
                   <Mail className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-accent hover:text-accent hover:bg-accent/10"
-                  title="Editar Fatura"
-                  onClick={() => openEdit(f)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                {((f.status !== "Aprovado" && f.status !== "Pago") || role === "admin") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-accent hover:text-accent hover:bg-accent/10"
+                    title="Editar Fatura"
+                    onClick={() => openEdit(f)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
                 {f.status !== "Pago" && f.status !== "Cancelado" && (
                   <Button
                     variant="ghost"
@@ -1026,19 +1030,21 @@ export const FaturamentoTab = () => {
                     <CheckCircle2 className="h-4 w-4" />
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  title="Cancelar Fatura"
-                  onClick={() => {
-                    setCancelId(f.id);
-                    setCancelReason("");
-                    setCancelDialogOpen(true);
-                  }}
-                >
-                  <XCircle className="h-4 w-4" />
-                </Button>
+                {((f.status !== "Aprovado" && f.status !== "Pago") || role === "admin") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title="Cancelar Fatura"
+                    onClick={() => {
+                      setCancelId(f.id);
+                      setCancelReason("");
+                      setCancelDialogOpen(true);
+                    }}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
 
             </div>
