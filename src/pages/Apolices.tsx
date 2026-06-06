@@ -576,7 +576,7 @@ const Apolices = () => {
         <TabsContent value="apolices">
           <div className="space-y-6">
             {/* Action Bar */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card/60 backdrop-blur-md p-5 rounded-2xl border border-border/60 shadow-sm">
               <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -631,7 +631,7 @@ const Apolices = () => {
           {filtered.map((item) => {
             const valorParcela = item.tem_parcelamento && item.numero_parcelas > 0 ? item.valor / item.numero_parcelas : item.valor;
             return (
-              <div key={item.id} className={`group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative cursor-pointer ${selected.has(item.id) ? "ring-1 ring-accent" : ""}`} onClick={() => setDetailItem(item)}>
+              <div key={item.id} className={`group bg-card/60 backdrop-blur-sm hover:bg-card border border-border/60 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative shadow-sm hover:shadow-md cursor-pointer ${selected.has(item.id) ? "ring-2 ring-accent" : ""}`} onClick={() => setDetailItem(item)}>
                 
                 <div className="absolute top-4 right-4 md:static md:w-[40px]" onClick={e => e.stopPropagation()}>
                   <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
@@ -732,7 +732,7 @@ const Apolices = () => {
             );
           })}
           {!loading && filtered.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
+            <div className="text-center py-12 text-muted-foreground glass-panel rounded-xl">
               Nenhuma apólice encontrada
             </div>
           )}
@@ -930,7 +930,7 @@ const Apolices = () => {
               )}
 
               {filteredSinistros.map((s) => (
-                <div key={s.id} className="group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative">
+                <div key={s.id} className="group bg-card/60 backdrop-blur-sm hover:bg-card border border-border/60 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative shadow-sm hover:shadow-md">
                   
                   {/* Equipamento / Seguradora */}
                   <div className="flex-1 min-w-0 pr-8 md:pr-0">
@@ -993,9 +993,9 @@ const Apolices = () => {
 
                 </div>
               ))}
-              {filteredSinistros.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
-                  Nenhum sinistro registrado
+              {!loading && filteredSinistros.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground glass-panel rounded-xl">
+                  Nenhum sinistro encontrado
                 </div>
               )}
             </div>

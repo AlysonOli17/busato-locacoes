@@ -196,7 +196,7 @@ const Gastos = () => {
 
 
         {/* Action Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card/60 backdrop-blur-md p-5 rounded-2xl border border-border/60 shadow-sm">
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -244,7 +244,7 @@ const Gastos = () => {
           
           {sorted.map((item) => {
             return (
-              <div key={item.id} className="group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all relative">
+              <div key={item.id} className="group bg-card/60 backdrop-blur-sm hover:bg-card border border-border/60 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all relative shadow-sm hover:shadow-md">
                 
                 {/* Info Principal */}
                 <div className="flex-1 min-w-0 md:w-1/3">

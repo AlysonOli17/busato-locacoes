@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -83,7 +84,7 @@ interface Etapa {
   titulo: string;
   responsavel_nome: string;
   solicitante_nome: string;
-  status: "A Fazer" | "Em Andamento" | "Concluído";
+  status: "A Fazer" | "Em Andamento" | "Aguardando Aprovação" | "Concluído";
   observacoes?: string;
   created_at: string;
 }
@@ -101,7 +102,7 @@ interface AgendaEvent {
   descricao: string;
   data_inicio: string;
   data_fim: string | null;
-  status: "A Fazer" | "Em Andamento" | "Concluído";
+  status: "A Fazer" | "Em Andamento" | "Aguardando Aprovação" | "Concluído";
   prioridade: "Baixa" | "Média" | "Alta";
   categoria: "Geral" | "Manutenção" | "Faturamento" | "Reunião" | "Outros";
   equipamento_id: string | null;
@@ -114,6 +115,7 @@ interface AgendaEvent {
   etapas?: Etapa[];
   historico?: HistoricoEntry[];
   arquivos?: string[];
+  recorrencia?: "Nenhuma" | "Diária" | "Semanal" | "Mensal";
   created_at?: string;
   updated_at?: string;
   // Join references
@@ -131,7 +133,7 @@ interface StickyItem {
 
 const CATEGORIES = ["Geral", "Manutenção", "Faturamento", "Reunião", "Outros"] as const;
 const PRIORITIES = ["Baixa", "Média", "Alta"] as const;
-const STATUSES = ["A Fazer", "Em Andamento", "Concluído"] as const;
+const STATUSES = ["A Fazer", "Em Andamento", "Aguardando Aprovação", "Concluído"] as const;
 
 // Helpers para WhatsApp e Google Calendar
 export const generateWhatsAppLink = (event: AgendaEvent) => {
@@ -160,10 +162,12 @@ const stickyColors = {
 };
 
 export default function Agenda() {
-  const { profile } = useAuth();
+  const { profile, role } = useAuth();
   const currentUserNome = profile?.nome || "Sistema";
+  const isAdmin = role === "admin" || role === "superadmin";
   const [activeTab, setActiveTab] = useState<"kanban" | "calendar" | "notes">("kanban");
   const [calendarMode, setCalendarMode] = useState<"day" | "month" | "year">("month");
+  const [viewAll, setViewAll] = useState(false);
   
   // Data lists
   const [events, setEvents] = useState<AgendaEvent[]>([]);
@@ -204,9 +208,9 @@ export default function Agenda() {
     descricao: string;
     data_inicio: string;
     data_fim: string;
-    status: "A Fazer" | "Em Andamento" | "Concluído";
+    status: "A Fazer" | "Em Andamento" | "Aguardando Aprovação" | "Concluído";
     prioridade: "Baixa" | "Média" | "Alta";
-    categoria: "Geral" | "Manutenção" | "Faturamento" | "Reunião" | "Outros";
+    categoria: "Geral" | "Manutenção" | "Faturamento" | "Reunião" | "Outros" | "Liberação de Equipamento";
     equipamento_id: string;
     contrato_id: string;
     empresa_id: string;
@@ -214,6 +218,7 @@ export default function Agenda() {
     notas: string;
     responsavel_nome: string;
     arquivos: string[];
+    recorrencia: "Nenhuma" | "Diária" | "Semanal" | "Mensal";
   }>({
     titulo: "",
     descricao: "",
@@ -229,6 +234,7 @@ export default function Agenda() {
     notas: "",
     responsavel_nome: "",
     arquivos: [],
+    recorrencia: "Nenhuma",
   });
 
   // Calendar date tracker
@@ -263,6 +269,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS orcamento NUMERIC DEFAULT 0;
 ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS notas TEXT DEFAULT '';
 ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS responsavel_nome TEXT DEFAULT '';
 ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
+ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nenhuma';
 `;
 
   // Fetch relations + initial data
@@ -367,6 +374,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       notas: "",
       responsavel_nome: "",
       arquivos: [],
+      recorrencia: "Nenhuma",
     });
     setDialogOpen(true);
   };
@@ -389,6 +397,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       notas: e.notas || "",
       responsavel_nome: e.responsavel_nome || "",
       arquivos: e.arquivos || [],
+      recorrencia: e.recorrencia || "Nenhuma",
     });
     setDialogOpen(true);
   };
@@ -415,6 +424,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       notas: form.notas,
       responsavel_nome: form.responsavel_nome,
       arquivos: form.arquivos,
+      recorrencia: form.recorrencia,
     };
 
     if (editingEvent) {
@@ -448,6 +458,18 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
           detalhes: "Criada pelo formulário"
         }
       ];
+
+      // Auto-populate checklist if category is "Liberação de Equipamento"
+      if (payload.categoria === "Liberação de Equipamento") {
+        payload.etapas = [
+          { id: crypto.randomUUID(), titulo: "Checklist Geral / Vistoria", responsavel_nome: payload.responsavel_nome || currentUserNome, solicitante_nome: currentUserNome, status: "A Fazer", created_at: new Date().toISOString() },
+          { id: crypto.randomUUID(), titulo: "Verificar Documentação", responsavel_nome: payload.responsavel_nome || currentUserNome, solicitante_nome: currentUserNome, status: "A Fazer", created_at: new Date().toISOString() },
+          { id: crypto.randomUUID(), titulo: "Manutenção Preventiva", responsavel_nome: payload.responsavel_nome || currentUserNome, solicitante_nome: currentUserNome, status: "A Fazer", created_at: new Date().toISOString() },
+          { id: crypto.randomUUID(), titulo: "Verificar Horímetro atual", responsavel_nome: payload.responsavel_nome || currentUserNome, solicitante_nome: currentUserNome, status: "A Fazer", created_at: new Date().toISOString() },
+          { id: crypto.randomUUID(), titulo: "Testar Rastreador", responsavel_nome: payload.responsavel_nome || currentUserNome, solicitante_nome: currentUserNome, status: "A Fazer", created_at: new Date().toISOString() },
+          { id: crypto.randomUUID(), titulo: "Conferir Apólice de Seguro", responsavel_nome: payload.responsavel_nome || currentUserNome, solicitante_nome: currentUserNome, status: "A Fazer", created_at: new Date().toISOString() }
+        ];
+      }
     }
 
     if (isLocalMode) {
@@ -522,6 +544,62 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     }
   };
 
+  // Clone routine event logic
+  const handleRoutineClone = async (event: AgendaEvent) => {
+    if (!event.recorrencia || event.recorrencia === "Nenhuma") return;
+
+    const currentStartDate = new Date(event.data_inicio);
+    let nextStartDate = new Date(currentStartDate);
+
+    if (event.recorrencia === "Diária") nextStartDate.setDate(nextStartDate.getDate() + 1);
+    else if (event.recorrencia === "Semanal") nextStartDate.setDate(nextStartDate.getDate() + 7);
+    else if (event.recorrencia === "Mensal") nextStartDate.setMonth(nextStartDate.getMonth() + 1);
+
+    const newEventPayload = {
+      titulo: event.titulo,
+      descricao: event.descricao,
+      data_inicio: nextStartDate.toISOString(),
+      data_fim: null,
+      status: "A Fazer" as const,
+      prioridade: event.prioridade,
+      categoria: event.categoria,
+      equipamento_id: event.equipamento_id,
+      contrato_id: event.contrato_id,
+      empresa_id: event.empresa_id,
+      orcamento: event.orcamento,
+      notas: event.notas,
+      responsavel_nome: event.responsavel_nome,
+      recorrencia: event.recorrencia,
+      arquivos: event.arquivos,
+      criador_nome: currentUserNome,
+      etapas: (event.etapas || []).map(et => ({ ...et, id: crypto.randomUUID(), status: "A Fazer" as const, observacoes: "" })),
+      historico: [{
+        data: new Date().toISOString(),
+        usuario: currentUserNome,
+        acao: "Criou tarefa automaticamente (Rotina)",
+        detalhes: `Gerada a partir da rotina: ${event.titulo}`
+      }],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (isLocalMode) {
+      const newEvent: AgendaEvent = {
+        ...newEventPayload,
+        id: crypto.randomUUID(),
+        equipamentos: event.equipamentos,
+        empresas: event.empresas,
+        contratos: event.contratos
+      } as AgendaEvent;
+      saveLocalEvents([...events, newEvent]);
+    } else {
+      const newId = crypto.randomUUID();
+      await supabase.from("agenda").insert({ ...newEventPayload, id: newId });
+      fetchData();
+    }
+    toast({ title: "Rotina Gerada", description: "O próximo cartão da rotina foi criado com sucesso." });
+  };
+
   // Helper for inline updates in Monday table with history logging and workflow logic
   const updateEventField = async (eventId: string, field: string, value: any) => {
     const targetEvent = events.find(e => e.id === eventId);
@@ -551,12 +629,20 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
           historyDetails = `Tarefa retornada para '${stages[activeStageIndex].solicitante_nome}'`;
         }
       } else {
+        // Approval Workflow Lock
+        if (value === "Concluído" && (targetEvent.categoria === "Faturamento" || targetEvent.categoria === "Reunião")) { // Medição pode usar Reunião ou Outros, usar a mesma regra para aprovações
+          if (!isAdmin) {
+             toast({ title: "Ação não permitida", description: "Esta categoria de tarefa precisa de aprovação gerencial.", variant: "destructive" });
+             value = "Aguardando Aprovação";
+          }
+        }
+
         historyMessage = `Alterou o status`;
         historyDetails = `De '${targetEvent.status}' para '${value}'`;
         updatedEvent.status = value;
       }
     } else {
-      updatedEvent[field] = value;
+      updatedEvent[field as keyof AgendaEvent] = value;
       if (field === "titulo") {
         historyMessage = "Alterou o título";
         historyDetails = `Novo título: '${value}'`;
@@ -589,6 +675,11 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     };
     updatedEvent.historico = [newEntry, ...(targetEvent.historico || [])];
     updatedEvent.updated_at = new Date().toISOString();
+
+    // Routine logic
+    if (updatedEvent.status === "Concluído" && targetEvent.status !== "Concluído") {
+      handleRoutineClone(updatedEvent);
+    }
 
     // Update state
     setEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e));
@@ -624,7 +715,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
   };
 
   // Helper for quick adding events from the Monday spreadsheet view with history logging
-  const handleQuickAddEvent = async (titulo: string, status: "A Fazer" | "Em Andamento" | "Concluído") => {
+  const handleQuickAddEvent = async (titulo: string, status: "A Fazer" | "Em Andamento" | "Aguardando Aprovação" | "Concluído") => {
     const newId = crypto.randomUUID();
     const newEvent: AgendaEvent = {
       id: newId,
@@ -642,6 +733,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
       notas: "",
       responsavel_nome: "",
       arquivos: [],
+      recorrencia: "Nenhuma",
       criador_nome: currentUserNome,
       etapas: [],
       historico: [
@@ -769,7 +861,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
   };
 
   // Helper to update stage status inside View Dialog
-  const handleUpdateStageStatus = async (stageId: string, newStatus: "A Fazer" | "Em Andamento" | "Concluído", overrideObs?: string) => {
+  const handleUpdateStageStatus = async (stageId: string, newStatus: "A Fazer" | "Em Andamento" | "Aguardando Aprovação" | "Concluído", overrideObs?: string) => {
     if (!viewEvent) return;
 
     const stages = viewEvent.etapas || [];
@@ -788,7 +880,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     
     updatedStages[stageIndex] = {
       ...updatedStages[stageIndex],
-      status: newStatus,
+      status: newStatus as any,
       observacoes: overrideObs || updatedStages[stageIndex].observacoes
     };
 
@@ -845,12 +937,9 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(dataInicioStr);
     deadline.setHours(0, 0, 0, 0);
-    if (deadline < today) {
-      const diffTime = Math.abs(today.getTime() - deadline.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays;
-    }
-    return 0;
+    const diffTime = today.getTime() - deadline.getTime();
+    if (diffTime <= 0) return 0;
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   };
 
   // Files attachment helpers
@@ -943,15 +1032,23 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
     setTimeout(() => setCopiedSql(false), 2000);
   };
 
-  // Filters events
+  // Filters events by search query AND visibility rules
   const filteredEvents = events.filter(e => {
     const q = searchQuery.toLowerCase();
-    if (!q) return true;
-    return (
-      e.titulo.toLowerCase().includes(q) ||
-      e.descricao.toLowerCase().includes(q) ||
-      e.categoria.toLowerCase().includes(q)
-    );
+    if (q && !(
+      e.titulo?.toLowerCase().includes(q) ||
+      e.descricao?.toLowerCase().includes(q) ||
+      e.categoria?.toLowerCase().includes(q)
+    )) return false;
+
+    // Visibility filter
+    if (!isAdmin || !viewAll) {
+      const isResponsible = e.responsavel_nome === currentUserNome || e.criador_nome === currentUserNome;
+      const isStageResponsible = e.etapas?.some(st => st.responsavel_nome === currentUserNome);
+      if (!isResponsible && !isStageResponsible) return false;
+    }
+
+    return true;
   });
 
   // Process workflow stages and read-only logic for viewing user
@@ -1299,6 +1396,27 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
           </div>
 
           <div className="flex flex-wrap items-center gap-3 md:ml-auto">
+            {isAdmin && activeTab !== "notes" && (
+              <div className="flex items-center gap-1 border rounded-md p-1 bg-muted/30">
+                <Button 
+                  size="sm" 
+                  variant={!viewAll ? "default" : "ghost"} 
+                  className={`h-7 text-xs px-4 rounded-md transition-colors ${!viewAll ? "bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setViewAll(false)}
+                >
+                  Minhas
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={viewAll ? "default" : "ghost"} 
+                  className={`h-7 text-xs px-4 rounded-md transition-colors ${viewAll ? "bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setViewAll(true)}
+                >
+                  Todas
+                </Button>
+              </div>
+            )}
+            
             {activeTab !== "notes" && (
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1538,70 +1656,16 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                 </div>
 
                                 {/* Notas */}
-                                {editingNotasCardId === item.id ? (
-                                  <div className="text-xs bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg p-2.5 space-y-2">
-                                    <div className="flex items-center gap-1 text-yellow-700 dark:text-yellow-400 font-semibold">
-                                      <StickyNote className="h-3 w-3" /> Editando Notas
-                                    </div>
-                                    <Textarea
-                                      value={notasInput}
-                                      onChange={(e) => setNotasInput(e.target.value)}
-                                      placeholder="Digite notas ou observações rápidas..."
-                                      className="min-h-[60px] text-xs bg-background border-yellow-300 dark:border-yellow-800 focus-visible:ring-yellow-400 text-foreground"
-                                      onClick={(e) => e.stopPropagation()}
-                                    />
-                                    <div className="flex justify-end gap-1.5">
-                                      <Button
-                                        size="xs"
-                                        variant="outline"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingNotasCardId(null);
-                                        }}
-                                        className="h-6 text-[10px]"
-                                      >
-                                        Cancelar
-                                      </Button>
-                                      <Button
-                                        size="xs"
-                                        onClick={async (e) => {
-                                          e.stopPropagation();
-                                          await handleUpdateNotas(item.id, notasInput.trim());
-                                          setEditingNotasCardId(null);
-                                        }}
-                                        className="h-6 text-[10px] bg-yellow-600 hover:bg-yellow-700 text-white border-0"
-                                      >
-                                        Salvar
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-xs bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 rounded-lg p-2.5 relative">
-                                    <div className="flex items-center justify-between text-yellow-700 dark:text-yellow-400 font-semibold mb-1">
-                                      <div className="flex items-center gap-1">
-                                        <StickyNote className="h-3 w-3" /> Notas / Observações
+                                {item.notas ? (
+                                  <div className="text-xs bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-200/50 dark:border-yellow-800/30 rounded-lg p-2.5 relative group/notes transition-all">
+                                    <div className="flex items-center justify-between text-yellow-700/80 dark:text-yellow-400/80 font-semibold mb-1">
+                                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider">
+                                        <StickyNote className="h-3 w-3" /> Observações
                                       </div>
-                                      <Button
-                                        size="xs"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingNotasCardId(item.id);
-                                          setNotasInput(item.notas || "");
-                                        }}
-                                        className="h-5 w-5 p-0 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400"
-                                        title={item.notas ? "Editar notas" : "Adicionar notas"}
-                                      >
-                                        <Pencil className="h-2.5 w-2.5" />
-                                      </Button>
                                     </div>
-                                    {item.notas ? (
-                                      <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">{item.notas}</p>
-                                    ) : (
-                                      <p className="text-muted-foreground/50 italic">Nenhuma observação cadastrada. Clique no lápis para adicionar.</p>
-                                    )}
+                                    <p className="text-foreground/70 leading-relaxed whitespace-pre-wrap line-clamp-3 text-[11px]">{item.notas}</p>
                                   </div>
-                                )}
+                                ) : null}
 
                                 {/* Etapas summary */}
                                 {hasStages && (
@@ -1631,16 +1695,16 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                 <div className="flex items-center justify-between pt-1 border-t border-border/40 flex-wrap gap-2">
                                   <div className="flex items-center gap-1.5">
                                     <Button
-                                      size="xs"
-                                      variant="outline"
+                                      size="sm"
+                                      variant="default"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setViewEvent(item);
                                         setViewDialogOpen(true);
                                       }}
-                                      className="h-7 text-[11px] gap-1.5"
+                                      className="h-7 text-[11px] gap-1.5 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-3"
                                     >
-                                      <Eye className="h-3.5 w-3.5" /> Ver Detalhes
+                                      <Eye className="h-3.5 w-3.5" /> Abrir Tarefa
                                     </Button>
                                     <Button
                                       size="icon"
@@ -1666,22 +1730,25 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                     >
                                       <CalendarPlus className="h-3.5 w-3.5" />
                                     </Button>
+                                    
+                                    {isAdmin && item.status === "Aguardando Aprovação" && (
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateEventField(item.id, "status", "Concluído");
+                                        }}
+                                        className="h-7 text-[11px] gap-1.5 bg-green-600 hover:bg-green-700 text-white ml-2"
+                                        title="Aprovar Tarefa"
+                                      >
+                                        <CheckCircle2 className="h-3.5 w-3.5" /> Aprovar
+                                      </Button>
+                                    )}
                                   </div>
                                   {item.status !== "Concluído" && (
                                     <div className="flex gap-1.5">
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openEdit(item);
-                                          setExpandedCardId(null);
-                                        }}
-                                        className="h-7 w-7 hover:bg-muted"
-                                        title="Editar"
-                                      >
-                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                      </Button>
+
                                       <Button
                                         size="icon"
                                         variant="ghost"
@@ -2015,6 +2082,21 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                 </div>
               </div>
 
+              <div className="space-y-1.5 mt-2">
+                <Label htmlFor="recorrencia">Recorrência (Gerar cópia ao concluir)</Label>
+                <Select
+                  value={form.recorrencia}
+                  onValueChange={(v: any) => setForm(prev => ({ ...prev, recorrencia: v }))}
+                >
+                  <SelectTrigger id="recorrencia"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Nenhuma">Nenhuma</SelectItem>
+                    <SelectItem value="Diária">Diária</SelectItem>
+                    <SelectItem value="Semanal">Semanal</SelectItem>
+                    <SelectItem value="Mensal">Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
             </div>
           </div>
@@ -2157,7 +2239,20 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
 
             {/* Etapas de Trabalho / Workflow Stages */}
             <div className="border-t border-border/40 pt-4 space-y-3">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Etapas da Demanda</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Etapas da Demanda</span>
+                {viewEvent?.etapas && viewEvent.etapas.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      {Math.round((viewEvent.etapas.filter(e => e.status === "Concluído").length / viewEvent.etapas.length) * 100)}%
+                    </span>
+                    <Progress 
+                      value={(viewEvent.etapas.filter(e => e.status === "Concluído").length / viewEvent.etapas.length) * 100} 
+                      className="w-24 h-2" 
+                    />
+                  </div>
+                )}
+              </div>
               
               {/* Stages List */}
               <div className="space-y-2">
@@ -2167,62 +2262,71 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                     const isConcludingThis = editingStageObsId === etapa.id;
 
                     return (
-                      <div key={etapa.id} className="space-y-1.5 p-2.5 rounded bg-muted/20 border border-border/50 text-xs">
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <span className="font-semibold text-foreground">{etapa.titulo}</span>
-                            <div className="text-muted-foreground text-[10px] flex flex-wrap gap-x-2">
-                              <span>Resp: <strong>{etapa.responsavel_nome}</strong></span>
-                              <span>Solicitado por: <strong>{etapa.solicitante_nome}</strong></span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {isAssignee && etapa.status !== "Concluído" ? (
-                              <Select
-                                value={etapa.status}
-                                onValueChange={(val: any) => handleUpdateStageStatus(etapa.id, val)}
-                              >
-                                <SelectTrigger className={`h-6 text-[10px] font-bold text-white border-0 rounded-sm shadow-none focus:ring-0 ${
-                                  etapa.status === "Concluído" ? "bg-[#3F7343]" :
-                                  etapa.status === "Em Andamento" ? "bg-[#E66C37]" : "bg-[#A1343C]"
+                      <div key={etapa.id} className="space-y-1.5 p-2 rounded-lg bg-muted/20 border border-border/50 text-xs transition-colors hover:bg-muted/40">
+                        <div className="flex items-start gap-3">
+                          <button
+                            onClick={() => {
+                              if ((isAssignee || isAdmin) && etapa.status !== "Concluído") {
+                                handleUpdateStageStatus(etapa.id, "Concluído");
+                              } else if (isAdmin && etapa.status === "Concluído") {
+                                handleUpdateStageStatus(etapa.id, "A Fazer");
+                              }
+                            }}
+                            disabled={!isAssignee && !isAdmin}
+                            className={`mt-0.5 shrink-0 h-4 w-4 rounded-full border flex items-center justify-center transition-all ${
+                              etapa.status === "Concluído" 
+                                ? "bg-green-500 border-green-500 text-white" 
+                                : isAssignee || isAdmin ? "border-muted-foreground/60 hover:border-primary cursor-pointer hover:bg-primary/5" : "border-muted-foreground/30 bg-muted/10 cursor-not-allowed"
+                            }`}
+                          >
+                            {etapa.status === "Concluído" && <Check className="h-3 w-3" />}
+                          </button>
+                          
+                          <div className="flex-1 space-y-1.5">
+                            <span className={`font-semibold transition-all ${etapa.status === "Concluído" ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                              {etapa.titulo}
+                            </span>
+                            
+                            <div className="flex flex-wrap items-center gap-3">
+                              {etapa.responsavel_nome && (
+                                <div className="flex items-center gap-1.5" title={`Responsável: ${etapa.responsavel_nome}`}>
+                                  <div className="h-4 w-4 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-bold text-primary border border-primary/20 uppercase">
+                                    {etapa.responsavel_nome.substring(0, 2)}
+                                  </div>
+                                  <span className={`text-[10px] font-medium ${etapa.status === "Concluído" ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
+                                    {etapa.responsavel_nome}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {etapa.status !== "Concluído" && (
+                                <Badge className={`h-4 text-[9px] px-1.5 ${
+                                  etapa.status === "Em Andamento" ? "bg-[#E66C37]/15 text-[#E66C37] border-0" :
+                                  "bg-[#A1343C]/15 text-[#A1343C] border-0"
                                 }`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {STATUSES.map(st => (
-                                    <SelectItem key={st} value={st} className="text-xs font-semibold">{st}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Badge className={
-                                etapa.status === "Concluído" ? "bg-[#3F7343]/15 text-[#3F7343] border-0 font-semibold" :
-                                etapa.status === "Em Andamento" ? "bg-[#E66C37]/15 text-[#E66C37] border-0 font-semibold" :
-                                "bg-[#A1343C]/15 text-[#A1343C] border-0 font-semibold"
-                              }>
-                                {etapa.status}
-                              </Badge>
-                            )}
+                                  {etapa.status}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
 
                         {/* Exibir observações cadastradas na etapa */}
                         {etapa.observacoes && (
-                          <div className="mt-1.5 p-2 rounded bg-background/50 border border-border/40 text-[11px] text-foreground/90">
-                            <strong className="text-muted-foreground font-semibold">Obs. de Conclusão:</strong> {etapa.observacoes}
+                          <div className="ml-7 mt-1.5 p-2 rounded bg-background/50 border border-border/40 text-[10px] text-foreground/80">
+                            <strong className="text-muted-foreground font-semibold">Obs:</strong> {etapa.observacoes}
                           </div>
                         )}
 
                         {/* Formulário inline para preenchimento de observações de conclusão */}
                         {isConcludingThis && (
-                          <div className="mt-2 pt-2 border-t border-border/40 space-y-2">
-                            <Label className="text-[10px] font-bold text-muted-foreground">Observações / Considerações de Conclusão (Opcional)</Label>
+                          <div className="ml-7 mt-2 pt-2 border-t border-border/40 space-y-2">
+                            <Label className="text-[10px] font-bold text-muted-foreground">Observações de Conclusão (Opcional)</Label>
                             <Textarea
-                              placeholder="Digite aqui observações adicionais sobre a conclusão desta etapa..."
+                              placeholder="Detalhes adicionais..."
                               value={stageObsInput}
                               onChange={(e) => setStageObsInput(e.target.value)}
-                              className="h-14 text-xs bg-background/60"
+                              className="h-12 text-xs bg-background/60"
                             />
                             <div className="flex justify-end gap-1.5">
                               <Button
@@ -2236,9 +2340,9 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                               <Button
                                 size="xs"
                                 onClick={() => handleUpdateStageStatus(etapa.id, "Concluído", stageObsInput.trim())}
-                                className="h-6 text-[10px] bg-[#3F7343] text-white hover:bg-[#3F7343]/90"
+                                className="h-6 text-[10px] bg-green-600 text-white hover:bg-green-700"
                               >
-                                Confirmar Conclusão
+                                Concluir
                               </Button>
                             </div>
                           </div>
@@ -2247,39 +2351,43 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                     );
                   })
                 ) : (
-                  <p className="text-xs text-muted-foreground italic pl-1">Esta tarefa ainda não possui sub-etapas definidas.</p>
+                  <p className="text-xs text-muted-foreground italic">Nenhuma etapa definida.</p>
                 )}
               </div>
 
-              {/* Add New Stage Form - Only if task is not completed */}
+              {/* Add New Stage Form - Minimalist Inline */}
               {viewEvent?.status !== "Concluído" && (
-                <div className="bg-muted/10 p-3 rounded-lg border border-dashed border-border/80 space-y-2 mt-2">
-                  <span className="text-[11px] font-bold text-muted-foreground block">Nova Etapa</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      placeholder="Descrição da etapa..."
-                      value={newStageTitle}
-                      onChange={(e) => setNewStageTitle(e.target.value)}
-                      className="h-8 text-xs bg-background"
-                    />
+                <div className="mt-3 flex items-center gap-2 bg-muted/10 p-1.5 rounded-full border border-border/50 transition-colors focus-within:border-primary/50 focus-within:bg-background">
+                  <Input
+                    placeholder="Adicionar nova etapa..."
+                    value={newStageTitle}
+                    onChange={(e) => setNewStageTitle(e.target.value)}
+                    className="h-7 text-xs bg-transparent border-0 shadow-none focus-visible:ring-0 px-2 flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newStageTitle) handleAddStage();
+                    }}
+                  />
+                  {newStageTitle && (
                     <Select
                       value={newStageAssignee || "none"}
                       onValueChange={(val) => setNewStageAssignee(val === "none" ? "" : val)}
                     >
-                      <SelectTrigger className="h-8 text-xs bg-background">
-                        <SelectValue placeholder="Responsável..." />
+                      <SelectTrigger className="h-7 w-[120px] text-[10px] border-0 bg-transparent shadow-none focus:ring-0 text-muted-foreground shrink-0 border-l border-border/50 rounded-none">
+                        <SelectValue placeholder="Responsável" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Selecione...</SelectItem>
                         {usuarios.map(u => (
-                          <SelectItem key={u.user_id} value={u.nome} className="text-xs">{u.nome}</SelectItem>
+                          <SelectItem key={u.user_id} value={u.nome} className="text-[10px]">{u.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <Button size="xs" onClick={handleAddStage} className="w-full bg-accent text-accent-foreground text-xs mt-1">
-                    <Plus className="h-3 w-3 mr-1" /> Adicionar Etapa
-                  </Button>
+                  )}
+                  {newStageTitle && (
+                    <Button size="icon" onClick={handleAddStage} className="h-6 w-6 rounded-full bg-primary text-primary-foreground shrink-0 mr-0.5">
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

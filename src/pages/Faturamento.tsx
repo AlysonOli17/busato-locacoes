@@ -1133,23 +1133,23 @@ export const FaturamentoContent = () => {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            {selected.size > 0 && <p className="text-sm text-muted-foreground">{selected.size} selecionada(s)</p>}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent p-5 rounded-2xl border border-accent/20 shadow-sm backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+            {selected.size > 0 && <p className="text-sm text-muted-foreground font-semibold">{selected.size} selecionada(s)</p>}
           </div>
-          <div className="flex flex-wrap gap-2">
-            
-            <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
-            <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10"><FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel</Button>
+              <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10"><FileDown className="h-4 w-4 mr-1 text-primary" /> PDF</Button>
+            </div>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
           </div>
         </div>
 
-        <Card>
-          <CardContent className="py-3">
+        <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Empresa</Label>
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Empresa</Label>
                 <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
                   <SelectTrigger className="w-56">
                     <SelectValue placeholder="Todas as Empresas" />
@@ -1178,29 +1178,28 @@ export const FaturamentoContent = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Período Início</Label>
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Período Início</Label>
                 <Input type="date" className="w-44" value={filterPeriodoInicio} onChange={(e) => setFilterPeriodoInicio(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Período Fim</Label>
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Período Fim</Label>
                 <Input type="date" className="w-44" value={filterPeriodoFim} onChange={(e) => setFilterPeriodoFim(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Buscar</Label>
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Buscar</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Nº, empresa, nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 w-56" />
+                  <Input placeholder="Nº, empresa, nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 w-56 bg-background/50 focus:bg-background transition-colors" />
                 </div>
               </div>
               {(filterEmpresa !== "all" || filterPeriodoInicio || filterPeriodoFim || search) && (
                 <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setFilterEmpresa("all"); setFilterPeriodoInicio(""); setFilterPeriodoFim(""); setSearch(""); }}>Limpar filtros</Button>
               )}
             </div>
-          </CardContent>
-        </Card>
+        </div>
 
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
+        <div className="bg-card/60 backdrop-blur-sm border border-border/60 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-0 overflow-x-auto">
             <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
@@ -1356,8 +1355,8 @@ export const FaturamentoContent = () => {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

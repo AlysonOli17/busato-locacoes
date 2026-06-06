@@ -1101,27 +1101,27 @@ const Contratos = () => {
 
 
             {/* Action Bar */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent p-5 rounded-2xl border border-accent/20 shadow-sm backdrop-blur-md">
               <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
                 <div className="relative w-full sm:w-80">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar contratos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
+                  <Input placeholder="Buscar contratos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background/50 border-accent/20 focus:border-accent" />
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper} className="bg-background">
+                  <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
                     <FileDown className="h-4 w-4 mr-1 text-primary" /> Movimentação
                   </Button>
-                  <Button variant="outline" size="sm" onClick={exportSimplePDFWrapper} className="bg-background">
+                  <Button variant="outline" size="sm" onClick={exportSimplePDFWrapper} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
                     <FileDown className="h-4 w-4 mr-1 text-destructive" /> PDF Simples
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background">
+                  <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
                     <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
                   </Button>
                 </div>
-                <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
-                  <Plus className="h-4 w-4 mr-2" /> Novo
+                <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5">
+                  <Plus className="h-4 w-4 mr-2" /> Novo Contrato
                 </Button>
               </div>
             </div>
@@ -1148,7 +1148,7 @@ const Contratos = () => {
               {sorted.map((item) => {
                 const ces = getContratoEquipamentos(item);
                 return (
-                  <div key={item.id} className={`group bg-card hover:bg-accent/5 border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative ${selected.has(item.id) ? "ring-1 ring-accent" : ""}`}>
+                  <div key={item.id} className={`group bg-card/60 backdrop-blur-sm hover:bg-accent/5 border border-border/60 hover:border-accent/40 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all duration-300 relative shadow-sm hover:shadow-md ${selected.has(item.id) ? "ring-2 ring-accent border-transparent" : ""}`}>
                     
                     {/* Checkbox */}
                     <div className="absolute top-4 right-4 md:static md:w-[40px]">

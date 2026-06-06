@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, Building2,
-  Wrench, FileText, Activity, BarChart3, PieChart, CalendarClock, Shield, Truck,
+  Wrench, FileText, Activity, BarChart3, PieChart as PieChartIcon, CalendarClock, Shield, Truck,
   Target, Zap, ArrowUpRight, ArrowDownRight, Info, Receipt
 } from "lucide-react";
 import {
@@ -64,7 +64,7 @@ const CostChart = ({ gastosFiltered, fmt, fmtShort }: { gastosFiltered: any[]; f
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-bold flex items-center gap-2">
-            <PieChart className="h-4 w-4 text-primary" />
+            <PieChartIcon className="h-4 w-4 text-primary" />
             Centro de Custos Operacionais
           </CardTitle>
           {total > 0 && (

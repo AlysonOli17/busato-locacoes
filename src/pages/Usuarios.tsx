@@ -192,7 +192,7 @@ const Usuarios = () => {
 
       if (checkedPaths.size > 0) {
         const { error: insError } = await supabase.from("role_permissions").insert(
-          Array.from(checkedPaths).map(p => ({ role, permission: p }))
+          Array.from(checkedPaths).map(p => ({ id: crypto.randomUUID(), role, permission: p }))
         );
         if (insError) throw insError;
       }
@@ -224,7 +224,7 @@ const Usuarios = () => {
         if (error) throw error;
         setUserPermissions(prev => prev.filter(p => !(p.user_id === userId && p.permission === path)));
       } else {
-        const { error } = await supabase.from("user_permissions").insert({ user_id: userId, permission: path });
+        const { error } = await supabase.from("user_permissions").insert({ id: crypto.randomUUID(), user_id: userId, permission: path });
         if (error) throw error;
         setUserPermissions(prev => [...prev, { user_id: userId, permission: path }]);
       }
