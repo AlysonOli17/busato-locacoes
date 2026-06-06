@@ -554,7 +554,7 @@ export const VisaoGeralTab = ({
       entry.confiabilidade = entry.total > 0 ? (entry.totalPago / entry.total) * 100 : 100;
     });
 
-    return Array.from(map.values()).sort((a, b) => b.percentual - a.percentual);
+    return Array.from(map.values()).sort((a, b) => b.margem - a.margem);
   }, [faturas, contratos, gastos, faturamentoGastos, contratosEquipamentos, aditivosEquipamentos, contratosAditivos, activeContratoIds]);
 
   const overallReliability = useMemo(() => {
@@ -1058,11 +1058,11 @@ export const VisaoGeralTab = ({
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="font-black text-success block">
-                        R$ {Number(client.totalPago).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      <span className="font-black text-success block" title="Rentabilidade Real (Margem Líquida)">
+                        R$ {Number(client.margem).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Emitido: R$ {fmtShort(client.total)}
+                      <span className="text-[10px] text-muted-foreground" title="Total Faturado Pago">
+                        Receita: R$ {fmtShort(client.totalPago)}
                       </span>
                     </div>
                   </div>
