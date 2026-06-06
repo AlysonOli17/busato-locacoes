@@ -1045,23 +1045,23 @@ export const VisaoGeralTab = ({
             <CardContent className="p-0 px-6 pb-6">
               <div className="divide-y text-sm">
                 {topClientes.map((client, idx) => (
-                  <div key={idx} className="flex justify-between items-center py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
+                  <div key={idx} className="flex justify-between items-center py-3 gap-2">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold shrink-0">
                         #{idx + 1}
                       </span>
-                      <div>
-                        <p className="font-bold text-foreground truncate max-w-[180px] md:max-w-[240px]">{client.nome}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <p className="font-bold text-foreground truncate">{client.nome}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">
                           {client.contratosCount} contrato(s) ativo(s) — <span className="font-semibold text-primary">{client.confiabilidade.toFixed(0)}% Pago</span>
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="font-black text-success block" title="Rentabilidade Real (Margem Líquida)">
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-success block whitespace-nowrap" title="Rentabilidade Real (Margem Líquida)">
                         R$ {Number(client.margem).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </span>
-                      <span className="text-[10px] text-muted-foreground" title="Total Faturado Pago">
+                      <span className="text-[10px] text-muted-foreground block whitespace-nowrap" title="Total Faturado Pago">
                         Receita: R$ {fmtShort(client.totalPago)}
                       </span>
                     </div>
