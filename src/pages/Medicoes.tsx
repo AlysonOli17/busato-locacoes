@@ -435,7 +435,7 @@ const Medicoes = () => {
   return (
     <Layout title={header.title} subtitle={header.subtitle}>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsContent value="medicoes">
+        <TabsContent value="medicoes" forceMount className="data-[state=inactive]:hidden">
       <div className="space-y-6">
         {/* KPI Cards */}
         {hasFilters && (
@@ -625,16 +625,16 @@ const Medicoes = () => {
         </Card>
       </div>
         </TabsContent>
-        <TabsContent value="faturamento">
+        <TabsContent value="faturamento" forceMount className="data-[state=inactive]:hidden">
           <FaturamentoContent />
         </TabsContent>
-        <TabsContent value="faturamento-novo">
+        <TabsContent value="faturamento-novo" forceMount className="data-[state=inactive]:hidden">
           <FaturamentoTab />
         </TabsContent>
-        <TabsContent value="pendentes-medicao">
+        <TabsContent value="pendentes-medicao" forceMount className="data-[state=inactive]:hidden">
           <PendenteMedicaoView />
         </TabsContent>
-        <TabsContent value="historico-faturamento">
+        <TabsContent value="historico-faturamento" forceMount className="data-[state=inactive]:hidden">
           <HistoricoFaturamentoView />
         </TabsContent>
       </Tabs>
