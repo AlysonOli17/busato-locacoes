@@ -29,7 +29,9 @@ import {
   User,
   Paperclip,
   ChevronDown,
-  Eye
+  Eye,
+  MessageSquare,
+  CalendarPlus
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -130,6 +132,25 @@ interface StickyItem {
 const CATEGORIES = ["Geral", "Manutenção", "Faturamento", "Reunião", "Outros"] as const;
 const PRIORITIES = ["Baixa", "Média", "Alta"] as const;
 const STATUSES = ["A Fazer", "Em Andamento", "Concluído"] as const;
+
+// Helpers para WhatsApp e Google Calendar
+export const generateWhatsAppLink = (event: AgendaEvent) => {
+  const data = event.data_inicio ? new Date(event.data_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' }) : "Não definida";
+  const text = `📅 *Lembrete de Tarefa/Evento*\n\n*Título:* ${event.titulo}\n*Data:* ${data}\n*Status:* ${event.status}\n*Prioridade:* ${event.prioridade}\n\n*Detalhes:* ${event.descricao || "Sem detalhes adicionais"}`;
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+};
+
+export const generateGoogleCalendarLink = (event: AgendaEvent) => {
+  const formatGoogleDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toISOString().replace(/-|:|\.\d\d\d/g, "");
+  };
+  const start = event.data_inicio ? formatGoogleDate(event.data_inicio) : "";
+  const end = event.data_fim ? formatGoogleDate(event.data_fim) : start; // If no end, same as start
+  const details = event.descricao ? encodeURIComponent(event.descricao) : "";
+  const title = encodeURIComponent(event.titulo);
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`;
+};
 
 const stickyColors = {
   yellow: "bg-yellow-100 dark:bg-yellow-950/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-900/50",
@@ -1318,10 +1339,10 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                   key={colStatus}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, colStatus)}
-                  className="rounded-xl border border-border bg-muted/10 flex flex-col min-h-[500px]"
+                  className="rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm shadow-sm flex flex-col min-h-[500px] overflow-hidden"
                 >
                   {/* Column Header */}
-                  <div className="p-4 border-b border-border bg-muted/40 rounded-t-xl flex items-center justify-between">
+                  <div className="p-4 border-b border-border/40 bg-accent/5 flex items-center justify-between">
                     <span className="font-bold text-sm text-foreground flex items-center gap-2">
                       {colStatus === "A Fazer" && <Clock className="h-4 w-4" style={{ color: colAccentColor }} />}
                       {colStatus === "Em Andamento" && <AlertTriangle className="h-4 w-4" style={{ color: colAccentColor }} />}
@@ -1386,10 +1407,10 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                           <div
                             draggable={!isExpanded && item.status !== "Concluído"}
                             onDragStart={(e) => handleDragStart(e, item.id)}
-                            className={`bg-card border rounded-xl overflow-hidden transition-all duration-300 group ${
+                            className={`bg-card border rounded-xl overflow-hidden transition-all duration-300 group hover:-translate-y-0.5 ${
                               isExpanded
-                                ? "shadow-xl border-2"
-                                : "shadow-sm hover:shadow-md cursor-pointer"
+                                ? "shadow-xl border-2 z-30"
+                                : "shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing border-border/60"
                             }`}
                             style={isExpanded ? { borderColor: colAccentColor } : {}}
                           >
@@ -1607,19 +1628,45 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                                 )}
 
                                 {/* Actions */}
-                                <div className="flex items-center justify-between pt-1 border-t border-border/40">
-                                  <Button
-                                    size="xs"
-                                    variant="outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setViewEvent(item);
-                                      setViewDialogOpen(true);
-                                    }}
-                                    className="h-7 text-[11px] gap-1.5"
-                                  >
-                                    <Eye className="h-3.5 w-3.5" /> Ver Detalhes
-                                  </Button>
+                                <div className="flex items-center justify-between pt-1 border-t border-border/40 flex-wrap gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Button
+                                      size="xs"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewEvent(item);
+                                        setViewDialogOpen(true);
+                                      }}
+                                      className="h-7 text-[11px] gap-1.5"
+                                    >
+                                      <Eye className="h-3.5 w-3.5" /> Ver Detalhes
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(generateWhatsAppLink(item), "_blank");
+                                      }}
+                                      className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                                      title="Compartilhar via WhatsApp"
+                                    >
+                                      <MessageSquare className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(generateGoogleCalendarLink(item), "_blank");
+                                      }}
+                                      className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                                      title="Salvar no Google Agenda"
+                                    >
+                                      <CalendarPlus className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
                                   {item.status !== "Concluído" && (
                                     <div className="flex gap-1.5">
                                       <Button
@@ -2259,7 +2306,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
             </div>
           </div>
 
-          <DialogFooter className="flex-row sm:justify-end gap-2 border-t border-border/40 pt-3 mt-2">
+          <DialogFooter className="flex-row sm:justify-end gap-2 border-t border-border/40 pt-3 mt-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -2268,8 +2315,32 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
             >
               Fechar
             </Button>
+            
+            {viewEvent && (
+              <div className="flex gap-2 w-full sm:w-auto sm:mr-auto mt-2 sm:mt-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(generateWhatsAppLink(viewEvent), "_blank")}
+                  className="gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 w-full sm:w-auto"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  WhatsApp
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(generateGoogleCalendarLink(viewEvent), "_blank")}
+                  className="gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 w-full sm:w-auto"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  Google Agenda
+                </Button>
+              </div>
+            )}
+
             {viewEvent?.status !== "Concluído" && (
-              <>
+              <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -2294,7 +2365,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS arquivos TEXT[] DEFAULT '{}';
                   <Trash2 className="h-3.5 w-3.5" />
                   Excluir
                 </Button>
-              </>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>
