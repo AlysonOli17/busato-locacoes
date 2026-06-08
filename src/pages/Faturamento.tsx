@@ -1164,9 +1164,13 @@ export const FaturamentoContent = () => {
 
         if (!agendaError) {
           // Link agenda_event_id to faturamento if column exists
-          await supabase.rpc('query_raw', { query: `UPDATE faturamento SET agenda_event_id = '${agendaId}' WHERE id = '${faturaId}'` }).catch(() => {});
+          try {
+            await supabase.rpc('query_raw', { query: `UPDATE faturamento SET agenda_event_id = '${agendaId}' WHERE id = '${faturaId}'` });
+          } catch (e) {}
           // Also just try normal update in case column exists
-          await supabase.from("faturamento").update({ agenda_event_id: agendaId } as any).eq("id", faturaId).catch(() => {});
+          try {
+            await supabase.from("faturamento").update({ agenda_event_id: agendaId } as any).eq("id", faturaId);
+          } catch (e) {}
         }
       }
 
