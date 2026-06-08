@@ -1179,13 +1179,16 @@ export const FaturamentoContent = () => {
           horas_normais: ef.horas_normais,
           horas_excedentes: ef.horas_excedentes,
           valor_hora: ef.valor_hora,
-          valor_excedente_hora: ef.valor_hora_excedente,
-          // Map to physical columns because of cache mismatches
-          horas_totais: ef.horas_medidas,
-          valor_total_item: ef.hora_minima,
-          considerar_medicao: ef.primeiro_mes,
-        } as any));
-        await supabase.from("faturamento_equipamentos").insert(equipRows);
+          valor_hora_excedente: ef.valor_hora_excedente,
+          horas_medidas: ef.horas_medidas,
+          hora_minima: ef.hora_minima,
+          primeiro_mes: ef.primeiro_mes,
+        }));
+        const { error: equipError } = await supabase.from("faturamento_equipamentos").insert(equipRows as any);
+        if (equipError) {
+          console.error("Erro ao salvar faturamento_equipamentos", equipError);
+          toast({ title: "Erro Equipamentos", description: equipError.message, variant: "destructive" });
+        }
       }
 
       // Save selected gastos
