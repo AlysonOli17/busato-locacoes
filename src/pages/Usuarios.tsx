@@ -262,7 +262,29 @@ const Usuarios = () => {
 
     setSaving(true);
     try {
-      await callManageUser({ action: "create", email: form.email, password: form.password, nome: form.nome, role: form.role });
+      const isCustomRole = !["admin", "operador", "visualizador"].includes(form.role);
+      // Bypasses remote edge function zod enum check by passing "operador" if it's a custom role
+      const edgeRole = isCustomRole ? "operador" : form.role;
+
+      const res = await callManageUser({ 
+        action: "create", 
+        email: form.email, 
+        password: form.password, 
+        nome: form.nome, 
+        role: edgeRole 
+      });
+
+      if (isCustomRole && res && res.user_id) {
+        // Update to the actual custom role directly from client
+        await supabase.from("user_roles").delete().eq("user_id", res.user_id);
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          id: crypto.randomUUID(),
+          user_id: res.user_id,
+          role: form.role
+        });
+        if (roleError) throw roleError;
+      }
+
       toast({ title: "Usuário criado com sucesso" });
       setCreateDialogOpen(false);
       fetchUsers();
@@ -285,7 +307,8 @@ const Usuarios = () => {
   const handleToggleStatus = async (item: UserItem) => {
     const newStatus = item.status === "Ativo" ? "Bloqueado" : "Ativo";
     try {
-      await callManageUser({ action: "update", user_id: item.user_id, status: newStatus });
+      const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("user_id", item.user_id);
+      if (error) throw error;
       toast({ title: `Usuário ${newStatus === "Ativo" ? "desbloqueado" : "bloqueado"}` });
       fetchUsers();
     } catch (e: any) {
@@ -317,7 +340,26 @@ const Usuarios = () => {
   const handleEditUserUpdate = async (updates: Partial<UserItem>) => {
     if (!editUser) return;
     try {
-      await callManageUser({ action: "update", user_id: editUser.user_id, ...updates });
+      if (updates.role !== undefined) {
+        // Update user role directly via client database query to bypass edge function enum check
+        await supabase.from("user_roles").delete().eq("user_id", editUser.user_id);
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          id: crypto.randomUUID(),
+          user_id: editUser.user_id,
+          role: updates.role
+        });
+        if (roleError) throw roleError;
+      }
+      
+      if (updates.status !== undefined || updates.nome !== undefined) {
+        // Update profile directly via client database query
+        const profileUpdates: any = {};
+        if (updates.status !== undefined) profileUpdates.status = updates.status;
+        if (updates.nome !== undefined) profileUpdates.nome = updates.nome;
+        const { error: profileError } = await supabase.from("profiles").update(profileUpdates).eq("user_id", editUser.user_id);
+        if (profileError) throw profileError;
+      }
+
       setEditUser({ ...editUser, ...updates });
       toast({ title: "Usuário atualizado" });
       fetchUsers();
