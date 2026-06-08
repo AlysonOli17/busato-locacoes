@@ -32,6 +32,28 @@ export const ProtectedRoute = ({ children, requiredPermission }: Props) => {
     : true;
 
   if (requiredPermission && !hasPermission) {
+    const allowedRoutes = [
+      "/equipamentos",
+      "/empresas",
+      "/contratos",
+      "/propostas",
+      "/medicoes",
+      "/faturamento",
+      "/apolices",
+      "/gastos",
+      "/controladoria",
+      "/agenda"
+    ];
+    const firstAllowed = allowedRoutes.find(r => 
+      r === "/controladoria" 
+        ? (permissions.includes("/controladoria") || permissions.includes("/acompanhamento")) 
+        : permissions.includes(r)
+    );
+
+    if (firstAllowed) {
+      return <Navigate to={firstAllowed} replace />;
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
