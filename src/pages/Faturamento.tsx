@@ -1125,8 +1125,8 @@ export const FaturamentoContent = () => {
         periodo_medicao_inicio: formMedicaoInicio || null,
         periodo_medicao_fim: formMedicaoFim || null,
         total_gastos: totalGastos,
-        conta_bancaria_id: formContaBancariaId || null,
-        empresa_faturamento_id: formEmpresaFaturamentoId || null,
+        conta_bancaria_id: formContaBancariaId === "none" ? null : formContaBancariaId,
+        empresa_faturamento_id: formEmpresaFaturamentoId === "none" ? null : formEmpresaFaturamentoId,
       } as any;
 
       let faturaId: string;
