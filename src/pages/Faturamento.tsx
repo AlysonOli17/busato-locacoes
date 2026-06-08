@@ -1172,22 +1172,28 @@ export const FaturamentoContent = () => {
 
       // Save per-equipment details
       if (equipForms.length > 0) {
-        const equipRows = equipForms.map(ef => ({
-          id: crypto.randomUUID(),
-          faturamento_id: faturaId,
-          equipamento_id: !ef.equipamento_id || ef.equipamento_id === "" || ef.equipamento_id === "none" ? null : ef.equipamento_id,
-          horas_normais: Number(ef.horas_normais) || 0,
-          horas_excedentes: Number(ef.horas_excedentes) || 0,
-          valor_hora: Number(ef.valor_hora) || 0,
-          valor_excedente_hora: Number(ef.valor_hora_excedente) || 0,
-          horas_totais: Number(ef.horas_medidas) || 0,
-          valor_total_item: Number(ef.hora_minima) || 0,
-          considerar_medicao: Boolean(ef.primeiro_mes),
-        }));
-        const { error: equipError } = await supabase.from("faturamento_equipamentos").insert(equipRows as any);
-        if (equipError) {
-          console.error("Erro ao salvar faturamento_equipamentos", equipError);
-          toast({ title: "Erro Equipamentos", description: equipError.message, variant: "destructive" });
+        const equipRows = equipForms
+          .filter(ef => ef.equipamento_id && ef.equipamento_id !== "" && ef.equipamento_id !== "none")
+          .map(ef => ({
+            id: crypto.randomUUID(),
+            faturamento_id: faturaId,
+            equipamento_id: ef.equipamento_id,
+            horas_normais: Number(ef.horas_normais) || 0,
+            horas_excedentes: Number(ef.horas_excedentes) || 0,
+            valor_hora: Number(ef.valor_hora) || 0,
+            valor_hora_excedente: Number(ef.valor_hora_excedente) || 0,
+            horas_medidas: Number(ef.horas_medidas) || 0,
+            hora_minima: Number(ef.hora_minima) || 0,
+            primeiro_mes: Boolean(ef.primeiro_mes),
+          }));
+
+        if (equipRows.length > 0) {
+          const { error: equipError } = await supabase.from("faturamento_equipamentos").insert(equipRows as any);
+          if (equipError) {
+            console.error("Erro ao salvar faturamento_equipamentos", equipError);
+            toast({ title: "Erro Equipamentos", description: equipError.message, variant: "destructive" });
+            // Rollback fatura creation or just inform the user
+          }
         }
       }
 
@@ -1201,12 +1207,19 @@ export const FaturamentoContent = () => {
             gasto_id: gastoId,
           }));
         if (gastoRows.length > 0) {
-          await supabase.from("faturamento_gastos").insert(gastoRows);
+          const { error: gastoError } = await supabase.from("faturamento_gastos").insert(gastoRows);
+          if (gastoError) {
+            console.error("Erro ao salvar faturamento_gastos", gastoError);
+            toast({ title: "Erro Custos", description: gastoError.message, variant: "destructive" });
+          }
         }
       }
 
       setDialogOpen(false);
       fetchData();
+    } catch (err: any) {
+      console.error("Erro ao salvar faturamento:", err);
+      toast({ title: "Erro ao salvar", description: err.message || String(err), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
