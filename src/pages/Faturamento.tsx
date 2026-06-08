@@ -523,13 +523,13 @@ export const FaturamentoContent = () => {
         newEquipForms.forEach(ef => {
           const saved = savedEquips.find(s => s.equipamento_id === ef.equipamento_id);
           if (saved) {
-            ef.horas_normais = Number(saved.horas_normais);
-            ef.horas_excedentes = Number(saved.horas_excedentes);
-            ef.valor_hora = Number(saved.valor_hora);
-            ef.valor_hora_excedente = Number(saved.valor_hora_excedente);
-            ef.hora_minima = Number(saved.hora_minima || 0);
+            ef.horas_normais = Number(saved.horas_normais ?? 0);
+            ef.horas_excedentes = Number(saved.horas_excedentes ?? 0);
+            ef.valor_hora = Number(saved.valor_hora ?? ef.valor_hora);
+            ef.valor_hora_excedente = Number(saved.valor_excedente_hora ?? saved.valor_hora_excedente ?? ef.valor_hora_excedente);
+            ef.hora_minima = Number(saved.valor_total_item ?? saved.hora_minima ?? 0);
             ef.horas_medidas = Number(saved.horas_totais ?? saved.horas_medidas ?? ef.horas_medidas);
-            ef.primeiro_mes = Boolean(saved.primeiro_mes || saved.considerar_medicao);
+            ef.primeiro_mes = Boolean(saved.considerar_medicao ?? saved.primeiro_mes);
           }
         });
       }
