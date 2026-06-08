@@ -709,7 +709,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
         if (error) throw error;
 
         // Integration: Auto-approve linked Faturamento
-        if (updatedEvent.status === "Concluído" && updatedEvent.categoria === "Faturamento") {
+        if (updatedEvent.status === "Concluído" && (updatedEvent.categoria === "Faturamento" || updatedEvent.categoria === "Medição")) {
           try {
              const { error: fatError } = await supabase.from("faturamento").update({ status: "Aprovado" } as any).eq("agenda_event_id", eventId);
              if (!fatError) {
