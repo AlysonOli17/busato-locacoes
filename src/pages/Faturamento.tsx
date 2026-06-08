@@ -1175,14 +1175,14 @@ export const FaturamentoContent = () => {
         const equipRows = equipForms.map(ef => ({
           id: crypto.randomUUID(),
           faturamento_id: faturaId,
-          equipamento_id: ef.equipamento_id,
-          horas_normais: ef.horas_normais,
-          horas_excedentes: ef.horas_excedentes,
-          valor_hora: ef.valor_hora,
-          valor_excedente_hora: ef.valor_hora_excedente,
-          horas_totais: ef.horas_medidas,
-          valor_total_item: ef.hora_minima,
-          considerar_medicao: ef.primeiro_mes,
+          equipamento_id: !ef.equipamento_id || ef.equipamento_id === "" || ef.equipamento_id === "none" ? null : ef.equipamento_id,
+          horas_normais: Number(ef.horas_normais) || 0,
+          horas_excedentes: Number(ef.horas_excedentes) || 0,
+          valor_hora: Number(ef.valor_hora) || 0,
+          valor_excedente_hora: Number(ef.valor_hora_excedente) || 0,
+          horas_totais: Number(ef.horas_medidas) || 0,
+          valor_total_item: Number(ef.hora_minima) || 0,
+          considerar_medicao: Boolean(ef.primeiro_mes),
         }));
         const { error: equipError } = await supabase.from("faturamento_equipamentos").insert(equipRows as any);
         if (equipError) {
@@ -1193,12 +1193,16 @@ export const FaturamentoContent = () => {
 
       // Save selected gastos
       if (selectedGastos.size > 0) {
-        const gastoRows = Array.from(selectedGastos).map(gastoId => ({
-          id: crypto.randomUUID(),
-          faturamento_id: faturaId,
-          gasto_id: gastoId,
-        }));
-        await supabase.from("faturamento_gastos").insert(gastoRows);
+        const gastoRows = Array.from(selectedGastos)
+          .filter(gastoId => gastoId && gastoId !== "" && gastoId !== "none")
+          .map(gastoId => ({
+            id: crypto.randomUUID(),
+            faturamento_id: faturaId,
+            gasto_id: gastoId,
+          }));
+        if (gastoRows.length > 0) {
+          await supabase.from("faturamento_gastos").insert(gastoRows);
+        }
       }
 
       setDialogOpen(false);

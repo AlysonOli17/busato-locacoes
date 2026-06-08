@@ -711,9 +711,17 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
         // Integration: Auto-approve linked Faturamento
         if (updatedEvent.status === "Concluído" && (updatedEvent.categoria === "Faturamento" || updatedEvent.categoria === "Medição")) {
           try {
-             const { error: fatError } = await supabase.from("faturamento").update({ status: "Aprovado" } as any).eq("agenda_event_id", eventId);
-             if (!fatError) {
-               toast({ title: "Faturamento Aprovado", description: "O faturamento vinculado foi aprovado automaticamente." });
+             const faturaMatch = updatedEvent.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+             if (faturaMatch && faturaMatch[1]) {
+               const { error: fatError } = await supabase.from("faturamento").update({ status: "Aprovado" } as any).eq("id", faturaMatch[1]);
+               if (!fatError) {
+                 toast({ title: "Faturamento Aprovado", description: "O faturamento vinculado foi aprovado automaticamente." });
+               }
+             } else {
+               const { error: fatError } = await supabase.from("faturamento").update({ status: "Aprovado" } as any).eq("agenda_event_id", eventId);
+               if (!fatError) {
+                 toast({ title: "Faturamento Aprovado", description: "O faturamento vinculado foi aprovado automaticamente." });
+               }
              }
           } catch(e) {}
         }
