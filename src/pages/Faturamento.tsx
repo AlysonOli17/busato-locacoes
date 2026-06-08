@@ -1185,10 +1185,10 @@ export const FaturamentoContent = () => {
             horas_normais: Number(ef.horas_normais) || 0,
             horas_excedentes: Number(ef.horas_excedentes) || 0,
             valor_hora: Number(ef.valor_hora) || 0,
-            valor_hora_excedente: Number(ef.valor_hora_excedente) || 0,
-            horas_medidas: Number(ef.horas_medidas) || 0,
-            hora_minima: Number(ef.hora_minima) || 0,
-            primeiro_mes: Boolean(ef.primeiro_mes),
+            valor_excedente_hora: Number(ef.valor_hora_excedente) || 0,
+            horas_totais: Number(ef.horas_medidas) || 0,
+            valor_total_item: Number(ef.hora_minima) || 0,
+            considerar_medicao: Boolean(ef.primeiro_mes),
           }));
 
         if (equipRows.length > 0) {
