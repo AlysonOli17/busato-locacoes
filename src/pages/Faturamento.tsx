@@ -138,8 +138,38 @@ interface EquipFormItem {
   horas_indisponiveis: number;
 }
 
-// Parse "YYYY-MM-DD" as local date (avoids UTC timezone shift)
-// Removed local parseLocalDate, now using it from @/lib/utils
+// Recalculate hours helper
+const recalcHours = (ef: EquipFormItem, medInicio?: string, medFim?: string) => {
+  ef.horas_contratadas = ef.horas_contratadas_original;
+  ef.hora_minima = ef.hora_minima_original;
+
+  const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
+  const horasMedidasCalculo = Math.max(0, ef.horas_medidas - (ef.horas_indisponiveis || 0));
+
+  if (isProporcional) {
+    if (ef.cobranca_parcial === "proporcional_minimo" && medInicio && medFim) {
+      const inicioEf = ef.data_entrega && ef.data_entrega > medInicio && ef.data_entrega <= medFim ? ef.data_entrega : medInicio;
+      const devRaw = ef.data_devolucao && ef.data_devolucao >= medInicio && ef.data_devolucao < medFim ? ef.data_devolucao : null;
+      const fimEf = devRaw ? (() => { const d = parseLocalDate(devRaw); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })() : medFim;
+      const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
+      const baseMinimo = ef.hora_minima_original > 0 ? ef.hora_minima_original : ef.horas_contratadas_original;
+      const propMinimo = Number(((baseMinimo / 30) * diasProp).toFixed(1));
+      const minimumAjustado = Math.max(0, propMinimo - (ef.horas_indisponiveis || 0));
+      const horasEfetivas = Math.max(minimumAjustado, horasMedidasCalculo);
+      ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+      ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+    } else {
+      ef.horas_normais = Number(Math.min(horasMedidasCalculo, ef.horas_contratadas).toFixed(1));
+      ef.horas_excedentes = Number(Math.max(0, horasMedidasCalculo - ef.horas_contratadas).toFixed(1));
+    }
+  } else {
+    const applyMinima = ef.hora_minima > 0;
+    const minimumAjustado = Math.max(0, ef.hora_minima_original - (ef.horas_indisponiveis || 0));
+    const horasEfetivas = applyMinima && horasMedidasCalculo < minimumAjustado ? minimumAjustado : horasMedidasCalculo;
+    ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
+    ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
+  }
+};
 
 export const FaturamentoContent = () => {
   const [items, setItems] = useState<Fatura[]>([]);
@@ -541,13 +571,14 @@ export const FaturamentoContent = () => {
         newEquipForms.forEach(ef => {
           const saved = savedEquips.find(s => s.equipamento_id === ef.equipamento_id);
           if (saved) {
-            ef.horas_normais = Number(saved.horas_normais ?? 0);
-            ef.horas_excedentes = Number(saved.horas_excedentes ?? 0);
             ef.valor_hora = Number(saved.valor_hora ?? ef.valor_hora);
             ef.valor_hora_excedente = Number(saved.valor_excedente_hora ?? saved.valor_hora_excedente ?? ef.valor_hora_excedente);
             ef.hora_minima = Number(saved.valor_total_item ?? saved.hora_minima ?? 0);
             ef.horas_medidas = Number(saved.horas_totais ?? saved.horas_medidas ?? ef.horas_medidas);
             ef.primeiro_mes = Boolean(saved.considerar_medicao ?? saved.primeiro_mes);
+            
+            // Re-calculate normais and excedentes instead of using potentially stale ones from database
+            recalcHours(ef, inicio, fim);
           }
         });
       }
@@ -711,39 +742,6 @@ export const FaturamentoContent = () => {
     setTotalGastos(cobrar - reembolsar);
   }, [selectedGastos, gastosEquip]);
 
-  // Recalculate hours helper
-  const recalcHours = (ef: EquipFormItem) => {
-    ef.horas_contratadas = ef.horas_contratadas_original;
-    ef.hora_minima = ef.hora_minima_original;
-
-    const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
-    const horasMedidasCalculo = Math.max(0, ef.horas_medidas - (ef.horas_indisponiveis || 0));
-
-    if (isProporcional) {
-      if (ef.cobranca_parcial === "proporcional_minimo" && formMedicaoInicio && formMedicaoFim) {
-        const inicioEf = ef.data_entrega && ef.data_entrega > formMedicaoInicio && ef.data_entrega <= formMedicaoFim ? ef.data_entrega : formMedicaoInicio;
-        const devRaw = ef.data_devolucao && ef.data_devolucao >= formMedicaoInicio && ef.data_devolucao < formMedicaoFim ? ef.data_devolucao : null;
-        const fimEf = devRaw ? (() => { const d = parseLocalDate(devRaw); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })() : formMedicaoFim;
-        const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
-        const baseMinimo = ef.hora_minima_original > 0 ? ef.hora_minima_original : ef.horas_contratadas_original;
-        const propMinimo = Number(((baseMinimo / 30) * diasProp).toFixed(1));
-        const minimumAjustado = Math.max(0, propMinimo - (ef.horas_indisponiveis || 0));
-        const horasEfetivas = Math.max(minimumAjustado, horasMedidasCalculo);
-        ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
-        ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
-      } else {
-        ef.horas_normais = Number(Math.min(horasMedidasCalculo, ef.horas_contratadas).toFixed(1));
-        ef.horas_excedentes = Number(Math.max(0, horasMedidasCalculo - ef.horas_contratadas).toFixed(1));
-      }
-    } else {
-      const applyMinima = ef.hora_minima > 0;
-      const minimumAjustado = Math.max(0, ef.hora_minima_original - (ef.horas_indisponiveis || 0));
-      const horasEfetivas = applyMinima && horasMedidasCalculo < minimumAjustado ? minimumAjustado : horasMedidasCalculo;
-      ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
-      ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
-    }
-  };
-
   // Recalculate hours when primeiroMes toggles
   const togglePrimeiroMes = (idx: number) => {
     setEquipForms(prev => {
@@ -755,7 +753,7 @@ export const FaturamentoContent = () => {
         ef.horas_contratadas = ef.horas_contratadas_original;
         ef.hora_minima = ef.hora_minima_original;
       }
-      recalcHours(ef);
+      recalcHours(ef, formMedicaoInicio, formMedicaoFim);
       updated[idx] = ef;
       return updated;
     });
@@ -772,7 +770,7 @@ export const FaturamentoContent = () => {
         ef.horas_contratadas = ef.horas_contratadas_original;
         ef.hora_minima = ef.hora_minima_original;
       }
-      recalcHours(ef);
+      recalcHours(ef, formMedicaoInicio, formMedicaoFim);
       updated[idx] = ef;
       return updated;
     });
@@ -784,7 +782,7 @@ export const FaturamentoContent = () => {
       const updated = [...prev];
       const ef = { ...updated[idx] };
       ef.cobranca_parcial = mode;
-      recalcHours(ef);
+      recalcHours(ef, formMedicaoInicio, formMedicaoFim);
       updated[idx] = ef;
       return updated;
     });
