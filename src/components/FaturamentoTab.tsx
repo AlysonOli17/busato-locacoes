@@ -189,9 +189,9 @@ export const FaturamentoTab = () => {
     // Load faturamento_equipamentos for all faturas
     if (fatRes.data && fatRes.data.length > 0) {
       const ids = fatRes.data.map((f: any) => f.id);
-      const [feRes, fgRes] = await Promise.all([
+      const [feRes, fgLinkRes] = await Promise.all([
         supabase.from("faturamento_equipamentos").select("*").in("faturamento_id", ids),
-        supabase.from("faturamento_gastos").select("*, gastos(descricao, valor, tipo)").in("faturamento_id", ids),
+        supabase.from("faturamento_gastos").select("faturamento_id, gasto_id").in("faturamento_id", ids),
       ]);
       if (feRes.data) {
         const map = new Map<string, FaturaEquip[]>();
@@ -202,16 +202,26 @@ export const FaturamentoTab = () => {
         });
         setFaturaEquips(map);
       }
-      if (fgRes.data) {
-        const map = new Map<string, { descricao: string; valor: number; tipo: string }[]>();
-        fgRes.data.forEach((fg: any) => {
-          if (!fg.gastos) return;
-          const list = map.get(fg.faturamento_id) || [];
-          list.push({ descricao: fg.gastos.descricao, valor: Number(fg.gastos.valor), tipo: fg.gastos.tipo });
-          map.set(fg.faturamento_id, list);
-        });
-        setFaturaGastos(map);
+      
+      const fgLinks = fgLinkRes.data || [];
+      const linkIds = fgLinks.map((l: any) => l.gasto_id).filter(Boolean);
+      let gastosDetailsMap = new Map<string, any>();
+      if (linkIds.length > 0) {
+        const { data: gastosDetails } = await supabase.from("gastos").select("id, descricao, valor, tipo").in("id", linkIds);
+        if (gastosDetails) {
+          gastosDetailsMap = new Map(gastosDetails.map(g => [g.id, g]));
+        }
       }
+
+      const map = new Map<string, { descricao: string; valor: number; tipo: string }[]>();
+      fgLinks.forEach((fg: any) => {
+        const g = gastosDetailsMap.get(fg.gasto_id);
+        if (!g) return;
+        const list = map.get(fg.faturamento_id) || [];
+        list.push({ descricao: g.descricao, valor: Number(g.valor), tipo: g.tipo });
+        map.set(fg.faturamento_id, list);
+      });
+      setFaturaGastos(map);
     }
     setLoading(false);
   };

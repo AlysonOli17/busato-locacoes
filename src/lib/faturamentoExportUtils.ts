@@ -174,9 +174,21 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
 
     let medicaoTotal = 0;
 
-    // Gastos globais
-    const { data: fatGastos } = await supabase.from("faturamento_gastos").select("*, gastos(*)").eq("faturamento_id", item.id);
-    const gastosList = fatGastos || [];
+    // Fetch faturamento_gastos links
+    const { data: linkRes } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
+    const linkIds = (linkRes || []).map(r => r.gasto_id).filter(Boolean);
+    
+    // Fetch gastos details manually to bypass schema cache issues
+    let gastosList: any[] = [];
+    if (linkIds.length > 0) {
+      const { data: detailsRes } = await supabase.from("gastos").select("*").in("id", linkIds);
+      if (detailsRes) {
+        gastosList = detailsRes.map(g => ({
+          gasto_id: g.id,
+          gastos: g
+        }));
+      }
+    }
     const gastosEquips = gastosList.filter(fg => fg.gastos && fg.gastos.tipo !== "Mobilização" && fg.gastos.tipo !== "Desmobilização");
     const gastosMobDesmob = gastosList.filter(fg => fg.gastos && (fg.gastos.tipo === "Mobilização" || fg.gastos.tipo === "Desmobilização"));
 
