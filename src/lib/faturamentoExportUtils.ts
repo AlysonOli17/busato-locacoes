@@ -357,6 +357,63 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
       y = summaryY + 8;
     }
 
+    // 3.5. CUSTOS ADICIONAIS GERAIS (Sem equipamento vinculado)
+    const gastosGerais = gastosEquips.filter(g => !g.gastos?.equipamento_id);
+    let totalGeraisCobrar = 0;
+    let totalGeraisReembolsar = 0;
+
+    if (gastosGerais.length > 0) {
+      if (y + 35 > pageH) {
+        doc.addPage();
+        y = 15;
+      }
+
+      doc.setFillColor(41, 128, 185);
+      doc.rect(mL, y, contentW, 6, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text("CUSTOS ADICIONAIS", mL + 2, y + 4.2);
+      y += 6;
+
+      const geraisHeaders = ["Data", "Descrição", "Tipo", "Classificação", "Valor"];
+      const geraisRows = gastosGerais.map(fg => {
+        const val = Number(fg.gastos?.valor || 0);
+        const classif = fg.gastos?.classificacao || fg.gastos?.status || "A Cobrar do Cliente";
+        const isReembolso = classif === "A Reembolsar ao Cliente";
+        if (isReembolso) {
+           totalGeraisReembolsar += val;
+        } else {
+           totalGeraisCobrar += val;
+        }
+        return [
+          parseLocalDate(fg.gastos?.data || "").toLocaleDateString("pt-BR"),
+          fg.gastos?.descricao || "—",
+          fg.gastos?.tipo || "—",
+          classif,
+          isReembolso ? `- ${fmtBRL(val)}` : fmtBRL(val)
+        ];
+      });
+
+      autoTable(doc, {
+        startY: y,
+        head: [geraisHeaders],
+        body: geraisRows,
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [80, 80, 80], fontStyle: "bold" },
+        columnStyles: { 4: { align: "right" } },
+        theme: "grid"
+      });
+      y = (doc as any).lastAutoTable.finalY + 4;
+      
+      const sumGerais = totalGeraisCobrar - totalGeraisReembolsar;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(41, 128, 185);
+      doc.text(`Subtotal Custos Adicionais: ${fmtBRL(sumGerais)}`, pageW - mR, y, { align: "right" });
+      y += 8;
+    }
+
     // 4. MOBILIZAÇÃO / DESMOBILIZAÇÃO
     if (gastosMobDesmob.length > 0) {
       if (y + 35 > pageH) {
@@ -422,20 +479,23 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
       y = 15;
     }
 
+    const totalGeralCobrar = totalCustosCobrar + totalGeraisCobrar;
+    const totalGeralReembolsar = totalCustosReembolsar + totalGeraisReembolsar;
+
     const summaryRows = [
       ["Medição (Equipamentos)", fmtBRL(medicaoTotal)]
     ];
-    if (totalCustosCobrar > 0) {
-      summaryRows.push(["(+) Custos Operacionais a Cobrar", fmtBRL(totalCustosCobrar)]);
+    if (totalGeralCobrar > 0) {
+      summaryRows.push(["(+) Custos Operacionais a Cobrar", fmtBRL(totalGeralCobrar)]);
     }
-    if (totalCustosReembolsar > 0) {
-      summaryRows.push(["('') Custos Operacionais a Reembolsar", `- ${fmtBRL(totalCustosReembolsar)}`]);
+    if (totalGeralReembolsar > 0) {
+      summaryRows.push(["('-') Custos Operacionais a Reembolsar", `- ${fmtBRL(totalGeralReembolsar)}`]);
     }
     if (totalMobDesmob > 0) {
       summaryRows.push(["(+) Mobilização / Desmobilização", fmtBRL(totalMobDesmob)]);
     }
 
-    const valorTotalMedicao = medicaoTotal + totalCustosCobrar - totalCustosReembolsar + totalMobDesmob;
+    const valorTotalMedicao = medicaoTotal + totalGeralCobrar - totalGeralReembolsar + totalMobDesmob;
     summaryRows.push(["VALOR TOTAL DA MEDIÇÃO", fmtBRL(valorTotalMedicao)]);
 
     autoTable(doc, {
