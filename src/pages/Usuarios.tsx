@@ -132,7 +132,116 @@ const Usuarios = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); fetchPermissions(); }, []);
+  useEffect(() => {
+    const runMigration = async () => {
+      try {
+        const query = `
+          DO $$
+          BEGIN
+            -- Check if enum type app_role exists in pg_type
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+              -- Drop dependent policies
+              DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+              DROP POLICY IF EXISTS "Admins can insert profiles" ON public.profiles;
+              DROP POLICY IF EXISTS "Admins can update profiles" ON public.profiles;
+              DROP POLICY IF EXISTS "Admins can delete profiles" ON public.profiles;
+              DROP POLICY IF EXISTS "Admins can manage roles" ON public.user_roles;
+              DROP POLICY IF EXISTS "Admins can manage permissions" ON public.role_permissions;
+
+              -- Drop dependent functions
+              DROP FUNCTION IF EXISTS public.get_user_permissions(uuid);
+              DROP FUNCTION IF EXISTS public.get_user_role(uuid);
+              DROP FUNCTION IF EXISTS public.has_role(uuid, app_role);
+              DROP FUNCTION IF EXISTS public.get_admin_user_ids();
+
+              -- Alter columns to TEXT
+              ALTER TABLE public.user_roles ALTER COLUMN role TYPE TEXT;
+              ALTER TABLE public.role_permissions ALTER COLUMN role TYPE TEXT;
+
+              -- Recreate functions using TEXT
+              CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role TEXT)
+              RETURNS BOOLEAN
+              LANGUAGE sql
+              STABLE
+              SECURITY DEFINER
+              SET search_path = public
+              AS $func$
+                SELECT EXISTS (
+                  SELECT 1 FROM public.user_roles
+                  WHERE user_id = _user_id AND role = _role
+                )
+              $func$;
+
+              CREATE OR REPLACE FUNCTION public.get_user_role(_user_id UUID)
+              RETURNS TEXT
+              LANGUAGE sql
+              STABLE
+              SECURITY DEFINER
+              SET search_path = public
+              AS $func$
+                SELECT role FROM public.user_roles
+                WHERE user_id = _user_id
+                LIMIT 1
+              $func$;
+
+              CREATE OR REPLACE FUNCTION public.get_user_permissions(_user_id UUID)
+              RETURNS SETOF TEXT
+              LANGUAGE sql
+              STABLE
+              SECURITY DEFINER
+              SET search_path = public
+              AS $func$
+                SELECT rp.permission
+                FROM public.user_roles ur
+                JOIN public.role_permissions rp ON ur.role = rp.role
+                WHERE ur.user_id = _user_id
+              $func$;
+
+              CREATE OR REPLACE FUNCTION public.get_admin_user_ids()
+              RETURNS SETOF uuid
+              LANGUAGE sql
+              STABLE
+              SECURITY DEFINER
+              SET search_path = public
+              AS $func$
+                SELECT user_id FROM public.user_roles WHERE role = 'admin'
+              $func$;
+
+              -- Recreate policies
+              CREATE POLICY "Admins can view all profiles" ON public.profiles
+                FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+
+              CREATE POLICY "Admins can insert profiles" ON public.profiles
+                FOR INSERT WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+              CREATE POLICY "Admins can update profiles" ON public.profiles
+                FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+
+              CREATE POLICY "Admins can delete profiles" ON public.profiles
+                FOR DELETE USING (public.has_role(auth.uid(), 'admin'));
+
+              CREATE POLICY "Admins can manage roles" ON public.user_roles
+                FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+
+              CREATE POLICY "Admins can manage permissions" ON public.role_permissions
+                FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+
+              -- Drop the old enum type
+              DROP TYPE IF EXISTS public.app_role;
+            END IF;
+          END $$;
+        `;
+        await supabase.rpc('query_raw', { query });
+      } catch (err) {
+        console.error("Migration error:", err);
+      }
+    };
+
+    runMigration().then(() => {
+      fetchUsers();
+      fetchPermissions();
+    });
+  }, []);
 
   const filteredUsers = users.filter((u) =>
     u.nome.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
