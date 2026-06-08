@@ -242,8 +242,14 @@ export const FaturamentoContent = () => {
   };
 
   const fetchUsuarios = async () => {
-    const { data } = await supabase.from("usuarios").select("id, nome, role").eq("status", "Ativo");
-    if (data) setUsuarios(data);
+    // Tenta buscar de 'profiles' caso 'usuarios' não exista
+    let { data } = await supabase.from("profiles").select("user_id, nome, role");
+    if (data) {
+      setUsuarios(data.map(d => ({ id: d.user_id, nome: d.nome, role: d.role })));
+    } else {
+      const res = await supabase.from("usuarios").select("id, nome, role").eq("status", "Ativo");
+      if (res.data) setUsuarios(res.data);
+    }
   };
   useEffect(() => { fetchData(); fetchUsuarios(); }, []);
 
@@ -821,11 +827,14 @@ export const FaturamentoContent = () => {
     
     await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", faturaId);
     
+    const responsavelUser = usuarios.find(u => u.id === responsavelId);
+    const responsavelNome = responsavelUser ? responsavelUser.nome : null;
+
     const { data: agendas } = await supabase.from("agenda").select("id").ilike("notas", `%${faturaId}%`);
     if (agendas && agendas.length > 0) {
        await supabase.from("agenda").update({
          status: "Aguardando Aprovação",
-         responsavel_id: responsavelId && responsavelId !== "none" ? responsavelId : null
+         responsavel_nome: responsavelNome
        }).eq("id", agendas[0].id);
     }
     
