@@ -152,8 +152,11 @@ export const FaturamentoTab = () => {
 
   const { toast } = useToast();
   const { role, profile } = useAuth();
-  const [sortCol, setSortCol] = useState(() => sessionStorage.getItem("fat_sortCol") || "numero");
-  const [sortAsc, setSortAsc] = useState(() => sessionStorage.getItem("fat_sortAsc") !== "false");
+  const [sortCol, setSortCol] = useState(() => sessionStorage.getItem("fat_sortCol") || "emissao");
+  const [sortAsc, setSortAsc] = useState(() => {
+    const val = sessionStorage.getItem("fat_sortAsc");
+    return val !== null ? val === "true" : false;
+  });
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   useEffect(() => { sessionStorage.setItem("fat_filterEmpresa", filterEmpresa); }, [filterEmpresa]);
@@ -163,7 +166,7 @@ export const FaturamentoTab = () => {
   const fetchData = async (force = false) => {
     if (force) clearCache();
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await withCache("faturamento_tab", 5 * 60 * 1000, async () => Promise.all([
-      supabase.from("faturamento").select("*").in("status", ["Pendente", "Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
+      supabase.from("faturamento").select("*").in("status", ["Pendente", "Aprovado", "Pago", "Cancelado"]).order("emissao", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("contratos").select("*"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, obra, email"),
       supabase.from("contas_bancarias").select("*"),

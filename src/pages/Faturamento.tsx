@@ -190,7 +190,7 @@ export const FaturamentoContent = () => {
 
   const fetchData = async () => {
     const [fatRes, ctAllRes, ctAtivoRes, contasRes, empListRes, eqRes, ceRes] = await Promise.all([
-      supabase.from("faturamento").select("*").order("numero_sequencial", { ascending: false }),
+      supabase.from("faturamento").select("*").order("emissao", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("contratos").select("*"),
       supabase.from("contratos").select("*").eq("status", "Ativo").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
@@ -802,6 +802,60 @@ export const FaturamentoContent = () => {
     };
   }, [dialogOpen, formContratoId, formMedicaoInicio, formMedicaoFim, fetchMedicoesEGastos]);
 
+  // Load draft on mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem("faturamento_draft");
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        setEditing(draft.editing || null);
+        setFormContratoId(draft.formContratoId || "");
+        setFormPeriodo(draft.formPeriodo || "");
+        setFormStatus(draft.formStatus || "Pendente");
+        setFormMedicaoInicio(draft.formMedicaoInicio || "");
+        setFormMedicaoFim(draft.formMedicaoFim || "");
+        setFormContaBancariaId(draft.formContaBancariaId || "");
+        setFormEmpresaFaturamentoId(draft.formEmpresaFaturamentoId || "");
+        setEquipForms(draft.equipForms || []);
+        setSelectedGastos(new Set(draft.selectedGastos || []));
+        setDialogOpen(true);
+      } catch (e) {
+        console.error("Erro ao carregar rascunho de faturamento:", e);
+      }
+    }
+  }, []);
+
+  // Auto-save draft
+  useEffect(() => {
+    if (dialogOpen) {
+      const draft = {
+        editing,
+        formContratoId,
+        formPeriodo,
+        formStatus,
+        formMedicaoInicio,
+        formMedicaoFim,
+        formContaBancariaId,
+        formEmpresaFaturamentoId,
+        equipForms,
+        selectedGastos: Array.from(selectedGastos),
+      };
+      localStorage.setItem("faturamento_draft", JSON.stringify(draft));
+    }
+  }, [
+    dialogOpen,
+    editing,
+    formContratoId,
+    formPeriodo,
+    formStatus,
+    formMedicaoInicio,
+    formMedicaoFim,
+    formContaBancariaId,
+    formEmpresaFaturamentoId,
+    equipForms,
+    selectedGastos
+  ]);
+
   // Reset billing form states when dialog closes
   useEffect(() => {
     if (!dialogOpen) {
@@ -815,6 +869,7 @@ export const FaturamentoContent = () => {
       setFormEmpresaFaturamentoId("");
       setMobDialogOpen(false);
       setMobAlerts([]);
+      localStorage.removeItem("faturamento_draft");
     }
   }, [dialogOpen]);
 
