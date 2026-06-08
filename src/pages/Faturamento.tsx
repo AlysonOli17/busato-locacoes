@@ -833,17 +833,22 @@ export const FaturamentoContent = () => {
     fetchData();
   };
 
-  const handleAprovarMedicaoDirect = async (id: string, emissaoDate: string) => {
+  const handleAprovarMedicaoDirect = async (id: string) => {
     const { error } = await supabase
       .from("faturamento")
       .update({ 
-        status: "Aprovado", 
-        data_aprovacao: emissaoDate,
-        emissao: emissaoDate
+        status: "Aprovado"
       } as any)
       .eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Medição aprovada", description: "A medição foi enviada para a aba Faturamento." });
+    
+    const { data: fatura } = await supabase.from("faturamento").select("agenda_event_id").eq("id", id).single();
+    if (fatura?.agenda_event_id) {
+       await supabase.from("agenda").update({ status: "Concluído" }).eq("id", fatura.agenda_event_id);
+    }
+    
+    toast({ title: "Medição aprovada", description: "A medição foi aprovada e está disponível para faturamento." });
+    setAprovarDialog({ isOpen: false, faturaId: null, emissaoDate: "" });
     fetchData();
   };
 
@@ -1339,7 +1344,7 @@ export const FaturamentoContent = () => {
                                 size="icon"
                                 className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
                                 title="Aprovar Medição"
-                                onClick={() => setAprovarDialog({ isOpen: true, faturaId: item.id, emissaoDate: new Date().toISOString().slice(0, 10) })}
+                                onClick={() => setAprovarDialog({ isOpen: true, faturaId: item.id, emissaoDate: "" })}
                               >
                                 <ShieldCheck className="h-3.5 w-3.5" />
                               </Button>
@@ -1856,7 +1861,7 @@ export const FaturamentoContent = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">{editing ? "Salvar" : "Emitir Medição"}</Button>
+            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1973,27 +1978,12 @@ export const FaturamentoContent = () => {
       <Dialog open={aprovarDialog.isOpen} onOpenChange={(open) => !open && setAprovarDialog(prev => ({ ...prev, isOpen: false }))}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Aprovar Medição e Faturar</DialogTitle>
+            <DialogTitle>Aprovar Medição</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Para aprovar esta medição, por favor informe a <strong>Data de Emissão</strong> da fatura. O vencimento será calculado a partir desta data com base no prazo do contrato.
+              Tem certeza que deseja aprovar esta medição? Ela ficará disponível para a Emissão da Fatura.
             </p>
-            <div className="space-y-1.5">
-              <label htmlFor="emissaoDate" className="text-xs font-semibold text-muted-foreground">
-                Data de Emissão
-              </label>
-              <Input
-                id="emissaoDate"
-                type="date"
-                max={new Date().toISOString().slice(0, 10)}
-                value={aprovarDialog.emissaoDate}
-                onChange={(e) => setAprovarDialog(prev => ({ ...prev, emissaoDate: e.target.value }))}
-              />
-              <p className="text-[10px] text-muted-foreground">
-                * Apenas datas iguais ou anteriores à data atual são permitidas para migrações históricas.
-              </p>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAprovarDialog(prev => ({ ...prev, isOpen: false }))}>
@@ -2002,9 +1992,8 @@ export const FaturamentoContent = () => {
             <Button 
               className="bg-success text-success-foreground hover:bg-success/90"
               onClick={async () => {
-                if (aprovarDialog.faturaId && aprovarDialog.emissaoDate) {
-                  await handleAprovarMedicaoDirect(aprovarDialog.faturaId, aprovarDialog.emissaoDate);
-                  setAprovarDialog(prev => ({ ...prev, isOpen: false }));
+                if (aprovarDialog.faturaId) {
+                  await handleAprovarMedicaoDirect(aprovarDialog.faturaId);
                 }
               }}
             >
