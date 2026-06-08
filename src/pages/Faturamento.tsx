@@ -814,6 +814,25 @@ export const FaturamentoContent = () => {
     return item.status;
   };
 
+  const handleSolicitarAprovacao = async () => {
+    const { faturaId, responsavelId } = solicitarAprovacaoDialog;
+    if (!faturaId) return;
+    
+    await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", faturaId);
+    
+    const { data: fatura } = await supabase.from("faturamento").select("agenda_event_id").eq("id", faturaId).single();
+    if (fatura?.agenda_event_id) {
+       await supabase.from("agenda").update({
+         status: "Aguardando Aprovação",
+         responsavel_id: responsavelId && responsavelId !== "none" ? responsavelId : null
+       }).eq("id", fatura.agenda_event_id);
+    }
+    
+    toast({ title: "Enviado para aprovação", description: "O status foi atualizado." });
+    setSolicitarAprovacaoDialog({ isOpen: false, faturaId: null, responsavelId: "" });
+    fetchData();
+  };
+
   const handleAprovarMedicaoDirect = async (id: string, emissaoDate: string) => {
     const { error } = await supabase
       .from("faturamento")
