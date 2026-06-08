@@ -378,7 +378,9 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-sidebar-foreground truncate">{profile?.nome}</p>
-                <p className="text-[10px] text-sidebar-foreground/50 truncate uppercase tracking-wider">{role === "admin" ? "Administrador" : role === "operador" ? "Operador" : "Visualizador"}</p>
+                <p className="text-[10px] text-sidebar-foreground/50 truncate uppercase tracking-wider">
+                  {role === "admin" ? "Administrador" : role === "operador" ? "Operador" : role === "visualizador" ? "Visualizador" : role ? (role.charAt(0).toUpperCase() + role.slice(1)) : "Sem Perfil"}
+                </p>
               </div>
             </div>
           )}
