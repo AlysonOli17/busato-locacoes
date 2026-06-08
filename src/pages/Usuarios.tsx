@@ -231,9 +231,22 @@ const Usuarios = () => {
             END IF;
           END $$;
         `;
-        await supabase.rpc('query_raw', { query });
-      } catch (err) {
+        const { data, error } = await supabase.rpc('query_raw', { query });
+        if (error) {
+          console.error("Migration error from RPC:", error);
+          toast({
+            title: "Erro ao migrar banco",
+            description: error.message,
+            variant: "destructive"
+          });
+        }
+      } catch (err: any) {
         console.error("Migration error:", err);
+        toast({
+          title: "Erro na migração",
+          description: err.message,
+          variant: "destructive"
+        });
       }
     };
 
