@@ -158,6 +158,7 @@ export const FaturamentoContent = () => {
   const [formMedicaoInicio, setFormMedicaoInicio] = useState("");
   const [formMedicaoFim, setFormMedicaoFim] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [loadingMedicoes, setLoadingMedicoes] = useState(false);
   const [equipForms, setEquipForms] = useState<EquipFormItem[]>([]);
   const [gastosEquip, setGastosEquip] = useState<GastoItem[]>([]);
@@ -1087,95 +1088,100 @@ export const FaturamentoContent = () => {
   const avgValorExcedente = totalHorasExcedentes > 0 ? equipForms.reduce((acc, ef) => acc + ef.horas_excedentes * ef.valor_hora_excedente, 0) / totalHorasExcedentes : 0;
 
   const handleSave = async () => {
-    if (!formContratoId) return;
-    const payload = {
-      contrato_id: formContratoId,
-      periodo: formPeriodo,
-      horas_normais: totalHorasNormais,
-      horas_excedentes: totalHorasExcedentes,
-      valor_hora: avgValorHora,
-      valor_excedente_hora: avgValorExcedente,
-      valor_total: valorLiquido,
-      status: formStatus,
-      numero_nota: editing?.numero_nota || null,
-      periodo_medicao_inicio: formMedicaoInicio || null,
-      periodo_medicao_fim: formMedicaoFim || null,
-      total_gastos: totalGastos,
-      conta_bancaria_id: formContaBancariaId || null,
-      empresa_faturamento_id: formEmpresaFaturamentoId || null,
-    } as any;
-
-    let faturaId: string;
-
-    if (editing) {
-      const { error } = await supabase.from("faturamento").update(payload).eq("id", editing.id);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-      faturaId = editing.id;
-      await Promise.all([
-        supabase.from("faturamento_gastos").delete().eq("faturamento_id", faturaId),
-        supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", faturaId),
-      ]);
-    } else {
-      const newFaturaId = crypto.randomUUID();
-      const { data, error } = await supabase.from("faturamento").insert({ ...payload, id: newFaturaId }).select("id").single();
-      if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar fatura", variant: "destructive" }); return; }
-      faturaId = data.id;
-
-      // Integration: Create Kanban Event "Em Andamento"
-      const agendaId = crypto.randomUUID();
-      const selectedContratoData = contratos.find(c => c.id === formContratoId);
-      const tituloAgenda = `Aprovação de Medição - ${selectedContratoData?.empresas?.nome || 'Cliente'} (Ref: ${formPeriodo})`;
-      const { error: agendaError } = await supabase.from("agenda").insert({
-        id: agendaId,
-        titulo: tituloAgenda,
-        descricao: `Medição gerada aguardando conferência e aprovação.`,
-        data_inicio: new Date().toISOString(),
-        status: "Em Andamento",
-        prioridade: "Média",
-        categoria: "Medição",
+    if (!formContratoId || isSaving) return;
+    setIsSaving(true);
+    try {
+      const payload = {
         contrato_id: formContratoId,
-        empresa_id: selectedContratoData?.empresa_id || null,
-        notas: `[Medição ID: ${faturaId}]`
-      });
+        periodo: formPeriodo,
+        horas_normais: totalHorasNormais,
+        horas_excedentes: totalHorasExcedentes,
+        valor_hora: avgValorHora,
+        valor_excedente_hora: avgValorExcedente,
+        valor_total: valorLiquido,
+        status: formStatus,
+        numero_nota: editing?.numero_nota || null,
+        periodo_medicao_inicio: formMedicaoInicio || null,
+        periodo_medicao_fim: formMedicaoFim || null,
+        total_gastos: totalGastos,
+        conta_bancaria_id: formContaBancariaId || null,
+        empresa_faturamento_id: formEmpresaFaturamentoId || null,
+      } as any;
 
-      if (!agendaError) {
-        // Link agenda_event_id to faturamento if column exists
-        await supabase.rpc('query_raw', { query: `UPDATE faturamento SET agenda_event_id = '${agendaId}' WHERE id = '${faturaId}'` }).catch(() => {});
-        // Also just try normal update in case column exists
-        await supabase.from("faturamento").update({ agenda_event_id: agendaId } as any).eq("id", faturaId).catch(() => {});
+      let faturaId: string;
+
+      if (editing) {
+        const { error } = await supabase.from("faturamento").update(payload).eq("id", editing.id);
+        if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+        faturaId = editing.id;
+        await Promise.all([
+          supabase.from("faturamento_gastos").delete().eq("faturamento_id", faturaId),
+          supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", faturaId),
+        ]);
+      } else {
+        const newFaturaId = crypto.randomUUID();
+        const { data, error } = await supabase.from("faturamento").insert({ ...payload, id: newFaturaId }).select("id").single();
+        if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar fatura", variant: "destructive" }); return; }
+        faturaId = data.id;
+
+        // Integration: Create Kanban Event "Em Andamento"
+        const agendaId = crypto.randomUUID();
+        const selectedContratoData = contratos.find(c => c.id === formContratoId);
+        const tituloAgenda = `Aprovação de Medição - ${selectedContratoData?.empresas?.nome || 'Cliente'} (Ref: ${formPeriodo})`;
+        const { error: agendaError } = await supabase.from("agenda").insert({
+          id: agendaId,
+          titulo: tituloAgenda,
+          descricao: `Medição gerada aguardando conferência e aprovação.`,
+          data_inicio: new Date().toISOString(),
+          status: "Em Andamento",
+          prioridade: "Média",
+          categoria: "Medição",
+          contrato_id: formContratoId,
+          empresa_id: selectedContratoData?.empresa_id || null,
+          notas: `[Medição ID: ${faturaId}]`
+        });
+
+        if (!agendaError) {
+          // Link agenda_event_id to faturamento if column exists
+          await supabase.rpc('query_raw', { query: `UPDATE faturamento SET agenda_event_id = '${agendaId}' WHERE id = '${faturaId}'` }).catch(() => {});
+          // Also just try normal update in case column exists
+          await supabase.from("faturamento").update({ agenda_event_id: agendaId } as any).eq("id", faturaId).catch(() => {});
+        }
       }
-    }
 
-    // Save per-equipment details
-    if (equipForms.length > 0) {
-      const equipRows = equipForms.map(ef => ({
-        id: crypto.randomUUID(),
-        faturamento_id: faturaId,
-        equipamento_id: ef.equipamento_id,
-        horas_normais: ef.horas_normais,
-        horas_excedentes: ef.horas_excedentes,
-        valor_hora: ef.valor_hora,
-        valor_excedente_hora: ef.valor_hora_excedente,
-        // Map to physical columns because of cache mismatches
-        horas_totais: ef.horas_medidas,
-        valor_total_item: ef.hora_minima,
-        considerar_medicao: ef.primeiro_mes,
-      } as any));
-      await supabase.from("faturamento_equipamentos").insert(equipRows);
-    }
+      // Save per-equipment details
+      if (equipForms.length > 0) {
+        const equipRows = equipForms.map(ef => ({
+          id: crypto.randomUUID(),
+          faturamento_id: faturaId,
+          equipamento_id: ef.equipamento_id,
+          horas_normais: ef.horas_normais,
+          horas_excedentes: ef.horas_excedentes,
+          valor_hora: ef.valor_hora,
+          valor_excedente_hora: ef.valor_hora_excedente,
+          // Map to physical columns because of cache mismatches
+          horas_totais: ef.horas_medidas,
+          valor_total_item: ef.hora_minima,
+          considerar_medicao: ef.primeiro_mes,
+        } as any));
+        await supabase.from("faturamento_equipamentos").insert(equipRows);
+      }
 
-    // Save selected gastos
-    if (selectedGastos.size > 0) {
-      const gastoRows = Array.from(selectedGastos).map(gastoId => ({
-        id: crypto.randomUUID(),
-        faturamento_id: faturaId,
-        gasto_id: gastoId,
-      }));
-      await supabase.from("faturamento_gastos").insert(gastoRows);
-    }
+      // Save selected gastos
+      if (selectedGastos.size > 0) {
+        const gastoRows = Array.from(selectedGastos).map(gastoId => ({
+          id: crypto.randomUUID(),
+          faturamento_id: faturaId,
+          gasto_id: gastoId,
+        }));
+        await supabase.from("faturamento_gastos").insert(gastoRows);
+      }
 
-    setDialogOpen(false);
-    fetchData();
+      setDialogOpen(false);
+      fetchData();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -1339,6 +1345,18 @@ export const FaturamentoContent = () => {
                           <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
                           <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
                             {getDisplayStatus(item) === "Pendente" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                title="Enviar para Aprovação"
+                                onClick={() => setSolicitarAprovacaoDialog({ isOpen: true, faturaId: item.id, responsavelId: "" })}
+                              >
+                                <Send className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+
+                            {getDisplayStatus(item) === "Aguardando Aprovação" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1860,8 +1878,10 @@ export const FaturamentoContent = () => {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={isSaving} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              {isSaving ? "Salvando..." : "Salvar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
