@@ -1100,18 +1100,18 @@ export const FaturamentoContent = () => {
       // Integration: Create Kanban Event "Em Andamento"
       const agendaId = crypto.randomUUID();
       const selectedContratoData = contratos.find(c => c.id === formContratoId);
-      const tituloAgenda = `Aprovação de Faturamento - ${selectedContratoData?.empresas?.nome || 'Cliente'} (Ref: ${formPeriodo})`;
+      const tituloAgenda = `Aprovação de Medição - ${selectedContratoData?.empresas?.nome || 'Cliente'} (Ref: ${formPeriodo})`;
       const { error: agendaError } = await supabase.from("agenda").insert({
         id: agendaId,
         titulo: tituloAgenda,
-        descricao: `Fatura gerada aguardando conferência e aprovação.`,
+        descricao: `Medição gerada aguardando conferência e aprovação.`,
         data_inicio: new Date().toISOString(),
         status: "Em Andamento",
         prioridade: "Média",
-        categoria: "Faturamento",
+        categoria: "Medição",
         contrato_id: formContratoId,
         empresa_id: selectedContratoData?.empresa_id || null,
-        notas: `[Fatura ID: ${faturaId}]`
+        notas: `[Medição ID: ${faturaId}]`
       });
 
       if (!agendaError) {
