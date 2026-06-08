@@ -821,15 +821,27 @@ export const FaturamentoContent = () => {
     
     await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", faturaId);
     
-    const { data: fatura } = await supabase.from("faturamento").select("agenda_event_id").eq("id", faturaId).single();
-    if (fatura?.agenda_event_id) {
+    const { data: agendas } = await supabase.from("agenda").select("id").ilike("notas", `%${faturaId}%`);
+    if (agendas && agendas.length > 0) {
        await supabase.from("agenda").update({
          status: "Aguardando Aprovação",
          responsavel_id: responsavelId && responsavelId !== "none" ? responsavelId : null
-       }).eq("id", fatura.agenda_event_id);
+       }).eq("id", agendas[0].id);
     }
     
-    toast({ title: "Enviado para aprovação", description: "O status foi atualizado." });
+    if (responsavelId && responsavelId !== "none") {
+      await supabase.from("notificacoes").insert({
+        user_id: responsavelId,
+        tipo: "aprovacao",
+        titulo: "Medição Aguardando Aprovação",
+        mensagem: "Uma nova medição foi enviada e está aguardando sua aprovação.",
+        lida: false,
+        categoria: "medicao",
+        vinculo_id: faturaId
+      });
+    }
+    
+    toast({ title: "Enviado para aprovação", description: "Enviado para o Kanban com sucesso." });
     setSolicitarAprovacaoDialog({ isOpen: false, faturaId: null, responsavelId: "" });
     fetchData();
   };
@@ -843,12 +855,12 @@ export const FaturamentoContent = () => {
       .eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     
-    const { data: fatura } = await supabase.from("faturamento").select("agenda_event_id").eq("id", id).single();
-    if (fatura?.agenda_event_id) {
-       await supabase.from("agenda").update({ status: "Concluído" }).eq("id", fatura.agenda_event_id);
+    const { data: agendas } = await supabase.from("agenda").select("id").ilike("notas", `%${id}%`);
+    if (agendas && agendas.length > 0) {
+       await supabase.from("agenda").update({ status: "Concluído" }).eq("id", agendas[0].id);
     }
     
-    toast({ title: "Medição aprovada", description: "A medição foi aprovada e está disponível para faturamento." });
+    toast({ title: "Medição aprovada", description: "A medição foi aprovada." });
     setAprovarDialog({ isOpen: false, faturaId: null, emissaoDate: "" });
     fetchData();
   };
