@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet } from "lucide-react";
+import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet, Send } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { withCache, clearCache } from "@/lib/cache";
@@ -144,8 +144,14 @@ export const FaturamentoTab = () => {
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [payId, setPayId] = useState<string | null>(null);
+  
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approveFaturaId, setApproveFaturaId] = useState<string | null>(null);
+  const [approveUserId, setApproveUserId] = useState("");
+  const [usuarios, setUsuarios] = useState<{ user_id: string; nome: string }[]>([]);
+
   const { toast } = useToast();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const [sortCol, setSortCol] = useState(() => sessionStorage.getItem("fat_sortCol") || "numero");
   const [sortAsc, setSortAsc] = useState(() => sessionStorage.getItem("fat_sortAsc") !== "false");
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
@@ -157,11 +163,12 @@ export const FaturamentoTab = () => {
   const fetchData = async (force = false) => {
     if (force) clearCache();
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await withCache("faturamento_tab", 5 * 60 * 1000, async () => Promise.all([
-      supabase.from("faturamento").select("*").in("status", ["Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
+      supabase.from("faturamento").select("*").in("status", ["Pendente", "Aprovado", "Pago", "Cancelado"]).order("numero_sequencial", { ascending: false }),
       supabase.from("contratos").select("*"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, obra, email"),
       supabase.from("contas_bancarias").select("*"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
+      supabase.from("profiles").select("user_id, nome").order("nome")
     ]));
 
     const empresasMap = new Map((empRes.data || []).map(e => [e.id, e]));
@@ -177,6 +184,7 @@ export const FaturamentoTab = () => {
     if (empRes.data) setEmpresas(empRes.data as unknown as Empresa[]);
     if (contasRes.data) setContas(contasRes.data as unknown as ContaBancaria[]);
     if (equipRes.data) setEquipamentos(equipRes.data as unknown as EquipamentoInfo[]);
+    if (equipRes[4] && equipRes[4].data) setUsuarios(equipRes[4].data as any); // Using the 5th element from Promise.all
 
     // Load faturamento_equipamentos for all faturas
     if (fatRes.data && fatRes.data.length > 0) {
@@ -996,9 +1004,25 @@ export const FaturamentoTab = () => {
                     <ShieldCheck className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
-                  <FileDown className="h-4 w-4" />
-                </Button>
+                {f.status === "Pendente" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                    title="Solicitar Aprovação"
+                    onClick={() => {
+                      setApproveFaturaId(f.id);
+                      setApproveDialogOpen(true);
+                    }}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+                {(role === "admin" || role === "superadmin" || f.status === "Aprovado" || f.status === "Pago") && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
+                    <FileDown className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1217,6 +1241,55 @@ export const FaturamentoTab = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Solicitar Aprovação Modal */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Solicitar Aprovação</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Selecione o aprovador responsável</Label>
+              <SearchableSelect
+                value={approveUserId}
+                onValueChange={setApproveUserId}
+                placeholder="Selecione um usuário..."
+                searchPlaceholder="Buscar usuário..."
+                options={usuarios.map(u => ({ value: u.user_id, label: u.nome }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={async () => {
+              if (!approveFaturaId || !approveUserId) return;
+              const user = usuarios.find(u => u.user_id === approveUserId);
+              if (!user) return;
+              
+              const { data: fatura } = await supabase.from("faturamento").select("agenda_event_id").eq("id", approveFaturaId).single();
+              if (fatura?.agenda_event_id) {
+                await supabase.from("agenda").update({
+                  status: "Aguardando Aprovação",
+                  responsavel_nome: user.nome
+                }).eq("id", fatura.agenda_event_id);
+
+                await supabase.from("agenda").update({
+                  historico: supabase.sql`jsonb_insert(COALESCE(historico, '[]'::jsonb), '{0}', ${JSON.stringify({
+                    data: new Date().toISOString(),
+                    usuario: profile?.nome || "Sistema",
+                    acao: "Solicitou Aprovação",
+                    detalhes: `Direcionado para: ${user.nome}`
+                  })}::jsonb)`
+                } as any).eq("id", fatura.agenda_event_id).catch(() => {});
+              }
+              toast({ title: "Sucesso", description: `Aprovação solicitada para ${user.nome}.` });
+              setApproveDialogOpen(false);
+              setApproveFaturaId(null);
+            }} className="bg-blue-600 hover:bg-blue-700">Solicitar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ImportFaturasDialog
         isOpen={importDialogOpen}

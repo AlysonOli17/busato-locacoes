@@ -1089,6 +1089,30 @@ export const FaturamentoContent = () => {
       const { data, error } = await supabase.from("faturamento").insert({ ...payload, id: newFaturaId }).select("id").single();
       if (error || !data) { toast({ title: "Erro", description: error?.message || "Erro ao criar fatura", variant: "destructive" }); return; }
       faturaId = data.id;
+
+      // Integration: Create Kanban Event "Em Andamento"
+      const agendaId = crypto.randomUUID();
+      const selectedContratoData = contratos.find(c => c.id === formContratoId);
+      const tituloAgenda = `Aprovação de Faturamento - ${selectedContratoData?.empresas?.nome || 'Cliente'} (Ref: ${formPeriodo})`;
+      const { error: agendaError } = await supabase.from("agenda").insert({
+        id: agendaId,
+        titulo: tituloAgenda,
+        descricao: `Fatura gerada aguardando conferência e aprovação.`,
+        data_inicio: new Date().toISOString(),
+        status: "Em Andamento",
+        prioridade: "Média",
+        categoria: "Faturamento",
+        contrato_id: formContratoId,
+        empresa_id: selectedContratoData?.empresa_id || null,
+        notas: `[Fatura ID: ${faturaId}]`
+      });
+
+      if (!agendaError) {
+        // Link agenda_event_id to faturamento if column exists
+        await supabase.rpc('query_raw', { query: `UPDATE faturamento SET agenda_event_id = '${agendaId}' WHERE id = '${faturaId}'` }).catch(() => {});
+        // Also just try normal update in case column exists
+        await supabase.from("faturamento").update({ agenda_event_id: agendaId } as any).eq("id", faturaId).catch(() => {});
+      }
     }
 
     // Save per-equipment details

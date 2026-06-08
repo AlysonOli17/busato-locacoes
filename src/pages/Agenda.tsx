@@ -707,6 +707,16 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
           })
           .eq("id", eventId);
         if (error) throw error;
+
+        // Integration: Auto-approve linked Faturamento
+        if (updatedEvent.status === "Concluído" && updatedEvent.categoria === "Faturamento") {
+          try {
+             const { error: fatError } = await supabase.from("faturamento").update({ status: "Aprovado" } as any).eq("agenda_event_id", eventId);
+             if (!fatError) {
+               toast({ title: "Faturamento Aprovado", description: "O faturamento vinculado foi aprovado automaticamente." });
+             }
+          } catch(e) {}
+        }
       } catch (err: any) {
         toast({ title: "Erro ao atualizar campo", description: err.message, variant: "destructive" });
         fetchData();
