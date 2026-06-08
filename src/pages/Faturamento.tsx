@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { calcularHorasInterpoladas, parseLocalDate } from "@/lib/utils";
@@ -176,6 +177,8 @@ export const FaturamentoContent = () => {
   interface MobEvent { equipamento_id: string; tipo: string; modelo: string; tag_placa: string | null; evento: "Mobilização" | "Desmobilização"; data: string; }
   const [mobAlerts, setMobAlerts] = useState<MobEvent[]>([]);
   const [mobDialogOpen, setMobDialogOpen] = useState(false);
+  const [solicitarAprovacaoDialog, setSolicitarAprovacaoDialog] = useState<{ isOpen: boolean; faturaId: string | null; responsavelId: string }>({ isOpen: false, faturaId: null, responsavelId: "" });
+  const [usuarios, setUsuarios] = useState<any[]>([]);
   const [aprovarDialog, setAprovarDialog] = useState<{ isOpen: boolean; faturaId: string | null; emissaoDate: string }>({
     isOpen: false,
     faturaId: null,
@@ -237,7 +240,11 @@ export const FaturamentoContent = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  const fetchUsuarios = async () => {
+    const { data } = await supabase.from("usuarios").select("id, nome, role").eq("status", "Ativo");
+    if (data) setUsuarios(data);
+  };
+  useEffect(() => { fetchData(); fetchUsuarios(); }, []);
 
   // Fetch measurements + gastos for ALL equipment in a contract
   const fetchMedicoesEGastos = useCallback(async (contratoId: string, inicio: string, fim: string, checkActive?: () => boolean) => {
@@ -1899,6 +1906,45 @@ export const FaturamentoContent = () => {
             </Button>
             <Button onClick={handleCreateMobGastos} disabled={creatingMob} className="bg-accent text-accent-foreground hover:bg-accent/90">
               {creatingMob ? "Criando..." : "Incluir Custos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+            {/* Custom Fatura Approval Dialog */}
+      <Dialog open={solicitarAprovacaoDialog.isOpen} onOpenChange={(open) => !open && setSolicitarAprovacaoDialog(prev => ({ ...prev, isOpen: false }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar para Aprovação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              A medição mudará para o status <strong>Aguardando Aprovação</strong> no Kanban.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Responsável pela Aprovação (Opcional)
+              </label>
+              <Select 
+                value={solicitarAprovacaoDialog.responsavelId} 
+                onValueChange={(v) => setSolicitarAprovacaoDialog(prev => ({ ...prev, responsavelId: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um usuário (Padrão: Admins)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Deixar para Administradores</SelectItem>
+                  {usuarios.map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSolicitarAprovacaoDialog(prev => ({ ...prev, isOpen: false }))}>Cancelar</Button>
+            <Button className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={handleSolicitarAprovacao}>
+              Enviar para Aprovação
             </Button>
           </DialogFooter>
         </DialogContent>
