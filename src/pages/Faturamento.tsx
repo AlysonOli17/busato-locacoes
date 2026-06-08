@@ -512,7 +512,8 @@ export const FaturamentoContent = () => {
           const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
           const baseMinimo = ef.hora_minima_original > 0 ? ef.hora_minima_original : ef.horas_contratadas_original;
           const propMinimo = Number(((baseMinimo / 30) * diasProp).toFixed(1));
-          const horasEfetivas = Math.max(propMinimo, horasMedidasCalculo);
+          const minimumAjustado = Math.max(0, propMinimo - ef.horas_indisponiveis);
+          const horasEfetivas = Math.max(minimumAjustado, horasMedidasCalculo);
           ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
           ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
         } else {
@@ -521,7 +522,8 @@ export const FaturamentoContent = () => {
         }
       } else {
         const applyMinima = ef.hora_minima > 0;
-        const horasEfetivas = applyMinima && horasMedidasCalculo < ef.hora_minima ? ef.hora_minima : horasMedidasCalculo;
+        const minimumAjustado = Math.max(0, ef.hora_minima_original - ef.horas_indisponiveis);
+        const horasEfetivas = applyMinima && horasMedidasCalculo < minimumAjustado ? minimumAjustado : horasMedidasCalculo;
         ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
         ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
       }
@@ -725,7 +727,8 @@ export const FaturamentoContent = () => {
         const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
         const baseMinimo = ef.hora_minima_original > 0 ? ef.hora_minima_original : ef.horas_contratadas_original;
         const propMinimo = Number(((baseMinimo / 30) * diasProp).toFixed(1));
-        const horasEfetivas = Math.max(propMinimo, horasMedidasCalculo);
+        const minimumAjustado = Math.max(0, propMinimo - (ef.horas_indisponiveis || 0));
+        const horasEfetivas = Math.max(minimumAjustado, horasMedidasCalculo);
         ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
         ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
       } else {
@@ -734,7 +737,8 @@ export const FaturamentoContent = () => {
       }
     } else {
       const applyMinima = ef.hora_minima > 0;
-      const horasEfetivas = applyMinima && horasMedidasCalculo < ef.hora_minima ? ef.hora_minima : horasMedidasCalculo;
+      const minimumAjustado = Math.max(0, ef.hora_minima_original - (ef.horas_indisponiveis || 0));
+      const horasEfetivas = applyMinima && horasMedidasCalculo < minimumAjustado ? minimumAjustado : horasMedidasCalculo;
       ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
       ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
     }
