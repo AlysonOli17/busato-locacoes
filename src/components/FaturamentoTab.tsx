@@ -1004,20 +1004,7 @@ export const FaturamentoTab = () => {
                     <ShieldCheck className="h-4 w-4" />
                   </Button>
                 )}
-                {f.status === "Pendente" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                    title="Solicitar Aprovação"
-                    onClick={() => {
-                      setApproveFaturaId(f.id);
-                      setApproveDialogOpen(true);
-                    }}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                )}
+
                 {(role === "admin" || role === "superadmin" || f.status === "Aprovado" || f.status === "Pago") && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
                     <FileDown className="h-4 w-4" />
@@ -1242,54 +1229,6 @@ export const FaturamentoTab = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Solicitar Aprovação Modal */}
-      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Solicitar Aprovação</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Selecione o aprovador responsável</Label>
-              <SearchableSelect
-                value={approveUserId}
-                onValueChange={setApproveUserId}
-                placeholder="Selecione um usuário..."
-                searchPlaceholder="Buscar usuário..."
-                options={usuarios.map(u => ({ value: u.user_id, label: u.nome }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={async () => {
-              if (!approveFaturaId || !approveUserId) return;
-              const user = usuarios.find(u => u.user_id === approveUserId);
-              if (!user) return;
-              
-              const { data: fatura } = await supabase.from("faturamento").select("agenda_event_id").eq("id", approveFaturaId).single();
-              if (fatura?.agenda_event_id) {
-                await supabase.from("agenda").update({
-                  status: "Aguardando Aprovação",
-                  responsavel_nome: user.nome
-                }).eq("id", fatura.agenda_event_id);
-
-                await supabase.from("agenda").update({
-                  historico: supabase.sql`jsonb_insert(COALESCE(historico, '[]'::jsonb), '{0}', ${JSON.stringify({
-                    data: new Date().toISOString(),
-                    usuario: profile?.nome || "Sistema",
-                    acao: "Solicitou Aprovação",
-                    detalhes: `Direcionado para: ${user.nome}`
-                  })}::jsonb)`
-                } as any).eq("id", fatura.agenda_event_id).catch(() => {});
-              }
-              toast({ title: "Sucesso", description: `Aprovação solicitada para ${user.nome}.` });
-              setApproveDialogOpen(false);
-              setApproveFaturaId(null);
-            }} className="bg-blue-600 hover:bg-blue-700">Solicitar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <ImportFaturasDialog
         isOpen={importDialogOpen}
