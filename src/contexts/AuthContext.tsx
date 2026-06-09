@@ -50,17 +50,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
       
-      const sessionUserId = session?.user?.id;
-      const isUserChanged = sessionUserId !== user?.id;
-      const isInitialOrChange = event === "SIGNED_IN" || event === "SIGNED_OUT" || isUserChanged;
+      const newUserId = session?.user?.id;
+      
+      // Se não há alteração de usuário, ignore completamente o evento para evitar resetar a tela
+      if (user && newUserId === user.id && event !== "SIGNED_OUT") {
+        setSession(session);
+        return;
+      }
       
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        if (isInitialOrChange && !user) {
-          setLoading(true);
-        }
+        setLoading(true);
         setTimeout(async () => {
           if (!mounted) return;
           await loadUserData(session.user.id);
