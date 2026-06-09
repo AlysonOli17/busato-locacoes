@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -29,6 +29,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Ref para rastrear o ID do usuário atual dentro de callbacks (evita stale closure)
+  // Diferente do estado, o ref é sempre atualizado e lido corretamente dentro de closures
+  const currentUserIdRef = useRef<string | null>(null);
+
   const loadUserData = async (userId: string) => {
     try {
       const [profileRes, roleRes, permRes] = await Promise.all([
@@ -49,18 +53,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-      
-      const newUserId = session?.user?.id;
-      
-      // Se não há alteração de usuário, ignore completamente o evento para evitar resetar a tela
-      if (user && newUserId === user.id && event !== "SIGNED_OUT") {
+
+      const newUserId = session?.user?.id ?? null;
+
+      // CORREÇÃO DEFINITIVA: usa o ref (sempre atualizado) em vez do estado (closure desatualizado)
+      // O Supabase dispara TOKEN_REFRESHED ao voltar de outra aba/janela do navegador.
+      // Com o ref, conseguimos detectar que é o mesmo usuário e ignorar completamente o evento,
+      // evitando qualquer rerenderização ou recarga de dados da página.
+      if (currentUserIdRef.current && newUserId === currentUserIdRef.current && event !== "SIGNED_OUT") {
+        // Apenas atualiza a sessão silenciosamente, sem recarregar nada
         setSession(session);
         return;
       }
-      
+
+      // Atualiza o ref com o novo ID
+      currentUserIdRef.current = newUserId;
+
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         setLoading(true);
         setTimeout(async () => {
@@ -78,6 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
+      currentUserIdRef.current = session?.user?.id ?? null;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -109,6 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    currentUserIdRef.current = null;
     await supabase.auth.signOut();
   };
 
