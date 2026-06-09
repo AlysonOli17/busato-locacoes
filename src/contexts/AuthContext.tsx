@@ -47,13 +47,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
+      
+      const isInitialOrChange = event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED" || (session?.user?.id !== user?.id);
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        setLoading(true); // Evita o erro de "duplo login"
-        // Use setTimeout to avoid Supabase auth deadlock
+        if (isInitialOrChange) {
+          setLoading(true);
+        }
         setTimeout(async () => {
           if (!mounted) return;
           await loadUserData(session.user.id);
