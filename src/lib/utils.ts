@@ -156,25 +156,24 @@ export function getDisplayStatus(
     data_aprovacao?: string | null;
     contrato_id?: string;
     contratos?: { prazo_faturamento?: number | null } | null;
+    numero_nota?: string | null;
   },
   contrato?: { prazo_faturamento?: number | null } | null,
   mode: "medicao" | "faturamento" = "faturamento"
 ): string {
   if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
   
+  const venc = getVencimento(fatura, contrato);
+  if (venc && new Date() > venc) return "Em Atraso";
+
   if (mode === "medicao") {
     if (fatura.status === "Aprovado") return fatura.status;
-    const venc = getVencimento(fatura, contrato);
-    if (venc && new Date() > venc) return "Em Atraso";
     return fatura.status;
   } else {
     if (fatura.status === "Aprovado") {
-      const venc = getVencimento(fatura, contrato);
-      if (venc && new Date() > venc) return "Em Atraso";
+      if (fatura.numero_nota) return "Pendente";
       return "A Faturar";
     }
-    const venc = getVencimento(fatura, contrato);
-    if (venc && new Date() > venc) return "Em Atraso";
     return fatura.status;
   }
 }

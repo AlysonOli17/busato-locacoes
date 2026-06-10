@@ -304,7 +304,7 @@ export const FaturamentoTab = () => {
       if (status === "Pago") {
         faturadoVal += val;
         faturadoQty++;
-      } else if (status === "A Faturar") {
+      } else if (status === "A Faturar" || status === "Pendente") {
         pendenteVal += val;
         pendenteQty++;
       } else if (status === "Em Atraso") {
@@ -949,6 +949,7 @@ export const FaturamentoTab = () => {
             <SelectContent>
               <SelectItem value="all">Todos os Status</SelectItem>
               <SelectItem value="A Faturar">A Faturar</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
               <SelectItem value="Pago">Pago</SelectItem>
               <SelectItem value="Em Atraso">Em Atraso</SelectItem>
               <SelectItem value="Cancelado">Cancelado</SelectItem>
