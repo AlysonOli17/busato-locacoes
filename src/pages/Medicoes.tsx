@@ -47,6 +47,13 @@ interface Medicao {
 
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
+const getDaysDifference = (dateStr1: string, dateStr2: string) => {
+  const d1 = new Date(dateStr1 + "T00:00:00");
+  const d2 = new Date(dateStr2 + "T00:00:00");
+  const diffTime = Math.abs(d1.getTime() - d2.getTime());
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+};
+
 const Medicoes = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(() => {
@@ -78,6 +85,7 @@ const Medicoes = () => {
   const [dataFim, setDataFim] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [horimetroAnterior, setHorimetroAnterior] = useState<number>(0);
+  const [dataAnterior, setDataAnterior] = useState<string | null>(null);
   const [baselines, setBaselines] = useState<Map<string, { horim: number; data: string }>>(new Map());
   const [equipMedicaoTypes, setEquipMedicaoTypes] = useState<Map<string, "horas" | "diarias">>(new Map());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -176,11 +184,13 @@ const Medicoes = () => {
     if (result && result.length > 0) {
       const prevVal = Number(result[0].horimetro_final);
       setHorimetroAnterior(prevVal);
+      setDataAnterior(result[0].data);
       if (updateForm) {
         setForm(prev => ({ ...prev, horimetro_inicial: prevVal }));
       }
     } else {
       setHorimetroAnterior(0);
+      setDataAnterior(null);
       if (updateForm) {
         setForm(prev => ({ ...prev, horimetro_inicial: 0 }));
       }
@@ -308,19 +318,24 @@ const Medicoes = () => {
 
       const [baselinesRes, currentMedicoesRes] = await Promise.all([
         Promise.all(activeEquipIdsArr.map(async (eqId) => {
-          const { data } = await supabase.from("medicoes").select("horimetro_final")
+          const { data } = await supabase.from("medicoes").select("horimetro_final, data")
             .eq("equipamento_id", eqId).eq("tipo", "Trabalho").lt("data", targetDate)
             .order("data", { ascending: false }).limit(1);
-          return { eqId, horim: data && data.length > 0 ? Number(data[0].horimetro_final) : 0 };
+          return { 
+            eqId, 
+            horim: data && data.length > 0 ? Number(data[0].horimetro_final) : 0,
+            dataAnterior: data && data.length > 0 ? data[0].data : null
+          };
         })),
         supabase.from("medicoes").select("*").eq("data", targetDate)
       ]);
 
-      const baselinesMap = new Map(baselinesRes.map(b => [b.eqId, b.horim]));
       const currentMedicoesList = currentMedicoesRes.data || [];
 
       const gridItems = activeEquipIdsArr.map(eqId => {
-        const baseline = baselinesMap.get(eqId) || 0;
+        const baselineData = baselinesRes.find(b => b.eqId === eqId);
+        const baseline = baselineData?.horim || 0;
+        const dataAnterior = baselineData?.dataAnterior || null;
         const current = currentMedicoesList.find(m => m.equipamento_id === eqId);
         const conData = equipContracts.get(eqId);
         const isDiaria = conData?.tipoMedicao === "diarias";
@@ -342,7 +357,8 @@ const Medicoes = () => {
           tipo: current?.tipo || "Trabalho",
           observacoes: current?.observacoes || "",
           alreadyExists: !!current,
-          id: current?.id || null
+          id: current?.id || null,
+          dataAnterior: dataAnterior
         };
       });
 
@@ -383,10 +399,17 @@ const Medicoes = () => {
         const horasIndisp = item.horas_indisponiveis;
         const totalDia = isIndisp ? horasIndisp : horasTrab;
         
-        if (!isDiaria && totalDia > 24) {
+        let maxHoras = 24;
+        let dias = 1;
+        if (!isDiaria && item.dataAnterior) {
+          dias = getDaysDifference(bulkDate, item.dataAnterior);
+          maxHoras = Math.max(24, dias * 24);
+        }
+
+        if (!isDiaria && totalDia > maxHoras) {
           toast({
             title: "Erro de Validação",
-            description: `As horas trabalhadas da máquina "${item.label}" excedem 24 horas (${totalDia.toFixed(1)}h). Verifique o lançamento.`,
+            description: `As horas trabalhadas da máquina "${item.label}" excedem o limite de ${maxHoras} horas para o período (${totalDia.toFixed(1)}h). Verifique o lançamento.`,
             variant: "destructive"
           });
           setIsSavingBulk(false);
@@ -406,7 +429,31 @@ const Medicoes = () => {
         if (item.alreadyExists && item.id) {
           toUpdate.push({ id: item.id, ...payload });
         } else {
-          toInsert.push({ id: crypto.randomUUID(), ...payload });
+          if (!isDiaria && !isIndisp && dias > 1) {
+            const avgHours = totalDia / dias;
+            const startDate = new Date(item.dataAnterior + "T00:00:00");
+            for (let i = 1; i <= dias; i++) {
+              const currentDate = new Date(startDate.getTime());
+              currentDate.setDate(startDate.getDate() + i);
+              const dateStr = currentDate.toISOString().split("T")[0];
+              
+              const hStart = item.horimetro_inicial + (i - 1) * avgHours;
+              const hFinalRow = item.horimetro_inicial + i * avgHours;
+              
+              toInsert.push({
+                id: crypto.randomUUID(),
+                equipamento_id: item.equipamento_id,
+                data: dateStr,
+                horimetro_inicial: Number(hStart.toFixed(4)),
+                horimetro_final: Number(hFinalRow.toFixed(4)),
+                horas_trabalhadas: Number(avgHours.toFixed(4)),
+                tipo: item.tipo,
+                observacoes: item.observacoes || null
+              });
+            }
+          } else {
+            toInsert.push({ id: crypto.randomUUID(), ...payload });
+          }
         }
       }
 
@@ -512,6 +559,8 @@ const Medicoes = () => {
       horas_trab: 1,
       horimetro_inicial: 0,
     });
+    setHorimetroAnterior(0);
+    setDataAnterior(null);
     if (defaultEquip) fetchHorimetroPorData(defaultEquip, new Date().toISOString().split("T")[0]);
     setDialogOpen(true);
   };
@@ -532,6 +581,7 @@ const Medicoes = () => {
       horimetro_inicial: Number(m.horimetro_inicial)
     });
     setHorimetroAnterior(Number(m.horimetro_inicial));
+    setDataAnterior(null);
     setDialogOpen(true);
     fetchHorimetroPorData(m.equipamento_id, m.data, m.id, false);
   };
@@ -574,12 +624,57 @@ const Medicoes = () => {
           });
           return;
         }
-        if (form.horimetro - hInicial > 24) {
+        let maxHoras = 24;
+        let dias = 1;
+        if (dataAnterior) {
+          dias = getDaysDifference(form.data, dataAnterior);
+          maxHoras = Math.max(24, dias * 24);
+        }
+
+        if (form.horimetro - hInicial > maxHoras) {
           toast({
             title: "Erro de Validação",
-            description: `As horas trabalhadas (${(form.horimetro - hInicial).toFixed(1)}h) não podem exceder 24 horas em um único dia.`,
+            description: `As horas trabalhadas (${(form.horimetro - hInicial).toFixed(1)}h) não podem exceder o limite de ${maxHoras} horas para o período.`,
             variant: "destructive"
           });
+          return;
+        }
+
+        // Se for uma nova medição e abranger mais de 1 dia, distribui/interpola as horas e insere diariamente
+        if (!editingId && dataAnterior && dias > 1) {
+          const avgHours = horasTrabalhadas / dias;
+          const toInsert = [];
+          
+          const startDate = new Date(dataAnterior + "T00:00:00");
+          for (let i = 1; i <= dias; i++) {
+            const currentDate = new Date(startDate.getTime());
+            currentDate.setDate(startDate.getDate() + i);
+            const dateStr = currentDate.toISOString().split("T")[0];
+            
+            const hStart = form.horimetro_inicial + (i - 1) * avgHours;
+            const hFinalRow = form.horimetro_inicial + i * avgHours;
+            
+            toInsert.push({
+              id: crypto.randomUUID(),
+              equipamento_id: form.equipamento_id,
+              data: dateStr,
+              horimetro_inicial: Number(hStart.toFixed(4)),
+              horimetro_final: Number(hFinalRow.toFixed(4)),
+              horas_trabalhadas: Number(avgHours.toFixed(4)),
+              tipo: form.tipo,
+              observacoes: form.observacoes || null,
+            });
+          }
+          
+          const { error } = await supabase.from("medicoes").insert(toInsert);
+          if (error) {
+            toast({ title: "Erro", description: "Não foi possível gerar os lançamentos diários: " + error.message, variant: "destructive" });
+            return;
+          }
+          
+          toast({ title: "Lançamentos distribuídos", description: `${dias} registros diários foram gerados de ${parseLocalDate(dataAnterior).toLocaleDateString("pt-BR")} a ${parseLocalDate(form.data).toLocaleDateString("pt-BR")}.` });
+          setDialogOpen(false);
+          fetchData();
           return;
         }
       }
