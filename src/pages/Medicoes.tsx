@@ -159,20 +159,31 @@ const Medicoes = () => {
 
   useEffect(() => {fetchData();}, []);
 
-  const fetchHorimetroPorData = async (equipId: string, data: string, excludeId?: string) => {
+  const fetchHorimetroPorData = async (equipId: string, data: string, excludeId?: string, updateForm = true) => {
     let query = supabase.
-    from("medicoes").
-    select("horimetro_final, data").
-    eq("equipamento_id", equipId).
-    lt("data", data).
-    order("data", { ascending: false }).
-    limit(1);
+      from("medicoes").
+      select("horimetro_final, data").
+      eq("equipamento_id", equipId).
+      lt("data", data);
+
+    if (excludeId) {
+      query = query.neq("id", excludeId);
+    }
+
+    query = query.order("data", { ascending: false }).limit(1);
 
     const { data: result } = await query;
     if (result && result.length > 0) {
-      setHorimetroAnterior(Number(result[0].horimetro_final));
+      const prevVal = Number(result[0].horimetro_final);
+      setHorimetroAnterior(prevVal);
+      if (updateForm) {
+        setForm(prev => ({ ...prev, horimetro_inicial: prevVal }));
+      }
     } else {
       setHorimetroAnterior(0);
+      if (updateForm) {
+        setForm(prev => ({ ...prev, horimetro_inicial: 0 }));
+      }
     }
   };
 
@@ -485,7 +496,7 @@ const Medicoes = () => {
     ? (form.tipo === "Indisponível" ? form.horas_indisp : form.horas_trab)
     : (form.tipo === "Indisponível"
       ? form.horas_indisp
-      : Math.max(0, form.horimetro - (form.horimetro_inicial_indisp || (horimetroAnterior === 0 ? form.horimetro_inicial : horimetroAnterior))));
+      : Math.max(0, form.horimetro - (form.horimetro_inicial_indisp || form.horimetro_inicial)));
 
   const openNew = () => {
     const defaultEquip = equipamentos.length > 0 ? equipamentos[0].id : "";
@@ -522,7 +533,7 @@ const Medicoes = () => {
     });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
-    fetchHorimetroPorData(m.equipamento_id, m.data, m.id);
+    fetchHorimetroPorData(m.equipamento_id, m.data, m.id, false);
   };
 
   const handleSave = async () => {
@@ -550,7 +561,7 @@ const Medicoes = () => {
     } else {
       hInicial = isIndisp 
         ? form.horimetro_inicial_indisp 
-        : (horimetroAnterior === 0 ? form.horimetro_inicial : horimetroAnterior);
+        : form.horimetro_inicial;
       hFinal = form.horimetro;
       horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
 
@@ -982,23 +993,28 @@ const Medicoes = () => {
                           </div>
                         </div>
                       ) : (
-                        <>
-                          {horimetroAnterior === 0 && (
-                            <div className="mb-4">
-                              <Label>Horímetro Inicial (Primeiro Lançamento)</Label>
-                              <Input 
-                                type="number" 
-                                step="0.1" 
-                                value={form.horimetro_inicial || ""} 
-                                onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} 
-                                placeholder="Ex: 20600.0" 
-                              />
-                              <p className="text-xs text-muted-foreground mt-1">Como este é o primeiro lançamento da máquina, informe o horímetro de partida.</p>
-                            </div>
-                          )}
-                          <Label>Horímetro Atual</Label>
-                          <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} placeholder="Ex: 189.5" />
-                        </>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label>Horímetro Inicial</Label>
+                            <Input 
+                              type="number" 
+                              step="0.1" 
+                              value={form.horimetro_inicial || ""} 
+                              onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} 
+                              placeholder="Ex: 180.0" 
+                            />
+                          </div>
+                          <div>
+                            <Label>Horímetro Atual</Label>
+                            <Input 
+                              type="number" 
+                              step="0.1" 
+                              value={form.horimetro || ""} 
+                              onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} 
+                              placeholder="Ex: 189.5" 
+                            />
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1011,7 +1027,7 @@ const Medicoes = () => {
                       <p className="text-xs text-muted-foreground">
                         {form.tipo === "Indisponível" 
                           ? form.horimetro_inicial_indisp.toFixed(1) 
-                          : (horimetroAnterior === 0 ? form.horimetro_inicial.toFixed(1) : horimetroAnterior.toFixed(1))} → {form.horimetro.toFixed(1)}
+                          : form.horimetro_inicial.toFixed(1)} → {form.horimetro.toFixed(1)}
                       </p>
                     </div>
                   )}
