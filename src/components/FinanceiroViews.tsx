@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getVencimento as getVencimentoGlobal, getDisplayStatus as getDisplayStatusGlobal } from "@/lib/utils";
 import { withCache, clearCache } from "@/lib/cache";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -172,21 +173,11 @@ function useFinanceiroData() {
 }
 
 function getVencimento(fatura: Fatura) {
-  const prazo = fatura.contratos?.prazo_faturamento || 30;
-  const dateStr = fatura.emissao || fatura.data_aprovacao;
-  if (!dateStr) return null;
-  const baseDate = parseLocalDate(dateStr);
-  if (isNaN(baseDate.getTime())) return null;
-  const venc = new Date(baseDate);
-  venc.setDate(venc.getDate() + prazo);
-  return venc;
+  return getVencimentoGlobal(fatura, fatura.contratos);
 }
 
 function getDisplayStatus(fatura: Fatura) {
-  if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
-  const venc = getVencimento(fatura);
-  if (venc && new Date() > venc) return "Em Atraso";
-  return "Pendente";
+  return getDisplayStatusGlobal(fatura, fatura.contratos, "faturamento");
 }
 
 const calcPeriodForMonth = (ct: Contrato, year: number, month: number) => {
@@ -229,7 +220,7 @@ function SharedDashboardHeader({
   contratosAtivos
 }: BaseViewProps) {
   const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
-  const totalPendente = faturasFiltered.filter(f => getDisplayStatus(f) === "Pendente").reduce((s, f) => s + Number(f.valor_total), 0);
+  const totalPendente = faturasFiltered.filter(f => getDisplayStatus(f) === "A Faturar").reduce((s, f) => s + Number(f.valor_total), 0);
   const totalAtraso = faturasFiltered.filter(f => getDisplayStatus(f) === "Em Atraso").reduce((s, f) => s + Number(f.valor_total), 0);
   const qtdAtraso = faturasFiltered.filter(f => getDisplayStatus(f) === "Em Atraso").length;
 
@@ -257,7 +248,7 @@ function SharedDashboardHeader({
               <Clock className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pendente</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">A Faturar</p>
               <h3 className="text-base font-bold text-warning truncate mt-0.5">R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
             </div>
           </CardContent>
@@ -690,7 +681,7 @@ export function HistoricoFaturamentoView() {
           return ct && ids.includes(ct.empresa_id);
         });
         const pagas = empFaturas.filter(f => f.status === "Pago").length;
-        const pendentes = empFaturas.filter(f => getDisplayStatus(f) === "Pendente").length;
+        const pendentes = empFaturas.filter(f => getDisplayStatus(f) === "A Faturar").length;
         const atraso = empFaturas.filter(f => getDisplayStatus(f) === "Em Atraso").length;
         const total = empFaturas.reduce((s, f) => s + Number(f.valor_total), 0);
         

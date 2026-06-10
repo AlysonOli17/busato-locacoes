@@ -80,6 +80,11 @@ const Medicoes = () => {
   const [horimetroAnterior, setHorimetroAnterior] = useState<number>(0);
   const [baselines, setBaselines] = useState<Map<string, { horim: number; data: string }>>(new Map());
   const [equipMedicaoTypes, setEquipMedicaoTypes] = useState<Map<string, "horas" | "diarias">>(new Map());
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkDate, setBulkDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [bulkGridItems, setBulkGridItems] = useState<any[]>([]);
+  const [loadingBulkGrid, setLoadingBulkGrid] = useState(false);
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async (force = false) => {
@@ -87,7 +92,7 @@ const Medicoes = () => {
     const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
-      supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id").eq("status", "Ativo"),
+      supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id"),
       supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id"),
       supabase.from("contratos_aditivos").select("id, contrato_id"),
       supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id")
@@ -219,6 +224,208 @@ const Medicoes = () => {
 
   useEffect(() => { fetchBaselines(); }, [fetchBaselines]);
 
+  const fetchActiveEquipmentsForDate = async (targetDate: string) => {
+    setLoadingBulkGrid(true);
+    try {
+      const [contractsRes, ceRes, aditivosRes, aeRes, equipRes, empresasRes] = await Promise.all([
+        supabase.from("contratos").select("id, status, tipo_medicao, empresa_id").neq("status", "Cancelado"),
+        supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id, data_entrega, data_devolucao"),
+        supabase.from("contratos_aditivos").select("id, contrato_id, data_inicio, data_fim"),
+        supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id, data_entrega, data_devolucao"),
+        supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
+        supabase.from("empresas").select("id, nome, obra")
+      ]);
+
+      const contratosDataRaw = contractsRes.data || [];
+      const ceList = ceRes.data || [];
+      const aditivosList = aditivosRes.data || [];
+      const aeList = aeRes.data || [];
+      const equipsList = equipRes.data || [];
+      const empresasList = empresasRes.data || [];
+
+      const empresasMap = new Map(empresasList.map(e => [e.id, e]));
+      const contratosData = contratosDataRaw.map(c => ({
+        ...c,
+        empresas: empresasMap.get(c.empresa_id) || null
+      }));
+
+      const equipsMap = new Map(equipsList.map(e => [e.id, e]));
+      const activeEquipIds = new Set<string>();
+      const equipContracts = new Map<string, { contratoId: string; tipoMedicao: "horas" | "diarias"; label: string }>();
+
+      contratosData.forEach(c => {
+        const baseCes = ceList.filter(ce => ce.contrato_id === c.id);
+        baseCes.forEach(ce => {
+          const delivered = !ce.data_entrega || ce.data_entrega <= targetDate;
+          const returned = ce.data_devolucao && ce.data_devolucao <= targetDate;
+          if (delivered && !returned) {
+            activeEquipIds.add(ce.equipamento_id);
+            const eq = equipsMap.get(ce.equipamento_id);
+            const eqLabel = eq ? `${eq.tipo} ${eq.modelo} ${eq.tag_placa ? `(${eq.tag_placa})` : ""}` : "Equipamento";
+            equipContracts.set(ce.equipamento_id, {
+              contratoId: c.id,
+              tipoMedicao: (c.tipo_medicao as "horas" | "diarias") || "horas",
+              label: `${c.empresas?.nome || "Cliente"}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${eqLabel}`
+            });
+          }
+        });
+      });
+
+      const activeAditivos = aditivosList.filter(a => a.data_inicio <= targetDate && a.data_fim >= targetDate);
+      const activeAditivoIds = activeAditivos.map(a => a.id);
+      const activeAes = aeList.filter(ae => activeAditivoIds.includes(ae.aditivo_id));
+      activeAes.forEach(ae => {
+        const ad = activeAditivos.find(a => a.id === ae.aditivo_id);
+        const c = contratosData.find(con => con.id === ad?.contrato_id);
+        if (c) {
+          const delivered = !ae.data_entrega || ae.data_entrega <= targetDate;
+          const returned = ae.data_devolucao && ae.data_devolucao <= targetDate;
+          if (delivered && !returned) {
+            activeEquipIds.add(ae.equipamento_id);
+            const eq = equipsMap.get(ae.equipamento_id);
+            const eqLabel = eq ? `${eq.tipo} ${eq.modelo} ${eq.tag_placa ? `(${eq.tag_placa})` : ""}` : "Equipamento";
+            equipContracts.set(ae.equipamento_id, {
+              contratoId: c.id,
+              tipoMedicao: (c.tipo_medicao as "horas" | "diarias") || "horas",
+              label: `${c.empresas?.nome || "Cliente"}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${eqLabel} (Aditivo)`
+            });
+          }
+        }
+      });
+
+      const activeEquipIdsArr = Array.from(activeEquipIds);
+
+      const [baselinesRes, currentMedicoesRes] = await Promise.all([
+        Promise.all(activeEquipIdsArr.map(async (eqId) => {
+          const { data } = await supabase.from("medicoes").select("horimetro_final")
+            .eq("equipamento_id", eqId).eq("tipo", "Trabalho").lt("data", targetDate)
+            .order("data", { ascending: false }).limit(1);
+          return { eqId, horim: data && data.length > 0 ? Number(data[0].horimetro_final) : 0 };
+        })),
+        supabase.from("medicoes").select("*").eq("data", targetDate)
+      ]);
+
+      const baselinesMap = new Map(baselinesRes.map(b => [b.eqId, b.horim]));
+      const currentMedicoesList = currentMedicoesRes.data || [];
+
+      const gridItems = activeEquipIdsArr.map(eqId => {
+        const baseline = baselinesMap.get(eqId) || 0;
+        const current = currentMedicoesList.find(m => m.equipamento_id === eqId);
+        const conData = equipContracts.get(eqId);
+        const isDiaria = conData?.tipoMedicao === "diarias";
+
+        let horimetroFinalVal = 0;
+        if (current) {
+          horimetroFinalVal = Number(current.horimetro_final);
+        }
+
+        return {
+          equipamento_id: eqId,
+          contrato_id: conData?.contratoId || "",
+          tipo_medicao: conData?.tipoMedicao || "horas",
+          label: conData?.label || "Equipamento",
+          horimetro_inicial: baseline,
+          horimetro_final: horimetroFinalVal,
+          horas_trabalhadas: current ? Number(current.horas_trabalhadas) : (isDiaria ? 1 : 0),
+          horas_indisponiveis: current && current.tipo === "Indisponível" ? Number(current.horas_trabalhadas) : 0,
+          tipo: current?.tipo || "Trabalho",
+          observacoes: current?.observacoes || "",
+          alreadyExists: !!current,
+          id: current?.id || null
+        };
+      });
+
+      setBulkGridItems(gridItems);
+    } catch (error) {
+      console.error("Erro ao carregar grid de lançamento rápido:", error);
+      toast({ title: "Erro ao carregar", description: "Não foi possível carregar as máquinas ativas.", variant: "destructive" });
+    } finally {
+      setLoadingBulkGrid(false);
+    }
+  };
+
+  const handleSaveBulk = async () => {
+    setIsSavingBulk(true);
+    try {
+      const toInsert: any[] = [];
+      const toUpdate: any[] = [];
+
+      for (const item of bulkGridItems) {
+        const isDiaria = item.tipo_medicao === "diarias";
+        const isIndisp = item.tipo === "Indisponível";
+
+        if (!isDiaria && item.horimetro_final <= 0 && !isIndisp) {
+          continue;
+        }
+
+        if (!isDiaria && !isIndisp && item.horimetro_final < item.horimetro_inicial) {
+          toast({
+            title: "Erro de Validação",
+            description: `O horímetro final (${item.horimetro_final}) da máquina "${item.label}" não pode ser menor que o inicial (${item.horimetro_inicial}).`,
+            variant: "destructive"
+          });
+          setIsSavingBulk(false);
+          return;
+        }
+
+        const horasTrab = isDiaria ? item.horas_trabalhadas : (item.horimetro_final - item.horimetro_inicial);
+        const horasIndisp = item.horas_indisponiveis;
+        const totalDia = isIndisp ? horasIndisp : horasTrab;
+        
+        if (!isDiaria && totalDia > 24) {
+          toast({
+            title: "Erro de Validação",
+            description: `As horas trabalhadas da máquina "${item.label}" excedem 24 horas (${totalDia.toFixed(1)}h). Verifique o lançamento.`,
+            variant: "destructive"
+          });
+          setIsSavingBulk(false);
+          return;
+        }
+
+        const payload = {
+          equipamento_id: item.equipamento_id,
+          data: bulkDate,
+          horimetro_inicial: isDiaria ? 0 : (isIndisp ? item.horimetro_inicial : item.horimetro_inicial),
+          horimetro_final: isDiaria ? 0 : (isIndisp ? item.horimetro_inicial : item.horimetro_final),
+          horas_trabalhadas: isIndisp ? item.horas_indisponiveis : (isDiaria ? item.horas_trabalhadas : (item.horimetro_final - item.horimetro_inicial)),
+          tipo: item.tipo,
+          observacoes: item.observacoes || null
+        };
+
+        if (item.alreadyExists && item.id) {
+          toUpdate.push({ id: item.id, ...payload });
+        } else {
+          toInsert.push({ id: crypto.randomUUID(), ...payload });
+        }
+      }
+
+      const promises = [];
+      if (toInsert.length > 0) {
+        promises.push(supabase.from("medicoes").insert(toInsert));
+      }
+      if (toUpdate.length > 0) {
+        toUpdate.forEach(u => {
+          promises.push(supabase.from("medicoes").update(u).eq("id", u.id));
+        });
+      }
+
+      const results = await Promise.all(promises);
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) {
+        throw new Error(errors.map(r => r.error?.message).join(", "));
+      }
+
+      toast({ title: "Medições salvas", description: "Todos os lançamentos foram salvos com sucesso." });
+      setBulkDialogOpen(false);
+      fetchData(true);
+    } catch (error: any) {
+      console.error("Erro ao salvar lançamentos em lote:", error);
+      toast({ title: "Erro ao salvar", description: error.message || "Erro desconhecido", variant: "destructive" });
+    } finally {
+      setIsSavingBulk(false);
+    }
+  };
+
   const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;mediaHorasDia: number;}>();
   const equipEntries = new Map<string, Medicao[]>();
   filtered.forEach((m) => {
@@ -342,6 +549,25 @@ const Medicoes = () => {
       hInicial = isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior;
       hFinal = form.horimetro;
       horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
+
+      if (!isIndisp) {
+        if (form.horimetro < hInicial) {
+          toast({
+            title: "Erro de Validação",
+            description: `O horímetro final (${form.horimetro}) não pode ser menor que o inicial (${hInicial}).`,
+            variant: "destructive"
+          });
+          return;
+        }
+        if (form.horimetro - hInicial > 24) {
+          toast({
+            title: "Erro de Validação",
+            description: `As horas trabalhadas (${(form.horimetro - hInicial).toFixed(1)}h) não podem exceder 24 horas em um único dia.`,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
     }
 
     if (editingId) {
@@ -547,6 +773,9 @@ const Medicoes = () => {
                 <FileDown className="h-4 w-4 mr-1 text-primary" /> PDF
               </Button>
             </div>
+            <Button onClick={() => { setBulkDialogOpen(true); fetchActiveEquipmentsForDate(bulkDate); }} variant="outline" className="border-accent text-accent hover:bg-accent/10 shadow-sm">
+              <CheckSquare className="h-4 w-4 mr-2" /> Lançamento Rápido
+            </Button>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
               <Plus className="h-4 w-4 mr-2" /> Novo
             </Button>
@@ -798,6 +1027,188 @@ const Medicoes = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog para Lançamento Rápido em Grade */}
+      <Dialog open={bulkDialogOpen} onOpenChange={(open) => { if (!open) setBulkDialogOpen(false); }}>
+        <DialogContent className="sm:max-w-6xl max-h-[92vh] flex flex-col p-6 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3 shrink-0">
+            <div>
+              <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                <CheckSquare className="h-5 w-5 text-accent" />
+                Lançamento Rápido Diário
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Preencha as medições de todos os equipamentos ativos em uma única tela.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Label className="text-xs font-bold uppercase text-muted-foreground whitespace-nowrap">Data do Lançamento:</Label>
+              <Input
+                type="date"
+                className="w-40 h-8 text-xs font-medium"
+                value={bulkDate}
+                onChange={(e) => {
+                  setBulkDate(e.target.value);
+                  if (e.target.value) fetchActiveEquipmentsForDate(e.target.value);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto py-4 pr-1 min-h-[300px]">
+            {loadingBulkGrid ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+                <Clock className="h-6 w-6 text-accent animate-spin" />
+                <span>Buscando equipamentos ativos e leituras anteriores...</span>
+              </div>
+            ) : bulkGridItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm border border-dashed rounded-lg bg-muted/20">
+                <AlertTriangle className="h-6 w-6 text-warning mb-2" />
+                <span>Nenhum equipamento com contrato ativo cobrindo esta data.</span>
+              </div>
+            ) : (
+              <div className="border border-border rounded-lg overflow-hidden bg-card">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="w-[30%]">Cliente / Equipamento</TableHead>
+                      <TableHead className="w-[12%] text-center">Tipo Contrato</TableHead>
+                      <TableHead className="w-[12%] text-center">Leitura Anterior</TableHead>
+                      <TableHead className="w-[12%] text-center">Tipo Lançamento</TableHead>
+                      <TableHead className="w-[14%] text-center">Lançamento</TableHead>
+                      <TableHead className="w-[20%]">Observações / Motivo Indisp.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bulkGridItems.map((item) => {
+                      const isDiaria = item.tipo_medicao === "diarias";
+                      const isIndisp = item.tipo === "Indisponível";
+
+                      // Helper to update grid row fields dynamically
+                      const updateField = (field: string, val: any) => {
+                        setBulkGridItems(prev => prev.map(row => {
+                          if (row.equipamento_id === item.equipamento_id) {
+                            const updated = { ...row, [field]: val };
+                            if (field === "tipo" && val === "Indisponível") {
+                              updated.horas_indisponiveis = isDiaria ? 1 : 0;
+                              updated.horas_trabalhadas = 0;
+                              updated.horimetro_final = row.horimetro_inicial;
+                            } else if (field === "tipo" && val === "Trabalho") {
+                              updated.horas_indisponiveis = 0;
+                              updated.horas_trabalhadas = isDiaria ? 1 : 0;
+                            }
+                            return updated;
+                          }
+                          return row;
+                        }));
+                      };
+
+                      return (
+                        <TableRow key={item.equipamento_id} className={cn(
+                          item.alreadyExists ? "bg-success/5 hover:bg-success/10" : "hover:bg-muted/30",
+                          isIndisp && "bg-destructive/5 hover:bg-destructive/10"
+                        )}>
+                          <TableCell className="align-middle">
+                            <div>
+                              <p className="font-semibold text-xs text-foreground line-clamp-1">{item.label}</p>
+                              {item.alreadyExists && (
+                                <Badge variant="secondary" className="text-[9px] py-0 px-1 mt-1 bg-success/20 text-success border-success/30 font-normal w-fit">
+                                  Leitura já registrada
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center align-middle">
+                            <Badge variant="outline" className="text-[10px] uppercase font-normal font-sans">
+                              {isDiaria ? "Diárias" : "Horímetro"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center align-middle font-mono font-semibold text-xs text-muted-foreground">
+                            {isDiaria ? "—" : `${item.horimetro_inicial.toFixed(1)}h`}
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            <Select value={item.tipo} onValueChange={(v) => updateField("tipo", v)}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Trabalho">Trabalho</SelectItem>
+                                <SelectItem value="Indisponível">Indisponível</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="align-middle text-center">
+                            {isIndisp ? (
+                              <div className="flex flex-col gap-1 items-center">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold">Indisponibilidade</span>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  className="h-8 text-xs font-semibold text-center border-destructive/30 focus-visible:ring-destructive w-24"
+                                  placeholder={isDiaria ? "Diárias" : "Horas"}
+                                  value={item.horas_indisponiveis || ""}
+                                  onChange={(e) => updateField("horas_indisponiveis", Number(e.target.value))}
+                                />
+                              </div>
+                            ) : isDiaria ? (
+                              <div className="flex flex-col gap-1 items-center">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold">Diárias Trab.</span>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  className="h-8 text-xs font-semibold text-center w-24"
+                                  value={item.horas_trabalhadas || ""}
+                                  onChange={(e) => updateField("horas_trabalhadas", Number(e.target.value))}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1 items-center">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold">H. Final</span>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  className="h-8 text-xs font-mono font-bold text-center w-24"
+                                  placeholder={`${item.horimetro_inicial.toFixed(1)}h`}
+                                  value={item.horimetro_final || ""}
+                                  onChange={(e) => updateField("horimetro_final", Number(e.target.value))}
+                                />
+                                {item.horimetro_final > item.horimetro_inicial && (
+                                  <span className="text-[10px] font-semibold text-success mt-0.5">
+                                    +{Math.max(0, item.horimetro_final - item.horimetro_inicial).toFixed(1)}h
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            <Input
+                              type="text"
+                              className="h-8 text-xs"
+                              placeholder={isIndisp ? "Motivo da quebra/parada..." : "Observações..."}
+                              value={item.observacoes || ""}
+                              onChange={(e) => updateField("observacoes", e.target.value)}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="border-t border-border pt-3 shrink-0">
+            <Button variant="outline" onClick={() => setBulkDialogOpen(false)} disabled={isSavingBulk}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveBulk} disabled={isSavingBulk || bulkGridItems.length === 0} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              {isSavingBulk ? "Salvando..." : "Salvar Todos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Layout>);
 
 };

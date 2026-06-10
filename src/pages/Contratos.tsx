@@ -113,6 +113,23 @@ const Contratos = () => {
   const [sortCol, setSortCol] = useState("empresa");
   const [sortAsc, setSortAsc] = useState(true);
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
+  // --- Melhorias: Filtros avançados ---
+  const [filterStatus, setFilterStatus] = useState<"todos" | "Ativo" | "Encerrado" | "Suspenso">("todos");
+  const [filterObra, setFilterObra] = useState("");
+  const [filterDataInicio, setFilterDataInicio] = useState("");
+  const [filterDataFim, setFilterDataFim] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  // --- Melhorias: Delete confirmation ---
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  // --- Melhorias: Duplicar contrato ---
+  const [duplicating, setDuplicating] = useState(false);
+  // --- Melhorias: Painel expandível ---
+  const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
+  // --- Melhorias: Rentabilidade no dashboard ---
+  const [dashboardFaturamento, setDashboardFaturamento] = useState<{ valorFaturado: number; valorPendente: number; faturas: any[] }>({ valorFaturado: 0, valorPendente: 0, faturas: [] });
+  // --- Melhorias: Observação com tag ---
+  const [novaObsTag, setNovaObsTag] = useState<"Comercial" | "Operacional" | "Financeiro" | "Jurídico">("Operacional");
+  const [novaObsTexto, setNovaObsTexto] = useState("");
 
   const fetchData = async () => {
     const [contratosRes, empresasRes, equipRes, ceRes] = await Promise.all([
@@ -363,6 +380,23 @@ const Contratos = () => {
     }
 
     setEquipUsages(usages);
+
+    // --- Rentabilidade: buscar faturamento do contrato ---
+    const { data: faturas } = await supabase
+      .from("faturamento")
+      .select("id, periodo, status, valor_total, emissao")
+      .eq("contrato_id", item.id)
+      .order("emissao", { ascending: false });
+
+    const todasFaturas = faturas || [];
+    const valorFaturado = todasFaturas
+      .filter(f => ["Aprovado", "Pago"].includes(f.status))
+      .reduce((sum, f) => sum + Number(f.valor_total), 0);
+    const valorPendente = todasFaturas
+      .filter(f => ["Pendente", "Medido"].includes(f.status))
+      .reduce((sum, f) => sum + Number(f.valor_total), 0);
+    setDashboardFaturamento({ valorFaturado, valorPendente, faturas: todasFaturas });
+
     setDashboardLoading(false);
   };
 
@@ -378,9 +412,144 @@ const Contratos = () => {
     return { label: "Normal", className: "bg-success text-success-foreground" };
   };
 
-  const filtered = items.filter(
-    (i) => i.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) || i.empresas?.cnpj?.includes(search) || getEquipamentosList(i).some(eq => eq.modelo?.toLowerCase().includes(search.toLowerCase()) || eq.tag_placa?.toLowerCase().includes(search.toLowerCase()))
-  );
+  // --- Helper: número do contrato (gerado a partir do índice na lista por ano de criação) ---
+  const getNumeroContrato = (item: Contrato): string => {
+    const ano = item.created_at ? new Date(item.created_at).getFullYear() : new Date().getFullYear();
+    // Sort all items by created_at to get a stable sequential number
+    const sorted = [...items].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const doAno = sorted.filter(i => new Date(i.created_at).getFullYear() === ano);
+    const seq = doAno.findIndex(i => i.id === item.id) + 1;
+    return `CT-${ano}-${String(seq).padStart(3, "0")}`;
+  };
+
+  // --- Helper: salvar observação estruturada ---
+  const handleSalvarObservacao = async () => {
+    if (!ajustesContrato || !novaObsTexto.trim()) return;
+    const hoje = new Date().toLocaleDateString("pt-BR");
+    const linha = `[${hoje}][${novaObsTag}] ${novaObsTexto.trim()}`;
+    const obsAtual = ajustesContrato.observacoes || "";
+    const novaObs = obsAtual ? `${obsAtual}\n${linha}` : linha;
+    const { error } = await supabase.from("contratos").update({ observacoes: novaObs }).eq("id", ajustesContrato.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setNovaObsTexto("");
+    toast({ title: "Observação salva!", description: "" });
+    fetchData();
+    // Atualizar o contrato local
+    setAjustesContrato(prev => prev ? { ...prev, observacoes: novaObs } : prev);
+  };
+
+  // --- Helper: parsear observações estruturadas ---
+  const parseObservacoes = (obs: string | null): { data: string; tag: string; texto: string }[] => {
+    if (!obs) return [];
+    return obs.split("\n").map(linha => {
+      const match = linha.match(/^\[(.*?)\]\[(.*?)\]\s*(.*)$/);
+      if (match) return { data: match[1], tag: match[2], texto: match[3] };
+      return { data: "", tag: "Geral", texto: linha };
+    }).filter(o => o.texto.trim());
+  };
+
+  // --- Helpers de vencimento / valor / progresso ---
+  const getDiasRestantes = (dataFim: string): number => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const fim = new Date(dataFim + "T00:00:00");
+    return Math.round((fim.getTime() - hoje.getTime()) / 86400000);
+  };
+
+  const getVencimentoInfo = (item: Contrato) => {
+    if (item.status !== "Ativo") return { label: "", color: "", badge: "" };
+    const dias = getDiasRestantes(item.data_fim);
+    if (dias < 0) return { label: "Vencido", color: "text-destructive", badge: "bg-destructive/10 text-destructive border-destructive/30" };
+    if (dias <= 15) return { label: `${dias}d restantes`, color: "text-destructive", badge: "bg-destructive/10 text-destructive border-destructive/30 animate-pulse" };
+    if (dias <= 60) return { label: `${dias}d restantes`, color: "text-yellow-600 dark:text-yellow-400", badge: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-400/30" };
+    return { label: `${dias}d restantes`, color: "text-muted-foreground", badge: "" };
+  };
+
+  const getPeriodoProgresso = (dataInicio: string, dataFim: string): number => {
+    const inicio = new Date(dataInicio + "T00:00:00").getTime();
+    const fim = new Date(dataFim + "T00:00:00").getTime();
+    const hoje = new Date().getTime();
+    if (hoje <= inicio) return 0;
+    if (hoje >= fim) return 100;
+    return Math.round(((hoje - inicio) / (fim - inicio)) * 100);
+  };
+
+  const getValorContratado = (item: Contrato): number => {
+    const ces = getContratoEquipamentos(item);
+    return ces.reduce((sum, ce) => sum + (Number(ce.valor_hora) * Number(ce.horas_contratadas)), 0);
+  };
+
+  const handleDuplicar = async (item: Contrato) => {
+    setDuplicating(true);
+    try {
+      const ces = getContratoEquipamentos(item);
+      const newId = crypto.randomUUID();
+      const { error } = await supabase.from("contratos").insert({
+        ...item,
+        id: newId,
+        status: "Ativo",
+        data_inicio: "",
+        data_fim: "",
+        observacoes: `[Duplicado de contrato de ${item.empresas?.nome || ""} — ${formatLocalDate(item.data_inicio)} a ${formatLocalDate(item.data_fim)}]`,
+        created_at: undefined,
+      });
+      if (error) throw error;
+      const junctionRows = ces.map(ce => ({
+        id: crypto.randomUUID(),
+        contrato_id: newId,
+        equipamento_id: ce.equipamento_id,
+        valor_hora: Number(ce.valor_hora),
+        horas_contratadas: Number(ce.horas_contratadas),
+        valor_hora_excedente: Number(ce.valor_hora_excedente || 0),
+        hora_minima: Number(ce.hora_minima || 0),
+        data_entrega: null,
+        data_devolucao: null,
+      }));
+      if (junctionRows.length > 0) {
+        await supabase.from("contratos_equipamentos").insert(junctionRows);
+      }
+      toast({ title: "Contrato duplicado!", description: "Agora edite as datas do novo contrato." });
+      await fetchData();
+      // Open edit dialog for the new contract
+      const novoContrato = items.find(i => i.id === newId) || { ...item, id: newId, status: "Ativo", data_inicio: "", data_fim: "" } as Contrato;
+      openEdit(novoContrato);
+    } catch (err: any) {
+      toast({ title: "Erro ao duplicar", description: err.message, variant: "destructive" });
+    }
+    setDuplicating(false);
+  };
+
+  // --- Filtragem avançada ---
+  const filtered = useMemo(() => {
+    return items.filter(i => {
+      // Text search (empresa, CNPJ, modelo/tag do equipamento base e aditivos)
+      const q = search.toLowerCase();
+      const allAditivoEquips = (aditivosPorContrato[i.id] || []).flatMap(ad => ad.aditivos_equipamentos || []);
+      const matchText = !q
+        || i.empresas?.nome?.toLowerCase().includes(q)
+        || i.empresas?.cnpj?.includes(q)
+        || i.empresas?.obra?.toLowerCase().includes(q)
+        || getEquipamentosList(i).some(eq => eq.modelo?.toLowerCase().includes(q) || eq.tag_placa?.toLowerCase().includes(q))
+        || allAditivoEquips.some(ae => {
+            const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+            return eq?.modelo?.toLowerCase().includes(q) || eq?.tag_placa?.toLowerCase().includes(q);
+          });
+
+      // Status filter
+      const matchStatus = filterStatus === "todos" || i.status === filterStatus;
+
+      // Obra filter
+      const matchObra = !filterObra || i.empresas?.obra?.toLowerCase().includes(filterObra.toLowerCase());
+
+      // Date range filter
+      const matchDataInicio = !filterDataInicio || i.data_inicio >= filterDataInicio;
+      const matchDataFim = !filterDataFim || i.data_fim <= filterDataFim;
+
+      return matchText && matchStatus && matchObra && matchDataInicio && matchDataFim;
+    });
+  }, [items, search, filterStatus, filterObra, filterDataInicio, filterDataFim, aditivosPorContrato, equipamentos]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -394,6 +563,14 @@ const Contratos = () => {
     });
   }, [filtered, sortCol, sortAsc]);
 
+  // --- KPIs ---
+  const kpis = useMemo(() => {
+    const ativos = items.filter(i => i.status === "Ativo");
+    const vencendo = ativos.filter(i => { const d = getDiasRestantes(i.data_fim); return d >= 0 && d <= 30; });
+    const valorTotal = ativos.reduce((sum, i) => sum + getValorContratado(i), 0);
+    return { total: items.length, ativos: ativos.length, vencendo: vencendo.length, valorTotal };
+  }, [items]);
+
   const toggleSelect = (id: string) => {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
@@ -404,20 +581,27 @@ const Contratos = () => {
 
   const getExportData = () => {
     const data = filtered.filter(i => selected.size === 0 || selected.has(i.id));
-    const headers = ["Empresa", "CNPJ", "Equipamento", "Tag", "Valor/Hora (R$)", "Horas Contratadas", "Início", "Fim", "Status"];
+    const headers = ["Empresa", "CNPJ", "Obra", "Equipamento", "Tag", "Valor/Hora (R$)", "Horas Contratadas", "Valor Total (R$)", "Início", "Fim", "Dias Restantes", "Qtd. Aditivos", "Status"];
     const rows: string[][] = [];
     data.forEach(i => {
       const ces = getContratoEquipamentos(i);
+      const valorTotal = getValorContratado(i);
+      const diasRestantes = getDiasRestantes(i.data_fim);
+      const qtdAditivos = (aditivosPorContrato[i.id] || []).length;
       ces.forEach(ce => {
         rows.push([
           i.empresas?.nome || "",
           i.empresas?.cnpj || "",
+          i.empresas?.obra || "—",
           `${ce.equipamentos.tipo} ${ce.equipamentos.modelo}`,
           ce.equipamentos.tag_placa || "—",
           Number(ce.valor_hora).toFixed(2),
           String(ce.horas_contratadas),
+          valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
           i.data_inicio,
           i.data_fim,
+          i.status === "Encerrado" ? "Encerrado" : String(diasRestantes),
+          String(qtdAditivos),
           i.status,
         ]);
       });
@@ -508,6 +692,7 @@ const Contratos = () => {
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("contratos").delete().eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setDeleteConfirmId(null);
     fetchData();
   };
 
@@ -1099,30 +1284,163 @@ const Contratos = () => {
         <TabsContent value="contratos">
           <div className="space-y-6">
 
-
-            {/* Action Bar */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent p-5 rounded-2xl border border-accent/20 shadow-sm backdrop-blur-md">
-              <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
-                <div className="relative w-full sm:w-80">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar contratos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background/50 border-accent/20 focus:border-accent" />
+            {/* Banner de alertas de renovação */}
+            {kpis.vencendo > 0 && (
+              <div className="rounded-2xl border border-yellow-400/40 bg-yellow-500/5 p-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm text-yellow-800 dark:text-yellow-300">
+                        {kpis.vencendo} contrato{kpis.vencendo > 1 ? "s" : ""} vencendo nos próximos 30 dias
+                      </p>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                        {items.filter(i => i.status === "Ativo" && getDiasRestantes(i.data_fim) >= 0 && getDiasRestantes(i.data_fim) <= 30)
+                          .map(i => `${i.empresas?.nome}${i.empresas?.obra ? ` (${i.empresas.obra})` : ""} — ${getDiasRestantes(i.data_fim)}d`)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {items
+                      .filter(i => i.status === "Ativo" && getDiasRestantes(i.data_fim) >= 0 && getDiasRestantes(i.data_fim) <= 30)
+                      .slice(0, 3)
+                      .map(i => (
+                        <Button
+                          key={i.id}
+                          size="sm"
+                          variant="outline"
+                          className="text-xs border-yellow-400/50 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/10"
+                          onClick={() => openAjustesWithAditivos(i)}
+                        >
+                          <CalendarPlus className="h-3 w-3 mr-1" />
+                          Renovar: {i.empresas?.nome?.split(" ")[0]}
+                        </Button>
+                      ))
+                    }
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
-                    <FileDown className="h-4 w-4 mr-1 text-primary" /> Movimentação
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={exportSimplePDFWrapper} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
-                    <FileDown className="h-4 w-4 mr-1 text-destructive" /> PDF Simples
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
-                    <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
+            )}
+
+            {/* Action Bar */}
+            <div className="flex flex-col gap-3 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent p-4 rounded-2xl border border-accent/20 shadow-sm backdrop-blur-md">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar empresa, obra, equipamento, tag..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background/50 border-accent/20 focus:border-accent" />
+                  </div>
+                  {/* Status quick filters */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(["todos", "Ativo", "Encerrado"] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setFilterStatus(s)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                          filterStatus === s
+                            ? s === "Ativo" ? "bg-success text-success-foreground border-success" : s === "Encerrado" ? "bg-muted text-muted-foreground border-border" : "bg-accent text-accent-foreground border-accent"
+                            : "bg-background/50 border-border/50 text-muted-foreground hover:border-accent/40"
+                        }`}
+                      >
+                        {s === "todos" ? "Todos" : s}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      showFilters || filterObra || filterDataInicio || filterDataFim
+                        ? "bg-accent/20 border-accent/40 text-accent"
+                        : "bg-background/50 border-border/50 text-muted-foreground hover:border-accent/40"
+                    }`}
+                  >
+                    <Search className="h-3 w-3" />
+                    Filtros {(filterObra || filterDataInicio || filterDataFim) ? "●" : ""}
+                  </button>
+                </div>
+
+                {/* KPI Pill Badges inline */}
+                <div className="flex items-center gap-2 flex-wrap lg:justify-end shrink-0">
+                  {/* Ativos */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/60 bg-card/60 backdrop-blur-sm text-[11px] font-medium text-foreground shadow-sm">
+                    <FileText className="h-3.5 w-3.5 text-accent shrink-0" />
+                    <span>Ativos: <strong>{kpis.ativos}</strong><span className="text-muted-foreground">/{kpis.total}</span></span>
+                  </div>
+                  
+                  {/* Vencendo */}
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium shadow-sm transition-all ${
+                    kpis.vencendo > 0 
+                      ? "border-yellow-400/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 font-semibold animate-pulse" 
+                      : "border-border/60 bg-card/60 backdrop-blur-sm text-muted-foreground"
+                  }`}>
+                    <AlertTriangle className={`h-3.5 w-3.5 shrink-0 ${kpis.vencendo > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-muted-foreground"}`} />
+                    <span>Vencendo 30d: <strong>{kpis.vencendo}</strong></span>
+                  </div>
+                  
+                  {/* Valor Total Ativo */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-success/30 bg-success/5 text-[11px] font-medium text-success shadow-sm">
+                    <TrendingUp className="h-3.5 w-3.5 shrink-0" />
+                    <span>Ativo: <strong>{kpis.valorTotal > 0 ? `R$ ${kpis.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—"}</strong></span>
+                  </div>
+
+                  {/* Total */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/60 bg-card/60 backdrop-blur-sm text-[11px] font-medium text-muted-foreground shadow-sm">
+                    <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span>Total: <strong>{kpis.total}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filtros expandidos */}
+              {showFilters && (
+                <div className="flex flex-wrap gap-3 pt-1 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Obra:</Label>
+                    <Input
+                      placeholder="Filtrar por obra..."
+                      value={filterObra}
+                      onChange={e => setFilterObra(e.target.value)}
+                      className="h-8 text-xs w-40 bg-background/50"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Início após:</Label>
+                    <Input type="date" value={filterDataInicio} onChange={e => setFilterDataInicio(e.target.value)} className="h-8 text-xs w-36 bg-background/50" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Fim antes de:</Label>
+                    <Input type="date" value={filterDataFim} onChange={e => setFilterDataFim(e.target.value)} className="h-8 text-xs w-36 bg-background/50" />
+                  </div>
+                  {(filterObra || filterDataInicio || filterDataFim) && (
+                    <button
+                      onClick={() => { setFilterObra(""); setFilterDataInicio(""); setFilterDataFim(""); }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <X className="h-3 w-3" /> Limpar
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <p className="text-xs text-muted-foreground">{sorted.length} contrato{sorted.length !== 1 ? "s" : ""} encontrado{sorted.length !== 1 ? "s" : ""}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
+                      <FileDown className="h-4 w-4 mr-1 text-primary" /> Movimentação
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportSimplePDFWrapper} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
+                      <FileDown className="h-4 w-4 mr-1 text-destructive" /> PDF Simples
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
+                      <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
+                    </Button>
+                  </div>
+                  <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5">
+                    <Plus className="h-4 w-4 mr-2" /> Novo Contrato
                   </Button>
                 </div>
-                <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5">
-                  <Plus className="h-4 w-4 mr-2" /> Novo Contrato
-                </Button>
               </div>
             </div>
 
@@ -1147,8 +1465,11 @@ const Contratos = () => {
 
               {sorted.map((item) => {
                 const ces = getContratoEquipamentos(item);
+                const numContrato = getNumeroContrato(item);
+                const isExpanded = expandedContractId === item.id;
                 return (
-                  <div key={item.id} className={`group bg-card/60 backdrop-blur-sm hover:bg-accent/5 border border-border/60 hover:border-accent/40 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all duration-300 relative shadow-sm hover:shadow-md ${selected.has(item.id) ? "ring-2 ring-accent border-transparent" : ""}`}>
+                  <div key={item.id} className={`group bg-card/60 backdrop-blur-sm border border-border/60 hover:border-accent/40 rounded-2xl transition-all duration-300 relative shadow-sm hover:shadow-md ${selected.has(item.id) ? "ring-2 ring-accent border-transparent" : ""}`}>
+                  <div className={`flex flex-col md:flex-row md:items-center gap-4 p-4 hover:bg-accent/5 ${isExpanded ? "rounded-t-2xl" : "rounded-2xl"}`}>
                     
                     {/* Checkbox */}
                     <div className="absolute top-4 right-4 md:static md:w-[40px]">
@@ -1156,7 +1477,10 @@ const Contratos = () => {
                     </div>
 
                     {/* Info Empresa */}
-                    <div className="flex-1 min-w-0 pr-8 md:pr-0">
+                    <div
+                      className="flex-1 min-w-0 pr-8 md:pr-0 cursor-pointer"
+                      onClick={() => setExpandedContractId(isExpanded ? null : item.id)}
+                    >
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                           <Briefcase className="h-5 w-5" />
@@ -1169,6 +1493,7 @@ const Contratos = () => {
                                 {item.empresas.obra}
                               </Badge>
                             )}
+                            <span className="text-[10px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded shrink-0">{numContrato}</span>
                           </div>
                           <p className="text-xs text-muted-foreground font-mono">{item.empresas?.cnpj}</p>
                         </div>
@@ -1266,9 +1591,9 @@ const Contratos = () => {
                       </HoverCard>
                     </div>
 
-                    {/* Período */}
-                    <div className="md:w-[180px] flex flex-col pt-2 md:pt-0">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    {/* Período + Progresso + Valor */}
+                    <div className="md:w-[200px] flex flex-col gap-1 pt-2 md:pt-0">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <CalendarRange className="h-3.5 w-3.5" />
                         <span>Início: <strong className="text-foreground font-medium">{formatLocalDate(item.data_inicio)}</strong></span>
                       </div>
@@ -1276,15 +1601,56 @@ const Contratos = () => {
                         <CalendarRange className="h-3.5 w-3.5 opacity-0" />
                         <span>Fim: <strong className="text-foreground font-medium">{formatLocalDate(item.data_fim)}</strong></span>
                       </div>
+                      {/* Progress bar do período */}
+                      {item.status === "Ativo" && (() => {
+                        const pct = getPeriodoProgresso(item.data_inicio, item.data_fim);
+                        const info = getVencimentoInfo(item);
+                        return (
+                          <div className="mt-1">
+                            <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-success"
+                                }`}
+                                style={{ width: `${Math.min(pct, 100)}%` }}
+                              />
+                            </div>
+                            {info.label && (
+                              <span className={`text-[10px] mt-0.5 block ${info.color}`}>{info.label}</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {/* Valor contratado */}
+                      {(() => {
+                        const val = getValorContratado(item);
+                        return val > 0 ? (
+                          <span className="text-[11px] text-muted-foreground mt-0.5">
+                            <span className="font-medium text-foreground">R$ {val.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span> contratados
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
 
                     {/* Status */}
-                    <div className="md:w-[100px] flex md:justify-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                    <div className="md:w-[100px] flex md:flex-col md:items-center gap-2 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
                       <Badge className={statusColor(item.status)}>{item.status}</Badge>
+                      {/* Vencimento badge */}
+                      {(() => {
+                        const info = getVencimentoInfo(item);
+                        const dias = getDiasRestantes(item.data_fim);
+                        if (item.status === "Ativo" && dias <= 15 && dias >= 0) {
+                          return <Badge variant="outline" className={`text-[10px] py-0 px-1.5 ${info.badge}`}>⚠ {dias}d</Badge>;
+                        }
+                        if (item.status === "Ativo" && dias < 0) {
+                          return <Badge variant="outline" className={`text-[10px] py-0 px-1.5 ${info.badge}`}>Vencido</Badge>;
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     {/* Ações */}
-                    <div className="md:w-[180px] flex flex-wrap justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0">
+                    <div className="md:w-[200px] flex flex-wrap justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0">
                       <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Gestão do Contrato" className="h-8 w-8 hover:bg-muted/50">
                         <Settings2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
@@ -1294,24 +1660,127 @@ const Contratos = () => {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(item)} className="h-8 w-8 hover:bg-muted/50">
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDuplicar(item)} title="Duplicar contrato" disabled={duplicating} className="h-8 w-8 hover:bg-accent/10">
+                        <FilePlus2 className="h-4 w-4 text-accent" />
+                      </Button>
                       {item.status === "Ativo" && (
                         <Button variant="ghost" size="icon" onClick={() => openFinalizar(item)} title="Finalizar Contrato" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
                           <Ban className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteConfirmId(item.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </div>
+
+                  {/* Painel expandível inline */}
+                  {isExpanded && (
+                    <div className="border-t border-border/50 px-4 pb-4 pt-3 rounded-b-2xl bg-muted/20">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Equipamentos detalhados */}
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Equipamentos</p>
+                          <div className="space-y-1.5">
+                            {(() => {
+                              const hoje = new Date().toISOString().slice(0, 10);
+                              const ads = aditivosPorContrato[item.id] || [];
+                              const vigentes = ads.filter(ad => ad.data_inicio <= hoje && ad.data_fim >= hoje);
+                              const ultimo = vigentes.length > 0 ? vigentes.reduce((l, a) => a.numero > l.numero ? a : l, vigentes[0]) : null;
+                              const equips = ultimo
+                                ? (ultimo.aditivos_equipamentos || []).filter((ae: any) => !ae.data_devolucao || ae.data_devolucao > hoje).map((ae: any) => { const eq = equipamentos.find(e => e.id === ae.equipamento_id); return { eq, valor_hora: ae.valor_hora, horas_contratadas: ae.horas_contratadas, hora_minima: ae.hora_minima }; })
+                                : ces.filter(ce => !ce.data_devolucao || ce.data_devolucao > hoje).map(ce => ({ eq: ce.equipamentos, valor_hora: ce.valor_hora, horas_contratadas: ce.horas_contratadas, hora_minima: ce.hora_minima }));
+                              return equips.map((e, idx) => (
+                                <div key={idx} className="flex flex-col bg-background/60 rounded-lg p-2 border border-border/40">
+                                  <span className="text-xs font-medium">{e.eq?.tipo} {e.eq?.modelo} {e.eq?.tag_placa ? `(${e.eq.tag_placa})` : ""}</span>
+                                  <span className="text-[11px] text-muted-foreground">R$ {Number(e.valor_hora).toFixed(2)}/h · {e.horas_contratadas}h{Number(e.hora_minima) > 0 ? ` · Mín: ${e.hora_minima}h` : ""}</span>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* Aditivos */}
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Aditivos ({(aditivosPorContrato[item.id] || []).length})</p>
+                          {(aditivosPorContrato[item.id] || []).length === 0
+                            ? <p className="text-xs text-muted-foreground">Nenhum aditivo</p>
+                            : (
+                              <div className="space-y-1.5">
+                                {(aditivosPorContrato[item.id] || []).map(ad => (
+                                  <div key={ad.id} className="bg-background/60 rounded-lg p-2 border border-border/40">
+                                    <p className="text-xs font-medium">Aditivo #{ad.numero}</p>
+                                    <p className="text-[11px] text-muted-foreground">{formatLocalDate(ad.data_inicio)} → {formatLocalDate(ad.data_fim)}</p>
+                                    {ad.motivo && <p className="text-[11px] text-muted-foreground truncate">{ad.motivo}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          }
+                        </div>
+
+                        {/* Observações e ações rápidas */}
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Informações</p>
+                          <div className="space-y-2">
+                            <div className="bg-background/60 rounded-lg p-2 border border-border/40 space-y-1">
+                              <p className="text-[11px] text-muted-foreground">Tipo de Medição: <span className="font-medium text-foreground">{(item as any).tipo_medicao === "diarias" ? "Diárias" : "Horímetro"}</span></p>
+                              <p className="text-[11px] text-muted-foreground">Dia Medição: <span className="font-medium text-foreground">{(item as any).dia_medicao_inicio} ao {(item as any).dia_medicao_fim}</span></p>
+                              <p className="text-[11px] text-muted-foreground">Prazo Fat.: <span className="font-medium text-foreground">{(item as any).prazo_faturamento}d</span></p>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openAjustesWithAditivos(item)}>
+                                <Settings2 className="h-3 w-3 mr-1" /> Gestão do Contrato
+                              </Button>
+                              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDashboard(item)}>
+                                <BarChart3 className="h-3 w-3 mr-1" /> Ver Dashboard
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  </div>
                 );
               })}
-              {!loading && filtered.length === 0 && (
+              {!loading && sorted.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
                   Nenhum contrato encontrado
+                  {(filterStatus !== "todos" || filterObra || filterDataInicio || filterDataFim) && (
+                    <div className="mt-3">
+                      <button onClick={() => { setFilterStatus("todos"); setFilterObra(""); setFilterDataInicio(""); setFilterDataFim(""); setSearch(""); }} className="text-accent text-sm hover:underline">Limpar todos os filtros</button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={open => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" /> Excluir contrato?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é <strong>irreversível</strong>. O contrato, seus equipamentos vinculados, aditivos e ajustes temporários serão permanentemente removidos do sistema.
+              <br /><br />
+              Tem certeza que deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+            >
+              Sim, excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       </div>
 
       {/* Dashboard Dialog */}
@@ -1333,6 +1802,29 @@ const Contratos = () => {
             </div>
           ) : (
             <div className="space-y-6">
+
+              {/* Rentabilidade */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border bg-success/5 border-success/20 p-3">
+                  <p className="text-xs text-muted-foreground">Valor Contratado (Total)</p>
+                  <p className="text-xl font-bold text-foreground">{fmt(dashboardTotals.totalContratado)}</p>
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Já Faturado (Aprovado/Pago)</p>
+                  <p className="text-xl font-bold text-success">{fmt(dashboardFaturamento.valorFaturado)}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {dashboardFaturamento.faturas.filter(f => ["Aprovado", "Pago"].includes(f.status)).length} fatura(s) aprovada(s)
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Pendente de Aprovação</p>
+                  <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{fmt(dashboardFaturamento.valorPendente)}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {dashboardFaturamento.faturas.filter(f => ["Pendente", "Medido"].includes(f.status)).length} fatura(s) em aberto
+                  </p>
+                </div>
+              </div>
+
               {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="rounded-lg border bg-card p-3">
@@ -1625,11 +2117,67 @@ const Contratos = () => {
 
           <Tabs defaultValue="ajustes" className="w-full">
             <TabsList className="w-full">
-              <TabsTrigger value="ajustes" className="flex-1">Ajustes Temporários</TabsTrigger>
+              <TabsTrigger value="ajustes" className="flex-1">Ajustes</TabsTrigger>
               <TabsTrigger value="aditivos" className="flex-1">Aditivos</TabsTrigger>
               <TabsTrigger value="prorrogacao" className="flex-1">Prorrogação</TabsTrigger>
+              <TabsTrigger value="observacoes" className="flex-1">Observações</TabsTrigger>
               <TabsTrigger value="clausulas" className="flex-1">Cláusulas</TabsTrigger>
             </TabsList>
+
+            {/* Nova aba: Observações estruturadas */}
+            <TabsContent value="observacoes" className="space-y-4 mt-4">
+              <div className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
+                <p className="text-sm font-semibold text-foreground">Nova Observação</p>
+                <div className="flex gap-2 flex-wrap">
+                  {(["Comercial", "Operacional", "Financeiro", "Jurídico"] as const).map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setNovaObsTag(tag)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                        novaObsTag === tag ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border/50 text-muted-foreground hover:border-accent/40"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  placeholder="Digite a observação..."
+                  value={novaObsTexto}
+                  onChange={e => setNovaObsTexto(e.target.value)}
+                  rows={2}
+                  className="text-sm"
+                />
+                <Button size="sm" onClick={handleSalvarObservacao} disabled={!novaObsTexto.trim()} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                  Salvar Observação
+                </Button>
+              </div>
+
+              {/* Histórico de observações */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Histórico</p>
+                {parseObservacoes(ajustesContrato?.observacoes || null).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma observação registrada.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {parseObservacoes(ajustesContrato?.observacoes || null).reverse().map((obs, idx) => (
+                      <div key={idx} className="rounded-lg border border-border/50 bg-card p-3 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+                            obs.tag === "Comercial" ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-400/30"
+                            : obs.tag === "Financeiro" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-400/30"
+                            : obs.tag === "Jurídico" ? "bg-red-500/10 text-red-700 dark:text-red-400 border-red-400/30"
+                            : "bg-accent/10 text-accent border-accent/30"
+                          }`}>{obs.tag}</span>
+                          {obs.data && <span className="text-[10px] text-muted-foreground">{obs.data}</span>}
+                        </div>
+                        <p className="text-sm text-foreground">{obs.texto}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
 
             <TabsContent value="ajustes" className="space-y-4 mt-4">
               <Button onClick={() => openNewAjuste()} size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">

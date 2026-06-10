@@ -71,7 +71,7 @@ export const MedicaoTerceirosTab = () => {
 
   const fetchData = async () => {
     const [ctRes, fRes, cteRes, savedRes] = await Promise.all([
-      supabase.from("contratos_terceiros").select("*").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("contratos_terceiros").select("*").order("created_at", { ascending: false }),
       supabase.from("fornecedores").select("id, nome, cnpj"),
       supabase.from("contratos_terceiros_equipamentos").select("*"),
       (supabase.from as any)("medicoes_terceiros_faturamento").select("*").order("created_at", { ascending: false }),
@@ -618,7 +618,7 @@ export const MedicaoTerceirosTab = () => {
                   placeholder="Selecione..."
                   options={contratos.map(c => ({
                     value: c.id,
-                    label: `${c.fornecedores.nome} (${c.contratos_terceiros_equipamentos?.length || 0} equip.)`,
+                    label: `${c.fornecedores.nome} (${c.contratos_terceiros_equipamentos?.length || 0} equip.)${c.status !== "Ativo" ? ` [${c.status}]` : ""}`,
                   }))}
                 />
               </div>

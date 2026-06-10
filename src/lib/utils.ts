@@ -129,3 +129,53 @@ export const parseLocalDate = (dateStr: any) => {
   }
   return d;
 };
+
+export function getVencimento(
+  fatura: {
+    emissao?: string | null;
+    data_aprovacao?: string | null;
+    contrato_id?: string;
+    contratos?: { prazo_faturamento?: number | null } | null;
+  },
+  contrato?: { prazo_faturamento?: number | null } | null
+): Date | null {
+  const prazo = fatura.contratos?.prazo_faturamento ?? contrato?.prazo_faturamento ?? 30;
+  const dateStr = fatura.emissao || fatura.data_aprovacao;
+  if (!dateStr) return null;
+  const baseDate = parseLocalDate(dateStr);
+  if (isNaN(baseDate.getTime())) return null;
+  const venc = new Date(baseDate);
+  venc.setDate(venc.getDate() + prazo);
+  return venc;
+}
+
+export function getDisplayStatus(
+  fatura: {
+    status: string;
+    emissao?: string | null;
+    data_aprovacao?: string | null;
+    contrato_id?: string;
+    contratos?: { prazo_faturamento?: number | null } | null;
+  },
+  contrato?: { prazo_faturamento?: number | null } | null,
+  mode: "medicao" | "faturamento" = "faturamento"
+): string {
+  if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
+  
+  if (mode === "medicao") {
+    if (fatura.status === "Aprovado") return fatura.status;
+    const venc = getVencimento(fatura, contrato);
+    if (venc && new Date() > venc) return "Em Atraso";
+    return fatura.status;
+  } else {
+    if (fatura.status === "Aprovado") {
+      const venc = getVencimento(fatura, contrato);
+      if (venc && new Date() > venc) return "Em Atraso";
+      return "A Faturar";
+    }
+    const venc = getVencimento(fatura, contrato);
+    if (venc && new Date() > venc) return "Em Atraso";
+    return fatura.status;
+  }
+}
+

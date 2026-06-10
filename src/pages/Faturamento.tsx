@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { calcularHorasInterpoladas, parseLocalDate } from "@/lib/utils";
+import { calcularHorasInterpoladas, parseLocalDate, cn, getVencimento as getVencimentoGlobal, getDisplayStatus as getDisplayStatusGlobal } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { exportToPDF, exportToExcel, addLetterhead } from "@/lib/exportUtils";
 import { ContasBancariasDialog, type ContaBancaria } from "@/components/ContasBancariasDialog";
@@ -181,6 +181,8 @@ export const FaturamentoContent = () => {
   const [filterPeriodoInicio, setFilterPeriodoInicio] = useState("");
   const [filterPeriodoFim, setFilterPeriodoFim] = useState("");
   const [filterEmpresa, setFilterEmpresa] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [formContratoId, setFormContratoId] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("");
   
@@ -222,7 +224,7 @@ export const FaturamentoContent = () => {
     const [fatRes, ctAllRes, ctAtivoRes, contasRes, empListRes, eqRes, ceRes] = await Promise.all([
       supabase.from("faturamento").select("*").order("emissao", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("contratos").select("*"),
-      supabase.from("contratos").select("*").eq("status", "Ativo").order("created_at", { ascending: false }),
+      supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone, obra, email").order("nome"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
@@ -876,17 +878,13 @@ export const FaturamentoContent = () => {
   }, [dialogOpen]);
 
   const getDisplayStatus = (item: Fatura) => {
-    if (item.status === "Pago" || item.status === "Cancelado" || item.status === "Aprovado") return item.status;
-    const vencimento = getVencimento(item);
-    if (vencimento && new Date() > vencimento) return "Em Atraso";
-    return item.status;
+    const ct = contratos.find(c => c.id === item.contrato_id);
+    return getDisplayStatusGlobal(item, ct, "medicao");
   };
 
   const handleSolicitarAprovacao = async () => {
     const { faturaId, responsavelId } = solicitarAprovacaoDialog;
     if (!faturaId) return;
-    
-    await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", faturaId);
     
     const responsavelUser = usuarios.find(u => u.id === responsavelId);
     const responsavelNome = responsavelUser ? responsavelUser.nome : null;
@@ -894,22 +892,11 @@ export const FaturamentoContent = () => {
     const { data: agendas } = await supabase.from("agenda").select("id").ilike("notas", `%${faturaId}%`);
     if (agendas && agendas.length > 0) {
        await supabase.from("agenda").update({
-         status: "Aguardando Aprovação",
          responsavel_nome: responsavelNome
        }).eq("id", agendas[0].id);
     }
     
-    if (responsavelId && responsavelId !== "none") {
-      await supabase.from("notificacoes").insert({
-        user_id: responsavelId,
-        tipo: "aprovacao",
-        titulo: "Medição Aguardando Aprovação",
-        mensagem: "Uma nova medição foi enviada e está aguardando sua aprovação.",
-        lida: false,
-        categoria: "medicao",
-        vinculo_id: faturaId
-      });
-    }
+    await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", faturaId);
     
     toast({ title: "Enviado para aprovação", description: "Enviado para o Kanban com sucesso." });
     setSolicitarAprovacaoDialog({ isOpen: false, faturaId: null, responsavelId: "" });
@@ -925,11 +912,6 @@ export const FaturamentoContent = () => {
       .eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     
-    const { data: agendas } = await supabase.from("agenda").select("id").ilike("notas", `%${id}%`);
-    if (agendas && agendas.length > 0) {
-       await supabase.from("agenda").update({ status: "Concluído" }).eq("id", agendas[0].id);
-    }
-    
     toast({ title: "Medição aprovada", description: "A medição foi aprovada." });
     setAprovarDialog({ isOpen: false, faturaId: null, emissaoDate: "" });
     fetchData();
@@ -937,14 +919,7 @@ export const FaturamentoContent = () => {
 
   const getVencimento = (item: Fatura) => {
     const ct = contratos.find(c => c.id === item.contrato_id);
-    const prazo = ct?.prazo_faturamento || 30;
-    const dateStr = (item as any).data_aprovacao || item.emissao;
-    if (!dateStr) return null;
-    const baseDate = parseLocalDate(dateStr);
-    if (isNaN(baseDate.getTime())) return null;
-    const vencimento = new Date(baseDate);
-    vencimento.setDate(vencimento.getDate() + prazo);
-    return vencimento;
+    return getVencimentoGlobal(item, ct);
   };
 
   const filtered = items.filter((i) => {
@@ -961,8 +936,155 @@ export const FaturamentoContent = () => {
     // Period filter
     if (filterPeriodoInicio && i.periodo_medicao_fim && i.periodo_medicao_fim < filterPeriodoInicio) return false;
     if (filterPeriodoFim && i.periodo_medicao_inicio && i.periodo_medicao_inicio > filterPeriodoFim) return false;
+    // Status filter
+    const status = getDisplayStatus(i);
+    if (filterStatus !== "all" && status !== filterStatus) return false;
     return true;
   });
+
+  const kpis = useMemo(() => {
+    let pendenteVal = 0;
+    let pendenteQty = 0;
+    let aguardandoVal = 0;
+    let aguardandoQty = 0;
+    let aprovadoVal = 0;
+    let aprovadoQty = 0;
+    let pagoVal = 0;
+    let pagoQty = 0;
+    let atrasoVal = 0;
+    let atrasoQty = 0;
+
+    items.forEach(item => {
+      const matchesSearch = !search ||
+        item.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
+        item.periodo.includes(search) ||
+        String(item.numero_sequencial).includes(search);
+      if (!matchesSearch) return;
+      if (filterEmpresa !== "all") {
+        const ct = contratos.find(c => c.id === item.contrato_id);
+        if (ct?.empresa_id !== filterEmpresa) return;
+      }
+      if (filterPeriodoInicio && item.periodo_medicao_fim && item.periodo_medicao_fim < filterPeriodoInicio) return;
+      if (filterPeriodoFim && item.periodo_medicao_inicio && item.periodo_medicao_inicio > filterPeriodoFim) return;
+
+      const status = getDisplayStatus(item);
+      const val = Number(item.valor_total || 0);
+      if (status === "Pendente") {
+        pendenteVal += val;
+        pendenteQty++;
+      } else if (status === "Aguardando Aprovação") {
+        aguardandoVal += val;
+        aguardandoQty++;
+      } else if (status === "Aprovado") {
+        aprovadoVal += val;
+        aprovadoQty++;
+      } else if (status === "Pago") {
+        pagoVal += val;
+        pagoQty++;
+      } else if (status === "Em Atraso") {
+        atrasoVal += val;
+        atrasoQty++;
+      }
+    });
+
+    return {
+      pendenteVal, pendenteQty,
+      aguardandoVal, aguardandoQty,
+      aprovadoVal, aprovadoQty,
+      pagoVal, pagoQty,
+      atrasoVal, atrasoQty
+    };
+  }, [items, search, filterEmpresa, filterPeriodoInicio, filterPeriodoFim, contratos]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { all: 0, Pendente: 0, "Aguardando Aprovação": 0, Aprovado: 0, Pago: 0, "Em Atraso": 0 };
+    items.forEach(i => {
+      const matchesSearch = !search ||
+        i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
+        i.periodo.includes(search) ||
+        String(i.numero_sequencial).includes(search);
+      if (!matchesSearch) return;
+      if (filterEmpresa !== "all") {
+        const ct = contratos.find(c => c.id === i.contrato_id);
+        if (ct?.empresa_id !== filterEmpresa) return;
+      }
+      if (filterPeriodoInicio && i.periodo_medicao_fim && i.periodo_medicao_fim < filterPeriodoInicio) return;
+      if (filterPeriodoFim && i.periodo_medicao_inicio && i.periodo_medicao_inicio > filterPeriodoFim) return;
+
+      counts.all++;
+      const status = getDisplayStatus(i);
+      if (status in counts) {
+        counts[status as keyof typeof counts]++;
+      }
+    });
+    return counts;
+  }, [items, search, filterEmpresa, filterPeriodoInicio, filterPeriodoFim, contratos]);
+
+  const handleBulkEnviarAprovacao = async () => {
+    const pendentes = filtered.filter(i => selected.has(i.id) && getDisplayStatus(i) === "Pendente");
+    if (pendentes.length === 0) {
+      toast({ title: "Nenhum item válido", description: "Selecione medições com status Pendente.", variant: "destructive" });
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const promises = pendentes.map(async (item) => {
+        await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", item.id);
+      });
+
+      await Promise.all(promises);
+      toast({ title: "Enviadas para aprovação", description: `${pendentes.length} medição(ões) enviada(s) com sucesso.` });
+      setSelected(new Set());
+      fetchData();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message || "Erro ao processar lote", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkAprovar = async () => {
+    const aguardando = filtered.filter(i => selected.has(i.id) && getDisplayStatus(i) === "Aguardando Aprovação");
+    if (aguardando.length === 0) {
+      toast({ title: "Nenhum item válido", description: "Selecione medições no status Aguardando Aprovação.", variant: "destructive" });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const promises = aguardando.map(async (item) => {
+        await supabase.from("faturamento").update({ status: "Aprovado" }).eq("id", item.id);
+      });
+
+      await Promise.all(promises);
+      toast({ title: "Medições aprovadas", description: `${aguardando.length} medição(ões) aprovada(s) com sucesso.` });
+      setSelected(new Set());
+      fetchData();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message || "Erro ao aprovar em lote", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    setIsSaving(true);
+    try {
+      const promises = Array.from(selected).map(id => supabase.from("faturamento").delete().eq("id", id));
+      await Promise.all(promises);
+      toast({ title: "Excluídas", description: `${selected.size} medição(ões) excluída(s) com sucesso.` });
+      setSelected(new Set());
+      fetchData();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message || "Erro ao excluir em lote", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   const totalPendente = items.filter((i) => getDisplayStatus(i) === "Pendente" || getDisplayStatus(i) === "Em Atraso").reduce((acc, i) => acc + Number(i.valor_total), 0);
 
   const toggleSelect = (id: string) => {
@@ -1302,70 +1424,140 @@ export const FaturamentoContent = () => {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent p-5 rounded-2xl border border-accent/20 shadow-sm backdrop-blur-md">
-          <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
-            {selected.size > 0 && <p className="text-sm text-muted-foreground font-semibold">{selected.size} selecionada(s)</p>}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10"><FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel</Button>
-              <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10"><FileDown className="h-4 w-4 mr-1 text-primary" /> PDF</Button>
-              <Button onClick={() => setImportDialogOpen(true)} variant="outline" size="sm" className="bg-background/50 backdrop-blur-sm border-emerald-500/30 text-emerald-600 hover:bg-emerald-50"><FileSpreadsheet className="h-4 w-4 mr-1" /> Importar</Button>
+        {/* Painel Unificado de Filtros e Ações */}
+        <div className="bg-card shadow-sm border border-border/80 rounded-2xl p-5 space-y-4 hover:shadow-md transition-shadow">
+          {/* Linha Superior: Ações & Seleção em Lote */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {selected.size > 0 ? (
+              <div className="flex items-center gap-2 flex-wrap bg-background/50 backdrop-blur-sm p-1.5 rounded-xl border border-accent/20 shadow-sm">
+                <span className="text-xs font-semibold text-muted-foreground px-2">{selected.size} selecionada(s):</span>
+                {filtered.some(i => selected.has(i.id) && getDisplayStatus(i) === "Pendente") && (
+                  <Button size="sm" variant="outline" className="h-8 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={handleBulkEnviarAprovacao}>
+                    <Send className="h-3.5 w-3.5 mr-1" /> Enviar p/ Aprovação
+                  </Button>
+                )}
+                {filtered.some(i => selected.has(i.id) && getDisplayStatus(i) === "Aguardando Aprovação") && (
+                  <Button size="sm" variant="outline" className="h-8 text-xs border-success/30 text-success hover:bg-success/5" onClick={handleBulkAprovar}>
+                    <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Aprovar Medições
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" className="h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/5" onClick={() => setBulkDeleteDialogOpen(true)}>
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                </Button>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+            
+            <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => exportToExcel(getExportData())} className="bg-background/50 border-border/80 hover:bg-accent/10">
+                  <FileSpreadsheet className="h-4 w-4 mr-1 text-success" /> Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportDetailedPDF()} className="bg-background/50 border-border/80 hover:bg-accent/10">
+                  <FileDown className="h-4 w-4 mr-1 text-primary" /> PDF
+                </Button>
+                <Button onClick={() => setImportDialogOpen(true)} variant="outline" size="sm" className="bg-background/50 border-emerald-500/30 text-emerald-600 hover:bg-emerald-50">
+                  <FileSpreadsheet className="h-4 w-4 mr-1" /> Importar
+                </Button>
+              </div>
+              <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5">
+                <Plus className="h-4 w-4 mr-2" /> Nova Medição
+              </Button>
             </div>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5"><Plus className="h-4 w-4 mr-2" /> Nova Medição</Button>
           </div>
-        </div>
 
-        <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Empresa</Label>
-                <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
-                  <SelectTrigger className="w-56">
-                    <SelectValue placeholder="Todas as Empresas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as Empresas</SelectItem>
-                    {(() => {
-                      const empresaMap = new Map<string, string>();
-                      contratos.forEach(c => { 
-                        if (c.empresas?.nome) {
-                          const label = `${c.empresas.nome}${c.empresas.obra ? ` (Obra: ${c.empresas.obra})` : ""}`;
-                          empresaMap.set(c.empresa_id, label); 
-                        }
-                      });
-                      items.forEach(i => { 
-                        if (i.contratos?.empresas?.nome && i.contratos?.empresa_id) {
-                          const label = `${i.contratos.empresas.nome}${i.contratos.empresas.obra ? ` (Obra: ${i.contratos.empresas.obra})` : ""}`;
-                          empresaMap.set(i.contratos.empresa_id, label); 
-                        }
-                      });
-                      return Array.from(empresaMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, label]) => (
-                        <SelectItem key={id} value={id}>{label}</SelectItem>
-                      ));
-                    })()}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Período Início</Label>
-                <Input type="date" className="w-44" value={filterPeriodoInicio} onChange={(e) => setFilterPeriodoInicio(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Período Fim</Label>
-                <Input type="date" className="w-44" value={filterPeriodoFim} onChange={(e) => setFilterPeriodoFim(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Buscar</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Nº, empresa, nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 w-56 bg-background/50 focus:bg-background transition-colors" />
-                </div>
-              </div>
-              {(filterEmpresa !== "all" || filterPeriodoInicio || filterPeriodoFim || search) && (
-                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setFilterEmpresa("all"); setFilterPeriodoInicio(""); setFilterPeriodoFim(""); setSearch(""); }}>Limpar filtros</Button>
-              )}
+          <div className="border-t border-border/40" />
+
+          {/* Linha Central: Filtros */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+            <div className="space-y-1 w-full sm:w-auto">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Empresa</Label>
+              <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
+                <SelectTrigger className="w-full sm:w-56 bg-background/50">
+                  <SelectValue placeholder="Todas as Empresas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Empresas</SelectItem>
+                  {(() => {
+                    const empresaMap = new Map<string, string>();
+                    contratos.forEach(c => { 
+                      if (c.empresas?.nome) {
+                        const label = `${c.empresas.nome}${c.empresas.obra ? ` (Obra: ${c.empresas.obra})` : ""}`;
+                        empresaMap.set(c.empresa_id, label); 
+                      }
+                    });
+                    items.forEach(i => { 
+                      if (i.contratos?.empresas?.nome && i.contratos?.empresa_id) {
+                        const label = `${i.contratos.empresas.nome}${i.contratos.empresas.obra ? ` (Obra: ${i.contratos.empresas.obra})` : ""}`;
+                        empresaMap.set(i.contratos.empresa_id, label); 
+                      }
+                    });
+                    return Array.from(empresaMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, label]) => (
+                      <SelectItem key={id} value={id}>{label}</SelectItem>
+                    ));
+                  })()}
+                </SelectContent>
+              </Select>
             </div>
+
+            <div className="space-y-1 w-full sm:w-auto">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Período Início</Label>
+              <Input type="date" className="w-full sm:w-44 bg-background/50" value={filterPeriodoInicio} onChange={(e) => setFilterPeriodoInicio(e.target.value)} />
+            </div>
+
+            <div className="space-y-1 w-full sm:w-auto">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Período Fim</Label>
+              <Input type="date" className="w-full sm:w-44 bg-background/50" value={filterPeriodoFim} onChange={(e) => setFilterPeriodoFim(e.target.value)} />
+            </div>
+
+            <div className="space-y-1 w-full sm:w-auto">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Nº, empresa, nota..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 w-full sm:w-56 bg-background/50 focus:bg-background transition-colors" />
+              </div>
+            </div>
+
+            {(filterEmpresa !== "all" || filterPeriodoInicio || filterPeriodoFim || search || filterStatus !== "all") && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setFilterEmpresa("all"); setFilterPeriodoInicio(""); setFilterPeriodoFim(""); setSearch(""); setFilterStatus("all"); }}>
+                Limpar filtros
+              </Button>
+            )}
+          </div>
+
+          {/* Linha Inferior: Chips de Status */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-border/40 w-full">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mr-2">Filtrar Status:</span>
+            {[
+              { value: "all", label: "Todos", count: statusCounts.all, color: "border-border hover:bg-accent/10" },
+              { value: "Pendente", label: "Pendente", count: statusCounts.Pendente, color: "border-warning/30 text-warning bg-warning/5 hover:bg-warning/10" },
+              { value: "Aguardando Aprovação", label: "Aguardando", count: statusCounts["Aguardando Aprovação"], color: "border-yellow-500/30 text-yellow-600 bg-yellow-500/5 hover:bg-yellow-500/10" },
+              { value: "Aprovado", label: "Aprovado", count: statusCounts.Aprovado, color: "border-indigo-500/30 text-indigo-600 bg-indigo-500/5 hover:bg-indigo-500/10" },
+              { value: "Pago", label: "Pago", count: statusCounts.Pago, color: "border-success/30 text-success bg-success/5 hover:bg-success/10" },
+              { value: "Em Atraso", label: "Em Atraso", count: statusCounts["Em Atraso"], color: "border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive/10" },
+            ].map(s => {
+              const isActive = filterStatus === s.value;
+              return (
+                <button
+                  key={s.value}
+                  onClick={() => setFilterStatus(s.value)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium transition-all shadow-sm",
+                    isActive
+                      ? (s.value === "all" ? "bg-foreground text-background border-foreground font-semibold" : cn("ring-1 ring-offset-1 ring-border font-semibold", s.color.split(" ").slice(0, 3).join(" ")))
+                      : "bg-background text-muted-foreground hover:text-foreground",
+                    s.color.split(" ").slice(-1)[0]
+                  )}
+                >
+                  {s.label}
+                  <Badge variant="secondary" className="h-4 min-w-4 rounded-full px-1 text-[10px] font-normal font-mono bg-muted text-muted-foreground ml-1">
+                    {s.count}
+                  </Badge>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="bg-card/60 backdrop-blur-sm border border-border/60 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -1387,6 +1579,7 @@ export const FaturamentoContent = () => {
               <TableBody>
                 {filtered.map((item) => {
                   const itemGastos = Number(item.total_gastos || 0);
+                  const displayStatus = getDisplayStatus(item);
                   return (
                     <TableRow key={item.id} className={selected.has(item.id) ? "bg-accent/5" : ""}>
                       <TableCell><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} /></TableCell>
@@ -1403,7 +1596,12 @@ export const FaturamentoContent = () => {
                           <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
                           {item.empresa_faturamento_id && (() => {
                             const ef = empresasList.find(e => e.id === item.empresa_faturamento_id);
-                            return ef ? <p className="text-xs text-warning mt-0.5">Faturar: {ef.nome}{ef.obra ? ` (Obra: ${ef.obra})` : ""}</p> : null;
+                            return ef ? (
+                              <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 w-fit">
+                                <Landmark className="h-3 w-3 shrink-0" />
+                                <span>Faturar para: <strong>{ef.nome}</strong>{ef.obra ? ` (Obra: ${ef.obra})` : ""}</span>
+                              </div>
+                            ) : null;
                           })()}
                         </div>
                       </TableCell>
@@ -1432,13 +1630,23 @@ export const FaturamentoContent = () => {
                       <TableCell className="font-bold text-sm">R$ {Number(item.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>
                         {(() => {
-                          const displayStatus = getDisplayStatus(item);
+                          const venc = getVencimento(item);
+                          const diffTime = venc ? Math.max(0, new Date().getTime() - venc.getTime()) : 0;
+                          const diffDays = venc ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
+
+                          if (displayStatus === "Em Atraso") {
+                            return (
+                              <Badge className="bg-destructive text-destructive-foreground animate-pulse">
+                                {`Em Atraso (${diffDays} d)`}
+                              </Badge>
+                            );
+                          }
+
                           return (
                             <Badge className={
                               displayStatus === "Aprovado" ? "bg-success text-success-foreground" :
                               displayStatus === "Pago" ? "bg-success text-success-foreground" :
-                              displayStatus === "Cancelado" ? "bg-destructive text-destructive-foreground" :
-                              displayStatus === "Em Atraso" ? "bg-destructive text-destructive-foreground" :
+                              displayStatus === "Cancelado" ? "bg-muted text-muted-foreground" :
                               "bg-warning text-warning-foreground"
                             }>
                               {displayStatus}
@@ -1450,7 +1658,7 @@ export const FaturamentoContent = () => {
                         <div className="flex flex-col items-start gap-0.5">
                           <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
                           <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
-                            {getDisplayStatus(item) === "Pendente" && (
+                            {displayStatus === "Pendente" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1462,11 +1670,11 @@ export const FaturamentoContent = () => {
                               </Button>
                             )}
 
-                            {getDisplayStatus(item) === "Aguardando Aprovação" && (
+                            {displayStatus === "Aguardando Aprovação" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                className="h-7 w-7 text-success hover:text-success hover:bg-success/5"
                                 title="Aprovar Medição"
                                 onClick={() => setAprovarDialog({ isOpen: true, faturaId: item.id, emissaoDate: "" })}
                               >
@@ -1474,15 +1682,17 @@ export const FaturamentoContent = () => {
                               </Button>
                             )}
 
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-                              title="Editar Medição"
-                              onClick={() => openEdit(item)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
+                            {displayStatus !== "Aprovado" && displayStatus !== "Pago" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                                title="Editar Medição"
+                                onClick={() => openEdit(item)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
 
                             <Button
                               variant="ghost"
@@ -1504,28 +1714,30 @@ export const FaturamentoContent = () => {
                               <Mail className="h-3.5 w-3.5" />
                             </Button>
 
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  title="Excluir Medição"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir Medição #{item.numero_sequencial}</AlertDialogTitle>
-                                  <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            {displayStatus !== "Aprovado" && displayStatus !== "Pago" && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    title="Excluir Medição"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir Medição #{item.numero_sequencial}</AlertDialogTitle>
+                                    <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -1589,7 +1801,7 @@ export const FaturamentoContent = () => {
 
                   return {
                     value: c.id,
-                    label: `${c.empresas?.nome}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${equipCount > 0 ? `${equipCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}`,
+                    label: `${c.empresas?.nome}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${equipCount > 0 ? `${equipCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}${c.status !== "Ativo" ? ` [${c.status}]` : ""}`,
                   };
                 })}
               />
@@ -1911,7 +2123,9 @@ export const FaturamentoContent = () => {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Pago">Pago</SelectItem>
+                    {(formStatus === "Aprovado" || formStatus === "Aguardando Aprovação" || formStatus === "Pago" || formStatus === "Em Atraso") && (
+                      <SelectItem value={formStatus} disabled>{formStatus}</SelectItem>
+                    )}
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -2128,6 +2342,23 @@ export const FaturamentoContent = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* AlertDialog for Bulk Deletion */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Medições em Lote</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir as {selected.size} medições selecionadas? Esta ação removerá os registros permanentemente e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Confirmar Exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </>
   );

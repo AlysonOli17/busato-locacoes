@@ -29,9 +29,39 @@ interface ToastNotif {
 }
 
 let toastListeners: ((n: ToastNotif) => void)[] = [];
+
+export function playNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    const playTone = (frequency: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, startTime);
+      gain.gain.setValueAtTime(0.08, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    
+    const now = ctx.currentTime;
+    playTone(523.25, now, 0.15); // C5
+    playTone(659.25, now + 0.12, 0.25); // E5
+  } catch (e) {
+    console.warn("Failed to play audio notification:", e);
+  }
+}
+
 export function pushToastNotification(n: ToastNotif) {
+  playNotificationSound();
   toastListeners.forEach((fn) => fn(n));
 }
+
 
 export function NotificationToastContainer() {
   const [toasts, setToasts] = useState<(ToastNotif & { visible: boolean })[]>([]);

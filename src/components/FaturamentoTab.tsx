@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { getEquipLabel } from "@/lib/utils";
+import { getEquipLabel, getVencimento as getVencimentoGlobal, getDisplayStatus as getDisplayStatusGlobal } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet, Send } from "lucide-react";
+import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, TrendingDown, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet, Send } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { withCache, clearCache } from "@/lib/cache";
@@ -238,25 +238,14 @@ export const FaturamentoTab = () => {
 
   const getVencimento = (fatura: Fatura) => {
     const ct = getContrato(fatura.contrato_id);
-    const prazo = ct?.prazo_faturamento || 30;
-    const dateStr = fatura.emissao || (fatura as any).data_aprovacao;
-    if (!dateStr) return null;
-    const baseDate = parseLocalDate(dateStr);
-    if (isNaN(baseDate.getTime())) return null;
-    const venc = new Date(baseDate);
-    venc.setDate(venc.getDate() + prazo);
-    return venc;
+    return getVencimentoGlobal(fatura, ct);
   };
 
   const getDisplayStatus = (fatura: Fatura) => {
-    if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
-    if (fatura.status === "Aprovado") {
-      const venc = getVencimento(fatura);
-      if (venc && new Date() > venc) return "Em Atraso";
-      return "Pendente";
-    }
-    return fatura.status;
+    const ct = getContrato(fatura.contrato_id);
+    return getDisplayStatusGlobal(fatura, ct, "faturamento");
   };
+
 
   const filteredFaturas = useMemo(() => {
     return faturas.filter(f => {
@@ -295,9 +284,41 @@ export const FaturamentoTab = () => {
   }, [filteredFaturas, sortCol, sortAsc]);
 
   // KPIs
-  const totalFaturado = faturas.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
-  const totalPendente = faturas.filter(f => getDisplayStatus(f) === "Pendente").reduce((s, f) => s + Number(f.valor_total), 0);
-  const totalAtraso = faturas.filter(f => getDisplayStatus(f) === "Em Atraso").reduce((s, f) => s + Number(f.valor_total), 0);
+  const kpis = useMemo(() => {
+    let faturadoVal = 0;
+    let faturadoQty = 0;
+    let pendenteVal = 0;
+    let pendenteQty = 0;
+    let atrasoVal = 0;
+    let atrasoQty = 0;
+
+    faturas.forEach(f => {
+      if (filterEmpresa !== "all") {
+        const ct = getContrato(f.contrato_id);
+        if (ct?.empresa_id !== filterEmpresa) return;
+      }
+
+      const status = getDisplayStatus(f);
+      const val = Number(f.valor_total || 0);
+
+      if (status === "Pago") {
+        faturadoVal += val;
+        faturadoQty++;
+      } else if (status === "A Faturar") {
+        pendenteVal += val;
+        pendenteQty++;
+      } else if (status === "Em Atraso") {
+        atrasoVal += val;
+        atrasoQty++;
+      }
+    });
+
+    return {
+      faturadoVal, faturadoQty,
+      pendenteVal, pendenteQty,
+      atrasoVal, atrasoQty
+    };
+  }, [faturas, filterEmpresa, contratos]);
 
   const openEdit = (fatura: Fatura) => {
     setEditingFatura(fatura);
@@ -839,7 +860,7 @@ export const FaturamentoTab = () => {
         if (cellData.section === "body" && cellData.column.index === 7) {
           const s = cellData.cell.raw;
           if (s === "Em Atraso") { cellData.cell.styles.textColor = [192, 57, 43]; cellData.cell.styles.fontStyle = "bold"; }
-          else if (s === "Pendente") { cellData.cell.styles.textColor = [243, 156, 18]; }
+          else if (s === "A Faturar" || s === "Pendente") { cellData.cell.styles.textColor = [243, 156, 18]; }
           else if (s === "Pago") { cellData.cell.styles.textColor = [39, 174, 96]; }
         }
       },
@@ -858,6 +879,54 @@ export const FaturamentoTab = () => {
 
   return (
     <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-card shadow-sm border border-border/80 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Aprovadas (A Faturar)</p>
+              <h3 className="text-xl font-extrabold mt-1 text-indigo-600">
+                R$ {kpis.pendenteVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">{kpis.pendenteQty} fatura(s)</p>
+            </div>
+            <div className="h-9 w-9 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+              <TrendingDown className="h-4 w-4" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card shadow-sm border border-border/80 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Recebidas (Pagas)</p>
+              <h3 className="text-xl font-extrabold mt-1 text-success">
+                R$ {kpis.faturadoVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">{kpis.faturadoQty} fatura(s)</p>
+            </div>
+            <div className="h-9 w-9 rounded-lg bg-success/10 flex items-center justify-center text-success shrink-0">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card shadow-sm border border-border/80 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Em Atraso</p>
+              <h3 className="text-xl font-extrabold mt-1 text-destructive">
+                R$ {kpis.atrasoVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">{kpis.atrasoQty} fatura(s)</p>
+            </div>
+            <div className="h-9 w-9 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive shrink-0">
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div className="flex flex-wrap gap-3 flex-1">
@@ -879,7 +948,7 @@ export const FaturamentoTab = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Status</SelectItem>
-              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="A Faturar">A Faturar</SelectItem>
               <SelectItem value="Pago">Pago</SelectItem>
               <SelectItem value="Em Atraso">Em Atraso</SelectItem>
               <SelectItem value="Cancelado">Cancelado</SelectItem>
