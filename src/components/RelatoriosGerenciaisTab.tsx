@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,15 @@ export const RelatoriosGerenciaisTab = ({
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("all");
   const [selectedEquipamento, setSelectedEquipamento] = useState<string>("all");
+  const [faturamentoEquipamentosList, setFaturamentoEquipamentosList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadFaturamentoEquipamentos = async () => {
+      const { data } = await supabase.from("faturamento_equipamentos").select("*");
+      if (data) setFaturamentoEquipamentosList(data);
+    };
+    loadFaturamentoEquipamentos();
+  }, []);
 
   const fmt = (v: any) => {
     const val = Number(v);
@@ -153,18 +163,37 @@ export const RelatoriosGerenciaisTab = ({
 
   // 3. Rentabilidade por Equipamento
   const rentabilidadeEquipamentos = useMemo(() => {
-    // Determine faturamento linked to each machine
-    // (since faturamento records are linked to contratos, we fetch faturamento_equipamentos)
     return equipamentos.map(eq => {
-      // Filter faturas for this machine
-      const eqFaturas = faturasFiltradas.filter(f => {
-        const ct = contratos.find(c => c.id === f.contrato_id);
-        return ct?.equipamento_id === eq.id && (f.status === "Pago" || f.status === "Aprovado");
+      // Find all items in faturamento_equipamentos for this machine
+      const eqItems = faturamentoEquipamentosList.filter(item => item.equipamento_id === eq.id);
+      
+      // Filter items whose parent faturamento matches our active filters (faturasFiltradas)
+      // and is Pago or Aprovado
+      let receita = 0;
+      eqItems.forEach(item => {
+        const fat = faturasFiltradas.find(f => f.id === item.faturamento_id && (f.status === "Pago" || f.status === "Aprovado"));
+        if (fat) {
+          const horasNormais = Number(item.horas_normais ?? item.horas_medidas ?? 0);
+          const valorHora = Number(item.valor_hora ?? 0);
+          const horasExcedentes = Number(item.horas_excedentes ?? 0);
+          const valorHoraExcedente = Number(item.valor_hora_excedente ?? item.valor_excedente_hora ?? 0);
+          
+          const totalItem = (horasNormais * valorHora) + (horasExcedentes * valorHoraExcedente);
+          receita += totalItem;
+        }
       });
 
-      const eqGastos = gastosFiltrados.filter(g => g.equipamento_id === eq.id);
+      // Fallback to contract association if there are no sub-items yet in faturamento_equipamentos
+      // (some old faturamentos might only be registered as general invoices in faturamento table)
+      if (receita === 0) {
+        const eqFaturas = faturasFiltradas.filter(f => {
+          const ct = contratos.find(c => c.id === f.contrato_id);
+          return ct?.equipamento_id === eq.id && (f.status === "Pago" || f.status === "Aprovado");
+        });
+        receita = eqFaturas.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+      }
 
-      const receita = eqFaturas.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+      const eqGastos = gastosFiltrados.filter(g => g.equipamento_id === eq.id);
       const despesa = eqGastos.reduce((sum, g) => sum + Number(g.valor || 0), 0);
       const margem = receita - despesa;
       const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
@@ -181,7 +210,7 @@ export const RelatoriosGerenciaisTab = ({
         status: eq.status
       };
     }).sort((a, b) => b.margem - a.margem);
-  }, [equipamentos, faturasFiltradas, gastosFiltrados, contratos]);
+  }, [equipamentos, faturasFiltradas, gastosFiltrados, contratos, faturamentoEquipamentosList]);
 
   // 4. Aging List (Contas a Receber por Vencer e Atrasados)
   const agingList = useMemo(() => {
