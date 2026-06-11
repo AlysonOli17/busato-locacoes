@@ -3,7 +3,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
-  ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen
+  ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen,
+  PieChart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +37,10 @@ const allGroups: NavGroup[] = [
   {
     label: "Controladoria",
     icon: BarChart3,
-    to: "/controladoria"
+    items: [
+      { to: "/controladoria?tab=visao-geral", icon: BarChart3, label: "Visão Geral & B.I." },
+      { to: "/controladoria?tab=relatorios", icon: PieChart, label: "Relatórios Gerenciais" }
+    ]
   },
   {
     label: "Cadastros",

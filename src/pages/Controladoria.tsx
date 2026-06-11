@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
 import { RelatoriosGerenciaisTab } from "@/components/RelatoriosGerenciaisTab";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, PieChart } from "lucide-react";
 
 interface Empresa {
   id: string;
@@ -55,6 +54,16 @@ interface Fatura {
 }
 
 const Controladoria = () => {
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    return new URLSearchParams(window.location.search).get("tab") || "visao-geral";
+  });
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab") || "visao-geral";
+    setActiveTab(tab);
+  }, [location.search]);
+
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [faturas, setFaturas] = useState<Fatura[]>([]);
@@ -150,54 +159,37 @@ const Controladoria = () => {
   }, []);
 
   return (
-    <Layout title="Controladoria & B.I." subtitle="Cockpit executivo e indicadores de performance">
+    <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : "Cockpit executivo e indicadores de performance"}>
       <div className="space-y-6">
         {!loading && (
-          <Tabs defaultValue="visao-geral" className="w-full space-y-6">
-            <div className="flex items-center justify-between border-b border-border/40 pb-2">
-              <TabsList className="bg-muted/50 p-1 rounded-xl">
-                <TabsTrigger value="visao-geral" className="gap-2 rounded-lg py-1.5 text-xs font-bold uppercase tracking-wider">
-                  <BarChart3 className="h-4 w-4" />
-                  Visão Geral & B.I.
-                </TabsTrigger>
-                <TabsTrigger value="relatorios" className="gap-2 rounded-lg py-1.5 text-xs font-bold uppercase tracking-wider">
-                  <PieChart className="h-4 w-4" />
-                  Relatórios Gerenciais
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="visao-geral" className="mt-0 focus-visible:outline-none">
-              <VisaoGeralTab
-                empresas={empresas}
-                contratos={contratos}
-                faturas={faturas}
-                equipamentos={equipamentos}
-                gastos={gastos}
-                medicoes={medicoes}
-                apolices={apolices}
-                apolicesEquipamentos={apolicesEquipamentos}
-                contratosAditivos={contratosAditivos}
-                aditivosEquipamentos={aditivosEquipamentos}
-                sinistros={sinistros}
-                faturamentoGastos={faturamentoGastos}
-                contratosEquipamentos={contratosEquipamentos}
-              />
-            </TabsContent>
-
-            <TabsContent value="relatorios" className="mt-0 focus-visible:outline-none">
-              <RelatoriosGerenciaisTab
-                empresas={empresas}
-                contratos={contratos}
-                faturas={faturas}
-                equipamentos={equipamentos}
-                gastos={gastos}
-                medicoes={medicoes}
-                contratosEquipamentos={contratosEquipamentos}
-                faturamentoGastos={faturamentoGastos}
-              />
-            </TabsContent>
-          </Tabs>
+          activeTab === "relatorios" ? (
+            <RelatoriosGerenciaisTab
+              empresas={empresas}
+              contratos={contratos}
+              faturas={faturas}
+              equipamentos={equipamentos}
+              gastos={gastos}
+              medicoes={medicoes}
+              contratosEquipamentos={contratosEquipamentos}
+              faturamentoGastos={faturamentoGastos}
+            />
+          ) : (
+            <VisaoGeralTab
+              empresas={empresas}
+              contratos={contratos}
+              faturas={faturas}
+              equipamentos={equipamentos}
+              gastos={gastos}
+              medicoes={medicoes}
+              apolices={apolices}
+              apolicesEquipamentos={apolicesEquipamentos}
+              contratosAditivos={contratosAditivos}
+              aditivosEquipamentos={aditivosEquipamentos}
+              sinistros={sinistros}
+              faturamentoGastos={faturamentoGastos}
+              contratosEquipamentos={contratosEquipamentos}
+            />
+          )
         )}
       </div>
     </Layout>
