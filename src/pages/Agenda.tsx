@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,14 @@ import {
   ChevronDown,
   Eye,
   MessageSquare,
-  CalendarPlus
+  CalendarPlus,
+  Send,
+  FileDown,
+  Workflow,
+  TrendingUp,
+  CheckSquare,
+  DollarSign,
+  AlertCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -165,7 +173,7 @@ export default function Agenda() {
   const { profile, role } = useAuth();
   const currentUserNome = profile?.nome || "Sistema";
   const isAdmin = role === "admin" || role === "superadmin";
-  const [activeTab, setActiveTab] = useState<"kanban" | "calendar" | "notes">("kanban");
+  const [activeTab, setActiveTab] = useState<"pipeline" | "kanban" | "calendar" | "notes">("pipeline");
   const [calendarMode, setCalendarMode] = useState<"day" | "month" | "year">("month");
   const [viewAll, setViewAll] = useState(false);
   
@@ -176,6 +184,440 @@ export default function Agenda() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [usuarios, setUsuarios] = useState<{ user_id: string; nome: string; }[]>([]);
+
+  const [faturamentos, setFaturamentos] = useState<any[]>([]);
+  const [invoiceResponsibles, setInvoiceResponsibles] = useState<Record<string, string>>({});
+
+  // Custom Workflow & Stepper States
+  const [contasBancarias, setContasBancarias] = useState<any[]>([]);
+  const [selectedApprovers, setSelectedApprovers] = useState<Record<string, string>>({});
+  const [billingForm, setBillingForm] = useState<Record<string, {
+    numeroNota: string;
+    emissaoDate: string;
+    contaBancariaId: string;
+    observacoes: string;
+  }>>({});
+  const [previewFaturaId, setPreviewFaturaId] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<{
+    fatura: any;
+    contrato: any;
+    empresa: any;
+    equipamentosItens: any[];
+    gastosItens: any[];
+  } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const navigate = useNavigate();
+
+  const handleDownloadMedicaoPDF = async (faturaId: string) => {
+    try {
+      const { data: fatura, error: fatError } = await supabase
+        .from("faturamento")
+        .select("*")
+        .eq("id", faturaId)
+        .single();
+      if (fatError || !fatura) throw new Error("Faturamento não encontrado.");
+
+      const { data: contrato, error: ctError } = await supabase
+        .from("contratos")
+        .select("*")
+        .eq("id", fatura.contrato_id)
+        .single();
+      if (ctError || !contrato) throw new Error("Contrato não encontrado.");
+
+      const { data: empresa } = contrato.empresa_id ? await supabase
+        .from("empresas")
+        .select("*")
+        .eq("id", contrato.empresa_id)
+        .single() : { data: null };
+
+      const { data: equipamento } = contrato.equipamento_id ? await supabase
+        .from("equipamentos")
+        .select("*")
+        .eq("id", contrato.equipamento_id)
+        .single() : { data: null };
+
+      const { data: allEmpresas } = await supabase
+        .from("empresas")
+        .select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone, obra, email");
+
+      const contratoMapped = {
+        ...contrato,
+        empresas: empresa || null,
+        equipamentos: equipamento || null
+      };
+
+      const faturaMapped = {
+        ...fatura,
+        contratos: contratoMapped
+      };
+
+      const { exportDetailedFaturamentoPDF } = await import("@/lib/faturamentoExportUtils");
+      await exportDetailedFaturamentoPDF([faturaMapped], allEmpresas || []);
+      toast({ title: "Sucesso", description: "PDF da medição baixado com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar PDF", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleOpenPreview = async (faturaId: string) => {
+    setPreviewFaturaId(faturaId);
+    setLoadingPreview(true);
+    setPreviewData(null);
+    try {
+      const { data: fatura, error: fatError } = await supabase
+        .from("faturamento")
+        .select("*")
+        .eq("id", faturaId)
+        .single();
+      if (fatError || !fatura) throw new Error("Faturamento não encontrado.");
+
+      const { data: contrato, error: ctError } = await supabase
+        .from("contratos")
+        .select("*")
+        .eq("id", fatura.contrato_id)
+        .single();
+      if (ctError || !contrato) throw new Error("Contrato não encontrado.");
+
+      const { data: empresa } = contrato.empresa_id ? await supabase
+        .from("empresas")
+        .select("*")
+        .eq("id", contrato.empresa_id)
+        .single() : { data: null };
+
+      const { data: equipamento } = contrato.equipamento_id ? await supabase
+        .from("equipamentos")
+        .select("*")
+        .eq("id", contrato.equipamento_id)
+        .single() : { data: null };
+
+      const { data: fatEquips } = await supabase
+        .from("faturamento_equipamentos")
+        .select("*")
+        .eq("faturamento_id", faturaId);
+
+      let fatEquipsMapped: any[] = [];
+      if (fatEquips && fatEquips.length > 0) {
+        const equipIds = fatEquips.map(fe => fe.equipamento_id).filter(Boolean);
+        if (equipIds.length > 0) {
+          const { data: equipsData } = await supabase
+            .from("equipamentos")
+            .select("*")
+            .in("id", equipIds);
+          const equipsMap = new Map((equipsData || []).map(e => [e.id, e]));
+          fatEquipsMapped = fatEquips.map(fe => ({
+            ...fe,
+            equipamentos: equipsMap.get(fe.equipamento_id) || null
+          }));
+        }
+      }
+
+      const { data: fatGastos } = await supabase
+        .from("faturamento_gastos")
+        .select("gasto_id")
+        .eq("faturamento_id", faturaId);
+        
+      let gastosDetails: any[] = [];
+      if (fatGastos && fatGastos.length > 0) {
+        const gIds = fatGastos.map(g => g.gasto_id).filter(Boolean);
+        if (gIds.length > 0) {
+          const { data: gData } = await supabase
+            .from("gastos")
+            .select("*")
+            .in("id", gIds);
+          if (gData) gastosDetails = gData;
+        }
+      }
+
+      const contratoMapped = {
+        ...contrato,
+        empresas: empresa || null,
+        equipamentos: equipamento || null
+      };
+
+      setPreviewData({
+        fatura,
+        contrato: contratoMapped,
+        empresa: empresa || null,
+        equipamentosItens: fatEquipsMapped,
+        gastosItens: gastosDetails
+      });
+    } catch (err: any) {
+      toast({ title: "Erro ao carregar medição", description: err.message, variant: "destructive" });
+      setPreviewFaturaId(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleSendToApproval = async (item: AgendaEvent) => {
+    const selectedApprover = selectedApprovers[item.id] || "none";
+    const approverName = selectedApprover === "none" ? "" : selectedApprover;
+    
+    const match = item.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+    const faturaId = match ? match[1] : null;
+
+    try {
+      const { error: agendaError } = await supabase
+        .from("agenda")
+        .update({
+          responsavel_nome: approverName,
+          status: "Aguardando Aprovação"
+        })
+        .eq("id", item.id);
+      if (agendaError) throw agendaError;
+
+      if (faturaId) {
+        const { error: fatError } = await supabase
+          .from("faturamento")
+          .update({ status: "Aguardando Aprovação" } as any)
+          .eq("id", faturaId);
+        if (fatError) throw fatError;
+      }
+
+      toast({
+        title: "Medição enviada para aprovação",
+        description: `Tarefa atribuída a ${approverName || "Administradores"}.`
+      });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar para aprovação", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleQuickApproveMedicao = async (item: AgendaEvent) => {
+    const match = item.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+    const faturaId = match ? match[1] : null;
+    
+    const selectedResp = invoiceResponsibles[item.id] || "none";
+    if (selectedResp === "none") {
+      toast({ 
+        title: "Responsável Necessário", 
+        description: "Por favor, selecione quem será a pessoa responsável por emitir a Fatura.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    try {
+      if (faturaId) {
+        const { error: fatError } = await supabase
+          .from("faturamento")
+          .update({ 
+            status: "Aprovado",
+            data_aprovacao: new Date().toISOString()
+          } as any)
+          .eq("id", faturaId);
+        if (fatError) throw fatError;
+      }
+      
+      const clientNome = item.empresas?.nome || "Cliente";
+      const refMatch = item.titulo.match(/\(Ref:\s*([^\)]+)\)/i);
+      const ref = refMatch ? refMatch[1] : "";
+      const refStr = ref ? ` (Ref: ${ref})` : "";
+
+      const newFaturamentoEvent: any = {
+        titulo: `Emitir Fatura - ${clientNome}${refStr}`,
+        descricao: `Medição aprovada. Lançar o número da nota fiscal (FAT...) para concluir o faturamento.`,
+        data_inicio: new Date().toISOString(),
+        status: "A Fazer",
+        prioridade: "Média",
+        categoria: "Faturamento",
+        contrato_id: item.contrato_id,
+        empresa_id: item.empresa_id || item.empresas?.id || null,
+        notas: `[Medição ID: ${faturaId || ""}]`,
+        responsavel_nome: selectedResp,
+        etapas: [],
+        historico: [{
+          data: new Date().toISOString(),
+          usuario: "Sistema",
+          acao: "Criado",
+          detalhes: `Tarefa de faturamento iniciada com responsável ${selectedResp}.`
+        }],
+        orcamento: item.orcamento || 0
+      };
+
+      if (isLocalMode) {
+        const localEvents = localStorage.getItem("busato-agenda-events");
+        let currentEvents = localEvents ? JSON.parse(localEvents) : [];
+        
+        // Complete the current event
+        currentEvents = currentEvents.map((ev: any) => 
+          ev.id === item.id ? { ...ev, status: "Concluído" } : ev
+        );
+
+        // Add the new faturamento event
+        currentEvents.push({
+          ...newFaturamentoEvent,
+          id: `agenda-${Date.now()}`
+        });
+
+        localStorage.setItem("busato-agenda-events", JSON.stringify(currentEvents));
+      } else {
+        // Update the current event if it's real
+        if (item.id && !item.id.startsWith("virtual-")) {
+          const { error: agendaError } = await supabase
+            .from("agenda")
+            .update({ status: "Concluído" })
+            .eq("id", item.id);
+          if (agendaError) throw agendaError;
+        }
+
+        // Insert new faturamento event
+        const { error: insertError } = await supabase
+          .from("agenda")
+          .insert(newFaturamentoEvent);
+        if (insertError) throw insertError;
+      }
+
+      toast({ title: "Medição Aprovada", description: `Medição aprovada. Faturamento direcionado para ${selectedResp}.` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao aprovar medição", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleFormChange = (eventId: string, field: string, val: string) => {
+    setBillingForm(prev => {
+      const current = prev[eventId] || {
+        numeroNota: "",
+        emissaoDate: new Date().toISOString().slice(0, 10),
+        contaBancariaId: "none",
+        observacoes: ""
+      };
+      return {
+        ...prev,
+        [eventId]: {
+          ...current,
+          [field]: val
+        }
+      };
+    });
+  };
+
+  const handleEmitirFaturaKanban = async (item: AgendaEvent, faturaId: string) => {
+    const formVal = billingForm[item.id] || {
+      numeroNota: "",
+      emissaoDate: new Date().toISOString().slice(0, 10),
+      contaBancariaId: "none",
+      observacoes: ""
+    };
+
+    if (!formVal.numeroNota.trim()) {
+      toast({ title: "Campo obrigatório", description: "Por favor, informe o número da Nota Fiscal.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const updatePayload: any = {
+        numero_nota: formVal.numeroNota,
+        emissao: formVal.emissaoDate,
+        data_aprovacao: formVal.emissaoDate,
+        observacoes: formVal.observacoes || ""
+      };
+      
+      if (formVal.contaBancariaId && formVal.contaBancariaId !== "none") {
+        updatePayload.conta_bancaria_id = formVal.contaBancariaId;
+      }
+      
+      const { error } = await supabase
+        .from("faturamento")
+        .update(updatePayload)
+        .eq("id", faturaId);
+        
+      if (error) throw error;
+      
+      if (item.id && !item.id.startsWith("virtual-")) {
+        const { error: agendaError } = await supabase
+          .from("agenda")
+          .update({ status: "Concluído" })
+          .eq("id", item.id);
+        if (agendaError) throw agendaError;
+      }
+
+      toast({ title: "Fatura emitida", description: "A fatura foi emitida e a tarefa foi marcada como Concluída!" });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao emitir fatura", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const getWorkflowSteps = (item: AgendaEvent) => {
+    const isMedicao = item.categoria === "Medição";
+    const isFaturamento = item.categoria === "Faturamento";
+    if (!isMedicao && !isFaturamento) return null;
+
+    let currentStep = 0;
+    if (isMedicao) {
+      if (item.status === "Aguardando Aprovação") {
+        currentStep = 1;
+      } else if (item.status === "Concluído") {
+        currentStep = 3;
+      } else {
+        currentStep = 0;
+      }
+    } else if (isFaturamento) {
+      if (item.status === "Concluído") {
+        currentStep = 3;
+      } else {
+        currentStep = 2;
+      }
+    }
+
+    return [
+      { label: "Medição", active: currentStep === 0, completed: currentStep > 0 },
+      { label: "Aprovação", active: currentStep === 1, completed: currentStep > 1 },
+      { label: "Faturamento", active: currentStep === 2, completed: currentStep > 2 },
+      { label: "Concluído", active: currentStep === 3, completed: currentStep >= 3 },
+    ];
+  };
+
+  const renderWorkflowStepper = (item: AgendaEvent) => {
+    const steps = getWorkflowSteps(item);
+    if (!steps) return null;
+
+    return (
+      <div className="flex items-center justify-between w-full my-4 px-2 select-none">
+        {steps.map((step, idx) => {
+          const isLast = idx === steps.length - 1;
+          return (
+            <div key={idx} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center relative animate-fade-in">
+                <div
+                  className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-300 border-2 ${
+                    step.completed
+                      ? "bg-success border-success text-white"
+                      : step.active
+                      ? "bg-accent/15 border-accent text-accent shadow-[0_0_8px_rgba(230,108,55,0.4)] animate-pulse"
+                      : "bg-muted border-muted-foreground/30 text-muted-foreground"
+                  }`}
+                >
+                  {step.completed ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <span>{idx + 1}</span>
+                  )}
+                </div>
+                <span
+                  className={`text-[8px] font-semibold mt-1 absolute -bottom-3.5 whitespace-nowrap transition-colors ${
+                    step.active ? "text-accent font-bold" : "text-muted-foreground"
+                  }`}
+                >
+                  {step.label}
+                </span>
+              </div>
+              {!isLast && (
+                <div
+                  className={`h-0.5 flex-1 mx-2 rounded transition-all duration-300 ${
+                    step.completed ? "bg-success" : "bg-muted-foreground/20"
+                  }`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   // States
   const [loading, setLoading] = useState(true);
@@ -277,17 +719,31 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
     setLoading(true);
     try {
       // 1. Fetch relations
-      const [equipRes, empRes, ctRes, profilesRes] = await Promise.all([
+      const [equipRes, empRes, ctRes, profilesRes, contasRes, faturamentoRes] = await Promise.all([
         supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("tipo"),
         supabase.from("empresas").select("id, nome").order("nome"),
-        supabase.from("contratos").select("id, empresa_id, empresas(nome), equipamento_id, equipamentos(tipo, modelo)"),
-        supabase.from("profiles").select("user_id, nome").order("nome")
+        supabase.from("contratos").select("id, empresa_id, equipamento_id"),
+        supabase.from("profiles").select("user_id, nome").order("nome"),
+        supabase.from("contas_bancarias").select("*").order("banco"),
+        supabase.from("faturamento").select("*")
       ]);
 
       if (equipRes.data) setEquipamentos(equipRes.data as any);
       if (empRes.data) setEmpresas(empRes.data as any);
-      if (ctRes.data) setContratos(ctRes.data as any);
+      
+      const resolvedEmp = empRes.data || [];
+      const resolvedEquip = equipRes.data || [];
+      if (ctRes.data) {
+        const mappedContratos = ctRes.data.map((c: any) => ({
+          ...c,
+          empresas: resolvedEmp.find((e: any) => e.id === c.empresa_id) || null,
+          equipamentos: resolvedEquip.find((eq: any) => eq.id === c.equipamento_id) || null
+        }));
+        setContratos(mappedContratos as any);
+      }
+      
       if (profilesRes.data) setUsuarios(profilesRes.data as any);
+      if (contasRes.data) setContasBancarias(contasRes.data);
 
       // 2. Fetch agenda events
       const { data: dbEvents, error: dbError } = await supabase
@@ -295,6 +751,7 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
         .select("*, equipamentos:equipamento_id(id, tipo, modelo, tag_placa), empresas:empresa_id(id, nome), contratos:contrato_id(id)")
         .order("data_inicio", { ascending: true });
 
+      let rawEvents: any[] = [];
       if (dbError) {
         // Table doesn't exist
         if (
@@ -306,15 +763,156 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
           setIsLocalMode(true);
           const localEvents = localStorage.getItem("busato-agenda-events");
           if (localEvents) {
-            setEvents(JSON.parse(localEvents));
+            rawEvents = JSON.parse(localEvents);
           }
         } else {
           throw dbError;
         }
       } else if (dbEvents) {
         setIsLocalMode(false);
-        setEvents(dbEvents as any);
+        rawEvents = [...dbEvents];
       }
+
+      // Resolve all relationships in-memory to prevent null/undefined references
+      const resolvedEmpresas = empRes.data || [];
+      const resolvedContratos = ctRes.data || [];
+      const resolvedEquipamentos = equipRes.data || [];
+
+      rawEvents = rawEvents.map((item: any) => {
+        let emp = item.empresas;
+        if (!emp || !emp.nome || emp.nome === "Cliente" || emp.nome === "CLIENTE") {
+          emp = resolvedEmpresas.find((e: any) => e.id === item.empresa_id) || null;
+        }
+        if ((!emp || !emp.nome || emp.nome === "Cliente" || emp.nome === "CLIENTE") && item.contrato_id) {
+          const ct = resolvedContratos.find((c: any) => c.id === item.contrato_id);
+          if (ct) {
+            emp = resolvedEmpresas.find((e: any) => e.id === ct.empresa_id) || null;
+          }
+        }
+
+        // Fallback: check if we can resolve via faturamento in notes
+        if (!emp || !emp.nome || emp.nome === "Cliente" || emp.nome === "CLIENTE") {
+          const match = item.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+          const fatId = match ? match[1] : null;
+          if (fatId && faturamentoRes.data) {
+            const fat = faturamentoRes.data.find((f: any) => f.id === fatId);
+            if (fat) {
+              const targetEmpId = fat.empresa_id;
+              if (targetEmpId) {
+                emp = resolvedEmpresas.find((e: any) => e.id === targetEmpId) || null;
+              }
+              if ((!emp || !emp.nome || emp.nome === "Cliente" || emp.nome === "CLIENTE") && fat.contrato_id) {
+                const ct = resolvedContratos.find((c: any) => c.id === fat.contrato_id);
+                if (ct) {
+                  emp = resolvedEmpresas.find((e: any) => e.id === ct.empresa_id) || null;
+                }
+              }
+            }
+          }
+        }
+        
+        let equip = item.equipamentos;
+        if (!equip || !equip.tipo) {
+          equip = resolvedEquipamentos.find((eq: any) => eq.id === item.equipamento_id) || null;
+        }
+        if (!equip && item.contrato_id) {
+          const ct = resolvedContratos.find((c: any) => c.id === item.contrato_id);
+          if (ct) {
+            equip = resolvedEquipamentos.find((eq: any) => eq.id === ct.equipamento_id) || null;
+          }
+        }
+
+        // Dynamically replace fallback name in the title if we resolved a real company name
+        let titulo = item.titulo;
+        if (emp && emp.nome && emp.nome !== "Cliente" && emp.nome !== "CLIENTE" && titulo.includes(" - Cliente")) {
+          titulo = titulo.replace(" - Cliente", ` - ${emp.nome}`);
+        }
+
+        return {
+          ...item,
+          titulo,
+          empresas: emp,
+          equipamentos: equip
+        };
+      });
+
+      // Reconciliation logic: Auto-sync any faturamento records that lack corresponding agenda tasks
+      if (faturamentoRes.data) {
+        setFaturamentos(faturamentoRes.data);
+        const faturamentos = faturamentoRes.data;
+        faturamentos.forEach((fat: any) => {
+          // Determine target category first based on faturamento status
+          let targetCategoria: "Medição" | "Faturamento" = "Medição";
+          if (fat.status === "Pago" || fat.status === "Aprovado") {
+            targetCategoria = "Faturamento";
+          }
+
+          // Look for an existing agenda event of this category linked to this faturamento ID in 'notas'
+          const hasEvent = rawEvents.some(ev => ev.notas?.includes(fat.id) && ev.categoria === targetCategoria);
+          if (!hasEvent) {
+            const ct = ctRes.data?.find((c: any) => c.id === fat.contrato_id);
+            const clientNome = empRes.data?.find((e: any) => e.id === (fat.empresa_id || ct?.empresa_id))?.nome || "Cliente";
+            const periodo = fat.periodo || "";
+            
+            // Determine status, category, title based on faturamento status
+            let status: "A Fazer" | "Em Andamento" | "Aguardando Aprovação" | "Concluído" = "Em Andamento";
+            let categoria: "Medição" | "Faturamento" = "Medição";
+            let titulo = "";
+            let descricao = "";
+
+            if (fat.status === "Pago") {
+              status = "Concluído";
+              categoria = "Faturamento";
+              titulo = `Fatura Liquidada - ${clientNome} (Ref: ${periodo})`;
+              descricao = `Faturamento concluído e pago.`;
+            } else if (fat.status === "Aprovado") {
+              if (fat.numero_nota) {
+                status = "Concluído";
+                categoria = "Faturamento";
+                titulo = `Faturado - ${clientNome} (Ref: ${periodo})`;
+                descricao = `Nota fiscal emitida (${fat.numero_nota}). Faturamento concluído.`;
+              } else {
+                status = "A Fazer";
+                categoria = "Faturamento";
+                titulo = `Emitir Fatura - ${clientNome} (Ref: ${periodo})`;
+                descricao = `Medição aprovada. Lançar o número da nota fiscal (FAT...) para concluir o faturamento.`;
+              }
+            } else if (fat.status === "Aguardando Aprovação") {
+              status = "Aguardando Aprovação";
+              categoria = "Medição";
+              titulo = `Aprovação de Medição - ${clientNome} (Ref: ${periodo})`;
+              descricao = `Medição gerada aguardando conferência e aprovação.`;
+            } else if (fat.status === "Pendente") {
+              status = "Em Andamento";
+              categoria = "Medição";
+              titulo = `Medição em Aberto - ${clientNome} (Ref: ${periodo})`;
+              descricao = `Lançamentos de horímetro em andamento para o período.`;
+            } else {
+              return;
+            }
+
+            rawEvents.push({
+              id: `virtual-${fat.id}`,
+              titulo,
+              descricao,
+              data_inicio: fat.data_aprovacao || fat.emissao || fat.created_at || new Date().toISOString(),
+              status,
+              prioridade: "Média",
+              categoria,
+              contrato_id: fat.contrato_id,
+              empresa_id: fat.empresa_id || ct?.empresa_id || null,
+              empresas: { id: fat.empresa_id || ct?.empresa_id || "", nome: clientNome },
+              notas: `[Medição ID: ${fat.id}]`,
+              responsavel_nome: "",
+              etapas: [],
+              historico: [],
+              orcamento: fat.valor_total || 0
+            });
+          }
+        });
+      }
+
+      setEvents(rawEvents);
     } catch (err: any) {
       toast({ title: "Erro ao buscar dados", description: err.message, variant: "destructive" });
     } finally {
@@ -995,20 +1593,29 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
     e.preventDefault();
   };
 
-  const handleDrop = async (e: React.DragEvent, status: "A Fazer" | "Em Andamento" | "Concluído") => {
+  const handleDrop = async (
+    e: React.DragEvent,
+    status: "A Fazer" | "Em Andamento" | "Aguardando Aprovação" | "Concluído",
+    category?: "Geral" | "Manutenção" | "Faturamento" | "Reunião" | "Outros"
+  ) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("text/plain");
     if (!id) return;
 
+    const updates: Partial<AgendaEvent> = { status };
+    if (category) {
+      updates.categoria = category;
+    }
+
     if (isLocalMode) {
-      const updated = events.map(ev => (ev.id === id ? { ...ev, status } : ev));
+      const updated = events.map(ev => (ev.id === id ? { ...ev, ...updates } as AgendaEvent : ev));
       saveLocalEvents(updated);
       toast({ title: "Mover Card", description: `Card movido para '${status}'` });
     } else {
       try {
-        const { error } = await supabase.from("agenda").update({ status }).eq("id", id);
+        const { error } = await supabase.from("agenda").update(updates as any).eq("id", id);
         if (error) throw error;
-        setEvents(prev => prev.map(ev => (ev.id === id ? { ...ev, status } : ev)));
+        setEvents(prev => prev.map(ev => (ev.id === id ? { ...ev, ...updates } : ev)));
         toast({ title: "Mover Card", description: `Card movido para '${status}'` });
       } catch (err: any) {
         toast({ title: "Erro ao mover", description: err.message, variant: "destructive" });
@@ -1059,11 +1666,26 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
       e.categoria?.toLowerCase().includes(q)
     )) return false;
 
+    const isSameName = (a?: string, b?: string) => {
+      if (!a || !b) return false;
+      return a.trim().toLowerCase() === b.trim().toLowerCase();
+    };
+
     // Visibility filter
-    if (!isAdmin || !viewAll) {
-      const isResponsible = e.responsavel_nome === currentUserNome || e.criador_nome === currentUserNome;
-      const isStageResponsible = e.etapas?.some(st => st.responsavel_nome === currentUserNome);
-      if (!isResponsible && !isStageResponsible) return false;
+    if (isAdmin) {
+      if (!viewAll) {
+        const isAssignedToMe = isSameName(e.responsavel_nome, currentUserNome) || isSameName(e.criador_nome, currentUserNome);
+        const isUnassigned = !e.responsavel_nome || e.responsavel_nome.trim() === "";
+        const isStageResponsible = e.etapas?.some(st => isSameName(st.responsavel_nome, currentUserNome));
+        if (!isAssignedToMe && !isUnassigned && !isStageResponsible) return false;
+      }
+    } else {
+      // Non-admin: only see if explicitly assigned to them, or if they are responsible for a stage,
+      // or if they created it and it remains unassigned.
+      const isAssignedToMe = isSameName(e.responsavel_nome, currentUserNome);
+      const isStageResponsible = e.etapas?.some(st => isSameName(st.responsavel_nome, currentUserNome));
+      const isCreatorAndUnassigned = (!e.responsavel_nome || e.responsavel_nome.trim() === "") && isSameName(e.criador_nome, currentUserNome);
+      if (!isAssignedToMe && !isStageResponsible && !isCreatorAndUnassigned) return false;
     }
 
     return true;
@@ -1366,6 +1988,75 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
     }
   };
 
+  // Calculate metrics for HUD control panel
+  const activeTasks = processedEvents.filter(e => e.status !== "Concluído");
+  const activeCount = activeTasks.length;
+  const awaitingApprovalCount = processedEvents.filter(e => e.status === "Aguardando Aprovação").length;
+  const totalActiveBudget = activeTasks.reduce((acc, e) => acc + Number(e.orcamento || 0), 0);
+  const totalTasksCount = processedEvents.length;
+  const completedTasksCount = processedEvents.filter(e => e.status === "Concluído").length;
+  const completionRate = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+
+  // Filters for Pipeline Workflow
+  const medicaoTasks = processedEvents.filter(e => 
+    e.status !== "Concluído" && 
+    e.status !== "Aguardando Aprovação" && 
+    e.categoria !== "Faturamento"
+  );
+  const aprovacaoTasks = processedEvents.filter(e => 
+    e.status === "Aguardando Aprovação"
+  );
+  const faturamentoTasks = processedEvents.filter(e => 
+    e.status !== "Concluído" && 
+    e.categoria === "Faturamento"
+  );
+  const concluidoTasks = processedEvents.filter(e => 
+    e.status === "Concluído"
+  );
+
+  const pipelineColumns = [
+    {
+      id: "medicao",
+      title: "1. Levantamento & Medição",
+      icon: <Clock className="h-4 w-4" />,
+      tasks: medicaoTasks,
+      accentColor: "#3b82f6", // Blue
+      glowColor: "rgba(59, 130, 246, 0.15)",
+      statusTarget: "Em Andamento" as const,
+      description: "Tarefas operacionais e medições iniciais"
+    },
+    {
+      id: "aprovacao",
+      title: "2. Validação & Aprovação",
+      icon: <AlertCircle className="h-4 w-4 animate-pulse" />,
+      tasks: aprovacaoTasks,
+      accentColor: "#f59e0b", // Amber
+      glowColor: "rgba(245, 158, 11, 0.15)",
+      statusTarget: "Aguardando Aprovação" as const,
+      description: "Aguardando aprovação de medições"
+    },
+    {
+      id: "faturamento",
+      title: "3. Faturamento & Notas",
+      icon: <DollarSign className="h-4 w-4" />,
+      tasks: faturamentoTasks,
+      accentColor: "#6366f1", // Indigo
+      glowColor: "rgba(99, 102, 241, 0.15)",
+      statusTarget: "A Fazer" as const,
+      description: "Medições aprovadas prontas para faturar"
+    },
+    {
+      id: "concluido",
+      title: "4. Concluído & Liquidado",
+      icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+      tasks: concluidoTasks,
+      accentColor: "#10b981", // Emerald
+      glowColor: "rgba(16, 185, 129, 0.15)",
+      statusTarget: "Concluído" as const,
+      description: "Faturamento emitido e tarefas liquidadas"
+    }
+  ];
+
   return (
     <Layout title="Agenda & Lembretes" subtitle="Monitore e coordene seus compromissos, lembretes e programações de equipamentos.">
       <div className="space-y-6">
@@ -1384,9 +2075,78 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
           </div>
         )}
 
+        {/* HUD de Métricas Analíticas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+          {/* Card 1: Tarefas Ativas */}
+          <div className="glass-panel p-5 rounded-2xl flex items-center justify-between relative overflow-hidden group hover:scale-[1.02] transition-all duration-300 shadow-sm hover:shadow-[0_0_20px_rgba(230,108,55,0.15)] border border-border/40">
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Tarefas Ativas</span>
+              <h3 className="text-3xl font-extrabold text-foreground tracking-tight">{activeCount}</h3>
+              <p className="text-[10px] text-muted-foreground">Em execução ou aguardando ação</p>
+            </div>
+            <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+              <CheckSquare className="h-6 w-6" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-24 h-24 bg-accent/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors" />
+          </div>
+
+          {/* Card 2: Aguardando Aprovação */}
+          <div className="glass-panel p-5 rounded-2xl flex items-center justify-between relative overflow-hidden group hover:scale-[1.02] transition-all duration-300 shadow-sm hover:shadow-[0_0_20px_rgba(161,52,60,0.15)] border border-border/40">
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Aguardando Aprovação</span>
+              <h3 className="text-3xl font-extrabold text-[#A1343C] tracking-tight">{awaitingApprovalCount}</h3>
+              <p className="text-[10px] text-muted-foreground">Aguardando liberação gerencial</p>
+            </div>
+            <div className="h-12 w-12 rounded-xl bg-[#A1343C]/10 flex items-center justify-center text-[#A1343C] group-hover:scale-110 transition-transform">
+              <AlertCircle className="h-6 w-6 animate-pulse" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-24 h-24 bg-[#A1343C]/5 rounded-full blur-2xl group-hover:bg-[#A1343C]/10 transition-colors" />
+          </div>
+
+          {/* Card 3: Orçamento Acumulado */}
+          <div className="glass-panel p-5 rounded-2xl flex items-center justify-between relative overflow-hidden group hover:scale-[1.02] transition-all duration-300 shadow-sm hover:shadow-[0_0_20px_rgba(63,115,67,0.15)] border border-border/40">
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Orçamento Ativo</span>
+              <h3 className="text-2xl font-extrabold text-foreground tracking-tight truncate max-w-[170px]">
+                {totalActiveBudget.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+              </h3>
+              <p className="text-[10px] text-muted-foreground">Valor total em execução nas medições</p>
+            </div>
+            <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center text-success group-hover:scale-110 transition-transform">
+              <DollarSign className="h-6 w-6" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-24 h-24 bg-success/5 rounded-full blur-2xl group-hover:bg-success/10 transition-colors" />
+          </div>
+
+          {/* Card 4: Taxa de Conclusão */}
+          <div className="glass-panel p-5 rounded-2xl flex items-center justify-between relative overflow-hidden group hover:scale-[1.02] transition-all duration-300 shadow-sm hover:shadow-[0_0_20px_rgba(37,99,235,0.15)] border border-border/40">
+            <div className="space-y-2 w-full pr-12">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Taxa de Conclusão</span>
+              <h3 className="text-3xl font-extrabold text-foreground tracking-tight">{completionRate}%</h3>
+              <div className="w-full bg-muted/30 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div 
+                  className="bg-primary h-1.5 rounded-full transition-all duration-500" 
+                  style={{ width: `${completionRate}%` }}
+                />
+              </div>
+            </div>
+            <div className="h-12 w-12 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform absolute right-5 top-5">
+              <TrendingUp className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+
         {/* Tab Headers */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
           <div className="flex items-center gap-2">
+            <Button
+              variant={activeTab === "pipeline" ? "default" : "outline"}
+              onClick={() => setActiveTab("pipeline")}
+              size="sm"
+              className={activeTab === "pipeline" ? "bg-accent text-accent-foreground" : "bg-background"}
+            >
+              <Workflow className="h-4 w-4 mr-2" /> Workflow Pipeline
+            </Button>
             <Button
               variant={activeTab === "kanban" ? "default" : "outline"}
               onClick={() => setActiveTab("kanban")}
@@ -1461,6 +2221,434 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
 
         {/* Tab Contents */}
 
+        {activeTab === "pipeline" && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in">
+            {pipelineColumns.map(col => {
+              return (
+                <div
+                  key={col.id}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, col.statusTarget, col.id === "faturamento" ? "Faturamento" : undefined)}
+                  className="rounded-2xl border border-border/40 bg-background/30 backdrop-blur-md shadow-inner flex flex-col min-h-[550px] overflow-hidden"
+                >
+                  {/* Column Header */}
+                  <div className="p-4 border-b border-border/30 bg-card/40 flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-foreground flex items-center gap-2" style={{ color: col.accentColor }}>
+                        {col.icon}
+                        {col.title}
+                      </span>
+                      <Badge className="text-[10px] font-bold text-white border-0" style={{ backgroundColor: col.accentColor }}>
+                        {col.tasks.length}
+                      </Badge>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground leading-normal">{col.description}</span>
+                  </div>
+
+                  {/* Tasks List */}
+                  <div className="p-3 flex-1 overflow-y-auto max-h-[720px] scrollbar-thin space-y-3">
+                    {col.tasks.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center py-16 text-center text-muted-foreground border border-dashed border-border/45 rounded-2xl bg-muted/5">
+                        <Workflow className="h-8 w-8 text-muted-foreground/25 mb-2" />
+                        <span className="text-xs font-semibold">Sem demandas nesta fase</span>
+                      </div>
+                    ) : (
+                      col.tasks.map(item => {
+                        const clientNome = item.empresas?.nome || "";
+                        const isExpanded = expandedCardId === item.id;
+                        const overdueDays = getDaysOverdue(item.data_inicio, item.status);
+                        const isOverdue = overdueDays > 0;
+                        const hasStages = item.etapas && item.etapas.length > 0;
+
+                        // Priority glow styling
+                        const priorityColor =
+                          item.prioridade === "Alta" ? "rgba(239, 68, 68, 0.4)" :
+                          item.prioridade === "Média" ? "rgba(245, 158, 11, 0.4)" :
+                          "rgba(16, 185, 129, 0.4)";
+                        
+                        const priorityBorderClass =
+                          item.prioridade === "Alta" ? "border-l-[4px] border-l-destructive" :
+                          item.prioridade === "Média" ? "border-l-[4px] border-l-warning" :
+                          "border-l-[4px] border-l-success";
+
+                        return (
+                          <div
+                            key={item.id}
+                            draggable={!isExpanded && item.status !== "Concluído"}
+                            onDragStart={(e) => handleDragStart(e, item.id)}
+                            className={`glass rounded-xl overflow-hidden transition-all duration-300 group ${priorityBorderClass} ${
+                              isExpanded 
+                                ? "shadow-[0_0_15px_" + priorityColor + "] border border-border/80 scale-[1.01]" 
+                                : "shadow-sm hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] cursor-grab active:cursor-grabbing hover:-translate-y-0.5 border border-border/20"
+                            }`}
+                          >
+                            {/* Card Header (clickable to expand) */}
+                            <div 
+                              className="p-3.5 cursor-pointer select-none space-y-2"
+                              onClick={() => setExpandedCardId(isExpanded ? null : item.id)}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider py-0 px-2 bg-background/50 border-border/40">
+                                  {item.categoria}
+                                </Badge>
+                                
+                                {isOverdue && (
+                                  <Badge variant="destructive" className="h-4 text-[9px] font-bold px-1.5 animate-pulse">
+                                    Atrasado {overdueDays}d
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="space-y-1">
+                                {clientNome ? (
+                                  <div className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wide truncate">
+                                    {clientNome}
+                                  </div>
+                                ) : (
+                                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide italic">
+                                    Sem Cliente
+                                  </div>
+                                )}
+                                <h4 className="font-bold text-xs text-foreground tracking-tight leading-snug group-hover:text-primary transition-colors">
+                                  {item.titulo}
+                                </h4>
+                              </div>
+
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/10">
+                                <span className="truncate max-w-[110px] font-semibold">{item.responsavel_nome || "Sem responsável"}</span>
+                                <div className="flex items-center gap-1.5">
+                                  {item.orcamento ? (
+                                    <span className="font-mono font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded text-[9px]">
+                                      {Number(item.orcamento).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                    </span>
+                                  ) : null}
+                                  <span>{item.data_inicio ? new Date(item.data_inicio).toLocaleDateString("pt-BR", { day: "numeric", month: "short" }) : "—"}</span>
+                                </div>
+                              </div>
+
+                              {/* Small Checklist progress bar */}
+                              {hasStages && (
+                                <div className="space-y-1 pt-1.5">
+                                  <div className="flex items-center justify-between text-[9px] font-semibold text-muted-foreground">
+                                    <span>Progresso</span>
+                                    <span>{item.etapas!.filter(et => et.status === "Concluído").length}/{item.etapas!.length}</span>
+                                  </div>
+                                  <div className="w-full bg-muted/40 h-1 rounded-full overflow-hidden">
+                                    <div 
+                                      className="bg-primary h-1 rounded-full transition-all duration-300"
+                                      style={{ width: `${(item.etapas!.filter(et => et.status === "Concluído").length / item.etapas!.length) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Expanded Area */}
+                            {isExpanded && (
+                              <div className="px-3.5 pb-4 space-y-4 border-t border-border/10 pt-3 bg-muted/5 animate-in slide-in-from-top-1 duration-200">
+                                {/* Description */}
+                                {item.descricao && (
+                                  <p className="text-[11px] text-muted-foreground leading-normal whitespace-pre-wrap">{item.descricao}</p>
+                                )}
+
+                                {/* Workflow Stepper */}
+                                {renderWorkflowStepper(item)}
+
+                                {/* Inline Actions based on Column */}
+                                {col.id === "medicao" && item.status === "Em Andamento" && (
+                                  <div className="border border-border/30 rounded-xl p-3 bg-background/40 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Ação: Solicitar Aprovação</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <div className="space-y-1">
+                                        <Label className="text-[9px] font-semibold text-muted-foreground">Escolher Aprovador</Label>
+                                        <Select
+                                          value={selectedApprovers[item.id] || "none"}
+                                          onValueChange={(v) => setSelectedApprovers(prev => ({ ...prev, [item.id]: v }))}
+                                        >
+                                          <SelectTrigger className="h-7 text-[11px] bg-background/50 border-border/30 rounded-lg">
+                                            <SelectValue placeholder="Selecione..." />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="none">Administradores (Padrão)</SelectItem>
+                                            {usuarios.map(u => (
+                                              <SelectItem key={u.user_id} value={u.nome}>{u.nome}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 w-full rounded-lg"
+                                        onClick={() => handleSendToApproval(item)}
+                                      >
+                                        <Send className="h-3 w-3" /> Solicitar Aprovação
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {col.id === "aprovacao" && (
+                                  <div className="border border-border/30 rounded-xl p-3 bg-background/40 space-y-2">
+                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Ação: Avaliação Gerencial</p>
+                                    
+                                    {isAdmin && (
+                                      <div className="space-y-1">
+                                        <Label className="text-[9px] font-semibold text-muted-foreground">Responsável p/ Faturar</Label>
+                                        <Select
+                                          value={invoiceResponsibles[item.id] || "none"}
+                                          onValueChange={(v) => setInvoiceResponsibles(prev => ({ ...prev, [item.id]: v }))}
+                                        >
+                                          <SelectTrigger className="h-7 text-[11px] bg-background/50 border-border/30 rounded-lg">
+                                            <SelectValue placeholder="Escolha quem emitirá a fatura..." />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="none">Selecione o usuário...</SelectItem>
+                                            {usuarios.map(u => (
+                                              <SelectItem key={u.user_id} value={u.nome}>{u.nome}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    )}
+
+                                    <div className="flex flex-col gap-1.5 pt-1">
+                                      {(() => {
+                                        const match = item.notes?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i) || item.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+                                        const faturaId = match ? match[1] : null;
+                                        return faturaId ? (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-[11px] font-semibold gap-1 border-accent/20 text-accent hover:bg-accent/5 rounded-lg w-full"
+                                            onClick={() => handleOpenPreview(faturaId)}
+                                          >
+                                            <Eye className="h-3 w-3" /> Verificar Medição
+                                          </Button>
+                                        ) : null;
+                                      })()}
+                                      {isAdmin && (
+                                        <Button
+                                          size="sm"
+                                          className="h-7 text-[11px] bg-success hover:bg-success/90 text-white font-semibold gap-1 rounded-lg w-full"
+                                          onClick={() => handleQuickApproveMedicao(item)}
+                                        >
+                                          <Check className="h-3 w-3" /> Aprovar Medição
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {col.id === "faturamento" && (
+                                  <div className="border border-border/30 rounded-xl p-3 bg-background/40 space-y-2.5">
+                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Ação: Detalhes de Faturamento</p>
+                                    {(() => {
+                                      const match = item.notes?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i) || item.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+                                      const faturaId = match ? match[1] : null;
+                                      
+                                      const formVal = billingForm[item.id] || {
+                                        numeroNota: "",
+                                        emissaoDate: new Date().toISOString().slice(0, 10),
+                                        contaBancariaId: "none",
+                                        observacoes: ""
+                                      };
+                                      
+                                      return (
+                                        <div className="space-y-2.5">
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-0.5">
+                                              <Label className="text-[9px] text-muted-foreground font-semibold">Nº da Nota Fiscal</Label>
+                                              <Input
+                                                size="sm"
+                                                className="h-7 text-xs bg-background/50 border-border/30 rounded-lg"
+                                                placeholder="Ex: FAT343"
+                                                value={formVal.numeroNota}
+                                                onChange={(e) => handleFormChange(item.id, "numeroNota", e.target.value)}
+                                              />
+                                            </div>
+                                            <div className="space-y-0.5">
+                                              <Label className="text-[9px] text-muted-foreground font-semibold">Data de Emissão</Label>
+                                              <Input
+                                                type="date"
+                                                className="h-7 text-xs bg-background/50 border-border/30 rounded-lg"
+                                                value={formVal.emissaoDate}
+                                                onChange={(e) => handleFormChange(item.id, "emissaoDate", e.target.value)}
+                                              />
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="space-y-0.5">
+                                            <Label className="text-[9px] text-muted-foreground font-semibold">Conta Bancária</Label>
+                                            <Select
+                                              value={formVal.contaBancariaId}
+                                              onValueChange={(v) => handleFormChange(item.id, "contaBancariaId", v)}
+                                            >
+                                              <SelectTrigger className="h-7 text-xs bg-background/50 border-border/30 rounded-lg">
+                                                <SelectValue placeholder="Selecione..." />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="none">Nenhuma</SelectItem>
+                                                {contasBancarias.map(c => (
+                                                  <SelectItem key={c.id} value={c.id} className="text-xs">
+                                                    {c.banco} - Ag {c.agencia} / CC {c.conta}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                          
+                                          <div className="space-y-0.5">
+                                            <Label className="text-[9px] text-muted-foreground font-semibold">Observações</Label>
+                                            <Textarea
+                                              rows={1}
+                                              className="text-xs bg-background/50 border-border/30 rounded-lg min-h-8"
+                                              placeholder="Observações complementares..."
+                                              value={formVal.observacoes}
+                                              onChange={(e) => handleFormChange(item.id, "observacoes", e.target.value)}
+                                            />
+                                          </div>
+                                          
+                                          <div className="flex gap-2">
+                                            {faturaId && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 text-xs gap-1 border-accent/20 text-accent hover:bg-accent/5 rounded-lg flex-1"
+                                                onClick={() => handleDownloadMedicaoPDF(faturaId)}
+                                              >
+                                                <FileDown className="h-3 w-3" /> PDF
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              className="h-7 bg-success hover:bg-success/90 text-white font-semibold gap-1 rounded-lg flex-[2]"
+                                              onClick={() => faturaId && handleEmitirFaturaKanban(item, faturaId)}
+                                            >
+                                              <Check className="h-3 w-3" /> Faturar
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                )}
+
+                                {/* Attributes Grid */}
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[10px] border border-border/20 rounded-xl p-2 bg-background/25">
+                                  <div>
+                                    <span className="text-muted-foreground block text-[8px] uppercase font-bold">Início</span>
+                                    <span className="font-medium">
+                                      {item.data_inicio ? new Date(item.data_inicio).toLocaleDateString("pt-BR") : "—"}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block text-[8px] uppercase font-bold">Prioridade</span>
+                                    <span className="font-semibold" style={{
+                                      color: item.prioridade === "Alta" ? "#ef4444" : item.prioridade === "Média" ? "#f59e0b" : "#10b981"
+                                    }}>{item.prioridade}</span>
+                                  </div>
+                                  {item.orcamento ? (
+                                    <div className="col-span-2">
+                                      <span className="text-muted-foreground block text-[8px] uppercase font-bold">Orçamento</span>
+                                      <span className="font-mono font-bold text-foreground/80">
+                                        {Number(item.orcamento).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                </div>
+
+                                {/* Checklist Stages (Expanded) */}
+                                {hasStages && (
+                                  <div className="space-y-1.5">
+                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Sub-Etapas</p>
+                                    <div className="space-y-1">
+                                      {item.etapas!.map(et => (
+                                        <div key={et.id} className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20 text-[10px]">
+                                          <span className="truncate max-w-[130px]">{et.titulo}</span>
+                                          <Badge className={`h-4 text-[8px] px-1 py-0 border-0 ${
+                                            et.status === "Concluído" ? "bg-success text-white" :
+                                            et.status === "Em Andamento" ? "bg-warning text-white" :
+                                            "bg-muted text-muted-foreground"
+                                          }`}>{et.status}</Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center justify-between pt-2 border-t border-border/10 gap-1.5 flex-wrap">
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewEvent(item);
+                                        setViewDialogOpen(true);
+                                      }}
+                                      className="h-6 text-[10px] gap-1 px-2.5 rounded-lg bg-muted/60 hover:bg-muted"
+                                    >
+                                      <Eye className="h-3 w-3" /> Detalhes
+                                    </Button>
+                                    
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(generateWhatsAppLink(item), "_blank");
+                                      }}
+                                      className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg"
+                                      title="WhatsApp"
+                                    >
+                                      <MessageSquare className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEdit(item);
+                                      }}
+                                      className="h-6 w-6 hover:bg-muted/80 text-muted-foreground rounded-lg"
+                                      title="Editar"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteEvent(item.id);
+                                        setExpandedCardId(null);
+                                      }}
+                                      className="h-6 w-6 hover:bg-destructive/10 text-destructive rounded-lg"
+                                      title="Excluir"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {activeTab === "kanban" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {STATUSES.map(colStatus => {
@@ -1514,7 +2702,8 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
 
                     {statusEvents.map((item, idx) => {
                       const isExpanded = expandedCardId === item.id;
-                      const isOverdue = item.data_inicio && new Date(item.data_inicio) < new Date() && item.status !== "Concluído";
+                      const overdueDays = getDaysOverdue(item.data_inicio, item.status);
+                      const isOverdue = overdueDays > 0;
                       const hasStages = item.etapas && item.etapas.length > 0;
 
                       return (
@@ -1610,6 +2799,188 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
                                 {/* Description */}
                                 {item.descricao && (
                                   <p className="text-xs text-muted-foreground leading-relaxed">{item.descricao}</p>
+                                )}
+
+                                {/* Stepper */}
+                                {renderWorkflowStepper(item)}
+
+                                {/* Dynamic Workflow Actions */}
+                                {item.categoria === "Medição" && item.status === "Em Andamento" && (
+                                  <div className="border border-border/40 rounded-lg p-3 bg-muted/10 space-y-2 mt-2">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Enviar para Aprovação</p>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                                      <div className="flex-1 space-y-1">
+                                        <Label className="text-[10px]">Responsável pela Aprovação</Label>
+                                        <Select
+                                          value={selectedApprovers[item.id] || "none"}
+                                          onValueChange={(v) => setSelectedApprovers(prev => ({ ...prev, [item.id]: v }))}
+                                        >
+                                          <SelectTrigger className="h-8 text-xs bg-background/50">
+                                            <SelectValue placeholder="Selecione um administrador" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="none">Administradores (Padrão)</SelectItem>
+                                            {usuarios.map(u => (
+                                              <SelectItem key={u.user_id} value={u.nome}>{u.nome}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        className="h-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-1.5"
+                                        onClick={() => handleSendToApproval(item)}
+                                      >
+                                        <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {item.categoria === "Medição" && item.status === "Aguardando Aprovação" && (
+                                  <div className="border border-border/40 rounded-lg p-3 bg-muted/10 space-y-2 mt-2">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Aprovação de Medição</p>
+                                    
+                                    {isAdmin && (
+                                      <div className="space-y-1 mb-2">
+                                        <Label className="text-[10px] font-semibold text-muted-foreground">Responsável pela Fatura</Label>
+                                        <Select
+                                          value={invoiceResponsibles[item.id] || "none"}
+                                          onValueChange={(v) => setInvoiceResponsibles(prev => ({ ...prev, [item.id]: v }))}
+                                        >
+                                          <SelectTrigger className="h-8 text-xs bg-background/50 border-border/30 rounded-lg">
+                                            <SelectValue placeholder="Selecione quem emitirá a fatura..." />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="none">Selecione o usuário...</SelectItem>
+                                            {usuarios.map(u => (
+                                              <SelectItem key={u.user_id} value={u.nome}>{u.nome}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    )}
+
+                                    <div className="flex flex-wrap gap-2">
+                                      {(() => {
+                                        const match = item.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+                                        const faturaId = match ? match[1] : null;
+                                        return faturaId ? (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 text-xs font-semibold gap-1.5 border-accent/30 text-accent hover:bg-accent/5"
+                                            onClick={() => handleOpenPreview(faturaId)}
+                                          >
+                                            <Eye className="h-3.5 w-3.5" /> Verificar Medição
+                                          </Button>
+                                        ) : null;
+                                      })()}
+                                      {isAdmin && (
+                                        <Button
+                                          size="sm"
+                                          className="h-8 bg-green-600 hover:bg-green-700 text-white font-semibold gap-1.5"
+                                          onClick={() => handleQuickApproveMedicao(item)}
+                                        >
+                                          <Check className="h-3.5 w-3.5" /> Aprovar Medição
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {item.categoria === "Faturamento" && item.status !== "Concluído" && (
+                                  <div className="border border-border/40 rounded-lg p-3 bg-muted/10 space-y-3 mt-2">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Lançar Informações do Faturamento</p>
+                                    {(() => {
+                                      const match = item.notas?.match(/\[Medição ID:\s*([a-f0-9\-]{36})\]/i);
+                                      const faturaId = match ? match[1] : null;
+                                      
+                                      const formVal = billingForm[item.id] || {
+                                        numeroNota: "",
+                                        emissaoDate: new Date().toISOString().slice(0, 10),
+                                        contaBancariaId: "none",
+                                        observacoes: ""
+                                      };
+                                      
+                                      return (
+                                        <div className="space-y-3">
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                              <Label className="text-[10px]">Nº da Nota Fiscal / Fatura</Label>
+                                              <Input
+                                                size="sm"
+                                                className="h-8 text-xs bg-background/50"
+                                                placeholder="Ex: FAT343"
+                                                value={formVal.numeroNota}
+                                                onChange={(e) => handleFormChange(item.id, "numeroNota", e.target.value)}
+                                              />
+                                            </div>
+                                            <div className="space-y-1">
+                                              <Label className="text-[10px]">Data de Emissão</Label>
+                                              <Input
+                                                type="date"
+                                                className="h-8 text-xs bg-background/50"
+                                                value={formVal.emissaoDate}
+                                                onChange={(e) => handleFormChange(item.id, "emissaoDate", e.target.value)}
+                                              />
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="space-y-1">
+                                            <Label className="text-[10px]">Conta Bancária</Label>
+                                            <Select
+                                              value={formVal.contaBancariaId}
+                                              onValueChange={(v) => handleFormChange(item.id, "contaBancariaId", v)}
+                                            >
+                                              <SelectTrigger className="h-8 text-xs bg-background/50">
+                                                <SelectValue placeholder="Selecione a conta para depósito" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="none">Nenhuma</SelectItem>
+                                                {contasBancarias.map(c => (
+                                                  <SelectItem key={c.id} value={c.id}>
+                                                    {c.banco} - Ag {c.agencia} / CC {c.conta}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                          
+                                          <div className="space-y-1">
+                                            <Label className="text-[10px]">Observações</Label>
+                                            <Textarea
+                                              rows={2}
+                                              className="text-xs bg-background/50"
+                                              placeholder="Observações complementares..."
+                                              value={formVal.observacoes}
+                                              onChange={(e) => handleFormChange(item.id, "observacoes", e.target.value)}
+                                            />
+                                          </div>
+                                          
+                                          <div className="flex gap-2">
+                                            {faturaId && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 text-xs gap-1 border-accent/30 text-accent hover:bg-accent/5"
+                                                onClick={() => handleDownloadMedicaoPDF(faturaId)}
+                                              >
+                                                <FileDown className="h-3.5 w-3.5" /> Baixar Medição
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              className="h-8 bg-success hover:bg-success/90 text-white font-semibold gap-1.5 flex-1"
+                                              onClick={() => faturaId && handleEmitirFaturaKanban(item, faturaId)}
+                                            >
+                                              <Check className="h-3.5 w-3.5" /> Faturar e Concluir
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
                                 )}
 
                                 {/* Attributes Grid */}
@@ -2535,6 +3906,258 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
           </div>
           <DialogFooter>
             <Button onClick={() => setSqlModalOpen(false)} className="bg-accent text-accent-foreground hover:bg-accent/90">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Medição Preview Dialog */}
+      <Dialog open={!!previewFaturaId} onOpenChange={(open) => !open && setPreviewFaturaId(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-md border border-border/60">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-accent">
+              <Eye className="h-5 w-5" />
+              <span>Verificar Medição - {previewData?.empresa?.nome || "Cliente"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingPreview ? (
+            <div className="py-20 flex flex-col items-center justify-center gap-3">
+              <Clock className="h-8 w-8 text-accent animate-spin" />
+              <p className="text-xs text-muted-foreground font-semibold animate-pulse">Carregando dados da medição...</p>
+            </div>
+          ) : previewData ? (
+            <div className="space-y-6 text-sm">
+              {/* Header Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-border/40 rounded-xl p-4 bg-muted/10 shadow-inner">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Informações Gerais</p>
+                  <p className="text-xs"><strong>Mês de Referência:</strong> {previewData.fatura.periodo || "—"}</p>
+                  <p className="text-xs"><strong>Período de Medição:</strong> {previewData.fatura.periodo_medicao_inicio ? new Date(previewData.fatura.periodo_medicao_inicio).toLocaleDateString("pt-BR") : ""} a {previewData.fatura.periodo_medicao_fim ? new Date(previewData.fatura.periodo_medicao_fim).toLocaleDateString("pt-BR") : ""}</p>
+                  <p className="text-xs"><strong>Objeto:</strong> {previewData.contrato.objeto || "Locação de Equipamentos"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Cliente / Contratante</p>
+                  <p className="text-xs"><strong>Nome:</strong> {previewData.empresa?.nome || "—"}</p>
+                  <p className="text-xs"><strong>CNPJ:</strong> {previewData.empresa?.cnpj || "—"}</p>
+                  {previewData.empresa?.obra && <p className="text-xs"><strong>Obra:</strong> {previewData.empresa.obra}</p>}
+                </div>
+              </div>
+
+              {/* Equipments Table */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Equipamentos Medidos</p>
+                <div className="border border-border/40 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead className="bg-muted/40 font-semibold border-b border-border/40 text-muted-foreground">
+                      <tr>
+                        <th className="p-3">Equipamento</th>
+                        <th className="p-3 text-center">Horas Normais</th>
+                        <th className="p-3 text-center">Horas Excedentes</th>
+                        <th className="p-3 text-right">Valor Unitário (h)</th>
+                        <th className="p-3 text-right">Valor Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.equipamentosItens.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-muted-foreground">Nenhum equipamento vinculado</td>
+                        </tr>
+                      ) : (
+                        previewData.equipamentosItens.map((eq: any) => {
+                          const normalHrs = Number(eq.horas_normais || eq.horas_medidas || 0);
+                          const excHrs = Number(eq.horas_excedentes || 0);
+                          const valUnit = Number(eq.valor_hora || 0);
+                          const valExc = Number(eq.valor_excedente_hora || eq.valor_hora_excedente || 0);
+                          const total = (normalHrs * valUnit) + (excHrs * valExc);
+                          
+                          return (
+                            <tr key={eq.id} className="border-b border-border/20 last:border-0 hover:bg-muted/5 transition-colors">
+                              <td className="p-3 font-medium text-foreground">
+                                {eq.equipamentos?.tipo} {eq.equipamentos?.modelo}
+                                {eq.equipamentos?.tag_placa && (
+                                  <Badge variant="outline" className="ml-2 py-0 px-1.5 text-[9px] font-mono font-medium">
+                                    {eq.equipamentos.tag_placa}
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="p-3 text-center font-mono text-foreground/80">{normalHrs.toFixed(2)}h</td>
+                              <td className="p-3 text-center font-mono text-foreground/80">{excHrs.toFixed(2)}h</td>
+                              <td className="p-3 text-right font-mono text-foreground/80">R$ {valUnit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                              <td className="p-3 text-right font-semibold font-mono text-foreground">R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Gastos Table */}
+              {previewData.gastosItens.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Custos Adicionais / Despesas</p>
+                  <div className="border border-border/40 rounded-xl overflow-hidden shadow-sm">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead className="bg-muted/40 font-semibold border-b border-border/40 text-muted-foreground">
+                        <tr>
+                          <th className="p-3">Descrição</th>
+                          <th className="p-3">Tipo</th>
+                          <th className="p-3">Classificação</th>
+                          <th className="p-3 text-right">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.gastosItens.map((g: any) => {
+                          const isReembolso = g.classificacao === "A Reembolsar ao Cliente";
+                          return (
+                            <tr key={g.id} className="border-b border-border/20 last:border-0 hover:bg-muted/5 transition-colors">
+                              <td className="p-3 font-medium text-foreground">{g.descricao || "—"}</td>
+                              <td className="p-3 text-foreground/80">{g.tipo || "—"}</td>
+                              <td className="p-3">
+                                <Badge variant="outline" className={isReembolso ? "text-destructive border-destructive/20 bg-destructive/5 font-semibold text-[10px]" : "text-success border-success/20 bg-success/5 font-semibold text-[10px]"}>
+                                  {g.classificacao || "A Cobrar do Cliente"}
+                                </Badge>
+                              </td>
+                              <td className={`p-3 text-right font-mono font-semibold ${isReembolso ? "text-destructive" : "text-foreground"}`}>
+                                {isReembolso ? "- " : ""}R$ {Number(g.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Financial Summary */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Resumo Financeiro</p>
+                <div className="border border-border/40 rounded-xl overflow-hidden bg-muted/5 divide-y divide-border/20 shadow-sm">
+                  {(() => {
+                    let medicaoTotal = 0;
+                    previewData.equipamentosItens.forEach((eq: any) => {
+                      const normalHrs = Number(eq.horas_normais || eq.horas_medidas || 0);
+                      const excHrs = Number(eq.horas_excedentes || 0);
+                      const valUnit = Number(eq.valor_hora || 0);
+                      const valExc = Number(eq.valor_excedente_hora || eq.valor_hora_excedente || 0);
+                      medicaoTotal += (normalHrs * valUnit) + (excHrs * valExc);
+                    });
+
+                    let totalCobrar = 0;
+                    let totalReembolsar = 0;
+                    previewData.gastosItens.forEach((g: any) => {
+                      const val = Number(g.valor || 0);
+                      if (g.classificacao === "A Reembolsar ao Cliente") {
+                        totalReembolsar += val;
+                      } else {
+                        totalCobrar += val;
+                      }
+                    });
+
+                    const valorTotal = medicaoTotal + totalCobrar - totalReembolsar;
+
+                    return (
+                      <>
+                        <div className="flex justify-between p-3 text-xs">
+                          <span className="text-muted-foreground font-medium">Subtotal Medição (Equipamentos)</span>
+                          <span className="font-mono font-semibold text-foreground">R$ {medicaoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        {totalCobrar > 0 && (
+                          <div className="flex justify-between p-3 text-xs">
+                            <span className="text-muted-foreground font-medium">(+) Custos Operacionais a Cobrar</span>
+                            <span className="font-mono font-semibold text-success">+ R$ {totalCobrar.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
+                        {totalReembolsar > 0 && (
+                          <div className="flex justify-between p-3 text-xs">
+                            <span className="text-muted-foreground font-medium">(-) Custos Operacionais a Reembolsar</span>
+                            <span className="font-mono font-semibold text-destructive">- R$ {totalReembolsar.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between p-3 bg-accent/5 font-bold text-sm">
+                          <span className="text-foreground uppercase tracking-wide">VALOR TOTAL DA MEDIÇÃO</span>
+                          <span className="font-mono text-accent text-base">R$ {valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Observações */}
+              {previewData.fatura.observacoes && (
+                <div className="space-y-1">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Observações</p>
+                  <p className="text-xs text-muted-foreground bg-yellow-500/5 dark:bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 leading-relaxed whitespace-pre-wrap">
+                    {previewData.fatura.observacoes}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4 border-t border-border/30 pt-3">
+            <div className="flex flex-wrap gap-2 w-full justify-between items-center">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setPreviewFaturaId(null)}
+                  className="h-9 text-xs"
+                >
+                  Fechar
+                </Button>
+                {previewFaturaId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/faturamento?search=${previewData?.fatura?.numero_sequencial || ""}`)}
+                    className="h-9 text-xs gap-1.5"
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" /> Ver no Faturamento
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {previewFaturaId && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleDownloadMedicaoPDF(previewFaturaId)}
+                    className="h-9 text-xs gap-1.5 bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 shadow-sm"
+                  >
+                    <FileDown className="h-3.5 w-3.5" /> Baixar PDF (Boletim)
+                  </Button>
+                )}
+                {(() => {
+                  const previewEvent = events.find(e => e.notas?.includes(previewFaturaId!));
+                  if (!previewEvent || !isAdmin || previewData?.fatura?.status !== "Aguardando Aprovação") return null;
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={invoiceResponsibles[previewEvent.id] || "none"}
+                        onValueChange={(v) => setInvoiceResponsibles(prev => ({ ...prev, [previewEvent.id]: v }))}
+                      >
+                        <SelectTrigger className="h-9 text-xs bg-background border-border rounded-lg min-w-[200px]">
+                          <SelectValue placeholder="Responsável p/ Faturar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Selecione o usuário...</SelectItem>
+                          {usuarios.map(u => (
+                            <SelectItem key={u.user_id} value={u.nome}>{u.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={() => handleQuickApproveMedicao(previewEvent)}
+                        className="h-9 text-xs bg-green-600 hover:bg-green-700 text-white font-semibold gap-1.5 shadow-sm"
+                      >
+                        <Check className="h-3.5 w-3.5" /> Aprovar Medição
+                      </Button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

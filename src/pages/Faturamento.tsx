@@ -274,13 +274,10 @@ export const FaturamentoContent = () => {
   };
 
   const fetchUsuarios = async () => {
-    // Tenta buscar de 'profiles' caso 'usuarios' não exista
-    let { data } = await supabase.from("profiles").select("user_id, nome, role");
-    if (data) {
-      setUsuarios(data.map(d => ({ id: d.user_id, nome: d.nome, role: d.role })));
-    } else {
-      const res = await supabase.from("usuarios").select("id, nome, role").eq("status", "Ativo");
-      if (res.data) setUsuarios(res.data);
+    // Busca do 'profiles' os usuários cadastrados
+    const { data, error } = await supabase.from("profiles").select("user_id, nome").order("nome");
+    if (data && !error) {
+      setUsuarios(data.map(d => ({ id: d.user_id, nome: d.nome })));
     }
   };
   useEffect(() => { fetchData(); fetchUsuarios(); }, []);
@@ -892,8 +889,31 @@ export const FaturamentoContent = () => {
     const { data: agendas } = await supabase.from("agenda").select("id").ilike("notas", `%${faturaId}%`);
     if (agendas && agendas.length > 0) {
        await supabase.from("agenda").update({
-         responsavel_nome: responsavelNome
+         responsavel_nome: responsavelNome,
+         status: "Aguardando Aprovação"
        }).eq("id", agendas[0].id);
+    } else {
+       // Create new agenda task of category Medição in status Aguardando Aprovação
+       const fatRec = items.find(f => f.id === faturaId);
+       const ct = fatRec ? contratos.find(c => c.id === fatRec.contrato_id) : null;
+       const clientNome = empresasList.find(e => e.id === (fatRec?.empresa_id || ct?.empresa_id))?.nome || "Cliente";
+       const periodo = fatRec?.periodo || "";
+       const contratoId = fatRec?.contrato_id || null;
+       const empresaId = fatRec?.empresa_id || ct?.empresa_id || null;
+       
+       await supabase.from("agenda").insert({
+         id: crypto.randomUUID(),
+         titulo: `Aprovação de Medição - ${clientNome} (Ref: ${periodo})`,
+         descricao: `Medição gerada aguardando conferência e aprovação.`,
+         data_inicio: new Date().toISOString(),
+         status: "Aguardando Aprovação",
+         prioridade: "Média",
+         categoria: "Medição",
+         contrato_id: contratoId,
+         empresa_id: empresaId,
+         notas: `[Medição ID: ${faturaId}]`,
+         responsavel_nome: responsavelNome
+       });
     }
     
     await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", faturaId);
@@ -907,7 +927,8 @@ export const FaturamentoContent = () => {
     const { error } = await supabase
       .from("faturamento")
       .update({ 
-        status: "Aprovado"
+        status: "Aprovado",
+        data_aprovacao: new Date().toISOString()
       } as any)
       .eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
@@ -1054,7 +1075,13 @@ export const FaturamentoContent = () => {
     setIsSaving(true);
     try {
       const promises = aguardando.map(async (item) => {
-        await supabase.from("faturamento").update({ status: "Aprovado" }).eq("id", item.id);
+        await supabase
+          .from("faturamento")
+          .update({ 
+            status: "Aprovado",
+            data_aprovacao: new Date().toISOString()
+          } as any)
+          .eq("id", item.id);
       });
 
       await Promise.all(promises);
