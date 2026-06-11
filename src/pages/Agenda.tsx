@@ -1098,9 +1098,41 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
       // Database Save
       try {
         if (editingEvent) {
-          const { error } = await supabase.from("agenda").update(payload).eq("id", editingEvent.id);
-          if (error) throw error;
-          toast({ title: "Sucesso", description: "Compromisso atualizado." });
+          if (editingEvent.id && editingEvent.id.startsWith("virtual-")) {
+            const newId = crypto.randomUUID();
+            const newPayload = {
+              ...payload,
+              id: newId,
+              criador_nome: currentUserNome,
+              etapas: [],
+              historico: [
+                {
+                  data: new Date().toISOString(),
+                  usuario: currentUserNome,
+                  acao: "Criou a tarefa virtual no banco",
+                  detalhes: "Tarefa virtual salva como registro real no banco de dados."
+                }
+              ]
+            };
+            const { error } = await supabase.from("agenda").insert(newPayload);
+            if (error) throw error;
+            
+            // Notify responsible if assigned
+            if (payload.responsavel_nome) {
+              await sendNotification({
+                responsavelNome: payload.responsavel_nome,
+                tipo: "tarefa",
+                titulo: "Nova tarefa atribuída a você",
+                mensagem: `Você foi definido como responsável pela tarefa: "${payload.titulo}".`,
+                referenciaId: newId,
+              });
+            }
+            toast({ title: "Sucesso", description: "Tarefa virtual salva no banco de dados." });
+          } else {
+            const { error } = await supabase.from("agenda").update(payload).eq("id", editingEvent.id);
+            if (error) throw error;
+            toast({ title: "Sucesso", description: "Compromisso atualizado." });
+          }
         } else {
           const newId = crypto.randomUUID();
           const { error } = await supabase.from("agenda").insert({ ...payload, id: newId });
@@ -1132,6 +1164,10 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
       toast({ title: "Sucesso", description: "Evento removido localmente." });
     } else {
       try {
+        if (id && id.startsWith("virtual-")) {
+          toast({ title: "Aviso", description: "Esta é uma tarefa gerada automaticamente baseada no faturamento e não pode ser excluída diretamente. Conclua o faturamento para encerrá-la." });
+          return;
+        }
         const { error } = await supabase.from("agenda").delete().eq("id", id);
         if (error) throw error;
         toast({ title: "Sucesso", description: "Compromisso removido." });
@@ -1613,6 +1649,42 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
       toast({ title: "Mover Card", description: `Card movido para '${status}'` });
     } else {
       try {
+        if (id && id.startsWith("virtual-")) {
+          const virtualEvent = events.find(ev => ev.id === id);
+          if (virtualEvent) {
+            const newId = crypto.randomUUID();
+            const insertPayload = {
+              titulo: virtualEvent.titulo,
+              descricao: virtualEvent.descricao,
+              data_inicio: virtualEvent.data_inicio,
+              data_fim: virtualEvent.data_fim || null,
+              status: status,
+              prioridade: virtualEvent.prioridade || "Média",
+              categoria: category || virtualEvent.categoria,
+              equipamento_id: virtualEvent.equipamento_id || null,
+              contrato_id: virtualEvent.contrato_id || null,
+              empresa_id: virtualEvent.empresa_id || null,
+              orcamento: Number(virtualEvent.orcamento || 0),
+              notas: virtualEvent.notas,
+              responsavel_nome: virtualEvent.responsavel_nome || "",
+              criador_nome: currentUserNome,
+              etapas: [],
+              historico: [
+                {
+                  data: new Date().toISOString(),
+                  usuario: currentUserNome,
+                  acao: "Criou a tarefa virtual no banco via arrastar",
+                  detalhes: `Moveu o card virtual para '${status}' e salvou como registro real.`
+                }
+              ]
+            };
+            const { error } = await supabase.from("agenda").insert({ ...insertPayload, id: newId });
+            if (error) throw error;
+            toast({ title: "Mover Card", description: `Card virtual salvo e movido para '${status}'` });
+            fetchData();
+            return;
+          }
+        }
         const { error } = await supabase.from("agenda").update(updates as any).eq("id", id);
         if (error) throw error;
         setEvents(prev => prev.map(ev => (ev.id === id ? { ...ev, ...updates } : ev)));
