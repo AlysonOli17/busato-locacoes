@@ -43,12 +43,17 @@ const allGroups: NavGroup[] = [
     ]
   },
   {
-    label: "Cadastros",
-    icon: Building2,
+    label: "Equipamentos",
+    icon: Wrench,
     items: [
-      { to: "/equipamentos", icon: Wrench, label: "Equipamentos" },
-      { to: "/empresas", icon: Building2, label: "Empresas" },
+      { to: "/equipamentos", icon: Wrench, label: "Cadastro" },
+      { to: "/contratos?tab=comodatos", icon: Handshake, label: "Comodatos" }
     ]
+  },
+  {
+    label: "Empresas",
+    icon: Building2,
+    to: "/empresas"
   },
   {
     label: "Contratos",
@@ -56,8 +61,7 @@ const allGroups: NavGroup[] = [
     items: [
       { to: "/contratos?tab=contratos", icon: FileText, label: "Contratos" },
       { to: "/contratos?tab=propostas", icon: FileSignature, label: "Propostas" },
-      { to: "/contratos?tab=comodatos", icon: Handshake, label: "Comodatos" },
-      { to: "/contratos?tab=modelo", icon: BookOpen, label: "Modelo de Contrato" },
+      { to: "/contratos?tab=modelo", icon: BookOpen, label: "Modelo de Contrato" }
     ]
   },
   {
