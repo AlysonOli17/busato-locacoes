@@ -4,7 +4,7 @@ import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
   ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen,
-  PieChart
+  PieChart, Handshake
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,6 +56,7 @@ const allGroups: NavGroup[] = [
     items: [
       { to: "/contratos?tab=contratos", icon: FileText, label: "Contratos" },
       { to: "/contratos?tab=propostas", icon: FileSignature, label: "Propostas" },
+      { to: "/contratos?tab=comodatos", icon: Handshake, label: "Comodatos" },
       { to: "/contratos?tab=modelo", icon: BookOpen, label: "Modelo de Contrato" },
     ]
   },

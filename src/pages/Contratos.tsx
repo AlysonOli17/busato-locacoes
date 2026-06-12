@@ -21,6 +21,7 @@ import { ModeloClausulasTab, ContratoClausulasTab } from "@/components/ModeloCla
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropostasContent } from "@/pages/Propostas";
+import { ComodatosTab } from "@/components/ComodatosTab";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
@@ -2909,6 +2910,9 @@ const Contratos = () => {
         </TabsContent>
         <TabsContent value="propostas">
           <PropostasContent />
+        </TabsContent>
+        <TabsContent value="comodatos">
+          <ComodatosTab />
         </TabsContent>
         <TabsContent value="modelo">
           <ModeloClausulasTab />
