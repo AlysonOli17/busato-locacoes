@@ -1,4 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
+import { ChecklistsTab } from "@/components/ChecklistsTab";
+import { CustosEquipamentoTab } from "@/components/CustosEquipamentoTab";
+import { ComodatosTab } from "@/components/ComodatosTab";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,7 +38,7 @@ const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", obser
 
 type StatusFilter = "todos" | "assegurados" | "nao-assegurados" | "locados" | "disponiveis";
 
-const Equipamentos = () => {
+const EquipamentosLista = () => {
   const [items, setItems] = useState<Equipment[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Equipment | null>(null);
@@ -277,7 +281,7 @@ const Equipamentos = () => {
   ];
 
   return (
-    <Layout title="Equipamentos" subtitle="Gestão e controle de frota">
+    <>
       <div className="space-y-6">
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent p-5 rounded-2xl border border-accent/20 shadow-sm backdrop-blur-md">
@@ -485,6 +489,40 @@ const Equipamentos = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+};
+
+const Equipamentos = () => {
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    return new URLSearchParams(window.location.search).get("tab") || "cadastro";
+  });
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab") || "cadastro";
+    setActiveTab(tab);
+  }, [location.search]);
+
+  const getSubtitle = () => {
+    switch (activeTab) {
+      case "checklist":
+        return "Inspeções e laudos de entrega e devolução";
+      case "custos":
+        return "Custos operacionais e encargos fixos";
+      case "comodatos":
+        return "Gerenciamento de contratos de comodato";
+      default:
+        return "Gestão e controle de frota";
+    }
+  };
+
+  return (
+    <Layout title="Equipamentos" subtitle={getSubtitle()}>
+      {activeTab === "checklist" && <ChecklistsTab />}
+      {activeTab === "custos" && <CustosEquipamentoTab />}
+      {activeTab === "comodatos" && <ComodatosTab />}
+      {activeTab === "cadastro" && <EquipamentosLista />}
     </Layout>
   );
 };

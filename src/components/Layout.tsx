@@ -46,19 +46,17 @@ const allGroups: NavGroup[] = [
     label: "Equipamentos",
     icon: Wrench,
     items: [
-      { to: "/equipamentos", icon: Wrench, label: "Cadastro" },
-      { to: "/contratos?tab=comodatos", icon: Handshake, label: "Comodatos" }
+      { to: "/equipamentos?tab=cadastro", icon: Wrench, label: "Cadastro" },
+      { to: "/equipamentos?tab=checklist", icon: ClipboardCheck, label: "Checklist" },
+      { to: "/equipamentos?tab=custos", icon: DollarSign, label: "Custos do Equipamento" },
+      { to: "/equipamentos?tab=comodatos", icon: Handshake, label: "Comodatos" }
     ]
   },
   {
     label: "Empresas",
     icon: Building2,
-    to: "/empresas"
-  },
-  {
-    label: "Contratos",
-    icon: FileText,
     items: [
+      { to: "/empresas", icon: Building2, label: "Cadastro" },
       { to: "/contratos?tab=contratos", icon: FileText, label: "Contratos" },
       { to: "/contratos?tab=propostas", icon: FileSignature, label: "Propostas" },
       { to: "/contratos?tab=modelo", icon: BookOpen, label: "Modelo de Contrato" }
@@ -68,7 +66,8 @@ const allGroups: NavGroup[] = [
     label: "Seguros",
     icon: Shield,
     items: [
-      { to: "/apolices?tab=apolices", icon: Shield, label: "Apólices" },
+      { to: "/apolices?tab=cadastro", icon: Shield, label: "Cadastro" },
+      { to: "/apolices?tab=documentos", icon: FileText, label: "Apólices" },
       { to: "/apolices?tab=sinistro", icon: AlertCircle, label: "Sinistros" },
     ]
   },

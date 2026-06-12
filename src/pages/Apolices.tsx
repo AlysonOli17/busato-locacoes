@@ -19,6 +19,7 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ApolicesArquivosTab } from "@/components/ApolicesArquivosTab";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
@@ -94,11 +95,11 @@ const emptyForm = {
 const Apolices = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(() => {
-    return new URLSearchParams(window.location.search).get("tab") || "apolices";
+    return new URLSearchParams(window.location.search).get("tab") || "cadastro";
   });
 
   useEffect(() => {
-    const tab = new URLSearchParams(location.search).get("tab") || "apolices";
+    const tab = new URLSearchParams(location.search).get("tab") || "cadastro";
     setActiveTab(tab);
   }, [location.search]);
 
@@ -567,13 +568,29 @@ const Apolices = () => {
     { key: "Vence30", label: "Vence em 30d" },
   ];
 
+  const getSubtitle = () => {
+    if (activeTab === "sinistro") {
+      return `${sinistros.length} sinistro(s) registrado(s) · ${sinistrosAbertos.length} aberto(s)`;
+    }
+    if (activeTab === "documentos") {
+      return "Importação e gerenciamento de apólices assinadas";
+    }
+    return `${items.length} apólices cadastradas`;
+  };
+
+  const getTitle = () => {
+    if (activeTab === "sinistro") return "Acionamento de Sinistro";
+    if (activeTab === "documentos") return "Apólices Assinadas";
+    return "Cadastro de Apólices";
+  };
+
   return (
     <Layout
-      title={activeTab === "sinistro" ? "Acionamento de Sinistro" : "Apólices de Seguro"}
-      subtitle={activeTab === "sinistro" ? `${sinistros.length} sinistro(s) registrado(s) · ${sinistrosAbertos.length} aberto(s)` : `${items.length} apólices cadastradas`}
+      title={getTitle()}
+      subtitle={getSubtitle()}
     >
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsContent value="apolices">
+        <TabsContent value="cadastro">
           <div className="space-y-6">
             {/* Action Bar */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card/60 backdrop-blur-md p-5 rounded-2xl border border-border/60 shadow-sm">
@@ -865,6 +882,9 @@ const Apolices = () => {
           })()}
         </DialogContent>
       </Dialog>
+        </TabsContent>
+        <TabsContent value="documentos">
+          <ApolicesArquivosTab />
         </TabsContent>
         <TabsContent value="sinistro">
           <div className="space-y-6">
