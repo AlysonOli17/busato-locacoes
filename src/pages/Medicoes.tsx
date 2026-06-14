@@ -74,6 +74,11 @@ const Medicoes = () => {
 
   const [items, setItems] = useState<Medicao[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+  const [contratos, setContratos] = useState<any[]>([]);
+  const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
+  const [contratosAditivos, setContratosAditivos] = useState<any[]>([]);
+  const [aditivosEquipamentos, setAditivosEquipamentos] = useState<any[]>([]);
+  const [faturamentos, setFaturamentos] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -95,18 +100,69 @@ const Medicoes = () => {
   const [isSavingBulk, setIsSavingBulk] = useState(false);
   const { toast } = useToast();
 
+  const isMedicaoLocked = useCallback((equipamentoId: string, dataStr: string) => {
+    const linkedContractIds = new Set<string>();
+
+    contratos.forEach(c => {
+      if (c.equipamento_id === equipamentoId) {
+        linkedContractIds.add(c.id);
+      }
+    });
+
+    contratosEquipamentos.forEach(ce => {
+      if (ce.equipamento_id === equipamentoId) {
+        linkedContractIds.add(ce.contrato_id);
+      }
+    });
+
+    const aditivoToContract = new Map<string, string>();
+    contratosAditivos.forEach(ca => {
+      aditivoToContract.set(ca.id, ca.contrato_id);
+    });
+
+    aditivosEquipamentos.forEach(ae => {
+      if (ae.equipamento_id === equipamentoId) {
+        const contratoId = aditivoToContract.get(ae.aditivo_id);
+        if (contratoId) {
+          linkedContractIds.add(contratoId);
+        }
+      }
+    });
+
+    if (linkedContractIds.size === 0) return false;
+
+    const entryDate = new Date(dataStr + "T00:00:00").getTime();
+    
+    return faturamentos.some(f => {
+      if (f.status !== "Aprovado" && f.status !== "Pago") return false;
+      if (!linkedContractIds.has(f.contrato_id)) return false;
+      if (!f.periodo_medicao_inicio || !f.periodo_medicao_fim) return false;
+      
+      const start = new Date(f.periodo_medicao_inicio + "T00:00:00").getTime();
+      const end = new Date(f.periodo_medicao_fim + "T00:00:00").getTime();
+      
+      return entryDate >= start && entryDate <= end;
+    });
+  }, [contratos, contratosEquipamentos, contratosAditivos, aditivosEquipamentos, faturamentos]);
+
   const fetchData = async (force = false) => {
     if (force) clearCache();
-    const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
+    const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes, fatRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id"),
       supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id"),
       supabase.from("contratos_aditivos").select("id, contrato_id"),
-      supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id")
+      supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id"),
+      supabase.from("faturamento").select("id, status, contrato_id, periodo_medicao_inicio, periodo_medicao_fim")
     ]));
     
     if (equipRes.data) setEquipamentos(equipRes.data);
+    if (contractsRes.data) setContratos(contractsRes.data);
+    if (ceRes.data) setContratosEquipamentos(ceRes.data);
+    if (aditivosRes.data) setContratosAditivos(aditivosRes.data);
+    if (aeRes.data) setAditivosEquipamentos(aeRes.data);
+    if (fatRes.data) setFaturamentos(fatRes.data);
 
     if (contractsRes.data) {
       const map = new Map<string, "horas" | "diarias">();
@@ -592,6 +648,22 @@ const Medicoes = () => {
       return;
     }
 
+    if (editingId) {
+      const existing = items.find(i => i.id === editingId);
+      if (existing && isMedicaoLocked(existing.equipamento_id, existing.data)) {
+        toast({ title: "Erro", description: "Esta medição pertence a um período de faturamento já aprovado e não pode ser editada.", variant: "destructive" });
+        return;
+      }
+    }
+    if (isMedicaoLocked(form.equipamento_id, form.data)) {
+      toast({
+        title: "Erro ao registrar",
+        description: "A data selecionada pertence a um período de faturamento já aprovado para este equipamento.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const isDiaria = equipMedicaoTypes.get(form.equipamento_id) === "diarias";
 
     if (!isDiaria && form.horimetro <= 0 && form.tipo !== "Indisponível") {
@@ -711,6 +783,11 @@ const Medicoes = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    const existing = items.find(i => i.id === deleteId);
+    if (existing && isMedicaoLocked(existing.equipamento_id, existing.data)) {
+      toast({ title: "Erro", description: "Esta medição pertence a um período de faturamento já aprovado e não pode ser excluída.", variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from("medicoes").delete().eq("id", deleteId);
     if (error) {toast({ title: "Erro", description: error.message, variant: "destructive" });return;}
     toast({ title: "Horímetro excluído" });
@@ -948,12 +1025,21 @@ const Medicoes = () => {
                       </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {!isMedicaoLocked(item.equipamento_id, item.data) ? (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => openEdit(item)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir" onClick={() => setDeleteId(item.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Badge variant="outline" className="h-7 border-success/30 text-success bg-success/5 text-[10px] py-0.5 px-2 flex items-center gap-1 shrink-0 font-medium">
+                            <ShieldCheck className="h-3 w-3" />
+                            Aprovado
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

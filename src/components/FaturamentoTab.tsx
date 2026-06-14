@@ -336,6 +336,10 @@ export const FaturamentoTab = () => {
 
   const handleSaveEdit = async () => {
     if (!editingFatura) return;
+    if (editingFatura.numero_nota || editingFatura.status === "Aprovado" || editingFatura.status === "Pago") {
+      toast({ title: "Erro", description: "Esta fatura já foi emitida, aprovada ou paga e não pode mais ser editada.", variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from("faturamento").update({
       status: editForm.status,
       numero_nota: editForm.numero_nota || null,
@@ -1225,7 +1229,7 @@ export const FaturamentoTab = () => {
                 >
                   <Mail className="h-4 w-4" />
                 </Button>
-                {((f.status !== "Aprovado" && f.status !== "Pago") || role === "admin") && (
+                {(!f.numero_nota && f.status !== "Aprovado" && f.status !== "Pago") && (
                   <Button
                     variant="ghost"
                     size="icon"
