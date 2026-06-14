@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, TrendingDown, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet, Send } from "lucide-react";
+import { DollarSign, FileDown, FileText, Plus, Pencil, Trash2, Eye, TrendingUp, TrendingDown, Clock, AlertTriangle, ShieldCheck, XCircle, CheckCircle2, Mail, FileSpreadsheet, Send, UploadCloud, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { withCache, clearCache } from "@/lib/cache";
@@ -144,6 +144,7 @@ export const FaturamentoTab = () => {
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [payId, setPayId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [approveFaturaId, setApproveFaturaId] = useState<string | null>(null);
@@ -347,6 +348,15 @@ export const FaturamentoTab = () => {
     toast({ title: "Fatura atualizada" });
     setEditDialog(false);
     fetchData(true);
+
+    // Auto GDrive sync if token is active
+    const cachedToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+    const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+    if (isTokenValid) {
+      const updatedFatura = { ...editingFatura, ...editForm } as Fatura;
+      handleUploadToGDrive(updatedFatura);
+    }
   };
 
   const handleEmitirFatura = async (id: string, numeroNota: string, emissaoDate: string, observacoes: string) => {
@@ -371,6 +381,18 @@ export const FaturamentoTab = () => {
     setGenerateNumeroNota("");
     setGenerateObservacoes("");
     fetchData();
+
+    // Auto GDrive sync if token is active
+    const cachedToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+    const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+    if (isTokenValid) {
+      const savedFatura = faturas.find(f => f.id === id);
+      if (savedFatura) {
+        const updatedFatura = { ...savedFatura, numero_nota: numeroNota, emissao: emissaoDate, observacoes } as Fatura;
+        handleUploadToGDrive(updatedFatura);
+      }
+    }
   };
 
   const handleCancelFatura = async (id: string, reason: string) => {
@@ -409,7 +431,7 @@ export const FaturamentoTab = () => {
     }
   };
 
-  const generateInvoicePDF = async (fatura: Fatura) => {
+  const generateInvoicePDF = async (fatura: Fatura, isUploadOnly = false) => {
     const ct = getContrato(fatura.contrato_id);
     if (!ct) return;
     // Use alternative billing company if set
@@ -722,8 +744,93 @@ export const FaturamentoTab = () => {
     doc.text("Busato Locações e Serviços LTDA", mLeft + contentW / 2, sigLineY + 6, { align: "center" });
 
     const saveLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
+    if (isUploadOnly) {
+      return doc;
+    }
     doc.save(`fatura_locacao_${saveLabel}.pdf`);
     toast({ title: "PDF gerado", description: `Fatura ${saveLabel} exportada com sucesso.` });
+  };
+
+  const handleUploadToGDrive = async (item: Fatura) => {
+    const cachedToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+    const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+    if (!isTokenValid) {
+      toast({
+        title: "Google Drive Desconectado",
+        description: "Por favor, conecte sua conta Google Drive na aba Dossiê primeiro.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const ct = getContrato(item.contrato_id);
+    if (!ct) {
+      toast({ title: "Erro", description: "Contrato não encontrado para esta fatura.", variant: "destructive" });
+      return;
+    }
+
+    setSyncingId(item.id);
+    toast({ title: "Google Drive", description: "Preparando upload do documento..." });
+
+    try {
+      // 1. Get or create contract folder
+      const { gdriveCreateFolder, gdriveListFiles, gdriveUploadFile } = await import("@/lib/gdrive");
+      
+      let folderId = ct.gdrive_folder_id;
+      if (!folderId) {
+        // Find if folder already exists in root folder
+        const configRes = await supabase.from("gdrive_config").select("*").order("created_at", { ascending: false });
+        const configData = configRes.data && configRes.data.length > 0 ? configRes.data[0] : null;
+        let rootFolderId = configData?.root_folder_id;
+        if (!rootFolderId) {
+          const rootFolder = await gdriveCreateFolder("Dossiê Busato Locações", null, cachedToken);
+          rootFolderId = rootFolder.id;
+          await supabase.from("gdrive_config").insert({ client_id: configData?.client_id || "", root_folder_id: rootFolderId });
+        }
+
+        const clientName = ct.empresas?.nome || "Cliente Avulso";
+        const contractLabel = `Contrato - ID ${ct.id.slice(0, 8)}`;
+        const contractFolder = await gdriveCreateFolder(`${clientName} - ${contractLabel}`, rootFolderId, cachedToken);
+        folderId = contractFolder.id;
+
+        await supabase.from("contratos").update({ gdrive_folder_id: folderId }).eq("id", ct.id);
+        ct.gdrive_folder_id = folderId;
+      }
+
+      // 2. Get or create '3. Financeiro' subfolder
+      const subfolders = await gdriveListFiles(folderId, cachedToken);
+      let finFolder = subfolders.find(f => f.name === "3. Financeiro" && f.mimeType === "application/vnd.google-apps.folder");
+      let finFolderId = finFolder?.id;
+      if (!finFolderId) {
+        const newFolder = await gdriveCreateFolder("3. Financeiro", folderId, cachedToken);
+        finFolderId = newFolder.id;
+      }
+
+      // 3. Generate PDF and upload
+      const doc = await generateInvoicePDF(item, true) as any;
+      if (!doc) throw new Error("Falha ao gerar o documento PDF.");
+      const blob = doc.output("blob");
+
+      const label = item.numero_nota || String(item.numero_sequencial).padStart(3, "0");
+      const filename = `Fatura_Locacao_${label}_${item.emissao}.pdf`;
+
+      await gdriveUploadFile(blob, filename, finFolderId, cachedToken);
+
+      toast({
+        title: "Sucesso",
+        description: `Fatura "${filename}" salva no Google Drive (Financeiro) com sucesso!`
+      });
+    } catch (err: any) {
+      console.error("Erro no upload para o Drive:", err);
+      toast({
+        title: "Erro no upload",
+        description: err.message || String(err),
+        variant: "destructive"
+      });
+    } finally {
+      setSyncingId(null);
+    }
   };
 
   const handleSendEmail = async (fatura: Fatura) => {
@@ -1089,9 +1196,25 @@ export const FaturamentoTab = () => {
                 )}
 
                 {(role === "admin" || role === "superadmin" || f.status === "Aprovado" || f.status === "Pago") && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
-                    <FileDown className="h-4 w-4" />
-                  </Button>
+                  <>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-accent"
+                      onClick={() => handleUploadToGDrive(f)}
+                      disabled={syncingId === f.id}
+                      title="Salvar no Google Drive"
+                    >
+                      {syncingId === f.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <UploadCloud className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </>
                 )}
                 <Button
                   variant="ghost"
