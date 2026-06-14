@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Loader2, FileText, Upload, Download, Trash2, Shield, Calendar, AlertCircle } from "lucide-react";
+import { Search, Loader2, FileText, Upload, Download, Trash2, Shield, Calendar, AlertCircle, UploadCloud } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface Equipamento {
@@ -160,6 +160,21 @@ export const ApolicesArquivosTab = () => {
 
       toast({ title: "Documento Importado", description: `A apólice assinada "${selectedFile.name}" foi importada com sucesso.` });
       
+      // Auto GDrive sync if token is active
+      const cachedToken = localStorage.getItem("gdrive_access_token");
+      const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+      const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+      if (isTokenValid) {
+        const getSavedRecord = async () => {
+          const { data } = await supabase.from("apolices").select("*").eq("id", selectedApoliceId).single();
+          if (data) {
+            toast({ title: "Google Drive", description: "Enviando apólice automaticamente para o Dossiê..." });
+            handleUploadToGDrive(data as Apolice);
+          }
+        };
+        getSavedRecord();
+      }
+
       // Reset upload state
       setSelectedApoliceId("");
       setSelectedFile(null);
@@ -194,15 +209,104 @@ export const ApolicesArquivosTab = () => {
     }
   };
 
-  const handleDownload = (item: Apolice) => {
-    if (!item.arquivo_base64 || !item.arquivo_nome) return;
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const handleUploadToGDrive = async (item: Apolice) => {
+    const accessToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
     
-    const link = document.createElement("a");
-    link.href = item.arquivo_base64;
-    link.download = item.arquivo_nome;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (!accessToken || !expiresAtStr || parseInt(expiresAtStr) <= Date.now()) {
+      toast({
+        title: "Google Drive Desconectado",
+        description: "Acesse a aba Dossiê em Empresas -> Contratos e conecte seu Google Drive primeiro.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!item.arquivo_base64 || !item.arquivo_nome) return;
+
+    setSyncingId(item.id);
+    try {
+      // 1. Fetch active contracts associated with the equipments covered by this policy
+      const equipIds = item.apolices_equipamentos.map(ae => ae.equipamento_id);
+      if (equipIds.length === 0) {
+        throw new Error("Esta apólice não possui nenhuma máquina vinculada.");
+      }
+
+      const { data: ceData, error: ceErr } = await supabase
+        .from("contratos_equipamentos")
+        .select(`
+          contrato_id,
+          contratos:contrato_id (
+            id,
+            gdrive_folder_id,
+            status,
+            empresa_id
+          )
+        `)
+        .in("equipamento_id", equipIds);
+
+      if (ceErr) throw ceErr;
+
+      // Filter active contracts with active GDrive folders
+      const activeContracts = (ceData || [])
+        .map((x: any) => x.contratos)
+        .filter((c: any) => c && c.status === "Ativo" && c.gdrive_folder_id);
+
+      if (activeContracts.length === 0) {
+        throw new Error("Nenhum contrato ativo e com Dossiê inicializado foi encontrado para as máquinas desta apólice.");
+      }
+
+      // 2. Decode base64 to Blob
+      const base64Content = item.arquivo_base64.split(",")[1] || item.arquivo_base64;
+      const byteCharacters = atob(base64Content);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      // Guess mime type from filename
+      let mimeType = "application/pdf";
+      if (item.arquivo_nome.endsWith(".png")) mimeType = "image/png";
+      else if (item.arquivo_nome.endsWith(".jpg") || item.arquivo_nome.endsWith(".jpeg")) mimeType = "image/jpeg";
+      
+      const blob = new Blob([byteArray], { type: mimeType });
+
+      // 3. Upload to each associated contract folder under "4. Seguros"
+      const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
+      
+      let successCount = 0;
+      for (const contract of activeContracts) {
+        const folderId = contract.gdrive_folder_id;
+        const subfolders = await gdriveListFiles(folderId, accessToken);
+        let segFolder = subfolders.find(f => f.name === "4. Seguros" && f.mimeType === "application/vnd.google-apps.folder");
+        
+        let segFolderId = "";
+        if (segFolder) {
+          segFolderId = segFolder.id;
+        } else {
+          const newFolder = await gdriveCreateFolder("4. Seguros", folderId, accessToken);
+          segFolderId = newFolder.id;
+        }
+
+        await gdriveUploadFile(blob, item.arquivo_nome, segFolderId, accessToken);
+        successCount++;
+      }
+
+      toast({
+        title: "Sucesso!",
+        description: `Apólice salva em ${successCount} Dossiê(s) de Contratos na pasta "4. Seguros".`
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao enviar ao Drive",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setSyncingId(null);
+    }
   };
 
   return (
@@ -343,6 +447,20 @@ export const ApolicesArquivosTab = () => {
                       <TableCell className="text-right pr-6 space-x-1 whitespace-nowrap">
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleDownload(item)} title="Baixar Documento">
                           <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-accent"
+                          onClick={() => handleUploadToGDrive(item)}
+                          disabled={syncingId === item.id}
+                          title="Salvar no Google Drive"
+                        >
+                          {syncingId === item.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <UploadCloud className="h-4 w-4" />
+                          )}
                         </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteFile(item.id, item.arquivo_nome || "")} title="Remover Arquivo">
                           <Trash2 className="h-4 w-4" />

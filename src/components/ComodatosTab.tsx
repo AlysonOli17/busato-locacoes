@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, FileDown, Ban, Loader2, FileText } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileDown, Ban, Loader2, FileText, UploadCloud } from "lucide-react";
 import { exportComodatoToPDF } from "@/lib/comodatoExportUtils";
 
 interface Equipamento {
@@ -173,17 +173,29 @@ export const ComodatosTab = () => {
     };
 
     try {
+      let savedData: any = null;
       if (editing) {
-        const { error } = await supabase.from("comodatos").update(payload).eq("id", editing.id);
+        const { data, error } = await supabase.from("comodatos").update(payload).eq("id", editing.id).select().single();
         if (error) throw error;
+        savedData = data;
         toast({ title: "Sucesso", description: "Contrato de Comodato atualizado." });
       } else {
-        const { error } = await supabase.from("comodatos").insert(payload);
+        const { data, error } = await supabase.from("comodatos").insert(payload).select().single();
         if (error) throw error;
+        savedData = data;
         toast({ title: "Sucesso", description: "Contrato de Comodato registrado." });
       }
       setDialogOpen(false);
       fetchAll();
+
+      // Auto GDrive sync if token is active
+      const cachedToken = localStorage.getItem("gdrive_access_token");
+      const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+      const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+      if (isTokenValid && savedData) {
+        toast({ title: "Google Drive", description: "Enviando comodato automaticamente para o Dossiê..." });
+        handleUploadToGDrive(savedData as Comodato);
+      }
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
     }
@@ -209,6 +221,90 @@ export const ComodatosTab = () => {
       toast({ title: "PDF Gerado", description: "O contrato de comodato foi gerado e baixado." });
     } catch (err: any) {
       toast({ title: "Erro ao exportar PDF", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const handleUploadToGDrive = async (item: Comodato) => {
+    const accessToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+    
+    if (!accessToken || !expiresAtStr || parseInt(expiresAtStr) <= Date.now()) {
+      toast({
+        title: "Google Drive Desconectado",
+        description: "Acesse a aba Dossiê em Empresas -> Contratos e conecte seu Google Drive primeiro.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSyncingId(item.id);
+    try {
+      // 1. Fetch active contract for this equipment
+      const { data: ceData, error: ceErr } = await supabase
+        .from("contratos_equipamentos")
+        .select(`
+          contrato_id,
+          contratos:contrato_id (
+            id,
+            gdrive_folder_id,
+            status
+          )
+        `)
+        .eq("equipamento_id", item.equipamento_id);
+
+      if (ceErr) throw ceErr;
+
+      const activeContracts = (ceData || [])
+        .map((x: any) => x.contratos)
+        .filter((c: any) => c && c.status === "Ativo" && c.gdrive_folder_id);
+
+      if (activeContracts.length === 0) {
+        throw new Error("Nenhum contrato ativo e com Dossiê inicializado foi encontrado para a máquina deste comodato.");
+      }
+
+      // 2. Generate PDF
+      const eq = item.equipamentos || equipamentos.find(e => e.id === item.equipamento_id);
+      if (!eq) throw new Error("Equipamento não encontrado.");
+
+      const doc = await exportComodatoToPDF(item, eq);
+      const blob = doc.output("blob");
+
+      // 3. Upload to each associated contract folder under "1. Contratos"
+      const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
+      
+      let successCount = 0;
+      for (const contract of activeContracts) {
+        const folderId = contract.gdrive_folder_id;
+        const subfolders = await gdriveListFiles(folderId, accessToken);
+        let ctFolder = subfolders.find(f => f.name === "1. Contratos" && f.mimeType === "application/vnd.google-apps.folder");
+        
+        let ctFolderId = "";
+        if (ctFolder) {
+          ctFolderId = ctFolder.id;
+        } else {
+          const newFolder = await gdriveCreateFolder("1. Contratos", folderId, accessToken);
+          ctFolderId = newFolder.id;
+        }
+
+        const filename = `Comodato_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
+        await gdriveUploadFile(blob, filename, ctFolderId, accessToken);
+        successCount++;
+      }
+
+      toast({
+        title: "Sucesso!",
+        description: `Comodato salvo em ${successCount} Dossiê(s) de Contratos na pasta "1. Contratos".`
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao enviar ao Drive",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setSyncingId(null);
     }
   };
 
@@ -284,6 +380,20 @@ export const ComodatosTab = () => {
                       <TableCell className="text-right pr-6 space-x-1 whitespace-nowrap">
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleDownloadPDF(item)} title="Baixar Contrato de Comodato">
                           <FileDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-accent"
+                          onClick={() => handleUploadToGDrive(item)}
+                          disabled={syncingId === item.id}
+                          title="Salvar no Google Drive"
+                        >
+                          {syncingId === item.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <UploadCloud className="h-4 w-4" />
+                          )}
                         </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-accent" onClick={() => handleOpenEdit(item)} title="Editar Comodato">
                           <Pencil className="h-4 w-4" />

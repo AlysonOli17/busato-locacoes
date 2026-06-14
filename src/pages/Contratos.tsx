@@ -21,6 +21,7 @@ import { ModeloClausulasTab, ContratoClausulasTab } from "@/components/ModeloCla
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropostasContent } from "@/pages/Propostas";
+import { ContratosDossieTab } from "@/components/ContratosDossieTab";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
@@ -1275,8 +1276,22 @@ const Contratos = () => {
     alertCount: equipUsages.filter(u => u.percentual >= 80).length,
   };
 
+  const getTitle = () => {
+    if (activeTab === "propostas") return "Propostas Comerciais";
+    if (activeTab === "modelo") return "Modelo de Contrato";
+    if (activeTab === "dossie") return "Dossiê Digital";
+    return "Contratos Comerciais";
+  };
+
+  const getSubtitle = () => {
+    if (activeTab === "propostas") return "Gerenciamento de propostas e orçamentos";
+    if (activeTab === "modelo") return "Configuração de cláusulas padrão e termos";
+    if (activeTab === "dossie") return "Central de documentos integrados ao Google Drive";
+    return "Gestão de contratos de locação ativos e encerrados";
+  };
+
   return (
-    <Layout title="Contratos" subtitle="Gestão de contratos e locações">
+    <Layout title={getTitle()} subtitle={getSubtitle()}>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
 
         {/* Main tab navigation removed - now managed via Sidebar */}
@@ -2912,6 +2927,9 @@ const Contratos = () => {
         </TabsContent>
         <TabsContent value="modelo">
           <ModeloClausulasTab />
+        </TabsContent>
+        <TabsContent value="dossie">
+          <ContratosDossieTab />
         </TabsContent>
       </Tabs>
     </Layout>

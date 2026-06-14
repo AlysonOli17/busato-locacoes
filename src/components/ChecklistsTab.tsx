@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud } from "lucide-react";
 import { exportChecklistToPDF } from "@/lib/checklistExportUtils";
 
 interface ChecklistItem {
@@ -182,11 +182,20 @@ export const ChecklistsTab = () => {
     };
 
     try {
-      const { error } = await supabase.from("checklists").insert(payload);
+      const { data, error } = await supabase.from("checklists").insert(payload).select().single();
       if (error) throw error;
       toast({ title: "Sucesso", description: "Checklist registrado com sucesso." });
       setDialogOpen(false);
       fetchAll();
+
+      // Auto GDrive sync if token is active
+      const cachedToken = localStorage.getItem("gdrive_access_token");
+      const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+      const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+      if (isTokenValid && payload.contrato_id) {
+        toast({ title: "Google Drive", description: "Enviando laudo automaticamente para o Dossiê..." });
+        handleUploadToGDrive(data as ChecklistItem);
+      }
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
     }
@@ -213,6 +222,79 @@ export const ChecklistsTab = () => {
       toast({ title: "PDF Gerado", description: "Checklist exportado com sucesso." });
     } catch (err: any) {
       toast({ title: "Erro ao gerar PDF", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const handleUploadToGDrive = async (item: ChecklistItem) => {
+    const accessToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+    
+    if (!accessToken || !expiresAtStr || parseInt(expiresAtStr) <= Date.now()) {
+      toast({
+        title: "Google Drive Desconectado",
+        description: "Acesse a aba Dossiê em Empresas -> Contratos e conecte seu Google Drive primeiro.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!item.contrato_id) {
+      toast({
+        title: "Contrato não vinculado",
+        description: "Esta vistoria é avulsa e não está associada a nenhum contrato comercial.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSyncingId(item.id);
+    try {
+      const eq = item.equipamentos || equipamentos.find(e => e.id === item.equipamento_id);
+      const ct = item.contratos || contratos.find(c => c.id === item.contrato_id);
+      if (!eq) throw new Error("Equipamento não encontrado.");
+      if (!ct) throw new Error("Contrato não encontrado.");
+
+      // 1. Check if contract has gdrive_folder_id mapped
+      let folderId = ct.gdrive_folder_id;
+      if (!folderId) {
+        throw new Error("O dossiê deste contrato ainda não foi inicializado. Crie o dossiê na aba 'Dossiê' primeiro.");
+      }
+
+      // 2. Export/Generate PDF
+      const doc = await exportChecklistToPDF(item, eq, ct);
+      const blob = doc.output("blob");
+
+      // 3. Find or Create "2. Operacional" subfolder under contract folder
+      const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
+      const subfolders = await gdriveListFiles(folderId, accessToken);
+      let opFolder = subfolders.find(f => f.name === "2. Operacional" && f.mimeType === "application/vnd.google-apps.folder");
+      
+      let opFolderId = "";
+      if (opFolder) {
+        opFolderId = opFolder.id;
+      } else {
+        const newFolder = await gdriveCreateFolder("2. Operacional", folderId, accessToken);
+        opFolderId = newFolder.id;
+      }
+
+      // 4. Upload file
+      const filename = `Checklist_${item.tipo}_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
+      await gdriveUploadFile(blob, filename, opFolderId, accessToken);
+
+      toast({
+        title: "Enviado ao Google Drive",
+        description: `Checklist salvo em Dossiê -> 2. Operacional com sucesso.`
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao enviar ao Drive",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setSyncingId(null);
     }
   };
 
@@ -328,6 +410,22 @@ export const ChecklistsTab = () => {
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleDownloadPDF(item)} title="Baixar Laudo / PDF">
                           <FileDown className="h-4 w-4" />
                         </Button>
+                        {item.contrato_id && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-accent"
+                            onClick={() => handleUploadToGDrive(item)}
+                            disabled={syncingId === item.id}
+                            title="Salvar no Google Drive"
+                          >
+                            {syncingId === item.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UploadCloud className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)} title="Excluir Registro">
                           <Trash2 className="h-4 w-4" />
                         </Button>

@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, Send } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, Send, UploadCloud, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { calcularHorasInterpoladas, parseLocalDate, cn, getVencimento as getVencimentoGlobal, getDisplayStatus as getDisplayStatusGlobal } from "@/lib/utils";
@@ -219,6 +219,7 @@ export const FaturamentoContent = () => {
   });
   const [mobValues, setMobValues] = useState<Record<string, number>>({});
   const [creatingMob, setCreatingMob] = useState(false);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     const [fatRes, ctAllRes, ctAtivoRes, contasRes, empListRes, eqRes, ceRes] = await Promise.all([
@@ -1172,6 +1173,73 @@ export const FaturamentoContent = () => {
     }
   };
 
+  const handleUploadToGDrive = async (item: Fatura) => {
+    const accessToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+    
+    if (!accessToken || !expiresAtStr || parseInt(expiresAtStr) <= Date.now()) {
+      toast({
+        title: "Google Drive Desconectado",
+        description: "Acesse a aba Dossiê em Empresas -> Contratos e conecte seu Google Drive primeiro.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!item.contrato_id) {
+      toast({
+        title: "Contrato não vinculado",
+        description: "Esta fatura não está vinculada a um contrato comercial.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSyncingId(item.id);
+    try {
+      // 1. Get contract and check for folder mapping
+      const ct = item.contratos;
+      if (!ct || !ct.gdrive_folder_id) {
+        throw new Error("O dossiê deste contrato ainda não foi inicializado. Crie o dossiê na aba 'Dossiê' primeiro.");
+      }
+
+      // 2. Generate PDF
+      const { exportDetailedFaturamentoPDF } = await import("@/lib/faturamentoExportUtils");
+      const doc = await exportDetailedFaturamentoPDF([item], empresasList);
+      const blob = doc.output("blob");
+
+      // 3. Find or Create "3. Financeiro" subfolder under contract folder
+      const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
+      const subfolders = await gdriveListFiles(ct.gdrive_folder_id, accessToken);
+      let finFolder = subfolders.find(f => f.name === "3. Financeiro" && f.mimeType === "application/vnd.google-apps.folder");
+      
+      let finFolderId = "";
+      if (finFolder) {
+        finFolderId = finFolder.id;
+      } else {
+        const newFolder = await gdriveCreateFolder("3. Financeiro", ct.gdrive_folder_id, accessToken);
+        finFolderId = newFolder.id;
+      }
+
+      // 4. Upload file
+      const filename = `Boletim_Medicao_${item.id.slice(0, 5)}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      await gdriveUploadFile(blob, filename, finFolderId, accessToken);
+
+      toast({
+        title: "Enviado ao Google Drive",
+        description: `Medição salva em Dossiê -> 3. Financeiro com sucesso.`
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao enviar ao Drive",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
 
   const handleSendEmail = async (item: Fatura) => {
     try {
@@ -1431,6 +1499,27 @@ export const FaturamentoContent = () => {
 
       setDialogOpen(false);
       fetchData();
+
+      // Auto GDrive sync if token is active
+      const cachedToken = localStorage.getItem("gdrive_access_token");
+      const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+      const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+      if (isTokenValid && formContratoId && formContratoId !== "none") {
+        const getSavedRecord = async () => {
+          const { data } = await supabase
+            .from("faturamento")
+            .select("*")
+            .eq("id", faturaId)
+            .single();
+          if (data) {
+            const ct = contratos.find(c => c.id === formContratoId);
+            const fullRecord = { ...data, contratos: ct };
+            toast({ title: "Google Drive", description: "Enviando boletim de medição automaticamente para o Dossiê..." });
+            handleUploadToGDrive(fullRecord as Fatura);
+          }
+        };
+        getSavedRecord();
+      }
     } catch (err: any) {
       console.error("Erro ao salvar faturamento:", err);
       toast({ title: "Erro ao salvar", description: err.message || String(err), variant: "destructive" });
@@ -1730,6 +1819,23 @@ export const FaturamentoContent = () => {
                             >
                               <FileDown className="h-3.5 w-3.5" />
                             </Button>
+
+                            {item.contrato_id && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                title="Salvar no Google Drive"
+                                onClick={() => handleUploadToGDrive(item)}
+                                disabled={syncingId === item.id}
+                              >
+                                {syncingId === item.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <UploadCloud className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            )}
 
                             <Button
                               variant="ghost"

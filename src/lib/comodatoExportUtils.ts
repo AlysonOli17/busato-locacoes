@@ -224,4 +224,5 @@ E, por estarem justas e contratadas, assinam o presente instrumento em 02 (duas)
   // Save the PDF
   const safeTitle = `Comodato_${equipamento.tag_placa || "Equipamento"}.pdf`;
   doc.save(safeTitle);
+  return doc;
 }

@@ -605,4 +605,5 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
   }
 
   doc.save(`boletim_medicao_${new Date().toISOString().slice(0, 10)}.pdf`);
+  return doc;
 };

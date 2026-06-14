@@ -59,7 +59,8 @@ const allGroups: NavGroup[] = [
       { to: "/empresas", icon: Building2, label: "Cadastro" },
       { to: "/contratos?tab=contratos", icon: FileText, label: "Contratos" },
       { to: "/contratos?tab=propostas", icon: FileSignature, label: "Propostas" },
-      { to: "/contratos?tab=modelo", icon: BookOpen, label: "Modelo de Contrato" }
+      { to: "/contratos?tab=modelo", icon: BookOpen, label: "Modelo de Contrato" },
+      { to: "/contratos?tab=dossie", icon: Folder, label: "Dossiê" }
     ]
   },
   {

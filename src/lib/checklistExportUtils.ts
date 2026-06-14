@@ -172,4 +172,5 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
   // Save PDF
   const filename = `Checklist_${checklist.tipo}_${equipamento.tag_placa || "Equipamento"}.pdf`;
   doc.save(filename);
+  return doc;
 }
