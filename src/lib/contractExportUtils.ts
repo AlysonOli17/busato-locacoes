@@ -72,13 +72,12 @@ export const exportSimplePDF = async (data: any[], equipamentos: any[]) => {
   doc.save(`contratos_${new Date().toISOString().slice(0, 10)}.pdf`);
  };
  
- export const exportDetailedPDF = async (data: any[], equipamentos: any[]) => {
+ export const generateDetailedPDFDoc = async (data: any[], equipamentos: any[]) => {
    const { default: jsPDF } = await import("jspdf");
    const { default: autoTable } = await import("jspdf-autotable");
- 
+
    const doc = new jsPDF({ orientation: "portrait" });
    const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-   const hoje = new Date().toISOString().slice(0, 10);
    
    for (let idx = 0; idx < data.length; idx++) {
      const item = data[idx];
@@ -86,7 +85,7 @@ export const exportSimplePDF = async (data: any[], equipamentos: any[]) => {
      const emp = item.empresas;
      const startY = await addLetterhead(doc, "Contrato Detalhado");
      let y = startY;
- 
+
      doc.setFontSize(12);
      doc.setTextColor(41, 128, 185);
      doc.text("Dados da Empresa", 14, y);
@@ -97,38 +96,43 @@ export const exportSimplePDF = async (data: any[], equipamentos: any[]) => {
        head: [["Campo", "Valor"]],
        body: [
          ["Razão Social", `${emp?.razao_social || emp?.nome || "—"}${emp?.obra ? ` (Obra: ${emp.obra})` : ""}`],
-        ["CNPJ", emp?.cnpj || "—"],
-        ["Endereço", [emp?.endereco_logradouro, emp?.endereco_numero].filter(Boolean).join(", ") || "—"],
-        ["Cidade / UF", [emp?.endereco_cidade, emp?.endereco_uf].filter(Boolean).join(" / ") || "—"],
-        ["Contato", emp?.contato || "—"],
-      ],
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-      columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
-      theme: "grid",
-    });
-    
-    y = (doc as any).lastAutoTable.finalY + 10;
-    doc.text("Equipamentos do Contrato", 14, y);
-    y += 2;
+         ["CNPJ", emp?.cnpj || "—"],
+         ["Endereço", [emp?.endereco_logradouro, emp?.endereco_numero].filter(Boolean).join(", ") || "—"],
+         ["Cidade / UF", [emp?.endereco_cidade, emp?.endereco_uf].filter(Boolean).join(" / ") || "—"],
+         ["Contato", emp?.contato || "—"],
+       ],
+       styles: { fontSize: 9, cellPadding: 3 },
+       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+       columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
+       theme: "grid",
+     });
+     
+     y = (doc as any).lastAutoTable.finalY + 10;
+     doc.text("Equipamentos do Contrato", 14, y);
+     y += 2;
 
-    autoTable(doc, {
-      startY: y,
-      head: [["Tipo", "Modelo", "Tag", "Valor/Hora", "Horas"]],
-      body: (item.contratos_equipamentos || []).map((ce: any) => [
-        ce.equipamentos.tipo,
-        ce.equipamentos.modelo,
-        ce.equipamentos.tag_placa || "—",
-        fmt(Number(ce.valor_hora)),
-        `${ce.horas_contratadas}h`
-      ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-    });
-  }
+     autoTable(doc, {
+       startY: y,
+       head: [["Tipo", "Modelo", "Tag", "Valor/Hora", "Horas"]],
+       body: (item.contratos_equipamentos || []).map((ce: any) => [
+         ce.equipamentos.tipo,
+         ce.equipamentos.modelo,
+         ce.equipamentos.tag_placa || "—",
+         fmt(Number(ce.valor_hora)),
+         `${ce.horas_contratadas}h`
+       ]),
+       styles: { fontSize: 8 },
+       headStyles: { fillColor: [39, 174, 96], textColor: 255 },
+     });
+   }
 
-  doc.save(`contrato_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
-};
+   return doc;
+ };
+
+ export const exportDetailedPDF = async (data: any[], equipamentos: any[]) => {
+   const doc = await generateDetailedPDFDoc(data, equipamentos);
+   doc.save(`contrato_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+ };
 
 export const exportContractDocument = async (
   contrato: any,

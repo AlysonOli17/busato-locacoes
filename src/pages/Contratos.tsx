@@ -186,6 +186,122 @@ const Contratos = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  const fetchSingleContractWithJoins = async (contratoId: string) => {
+    const [cRes, ceRes, empRes, equipRes] = await Promise.all([
+      supabase.from("contratos").select("*").eq("id", contratoId).single(),
+      supabase.from("contratos_equipamentos").select("*").eq("contrato_id", contratoId),
+      supabase.from("empresas").select("*"),
+      supabase.from("equipamentos").select("*")
+    ]);
+
+    if (!cRes.data) return null;
+
+    const empMap = new Map((empRes.data || []).map(e => [e.id, e]));
+    const equipMap = new Map((equipRes.data || []).map(e => [e.id, e]));
+
+    const ceList = (ceRes.data || []).map(ce => ({
+      ...ce,
+      equipamentos: equipMap.get(ce.equipamento_id) || null
+    }));
+
+    return {
+      ...cRes.data,
+      empresas: empMap.get(cRes.data.empresa_id) || null,
+      equipamentos: equipMap.get(cRes.data.equipamento_id) || null,
+      contratos_equipamentos: ceList
+    };
+  };
+
+  const uploadMovementPDFToGDrive = async (contratoId: string) => {
+    const cachedToken = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+    const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+    if (!isTokenValid) {
+      console.warn("Google Drive not connected or token expired. Skipping auto PDF sync.");
+      return;
+    }
+
+    try {
+      const fullContract = await fetchSingleContractWithJoins(contratoId);
+      if (!fullContract) return;
+
+      const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
+      
+      let folderId = fullContract.gdrive_folder_id;
+      let comFolderId = "";
+
+      if (!folderId) {
+        // Create root & Client & Contract folder hierarchy
+        const { data: configData } = await supabase.from("gdrive_config").select("*").order("created_at", { ascending: false });
+        let rootId = configData && configData.length > 0 ? configData[0].root_folder_id : null;
+        if (!rootId) {
+          const rootFolder = await gdriveCreateFolder("Dossiê Busato Locações", null, cachedToken);
+          rootId = rootFolder.id;
+          if (configData && configData.length > 0) {
+            await supabase.from("gdrive_config").update({ root_folder_id: rootId }).eq("id", configData[0].id);
+          } else {
+            await supabase.from("gdrive_config").insert({ client_id: "", root_folder_id: rootId });
+          }
+        }
+
+        const clientName = fullContract.empresas?.nome || "Cliente Avulso";
+        const contractLabel = `Contrato - ID ${fullContract.id.slice(0, 8)}`;
+
+        const rootFiles = await gdriveListFiles(rootId, cachedToken);
+        const clientFolderName = `Cliente - ${clientName}`;
+        let clientFolder = rootFiles.find(f => f.name === clientFolderName && f.mimeType === "application/vnd.google-apps.folder");
+        
+        let clientFolderId = "";
+        if (clientFolder) {
+          clientFolderId = clientFolder.id;
+        } else {
+          const newClientFolder = await gdriveCreateFolder(clientFolderName, rootId, cachedToken);
+          clientFolderId = newClientFolder.id;
+        }
+
+        const contractFolderName = `${contractLabel}`;
+        const contractFolder = await gdriveCreateFolder(contractFolderName, clientFolderId, cachedToken);
+        folderId = contractFolder.id;
+
+        const subfolders = ["1. Comercial", "2. Operacional", "3. Financeiro", "4. Seguros"];
+        await Promise.all(subfolders.map(async (name) => {
+          const sf = await gdriveCreateFolder(name, contractFolder.id, cachedToken);
+          if (name.startsWith("1.")) comFolderId = sf.id;
+        }));
+
+        await supabase.from("contratos").update({ gdrive_folder_id: folderId }).eq("id", contratoId);
+      } else {
+        // Find existing 1. Comercial subfolder
+        const subfolders = await gdriveListFiles(folderId, cachedToken);
+        const matched = subfolders.find(f => f.name.startsWith("1.") && f.mimeType === "application/vnd.google-apps.folder");
+        if (matched) {
+          comFolderId = matched.id;
+        } else {
+          const newFolder = await gdriveCreateFolder("1. Comercial", folderId, cachedToken);
+          comFolderId = newFolder.id;
+        }
+      }
+
+      if (comFolderId) {
+        // Fetch all equipment for generating the PDF
+        const { data: allEquips } = await supabase.from("equipamentos").select("*");
+        const { generateDetailedPDFDoc } = await import("@/lib/contractExportUtils");
+        const doc = await generateDetailedPDFDoc([fullContract], allEquips || []);
+        const blob = doc.output("blob");
+        
+        const clientName = fullContract.empresas?.nome || "Cliente";
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filename = `Movimentacao_Contrato_${clientName.replace(/\s+/g, "_")}_${timestamp}.pdf`;
+
+        await gdriveUploadFile(blob, filename, comFolderId, cachedToken);
+        toast({ title: "Sincronizado", description: "Movimentação registrada e salva no Google Drive com sucesso!" });
+      }
+    } catch (error: any) {
+      console.error("Erro ao sincronizar movimentação de contrato:", error);
+      toast({ title: "Erro de Sincronização", description: "A alteração foi salva no banco, mas houve falha ao enviar o PDF da movimentação para o Google Drive: " + error.message, variant: "destructive" });
+    }
+  };
+
   const getContratoEquipamentos = (item: Contrato): ContratoEquipamento[] => {
     const fromJunction = (item.contratos_equipamentos || []).filter(ce => ce.equipamentos);
     if (fromJunction.length > 0) return fromJunction;
@@ -688,6 +804,7 @@ const Contratos = () => {
 
     setDialogOpen(false);
     fetchData();
+    uploadMovementPDFToGDrive(contratoId);
   };
 
   const handleDelete = async (id: string) => {
@@ -932,6 +1049,9 @@ const Contratos = () => {
     }
     setAjusteFormOpen(false);
     openAjustes(ajustesContrato);
+    if (ajustesContrato?.id) {
+      uploadMovementPDFToGDrive(ajustesContrato.id);
+    }
   };
 
   const handleDeleteAjuste = async (id: string) => {
@@ -1130,12 +1250,16 @@ const Contratos = () => {
     setAditivoFormOpen(false);
     toast({ title: "Sucesso", description: editingAditivo ? "Aditivo atualizado." : "Aditivo criado." });
     fetchAditivos(ajustesContrato.id);
+    uploadMovementPDFToGDrive(ajustesContrato.id);
   };
 
   const handleDeleteAditivo = async (id: string) => {
     const { error } = await supabase.from("contratos_aditivos").delete().eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    if (ajustesContrato) fetchAditivos(ajustesContrato.id);
+    if (ajustesContrato) {
+      fetchAditivos(ajustesContrato.id);
+      uploadMovementPDFToGDrive(ajustesContrato.id);
+    }
   };
 
   const addAditivoEquipamento = (equipId: string) => {
