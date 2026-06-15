@@ -15,6 +15,8 @@ import {
 import {
   gdriveLoadClient, gdriveCreateFolder, gdriveUploadFile, gdriveListFiles, gdriveDeleteFile, GDriveFile
 } from "@/lib/gdrive";
+import { isAfterDec2025 } from "@/lib/utils";
+
 
 interface Empresa {
   id: string;
@@ -281,12 +283,15 @@ export const ContratosDossieTab = () => {
         const eqMap = new Map((eqData || []).map(e => [e.id, e]));
 
         const { exportChecklistToPDF } = await import("@/lib/checklistExportUtils");
+        const existingOps = await gdriveListFiles(opFolderId, accessToken);
         for (const item of chkData) {
+          if (!isAfterDec2025(item.data_checklist)) continue;
           const eq = eqMap.get(item.equipamento_id);
           if (eq) {
+            const filename = `Checklist_${item.tipo}_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
+            if (existingOps.some(f => f.name === filename)) continue;
             const doc = await exportChecklistToPDF(item, eq, selectedContrato);
             const blob = doc.output("blob");
-            const filename = `Checklist_${item.tipo}_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
             await gdriveUploadFile(blob, filename, opFolderId, accessToken);
             uploadCount++;
           }
@@ -313,12 +318,15 @@ export const ContratosDossieTab = () => {
           const eqMap = new Map((eqData || []).map(e => [e.id, e]));
 
           const { exportComodatoToPDF } = await import("@/lib/comodatoExportUtils");
+          const existingComs = await gdriveListFiles(comFolderId, accessToken);
           for (const item of comoData) {
+            if (!isAfterDec2025(item.data_emissao)) continue;
             const eq = eqMap.get(item.equipamento_id);
             if (eq) {
+              const filename = `Comodato_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
+              if (existingComs.some(f => f.name === filename)) continue;
               const doc = await exportComodatoToPDF(item, eq);
               const blob = doc.output("blob");
-              const filename = `Comodato_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
               await gdriveUploadFile(blob, filename, comFolderId, accessToken);
               uploadCount++;
             }
@@ -337,7 +345,10 @@ export const ContratosDossieTab = () => {
         const uniqueApolices = Array.from(new Map((apolicesData || []).map((x: any) => [x.apolice_id, x.apolices])).values())
           .filter((a: any) => a && a.arquivo_base64 && a.arquivo_nome);
         
+        const existingSegs = await gdriveListFiles(segFolderId, accessToken);
         for (const item of uniqueApolices) {
+          if (!isAfterDec2025(item.vigencia_inicio)) continue;
+          if (existingSegs.some(f => f.name === item.arquivo_nome)) continue;
           const base64Content = item.arquivo_base64.split(",")[1] || item.arquivo_base64;
           const byteCharacters = atob(base64Content);
           const byteNumbers = new Array(byteCharacters.length);
@@ -365,12 +376,15 @@ export const ContratosDossieTab = () => {
         // Fetch companies list for invoice layout
         const { data: empData } = await supabase.from("empresas").select("*");
         const { exportDetailedFaturamentoPDF } = await import("@/lib/faturamentoExportUtils");
+        const existingFins = await gdriveListFiles(finFolderId, accessToken);
 
         for (const item of faturaData) {
+          if (!isAfterDec2025(item.emissao || item.periodo_inicio)) continue;
+          const filename = `Boletim_Medicao_${item.id.slice(0, 5)}_${new Date().toISOString().slice(0, 10)}.pdf`;
+          if (existingFins.some(f => f.name === filename)) continue;
           const fullRecord = { ...item, contratos: selectedContrato };
           const doc = await exportDetailedFaturamentoPDF([fullRecord], empData || []);
           const blob = doc.output("blob");
-          const filename = `Boletim_Medicao_${item.id.slice(0, 5)}_${new Date().toISOString().slice(0, 10)}.pdf`;
           await gdriveUploadFile(blob, filename, finFolderId, accessToken);
           uploadCount++;
         }
@@ -396,7 +410,18 @@ export const ContratosDossieTab = () => {
   // Automated creation of dossier folders hierarchy
   const handleCreateDossierFolder = async () => {
     if (!accessToken || !selectedContrato) return;
+    
+    if (!isAfterDec2025(selectedContrato.created_at)) {
+      toast({
+        title: "Operação não permitida",
+        description: "Este contrato é anterior a dez/2025. Não é permitida a criação de dossiê para ele.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setCreatingFolder(true);
+
 
     try {
       let rootId = gdriveConfig?.root_folder_id;

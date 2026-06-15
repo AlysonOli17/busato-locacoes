@@ -24,6 +24,25 @@ import { ImportFaturasDialog } from "./ImportFaturasDialog";
 import type jsPDF from "jspdf";
 
 
+export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
+  if (!dateStr) return false;
+  const datePart = dateStr.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return datePart >= "2025-12-01";
+  }
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    if (year > 2025) return true;
+    if (year === 2025 && month >= 11) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 interface Empresa {
   id: string;
   nome: string;
@@ -359,7 +378,11 @@ export const FaturamentoTab = () => {
     const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
     if (isTokenValid) {
       const updatedFatura = { ...editingFatura, ...editForm } as Fatura;
-      handleUploadToGDrive(updatedFatura);
+      if (isAfterDec2025(updatedFatura.emissao || updatedFatura.periodo_inicio)) {
+        handleUploadToGDrive(updatedFatura);
+      } else {
+        console.log("Fatura anterior a dez/2025. Sincronização automática pulada.");
+      }
     }
   };
 
@@ -387,14 +410,18 @@ export const FaturamentoTab = () => {
     fetchData();
 
     // Auto GDrive sync if token is active
-    const cachedToken = localStorage.getItem("gdrive_access_token");
-    const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
-    const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
-    if (isTokenValid) {
+    const cachedToken2 = localStorage.getItem("gdrive_access_token");
+    const expiresAtStr2 = localStorage.getItem("gdrive_token_expires_at");
+    const isTokenValid2 = cachedToken2 && expiresAtStr2 && parseInt(expiresAtStr2) > Date.now();
+    if (isTokenValid2) {
       const savedFatura = faturas.find(f => f.id === id);
       if (savedFatura) {
         const updatedFatura = { ...savedFatura, numero_nota: numeroNota, emissao: emissaoDate, observacoes } as Fatura;
-        handleUploadToGDrive(updatedFatura);
+        if (isAfterDec2025(updatedFatura.emissao || updatedFatura.periodo_inicio)) {
+          handleUploadToGDrive(updatedFatura);
+        } else {
+          console.log("Fatura anterior a dez/2025. Sincronização automática pulada.");
+        }
       }
     }
   };
@@ -768,6 +795,14 @@ export const FaturamentoTab = () => {
       return;
     }
 
+    if (!isAfterDec2025(item.emissao || item.periodo_inicio)) {
+      toast({
+        title: "Sincronização Ignorada",
+        description: "Esta fatura é anterior a dezembro de 2025 e não será enviada ao Google Drive."
+      });
+      return;
+    }
+
     const ct = getContrato(item.contrato_id);
     if (!ct) {
       toast({ title: "Erro", description: "Contrato não encontrado para esta fatura.", variant: "destructive" });
@@ -811,13 +846,24 @@ export const FaturamentoTab = () => {
         finFolderId = newFolder.id;
       }
 
+      const label = item.numero_nota || String(item.numero_sequencial).padStart(3, "0");
+      const filename = `Fatura_Locacao_${label}_${item.emissao || item.periodo_inicio}.pdf`;
+
+      // Check for duplicate file
+      const existingFiles = await gdriveListFiles(finFolderId, cachedToken);
+      if (existingFiles.some(f => f.name === filename)) {
+        toast({
+          title: "Documento já existe",
+          description: `A fatura "${filename}" já está no Google Drive. Sincronização evitada para não gerar duplicidade.`
+        });
+        setSyncingId(null);
+        return;
+      }
+
       // 3. Generate PDF and upload
       const doc = await generateInvoicePDF(item, true) as any;
       if (!doc) throw new Error("Falha ao gerar o documento PDF.");
       const blob = doc.output("blob");
-
-      const label = item.numero_nota || String(item.numero_sequencial).padStart(3, "0");
-      const filename = `Fatura_Locacao_${label}_${item.emissao}.pdf`;
 
       await gdriveUploadFile(blob, filename, finFolderId, cachedToken);
 

@@ -10,6 +10,25 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, Loader2, FileText, Upload, Download, Trash2, Shield, Calendar, AlertCircle, UploadCloud } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
+export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
+  if (!dateStr) return false;
+  const datePart = dateStr.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return datePart >= "2025-12-01";
+  }
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    if (year > 2025) return true;
+    if (year === 2025 && month >= 11) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 interface Equipamento {
   id: string;
   tipo: string;
@@ -168,8 +187,12 @@ export const ApolicesArquivosTab = () => {
         const getSavedRecord = async () => {
           const { data } = await supabase.from("apolices").select("*").eq("id", selectedApoliceId).single();
           if (data) {
-            toast({ title: "Google Drive", description: "Enviando apólice automaticamente para o Dossiê..." });
-            handleUploadToGDrive(data as Apolice);
+            if (isAfterDec2025(data.vigencia_inicio)) {
+              toast({ title: "Google Drive", description: "Enviando apólice automaticamente para o Dossiê..." });
+              handleUploadToGDrive(data as Apolice);
+            } else {
+              console.log("Apólice anterior a dez/2025. Sincronização automática pulada.");
+            }
           }
         };
         getSavedRecord();
@@ -220,6 +243,14 @@ export const ApolicesArquivosTab = () => {
         title: "Google Drive Desconectado",
         description: "Acesse a aba Dossiê em Empresas -> Contratos e conecte seu Google Drive primeiro.",
         variant: "destructive"
+      });
+      return;
+    }
+
+    if (!isAfterDec2025(item.vigencia_inicio)) {
+      toast({
+        title: "Sincronização Ignorada",
+        description: "Esta apólice é anterior a dezembro de 2025 e não será enviada ao Google Drive.",
       });
       return;
     }
@@ -277,6 +308,7 @@ export const ApolicesArquivosTab = () => {
       const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
       
       let successCount = 0;
+      let skippedCount = 0;
       for (const contract of activeContracts) {
         const folderId = contract.gdrive_folder_id;
         const subfolders = await gdriveListFiles(folderId, accessToken);
@@ -290,14 +322,27 @@ export const ApolicesArquivosTab = () => {
           segFolderId = newFolder.id;
         }
 
+        const existingFiles = await gdriveListFiles(segFolderId, accessToken);
+        if (existingFiles.some(f => f.name === item.arquivo_nome)) {
+          skippedCount++;
+          continue;
+        }
+
         await gdriveUploadFile(blob, item.arquivo_nome, segFolderId, accessToken);
         successCount++;
       }
 
-      toast({
-        title: "Sucesso!",
-        description: `Apólice salva em ${successCount} Dossiê(s) de Contratos na pasta "4. Seguros".`
-      });
+      if (successCount > 0) {
+        toast({
+          title: "Sucesso!",
+          description: `Apólice salva em ${successCount} Dossiê(s) de Contratos na pasta "4. Seguros".${skippedCount > 0 ? ` (${skippedCount} ignorados por duplicidade)` : ""}`
+        });
+      } else if (skippedCount > 0) {
+        toast({
+          title: "Documento já existe",
+          description: "A apólice já está salva nos Dossiês de destino. Upload evitado para não gerar duplicidade."
+        });
+      }
     } catch (err: any) {
       toast({
         title: "Erro ao enviar ao Drive",

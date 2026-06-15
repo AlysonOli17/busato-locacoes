@@ -178,3 +178,23 @@ export function getDisplayStatus(
   }
 }
 
+export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
+  if (!dateStr) return false;
+  const datePart = dateStr.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return datePart >= "2025-12-01";
+  }
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    if (year > 2025) return true;
+    if (year === 2025 && month >= 11) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
+

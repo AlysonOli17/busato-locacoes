@@ -14,6 +14,25 @@ import { useToast } from "@/hooks/use-toast";
 import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud } from "lucide-react";
 import { exportChecklistToPDF } from "@/lib/checklistExportUtils";
 
+export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
+  if (!dateStr) return false;
+  const datePart = dateStr.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return datePart >= "2025-12-01";
+  }
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    if (year > 2025) return true;
+    if (year === 2025 && month >= 11) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 interface ChecklistItem {
   id: string;
   contrato_id: string | null;
@@ -193,8 +212,12 @@ export const ChecklistsTab = () => {
       const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
       const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
       if (isTokenValid && payload.contrato_id) {
-        toast({ title: "Google Drive", description: "Enviando laudo automaticamente para o Dossiê..." });
-        handleUploadToGDrive(data as ChecklistItem);
+        if (isAfterDec2025(payload.data)) {
+          toast({ title: "Google Drive", description: "Enviando laudo automaticamente para o Dossiê..." });
+          handleUploadToGDrive(data as ChecklistItem);
+        } else {
+          console.log("Checklist anterior a dez/2025. Sincronização automática pulada.");
+        }
       }
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
@@ -249,6 +272,14 @@ export const ChecklistsTab = () => {
       return;
     }
 
+    if (!isAfterDec2025(item.data)) {
+      toast({
+        title: "Sincronização Ignorada",
+        description: "Este checklist é anterior a dezembro de 2025 e não será enviado ao Google Drive.",
+      });
+      return;
+    }
+
     setSyncingId(item.id);
     try {
       const eq = item.equipamentos || equipamentos.find(e => e.id === item.equipamento_id);
@@ -281,6 +312,15 @@ export const ChecklistsTab = () => {
 
       // 4. Upload file
       const filename = `Checklist_${item.tipo}_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
+      const existingFiles = await gdriveListFiles(opFolderId, accessToken);
+      if (existingFiles.some(f => f.name === filename)) {
+        toast({
+          title: "Documento já existe",
+          description: `O checklist "${filename}" já está salvo no Dossiê (Operacional). Upload evitado para não gerar duplicidade.`
+        });
+        return;
+      }
+
       await gdriveUploadFile(blob, filename, opFolderId, accessToken);
 
       toast({

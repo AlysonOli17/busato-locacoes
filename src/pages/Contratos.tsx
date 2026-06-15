@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import { getEquipLabel } from "@/lib/utils";
+import { getEquipLabel, isAfterDec2025 } from "@/lib/utils";
+
 import { Switch } from "@/components/ui/switch";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -224,6 +225,12 @@ const Contratos = () => {
     try {
       const fullContract = await fetchSingleContractWithJoins(contratoId);
       if (!fullContract) return;
+
+      if (!isAfterDec2025(fullContract.created_at)) {
+        console.log("Contract created before Dec 2025. Skipping auto PDF sync.");
+        return;
+      }
+
 
       const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
       

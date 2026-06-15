@@ -12,6 +12,25 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Pencil, Trash2, FileDown, Ban, Loader2, FileText, UploadCloud } from "lucide-react";
 import { exportComodatoToPDF } from "@/lib/comodatoExportUtils";
 
+export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
+  if (!dateStr) return false;
+  const datePart = dateStr.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return datePart >= "2025-12-01";
+  }
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    if (year > 2025) return true;
+    if (year === 2025 && month >= 11) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 interface Equipamento {
   id: string;
   tipo: string;
@@ -193,8 +212,12 @@ export const ComodatosTab = () => {
       const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
       const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
       if (isTokenValid && savedData) {
-        toast({ title: "Google Drive", description: "Enviando comodato automaticamente para o Dossiê..." });
-        handleUploadToGDrive(savedData as Comodato);
+        if (isAfterDec2025(savedData.data_inicio)) {
+          toast({ title: "Google Drive", description: "Enviando comodato automaticamente para o Dossiê..." });
+          handleUploadToGDrive(savedData as Comodato);
+        } else {
+          console.log("Comodato anterior a dez/2025. Sincronização automática pulada.");
+        }
       }
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
@@ -239,6 +262,14 @@ export const ComodatosTab = () => {
       return;
     }
 
+    if (!isAfterDec2025(item.data_inicio)) {
+      toast({
+        title: "Sincronização Ignorada",
+        description: "Este comodato é anterior a dezembro de 2025 e não será enviado ao Google Drive.",
+      });
+      return;
+    }
+
     setSyncingId(item.id);
     try {
       // 1. Fetch active contract for this equipment
@@ -271,32 +302,46 @@ export const ComodatosTab = () => {
       const doc = await exportComodatoToPDF(item, eq);
       const blob = doc.output("blob");
 
-      // 3. Upload to each associated contract folder under "1. Contratos"
+      // 3. Upload to each associated contract folder under "1. Comercial"
       const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
       
       let successCount = 0;
+      let skippedCount = 0;
       for (const contract of activeContracts) {
         const folderId = contract.gdrive_folder_id;
         const subfolders = await gdriveListFiles(folderId, accessToken);
-        let ctFolder = subfolders.find(f => f.name === "1. Contratos" && f.mimeType === "application/vnd.google-apps.folder");
+        let ctFolder = subfolders.find(f => f.name === "1. Comercial" && f.mimeType === "application/vnd.google-apps.folder");
         
         let ctFolderId = "";
         if (ctFolder) {
           ctFolderId = ctFolder.id;
         } else {
-          const newFolder = await gdriveCreateFolder("1. Contratos", folderId, accessToken);
+          const newFolder = await gdriveCreateFolder("1. Comercial", folderId, accessToken);
           ctFolderId = newFolder.id;
         }
 
         const filename = `Comodato_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
+        const existingFiles = await gdriveListFiles(ctFolderId, accessToken);
+        if (existingFiles.some(f => f.name === filename)) {
+          skippedCount++;
+          continue;
+        }
+
         await gdriveUploadFile(blob, filename, ctFolderId, accessToken);
         successCount++;
       }
 
-      toast({
-        title: "Sucesso!",
-        description: `Comodato salvo em ${successCount} Dossiê(s) de Contratos na pasta "1. Contratos".`
-      });
+      if (successCount > 0) {
+        toast({
+          title: "Sucesso!",
+          description: `Comodato salvo em ${successCount} Dossiê(s) de Contratos na pasta "1. Comercial".${skippedCount > 0 ? ` (${skippedCount} ignorados por duplicidade)` : ""}`
+        });
+      } else if (skippedCount > 0) {
+        toast({
+          title: "Documento já existe",
+          description: "O comodato já está salvo nos Dossiês de destino. Upload evitado para não gerar duplicidade."
+        });
+      }
     } catch (err: any) {
       toast({
         title: "Erro ao enviar ao Drive",
