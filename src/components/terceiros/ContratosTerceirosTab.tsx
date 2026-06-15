@@ -211,7 +211,7 @@ export const ContratosTerceirosTab = () => {
     setFormEquips(prev => prev.map((e, i) => i === idx ? { ...e, [field]: value } : e));
   };
 
-  const valorLabel = form.tipo_medicao === "diarias" ? "Valor/Diária" : "Valor/Hora";
+  const valorLabel = form.tipo_medicao === "diarias" ? "Valor/Diária" : form.tipo_medicao === "viagem" ? "Valor Base" : "Valor/Hora";
   const horasLabel = form.tipo_medicao === "diarias" ? "Diárias Contrat." : "Horas Contrat.";
   const horaMinLabel = form.tipo_medicao === "diarias" ? "Diária Mín." : "Hora Mín.";
 
@@ -252,7 +252,7 @@ export const ContratosTerceirosTab = () => {
                 <TableCell className="font-medium">{item.fornecedor?.nome || "—"}</TableCell>
                 <TableCell>{new Date(item.data_inicio + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell>{new Date(item.data_fim + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
-                <TableCell><Badge variant="outline">{item.tipo_medicao === "diarias" ? "Diárias" : "Horas"}</Badge></TableCell>
+                <TableCell><Badge variant="outline">{item.tipo_medicao === "diarias" ? "Diárias" : item.tipo_medicao === "viagem" ? "Viagem" : "Horas"}</Badge></TableCell>
                 <TableCell>{item.equipamentos?.length || 0}</TableCell>
                 <TableCell><Badge variant={item.status === "Ativo" ? "default" : "secondary"}>{item.status}</Badge></TableCell>
                 <TableCell>
@@ -283,7 +283,7 @@ export const ContratosTerceirosTab = () => {
                 <Label>Tipo de Medição</Label>
                 <Select value={form.tipo_medicao} onValueChange={v => setForm(f => ({ ...f, tipo_medicao: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="horas">Por Horas</SelectItem><SelectItem value="diarias">Por Diárias</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="horas">Por Horas</SelectItem><SelectItem value="diarias">Por Diárias</SelectItem><SelectItem value="viagem">Por Viagem</SelectItem></SelectContent>
                 </Select>
               </div>
               <div><Label>Dia Medição Início</Label><Input type="number" min={1} max={31} value={form.dia_medicao_inicio} onChange={e => setForm(f => ({ ...f, dia_medicao_inicio: Number(e.target.value) }))} /></div>
@@ -316,7 +316,7 @@ export const ContratosTerceirosTab = () => {
                         <SearchableSelect value={eq.equipamento_id} onValueChange={v => updateEquip(idx, "equipamento_id", v)} placeholder="Selecione..." options={equipamentos.map(e => ({ value: e.id, label: getLabel(e) }))} />
                       </div>
                       <div><Label className="text-xs">{valorLabel}</Label><CurrencyInput value={eq.valor_hora} onValueChange={v => updateEquip(idx, "valor_hora", v)} /></div>
-                      {form.tipo_medicao !== "diarias" && (
+                      {form.tipo_medicao !== "diarias" && form.tipo_medicao !== "viagem" && (
                         <>
                           <div><Label className="text-xs">Valor Excedente</Label><CurrencyInput value={eq.valor_hora_excedente} onValueChange={v => updateEquip(idx, "valor_hora_excedente", v)} /></div>
                           <div><Label className="text-xs">{horasLabel}</Label><Input type="number" step="0.1" value={eq.horas_contratadas} onChange={e => updateEquip(idx, "horas_contratadas", Number(e.target.value))} /></div>

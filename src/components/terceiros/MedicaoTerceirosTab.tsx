@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Receipt, Pencil, Trash2, AlertTriangle, Clock, TrendingDown, FileDown } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -63,6 +64,22 @@ export const MedicaoTerceirosTab = () => {
   const [editing, setEditing] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Viagens state
+  const [viagens, setViagens] = useState<{
+    equipamento_id: string;
+    origem_destino: string;
+    quantidade: number;
+    valor_total: number;
+    equipamento_label?: string;
+  }[]>([]);
+  const [allEquipamentos, setAllEquipamentos] = useState<{ id: string; tipo: string; modelo: string; tag_placa: string | null }[]>([]);
+
+  // Local form states for a single trip entry
+  const [newViagemEquipId, setNewViagemEquipId] = useState("");
+  const [newViagemOrigemDestino, setNewViagemOrigemDestino] = useState("");
+  const [newViagemQuantidade, setNewViagemQuantidade] = useState(1);
+  const [newViagemValorTotal, setNewViagemValorTotal] = useState(0);
+
   // Saved records
   const [savedItems, setSavedItems] = useState<MedicaoSalva[]>([]);
   const [filterFornecedor, setFilterFornecedor] = useState("all");
@@ -70,11 +87,12 @@ export const MedicaoTerceirosTab = () => {
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [ctRes, fRes, cteRes, savedRes] = await Promise.all([
+    const [ctRes, fRes, cteRes, savedRes, equipRes] = await Promise.all([
       supabase.from("contratos_terceiros").select("*").order("created_at", { ascending: false }),
       supabase.from("fornecedores").select("id, nome, cnpj"),
       supabase.from("contratos_terceiros_equipamentos").select("*"),
       (supabase.from as any)("medicoes_terceiros_faturamento").select("*").order("created_at", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
     ]);
 
     if (ctRes.error) {
@@ -85,6 +103,13 @@ export const MedicaoTerceirosTab = () => {
     }
     if (cteRes.error) {
       toast({ title: "Erro ao buscar equipamentos de contratos", description: cteRes.error.message, variant: "destructive" });
+    }
+    if (equipRes.error) {
+      toast({ title: "Erro ao buscar equipamentos", description: equipRes.error.message, variant: "destructive" });
+    }
+
+    if (equipRes.data) {
+      setAllEquipamentos(equipRes.data);
     }
 
     if (ctRes.data && fRes.data && cteRes.data) {
@@ -387,10 +412,14 @@ export const MedicaoTerceirosTab = () => {
   };
 
   // Total calculations
-  const totalNormais = equipForms.reduce((s, ef) => s + ef.horas_normais * ef.valor_hora, 0);
-  const totalExcedentes = equipForms.reduce((s, ef) => s + ef.horas_excedentes * ef.valor_hora_excedente, 0);
+  const ctSel = contratos.find(c => c.id === formContratoId);
+  const isViagem = ctSel?.tipo_medicao === "viagem";
+
+  const totalNormais = isViagem ? 0 : equipForms.reduce((s, ef) => s + ef.horas_normais * ef.valor_hora, 0);
+  const totalExcedentes = isViagem ? 0 : equipForms.reduce((s, ef) => s + ef.horas_excedentes * ef.valor_hora_excedente, 0);
+  const totalViagens = isViagem ? viagens.reduce((s, v) => s + Number(v.valor_total || 0), 0) : 0;
   const totalCustos = custos.reduce((s, c) => s + Number(c.valor), 0);
-  const valorTotal = totalNormais + totalExcedentes - totalCustos;
+  const valorTotal = isViagem ? (totalViagens - totalCustos) : (totalNormais + totalExcedentes - totalCustos);
 
   const openNew = () => {
     setEditing(null);
@@ -398,6 +427,7 @@ export const MedicaoTerceirosTab = () => {
     setFormMedicaoInicio("");
     setFormMedicaoFim("");
     setEquipForms([]);
+    setViagens([]);
     setCustos([]);
     setDialogOpen(true);
   };
@@ -421,6 +451,21 @@ export const MedicaoTerceirosTab = () => {
       }
     }
     const ct = contratos.find(c => c.id === item.contrato_id);
+
+    if (ct?.tipo_medicao === "viagem") {
+      setViagens(details.map((d: any) => ({
+        equipamento_id: d.equipamento_id,
+        origem_destino: d.origem_destino || "",
+        quantidade: Number(d.quantidade || 0),
+        valor_total: Number(d.valor_total || d.valor_subtotal || 0),
+        equipamento_label: d.equipamento_label || ""
+      })));
+      setEquipForms([]);
+      setCustos([]);
+      setDialogOpen(true);
+      return;
+    }
+
     const ceList = ct ? ct.contratos_terceiros_equipamentos || [] : [];
     
     const forms = details.map((d: any) => {
@@ -445,6 +490,7 @@ export const MedicaoTerceirosTab = () => {
     });
     
     setEquipForms(forms);
+    setViagens([]);
     
     if (ct) {
       const allEquipIds = forms.map(f => f.equipamento_id);
@@ -481,13 +527,21 @@ export const MedicaoTerceirosTab = () => {
       data_fim: formMedicaoFim,
       valor_total: valorTotal,
       status: "Pendente",
-      detalhes: equipForms.map(ef => ({
-        equipamento_id: ef.equipamento_id,
-        tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa,
-        horas_medidas: ef.horas_medidas, horas_normais: ef.horas_normais,
-        horas_excedentes: ef.horas_excedentes, valor_hora: ef.valor_hora,
-        valor_hora_excedente: ef.valor_hora_excedente,
-      })),
+      detalhes: isViagem
+        ? viagens.map(v => ({
+            equipamento_id: v.equipamento_id,
+            origem_destino: v.origem_destino,
+            quantidade: v.quantidade,
+            valor_total: v.valor_total,
+            equipamento_label: v.equipamento_label,
+          }))
+        : equipForms.map(ef => ({
+            equipamento_id: ef.equipamento_id,
+            tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa,
+            horas_medidas: ef.horas_medidas, horas_normais: ef.horas_normais,
+            horas_excedentes: ef.horas_excedentes, valor_hora: ef.valor_hora,
+            valor_hora_excedente: ef.valor_hora_excedente,
+          })),
     };
 
     if (editing) {
@@ -496,9 +550,9 @@ export const MedicaoTerceirosTab = () => {
       toast({ title: "Medição atualizada" });
     } else {
       const payloadWithId = { 
-        ...payload, 
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString()
+         ...payload, 
+         id: crypto.randomUUID(),
+         created_at: new Date().toISOString()
       };
       const { error } = await (supabase.from as any)("medicoes_terceiros_faturamento").insert(payloadWithId);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }

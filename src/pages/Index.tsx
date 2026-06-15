@@ -10,6 +10,8 @@ import { Wrench, Building2, FileText, Receipt, Clock, AlertTriangle, CalendarClo
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+import { useAlertasEngine } from "@/hooks/useAlertasEngine";
+
 interface VencimentoItem {
   tipo: "Contrato" | "Aditivo" | "Ajuste Temporário";
   descricao: string;
@@ -21,6 +23,7 @@ interface VencimentoItem {
 const parseLocalDate = (dateStr: string) => new Date(dateStr + "T00:00:00");
 
 const Index = () => {
+  useAlertasEngine();
   const [stats, setStats] = useState({ equipamentos: 0, contratosAtivos: 0, empresas: 0, pendente: 0, atrasadas: 0 });
   const [recentContratos, setRecentContratos] = useState<any[]>([]);
   const [recentMedicoes, setRecentMedicoes] = useState<any[]>([]);
