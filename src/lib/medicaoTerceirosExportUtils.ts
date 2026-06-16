@@ -20,6 +20,7 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
   const fornecedor = item.contratos_terceiros?.fornecedores;
   const tipoMedicao = item.contratos_terceiros?.tipo_medicao || "horas";
   const isDiarias = tipoMedicao === "diarias";
+  const isViagem = tipoMedicao === "viagem";
   const inicio = item.periodo_inicio;
   const fim = item.periodo_fim;
   const inicioFmt = inicio ? parseLocalDate(inicio).toLocaleDateString("pt-BR") : "";
@@ -104,7 +105,7 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
     { label: "Período de Medição:", value: `${inicioFmt} a ${fimFmt}` },
     { label: "Fornecedor:", value: fornecedor?.nome || "—" },
     { label: "CNPJ Fornecedor:", value: fornecedor?.cnpj || "—" },
-    { label: "Tipo de Medição:", value: isDiarias ? "Por Diárias" : "Por Horas" },
+    { label: "Tipo de Medição:", value: isDiarias ? "Por Diárias" : isViagem ? "Por Viagem" : "Por Horas" },
     { label: "Equipamentos:", value: equipTypes },
   ];
 
@@ -126,6 +127,60 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
 
   for (const det of detalhes) {
     if (y > pageH - 80) { doc.addPage(); y = 15; }
+
+    if (isViagem) {
+      const itemDesc = det.equipamento_label || "Equipamento Desconhecido";
+      const origemDestino = det.origem_destino || "—";
+      const qtd = Number(det.quantidade || 1);
+      const valorTotal = Number(det.valor_total || 0);
+      const valorUnit = valorTotal / qtd;
+      totalMedicao += valorTotal;
+
+      doc.setFillColor(16, 185, 129); // Emerald for Viagem
+      doc.rect(mL, y - 3, contentW, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${itemDesc}`, mL + 2, y + 1);
+      doc.setTextColor(0, 0, 0);
+      y += 7;
+
+      autoTable(doc, {
+        startY: y,
+        margin: tableMargin,
+        head: [["Origem / Destino", "Quantidade", "Valor Serv.", "Subtotal"]],
+        body: [[
+          origemDestino,
+          `${qtd} viagem(ns)`,
+          fmtBRL(valorUnit),
+          fmtBRL(valorTotal),
+        ]],
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
+        headStyles: { fillColor: [235, 235, 235], textColor: [60, 60, 60], fontStyle: "bold", halign: "center", fontSize: 7.5 },
+        columnStyles: {
+          0: { halign: "left" },
+          1: { halign: "center" },
+          2: { halign: "right" },
+          3: { halign: "right", fontStyle: "bold" },
+        },
+        theme: "grid",
+      });
+      y = (doc as any).lastAutoTable.finalY + 2;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: pageW - mR - 90, right: mR },
+        body: [["Subtotal:", fmtBRL(valorTotal)]],
+        styles: { fontSize: 9, cellPadding: 1.5, lineWidth: 0 },
+        columnStyles: {
+          0: { halign: "right", fontStyle: "bold", cellWidth: 45, textColor: [16, 185, 129] },
+          1: { halign: "right", fontStyle: "bold", cellWidth: 45, textColor: [16, 185, 129] },
+        },
+        theme: "plain",
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+      continue;
+    }
 
     const itemDesc = `${(det.tipo || "").toUpperCase()} ${(det.modelo || "").toUpperCase()}`;
     const tagPlaca = det.tag_placa || "—";
@@ -222,7 +277,7 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
   // Resumo
   if (y > pageH - 50) { doc.addPage(); y = 15; }
   const resumoBody: string[][] = [
-    [isDiarias ? "Medição (Diárias)" : "Medição (Horas)", fmtBRL(totalMedicao)],
+    [isDiarias ? "Medição (Diárias)" : isViagem ? "Medição (Viagens)" : "Medição (Horas)", fmtBRL(totalMedicao)],
   ];
   if (totalCustos > 0) resumoBody.push(["(-) Custos no Período", fmtBRL(totalCustos)]);
   const grandTotal = totalMedicao - totalCustos;
