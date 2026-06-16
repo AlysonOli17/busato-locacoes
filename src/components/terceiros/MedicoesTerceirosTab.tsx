@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Clock, AlertTriangle, CalendarDays } from "lucide-react";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { calcularHorasInterpoladas, cn, getEquipLabel } from "@/lib/utils";
 
 interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
@@ -420,7 +421,7 @@ export const MedicoesTerceirosTab = () => {
                   </div>
                   <div>
                     <Label>Valor do Serviço</Label>
-                    <Input type="number" step="0.01" value={form.valor_servico || ""} onChange={e => setForm(f => ({ ...f, valor_servico: Number(e.target.value) }))} placeholder="R$ 0,00" />
+                    <CurrencyInput value={form.valor_servico || 0} onValueChange={v => setForm(f => ({ ...f, valor_servico: v }))} />
                   </div>
                 </div>
                 <div>
