@@ -27,6 +27,27 @@ const ManualPage = () => {
 
   return (
     <Layout title="Manual do Sistema" subtitle="Guia passo a passo para utilização">
+      <style>{`
+        @media print {
+          @page { margin: 15mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          /* Ensure tabs content prints gracefully */
+          .print\\:block { display: block !important; }
+        }
+      `}</style>
+
+      {/* Cabeçalho de Impressão (Estilo Busato) */}
+      <div className="hidden print:block mb-6">
+        <div className="flex justify-between items-center">
+          <img src="/images/logo-busato-horizontal.png" alt="Busato Locações" className="h-10" />
+          <h1 className="text-xl font-bold text-gray-700 uppercase tracking-widest" style={{ fontFamily: "'Oswald', sans-serif" }}>Manual do Sistema</h1>
+        </div>
+        <div className="h-[2px] bg-[#2980B9] mt-3 w-full" />
+        <div className="text-right text-[10px] text-gray-500 mt-1">
+          Gerado em: {new Date().toLocaleDateString("pt-BR")} {new Date().toLocaleTimeString("pt-BR")}
+        </div>
+      </div>
+
       <div className="flex justify-between items-center mb-6 print:hidden">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <BookOpen className="text-primary" /> Central de Ajuda

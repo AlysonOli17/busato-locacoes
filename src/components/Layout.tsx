@@ -435,7 +435,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden bg-card/30 lg:bg-card lg:rounded-xl lg:border border-border/50 lg:shadow-sm">
-        <header className="h-14 border-b border-border/50 glass z-10 sticky top-0 flex items-center px-4 gap-4 shrink-0 lg:rounded-t-xl transition-all">
+        <header className="h-14 border-b border-border/50 glass z-10 sticky top-0 flex items-center px-4 gap-4 shrink-0 lg:rounded-t-xl transition-all print:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-foreground hover:text-primary transition-colors"
