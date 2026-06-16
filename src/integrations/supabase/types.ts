@@ -1359,7 +1359,10 @@ export type Database = {
           horimetro_inicial: number
           id: string
           observacoes: string | null
+          origem_destino: string | null
+          placa_equipamento: string | null
           tipo: string
+          valor_servico: number | null
         }
         Insert: {
           created_at?: string
@@ -1370,7 +1373,10 @@ export type Database = {
           horimetro_inicial?: number
           id?: string
           observacoes?: string | null
+          origem_destino?: string | null
+          placa_equipamento?: string | null
           tipo?: string
+          valor_servico?: number | null
         }
         Update: {
           created_at?: string
@@ -1381,7 +1387,10 @@ export type Database = {
           horimetro_inicial?: number
           id?: string
           observacoes?: string | null
+          origem_destino?: string | null
+          placa_equipamento?: string | null
           tipo?: string
+          valor_servico?: number | null
         }
         Relationships: [
           {

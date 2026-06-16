@@ -40,6 +40,7 @@ export const MedicoesTerceirosTab = () => {
     equipamento_id: "", data: new Date().toISOString().slice(0, 10),
     horimetro: 0, tipo: "Trabalho", observacoes: "",
     horimetro_inicial_indisp: 0, horas_indisp: 0,
+    placa_equipamento: "", origem_destino: "", quantidade: 1, valor_servico: 0,
   });
 
   const fetchData = async () => {
@@ -160,6 +161,10 @@ export const MedicoesTerceirosTab = () => {
       tipo: m.tipo || "Trabalho", observacoes: m.observacoes || "",
       horimetro_inicial_indisp: isIndisp ? Number(m.horimetro_inicial) : 0,
       horas_indisp: isIndisp ? Number(m.horas_trabalhadas) : 0,
+      placa_equipamento: (m as any).placa_equipamento || "",
+      origem_destino: (m as any).origem_destino || "",
+      quantidade: m.tipo === "Viagem" ? Number(m.horas_trabalhadas || 1) : 1,
+      valor_servico: Number((m as any).valor_servico || 0),
     });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
@@ -183,21 +188,25 @@ export const MedicoesTerceirosTab = () => {
     }
     const isIndisp = form.tipo === "Indisponível";
     const isDiaria = form.tipo === "Diária";
+    const isViagem = form.tipo === "Viagem";
 
-    if (!isDiaria && form.horimetro <= 0) {
+    if (!isDiaria && !isViagem && form.horimetro <= 0) {
       toast({ title: "Informe o horímetro", variant: "destructive" });
       return;
     }
 
-    const hInicial = isDiaria ? 0 : (isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior);
-    const hFinal = isDiaria ? 0 : form.horimetro;
-    const horasTrabalhadas = isDiaria ? 0 : (isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial));
+    const hInicial = (isDiaria || isViagem) ? 0 : (isIndisp ? form.horimetro_inicial_indisp : horimetroAnterior);
+    const hFinal = (isDiaria || isViagem) ? 0 : form.horimetro;
+    const horasTrabalhadas = isViagem ? form.quantidade : (isDiaria ? 0 : (isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial)));
 
     const payload = {
       equipamento_terceiro_id: form.equipamento_id, data: form.data,
       horimetro_inicial: hInicial, horimetro_final: hFinal,
       horas_trabalhadas: horasTrabalhadas, tipo: form.tipo,
       observacoes: form.observacoes || null,
+      placa_equipamento: isViagem ? (form.placa_equipamento || null) : null,
+      origem_destino: isViagem ? (form.origem_destino || null) : null,
+      valor_servico: isViagem ? form.valor_servico : null,
     };
 
     if (editingId) {
@@ -316,6 +325,8 @@ export const MedicoesTerceirosTab = () => {
                     <Badge className="font-semibold border-0 bg-destructive/10 text-destructive">
                       <Clock className="h-3 w-3 mr-1" />{Number(item.horas_trabalhadas ?? 0).toFixed(1)}h
                     </Badge>
+                  ) : item.tipo === "Viagem" ? (
+                    <span className="text-sm font-medium">{Number(item.horas_trabalhadas ?? 0)} viagem(ns)</span>
                   ) : <span className="text-sm text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell>
@@ -366,6 +377,10 @@ export const MedicoesTerceirosTab = () => {
                   <Label htmlFor="terc-tipo-diaria" className="cursor-pointer">Diária</Label>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Viagem" id="terc-tipo-viagem" />
+                  <Label htmlFor="terc-tipo-viagem" className="cursor-pointer">Viagem</Label>
+                </div>
+                <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Indisponível" id="terc-tipo-indisponivel" />
                   <Label htmlFor="terc-tipo-indisponivel" className="cursor-pointer">Indisponível</Label>
                 </div>
@@ -383,6 +398,33 @@ export const MedicoesTerceirosTab = () => {
               <div>
                 <Label>Observações</Label>
                 <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Ex: O.S, local, atividade..." rows={3} />
+              </div>
+            )}
+
+            {form.tipo === "Viagem" && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Placa do Equipamento</Label>
+                  <Input value={form.placa_equipamento} onChange={e => setForm(f => ({ ...f, placa_equipamento: e.target.value }))} placeholder="Ex: ABC-1234" />
+                </div>
+                <div>
+                  <Label>Local de Origem / Destino</Label>
+                  <Input value={form.origem_destino} onChange={e => setForm(f => ({ ...f, origem_destino: e.target.value }))} placeholder="Ex: Obra X / Pátio Central" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Quantidade</Label>
+                    <Input type="number" min={1} value={form.quantidade || ""} onChange={e => setForm(f => ({ ...f, quantidade: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <Label>Valor do Serviço</Label>
+                    <Input type="number" step="0.01" value={form.valor_servico || ""} onChange={e => setForm(f => ({ ...f, valor_servico: Number(e.target.value) }))} placeholder="R$ 0,00" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Ex: O.S, local, atividade..." rows={2} />
+                </div>
               </div>
             )}
 

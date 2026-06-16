@@ -268,7 +268,7 @@ export const MedicaoTerceirosTab = () => {
       supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horimetro_final, data")
         .eq("equipamento_terceiro_id", eqId).eq("tipo", "Trabalho")
         .lt("data", inicio).order("data", { ascending: false }).limit(1),
-      supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horas_trabalhadas, tipo, horimetro_final, data")
+      supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horas_trabalhadas, tipo, horimetro_final, data, observacoes, placa_equipamento, origem_destino, valor_servico")
         .eq("equipamento_terceiro_id", eqId).gte("data", inicio).lte("data", fim),
     ]));
     const medResults = await Promise.all(medPromises);
@@ -283,6 +283,29 @@ export const MedicaoTerceirosTab = () => {
       if (dataEntrega && dataEntrega > fim) return false;
       return true;
     });
+
+    if (ct.tipo_medicao === "viagem") {
+      const newViagens: any[] = [];
+      filteredEquipIds.forEach(eqId => {
+        const ceIdx = allEquipIds.indexOf(eqId);
+        const [_, periodRes] = medResults[ceIdx];
+        const eq = equipMap.get(eqId);
+        const viagensMedicoes = (periodRes.data || []).filter((m: any) => m.tipo === "Viagem");
+        viagensMedicoes.forEach((m: any) => {
+          newViagens.push({
+            equipamento_id: eqId,
+            origem_destino: m.origem_destino || "",
+            quantidade: Number(m.horas_trabalhadas || 1),
+            valor_total: Number(m.valor_servico || 0),
+            equipamento_label: getEquipLabel(eq ?? null),
+          });
+        });
+      });
+      setViagens(newViagens);
+      setEquipForms([]);
+      setLoadingMedicoes(false);
+      return;
+    }
 
     const newEquipForms: EquipFormItem[] = filteredEquipIds.map(eqId => {
       const ceIdx = allEquipIds.indexOf(eqId);
