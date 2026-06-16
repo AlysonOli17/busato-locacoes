@@ -108,6 +108,11 @@ const allGroups: NavGroup[] = [
     items: [
       { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
     ]
+  },
+  {
+    label: "Manual do Sistema",
+    icon: BookOpen,
+    to: "/manual"
   }
 ];
 
