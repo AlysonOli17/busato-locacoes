@@ -112,7 +112,14 @@ const allGroups: NavGroup[] = [
   {
     label: "Manual do Sistema",
     icon: BookOpen,
-    to: "/manual"
+    items: [
+      { to: "/manual?tab=frota-propria", icon: Truck, label: "Locação Frota Própria" },
+      { to: "/manual?tab=terceiros", icon: Handshake, label: "Locação Terceiros" },
+      { to: "/manual?tab=agenda", icon: Calendar, label: "Agenda & Kanban" },
+      { to: "/manual?tab=seguros", icon: Shield, label: "Seguros de Frota" },
+      { to: "/manual?tab=financeiro", icon: DollarSign, label: "Financeiro & Custos" },
+      { to: "/manual?tab=controladoria", icon: BarChart3, label: "Controladoria" },
+    ]
   }
 ];
 

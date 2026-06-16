@@ -1,223 +1,281 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Printer, BookOpen, Truck, Wrench, Handshake, Calendar, Shield, DollarSign, BarChart3, Camera } from "lucide-react";
-
-// Componente para exibir a imagem ou o placeholder se ela não existir
-const ManualImage = ({ src, alt, filename }: { src: string, alt: string, filename: string }) => {
-  const [error, setError] = useState(false);
-
-  return (
-    <div className="my-4 break-inside-avoid print:break-inside-avoid">
-      {!error ? (
-        <img 
-          src={src} 
-          alt={alt} 
-          onError={() => setError(true)} 
-          className="w-full max-w-3xl rounded-lg border border-border shadow-md"
-        />
-      ) : (
-        <div className="w-full max-w-3xl h-64 bg-muted/50 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center text-center p-6">
-          <Camera className="h-10 w-10 text-muted-foreground/50 mb-3" />
-          <h4 className="font-medium text-muted-foreground">Imagem não encontrada</h4>
-          <p className="text-sm text-muted-foreground/80 mt-1">
-            Para exibir o print real aqui, salve a captura de tela na pasta:
-          </p>
-          <code className="mt-2 bg-background px-2 py-1 rounded text-xs text-primary font-mono border">
-            public/manual-images/{filename}
-          </code>
-        </div>
-      )}
-      <p className="text-xs text-muted-foreground mt-2 italic text-center w-full max-w-3xl">Figura: {alt}</p>
-    </div>
-  );
-};
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Printer, BookOpen, Truck, Handshake, Calendar, Shield, DollarSign, BarChart3 } from "lucide-react";
 
 const ManualPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState("frota-propria");
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const setTab = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
   const handlePrint = () => {
     window.print();
   };
 
   return (
     <Layout title="Manual do Sistema" subtitle="Guia passo a passo para utilização">
-      <div className="flex justify-end mb-4 print:hidden">
-        <Button onClick={handlePrint}>
+      <div className="flex justify-between items-center mb-6 print:hidden">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <BookOpen className="text-primary" /> Central de Ajuda
+        </h1>
+        <Button onClick={handlePrint} variant="outline">
           <Printer className="mr-2 h-4 w-4" />
-          Gerar PDF / Imprimir
+          Imprimir Seção Atual
         </Button>
       </div>
 
-      <div className="space-y-12 print:space-y-6 max-w-5xl mx-auto bg-card p-8 rounded-xl border border-border shadow-sm print:shadow-none print:border-none print:p-0">
+      <div className="bg-card rounded-xl border border-border shadow-sm p-2 sm:p-6 print:p-0 print:shadow-none print:border-none">
         
-        <div className="text-center mb-12 print:mb-8">
-          <BookOpen className="h-14 w-14 mx-auto text-primary mb-4" />
-          <h1 className="text-3xl font-bold">Manual de Operação do Sistema</h1>
-          <p className="text-muted-foreground mt-2">Guia completo: Locações, Terceiros, B.I e Módulos Auxiliares</p>
-        </div>
+        <Tabs value={activeTab} onValueChange={setTab} className="w-full">
+          <TabsList className="flex flex-wrap h-auto gap-2 mb-8 bg-transparent print:hidden">
+            <TabsTrigger value="frota-propria" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Truck className="h-4 w-4 mr-2" /> Frota Própria
+            </TabsTrigger>
+            <TabsTrigger value="terceiros" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Handshake className="h-4 w-4 mr-2" /> Terceiros
+            </TabsTrigger>
+            <TabsTrigger value="agenda" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Calendar className="h-4 w-4 mr-2" /> Agenda
+            </TabsTrigger>
+            <TabsTrigger value="seguros" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Shield className="h-4 w-4 mr-2" /> Seguros
+            </TabsTrigger>
+            <TabsTrigger value="financeiro" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <DollarSign className="h-4 w-4 mr-2" /> Financeiro
+            </TabsTrigger>
+            <TabsTrigger value="controladoria" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <BarChart3 className="h-4 w-4 mr-2" /> B.I.
+            </TabsTrigger>
+          </TabsList>
 
-        {/* INSTRUÇÕES DAS IMAGENS */}
-        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-lg mb-8 print:hidden">
-          <h3 className="font-semibold text-amber-700 flex items-center gap-2">
-            <Camera className="h-4 w-4" /> Sobre as imagens deste manual
-          </h3>
-          <p className="text-sm text-amber-700/90 mt-1">
-            Você notará quadros cinzas espalhados pelo manual. Eles são espaços reservados. Para que os prints reais do seu sistema apareçam, você deve tirar as capturas de tela e salvá-las na pasta <code className="bg-white/50 px-1 rounded">busato-locacoes/public/manual-images/</code> com os nomes exatos indicados dentro de cada quadro. Ao recarregar a página, a imagem aparecerá magicamente!
-          </p>
-        </div>
+          <div className="print:block print:w-full">
+            {/* 1. LOCAÇÃO DE FROTA PRÓPRIA */}
+            <TabsContent value="frota-propria" className="mt-0 outline-none">
+              <section className="space-y-8">
+                <div className="flex items-center gap-2 mb-6 border-b pb-4">
+                  <Truck className="h-8 w-8 text-primary" />
+                  <h2 className="text-3xl font-semibold">Locação de Frota Própria</h2>
+                </div>
+                
+                <div className="space-y-8 pl-4 border-l-2 border-muted">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">1. Cadastros Básicos</h3>
+                    <p className="text-muted-foreground mb-3 mt-1">Para locar nossa frota, o cliente e o equipamento precisam existir no sistema.</p>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li><strong className="text-foreground">Cadastro de Clientes:</strong> Acesse o menu <strong className="text-foreground">Empresas &gt; Cadastro</strong>. Clique em Novo e preencha Razão Social, CNPJ (com busca automática ativada) e os dados de contato do cliente. Ao salvar, a empresa já ficará disponível para firmar contratos.</li>
+                      <li><strong className="text-foreground">Cadastro da Frota:</strong> Acesse o menu <strong className="text-foreground">Equipamentos &gt; Cadastro</strong>. Cadastre sua máquina própria (seja um Caminhão, Prancha ou Escavadeira) informando o Tipo, Modelo, Ano e a Placa/Tag de identificação que será usada nos relatórios.</li>
+                    </ul>
+                  </div>
 
-        {/* 1. LOCAÇÃO DE FROTA PRÓPRIA */}
-        <section className="print:break-inside-avoid">
-          <div className="flex items-center gap-2 mb-4 border-b pb-2">
-            <Truck className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold">1. Locação de Frota Própria</h2>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">2. Propostas e Contratos (Clientes)</h3>
+                    <p className="text-muted-foreground mb-3 mt-1">Como firmar a negociação com o cliente no sistema.</p>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li><strong className="text-foreground">Fazer uma Proposta:</strong> Acesse <strong className="text-foreground">Empresas &gt; Propostas</strong> e clique em Nova Proposta. Selecione o Cliente, defina uma data de validade, adicione os equipamentos desejados e defina a forma de cobrança (Por Horas, Diárias, Viagens ou Fixo/Mês). Você pode exportar a proposta em PDF para enviar ao cliente.</li>
+                      <li><strong className="text-foreground">Efetivar Contrato a partir de Proposta:</strong> Quando o cliente aprovar o orçamento, mude o status da proposta para "Aprovada". O sistema automaticamente perguntará se você deseja "Gerar Contrato" com aquelas mesmas condições.</li>
+                      <li><strong className="text-foreground">Criar Contrato Direto:</strong> Caso prefira criar sem proposta prévia, acesse <strong className="text-foreground">Empresas &gt; Contratos</strong> e clique em Novo. Um campo vital é o <strong>"Ciclo de Medição" (Ex: Dia 1 ao 30)</strong>. Isso define as datas de corte exatas que o sistema usará na hora do faturamento.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">3. Lançamento da Operação Diária</h3>
+                    <p className="text-muted-foreground mb-3 mt-1">A rotina de apontamento de tudo que trabalhou, viajou ou quebrou.</p>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li><strong className="text-foreground">Lançar Horímetro Diário:</strong> Acesse <strong className="text-foreground">Medições &gt; Horímetro</strong>. Selecione o Equipamento, a Data, e lance o <strong>Horímetro Final</strong> que estava no painel no fim do turno. O sistema busca o valor do dia anterior e calcula quantas horas foram trabalhadas automaticamente.</li>
+                      <li><strong className="text-foreground">Lançar Viagens:</strong> Na mesma tela de Novo Lançamento, troque a opção superior de "Trabalho" para "Viagem". Aparecerão novos campos. Informe o Local de Origem/Destino, a Quantidade de viagens no dia, o Valor negociado por trecho e, se aplicável, o Nº da O.S.</li>
+                      <li><strong className="text-foreground">Lançar Manutenção/Indisponibilidade:</strong> Se a máquina quebrar, selecione a opção "Indisponível". Informe a hora exata da quebra e a hora do conserto. O sistema usará esses lançamentos para dar descontos justos na fatura do cliente no fim do mês!</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">4. Faturamento e Faturas</h3>
+                    <p className="text-muted-foreground mb-3 mt-1">O fluxo para transformar as medições aprovadas em boletos.</p>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li><strong className="text-foreground">Gerar Medição (Fim do mês):</strong> Acesse <strong className="text-foreground">Medições &gt; Emitir Medição</strong>. Defina o período correto e clique em Calcular. O sistema irá varrer todos os horímetros lançados, cruzar com o valor das franquias estipuladas no contrato e gerar a tabela completa com Horas Normais, Excedentes e Subtotais.</li>
+                      <li><strong className="text-foreground">Exportar Relatório:</strong> Salve a medição. Depois, na aba Histórico, clique no botão roxo de "PDF" para gerar um relatório bonito com a logomarca da empresa e enviar ao cliente para aprovação.</li>
+                      <li><strong className="text-foreground">Emitir a Fatura:</strong> Com o PDF aprovado, acesse <strong className="text-foreground">Financeiro &gt; Emissão de faturas</strong>. Clique em Gerar Fatura, relacione-a àquela medição e insira a data de vencimento. Depois de gerada, você pode anexar a NF-e e o arquivo do Boleto direto na plataforma.</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </TabsContent>
+
+            {/* 2. LOCAÇÃO DE TERCEIROS */}
+            <TabsContent value="terceiros" className="mt-0 outline-none">
+              <section className="space-y-8">
+                <div className="flex items-center gap-2 mb-6 border-b pb-4">
+                  <Handshake className="h-8 w-8 text-primary" />
+                  <h2 className="text-3xl font-semibold">Locação de Terceiros (Fornecedores)</h2>
+                </div>
+                
+                <div className="space-y-8 pl-4 border-l-2 border-muted">
+                  <p className="text-muted-foreground text-lg mb-4">
+                    Para manter as contas separadas, a gestão de equipamentos pertencentes a parceiros ou subcontratados fica isolada no módulo de <strong>Locação Terceiros</strong>. As regras são espelhadas, mas a relação de pagamento é inversa.
+                  </p>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">1. Cadastros de Agregados</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li><strong className="text-foreground">Cadastro do Fornecedor:</strong> Acesse <strong className="text-foreground">Locação Terceiros &gt; Fornecedores</strong>. Cadastre a empresa parceira.</li>
+                      <li><strong className="text-foreground">Equipamentos Terceirizados:</strong> Acesse <strong className="text-foreground">Locação Terceiros &gt; Equipamentos</strong>. Ao cadastrar uma máquina aqui, você obrigatoriamente vincula ela ao fornecedor responsável.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">2. Contratos com Terceiros</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Acesse <strong className="text-foreground">Locação Terceiros &gt; Contratos</strong>.</li>
+                      <li>Diferente do contrato de locação da frota (onde você cobra), aqui você cadastra as condições financeiras que <strong>VOCÊ combinou de pagar</strong> ao fornecedor pelo uso do equipamento dele. Defina o valor hora de custo e a franquia acordada.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">3. Apontamento e Faturamento Inverso</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li><strong className="text-foreground">Lançamento de Trabalho/Viagem:</strong> Feito na tela <strong className="text-foreground">Locação Terceiros &gt; Lançamento (Horímetro)</strong>. O procedimento é exatamente igual ao da frota própria, porém os apontamentos feitos aqui geram custo ao invés de receita.</li>
+                      <li><strong className="text-foreground">Gerar Medição para Pagamento:</strong> No final do ciclo, acesse <strong className="text-foreground">Locação Terceiros &gt; Medição</strong>. Calcule e gere o relatório final das horas trabalhadas pelo parceiro. O PDF gerado daqui pode ser entregue ao seu fornecedor como comprovante oficial do valor que ele tem a receber de você!</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </TabsContent>
+
+            {/* 3. AGENDA */}
+            <TabsContent value="agenda" className="mt-0 outline-none">
+              <section className="space-y-8">
+                <div className="flex items-center gap-2 mb-6 border-b pb-4">
+                  <Calendar className="h-8 w-8 text-primary" />
+                  <h2 className="text-3xl font-semibold">Agenda & Kanban</h2>
+                </div>
+                
+                <div className="space-y-8 pl-4 border-l-2 border-muted">
+                  <p className="text-muted-foreground text-lg mb-4">
+                    O painel visual de toda a sua frota e ativos rodando.
+                  </p>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">Visualização de Pátio</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Acesse o menu <strong className="text-foreground">Agenda & Kanban</strong>. Você verá a tela dividida em colunas que representam o status atual (No Pátio, Locado, Manutenção, e Terceiros).</li>
+                      <li>Os filtros no topo permitem pesquisar rapidamente por placa ou tipo de equipamento para achá-lo nas colunas.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">Movimentação Dinâmica (Drag and Drop)</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Para atualizar o status de uma máquina (Ex: Caminhão voltou de locação pro pátio), basta <strong>clicar no card, segurar e arrastar</strong> para a coluna desejada. O status é atualizado imediatamente em todo o banco de dados do sistema!</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </TabsContent>
+
+            {/* 4. SEGUROS */}
+            <TabsContent value="seguros" className="mt-0 outline-none">
+              <section className="space-y-8">
+                <div className="flex items-center gap-2 mb-6 border-b pb-4">
+                  <Shield className="h-8 w-8 text-primary" />
+                  <h2 className="text-3xl font-semibold">Seguros de Frota</h2>
+                </div>
+                
+                <div className="space-y-8 pl-4 border-l-2 border-muted">
+                  <p className="text-muted-foreground text-lg mb-4">
+                    Gerencie os contratos de seguro, controle vencimentos e sinistros ativos de todas as máquinas.
+                  </p>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">Cadastro da Apólice e Vinculação</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Acesse <strong className="text-foreground">Seguros &gt; Cadastro</strong> para registrar os corretores e companhias seguradoras.</li>
+                      <li>Em <strong className="text-foreground">Seguros &gt; Apólices</strong>, cadastre a nova apólice recebida. Informe o período de vigência para o sistema poder alertar sobre renovações.</li>
+                      <li>Dentro do cadastro da apólice, você pode vincular todas as máquinas e caminhões que estão cobertos por ela.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">Gestão de Sinistros (Acidentes)</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Se ocorrer algum acidente com um equipamento segurado, registre em <strong className="text-foreground">Seguros &gt; Sinistros</strong>.</li>
+                      <li>Anexe cópias dos Boletins de Ocorrência (B.O.), orçamentos e relatórios periciais na plataforma para ter todo o dossiê centralizado.</li>
+                      <li>Registre os custos pagos com franquia para que eles também pesem no financeiro.</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </TabsContent>
+
+            {/* 5. FINANCEIRO E CUSTOS */}
+            <TabsContent value="financeiro" className="mt-0 outline-none">
+              <section className="space-y-8">
+                <div className="flex items-center gap-2 mb-6 border-b pb-4">
+                  <DollarSign className="h-8 w-8 text-primary" />
+                  <h2 className="text-3xl font-semibold">Financeiro e Custos</h2>
+                </div>
+                
+                <div className="space-y-8 pl-4 border-l-2 border-muted">
+                  <p className="text-muted-foreground text-lg mb-4">
+                    A parte financeira do sistema trata os recebimentos das faturas de clientes e os lançamentos de gastos operacionais gerais ou veiculares.
+                  </p>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">Custos Individuais (Manutenção e Peças)</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Para lançar a compra de um pneu, conserto ou revisão, acesse o cadastro daquele equipamento (<strong className="text-foreground">Equipamentos &gt; Cadastro</strong>), e acesse a aba lateral <strong className="text-foreground">Custos do Equipamento</strong>.</li>
+                      <li>Os custos vinculados diretamente às placas são extremamente importantes para que o relatório de Controladoria consiga apurar se a locação daquele bem está dando lucro ou prejuízo no fim do mês!</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">Custos Gerais da Empresa</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Acesse o menu <strong className="text-foreground">Financeiro & Custos &gt; Custos</strong>.</li>
+                      <li>Lance despesas da operação geral que não pertencem a um equipamento específico, como: aluguel do pátio, água, luz, salários da administração e impostos. Eles comporão a linha base de dedução do B.I.</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </TabsContent>
+
+            {/* 6. CONTROLADORIA */}
+            <TabsContent value="controladoria" className="mt-0 outline-none">
+              <section className="space-y-8">
+                <div className="flex items-center gap-2 mb-6 border-b pb-4">
+                  <BarChart3 className="h-8 w-8 text-primary" />
+                  <h2 className="text-3xl font-semibold">Controladoria (B.I.)</h2>
+                </div>
+                
+                <div className="space-y-8 pl-4 border-l-2 border-muted">
+                  <p className="text-muted-foreground text-lg mb-4">
+                    O cérebro estratégico da diretoria. Não é necessário preencher nada manualmente aqui; o sistema monta os relatórios cruzando os dados de todos os outros módulos de forma inteligente e em tempo real.
+                  </p>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground/90">Visão Geral & B.I.</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                      <li>Acesse <strong className="text-foreground">Controladoria &gt; Visão Geral & B.I.</strong>.</li>
+                      <li>O painel exibe cartões com o <strong>Faturamento Bruto</strong> do mês, os <strong>Custos Operacionais Totais</strong> e a <strong>Margem Bruta (Lucro Livre)</strong> em valores percentuais e absolutos.</li>
+                      <li>Os gráficos comparativos permitem bater o olho e ver rapidamente se a locação está saudável ou sangrando financeiramente no período avaliado.</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </TabsContent>
           </div>
-          
-          <div className="space-y-6 pl-4 border-l-2 border-muted ml-2">
-            <div>
-              <h3 className="text-xl font-bold">1.1 Cadastros Básicos</h3>
-              <p className="text-muted-foreground mb-2 mt-1">Para locar nossa frota, o cliente e o equipamento precisam existir no sistema.</p>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                <li><strong className="text-foreground">Cadastro de Clientes:</strong> Acesse <strong className="text-foreground">Empresas &gt; Cadastro</strong>. Clique em Novo e preencha Razão Social, CNPJ (com busca automática) e dados de contato.</li>
-                <li><strong className="text-foreground">Cadastro da Frota:</strong> Acesse <strong className="text-foreground">Equipamentos &gt; Cadastro</strong>. Cadastre a máquina própria (Caminhão, Prancha, Retroescavadeira) informando Modelo e Placa/Tag.</li>
-              </ul>
-              <ManualImage src="/manual-images/cadastro-equipamento-proprio.png" filename="cadastro-equipamento-proprio.png" alt="Tela de cadastro de equipamento da frota" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold">1.2 Propostas e Contratos (Clientes)</h3>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                <li><strong className="text-foreground">Propostas:</strong> Em <strong className="text-foreground">Empresas &gt; Propostas</strong>, crie uma proposta detalhando se a cobrança é por Horas, Diárias ou Viagem. Exporte o PDF e envie ao cliente.</li>
-                <li><strong className="text-foreground">Efetivar Contrato:</strong> Após o cliente aprovar, mude o status para Aprovada e clique em <em>"Gerar Contrato"</em>. Ou crie um do zero em <strong className="text-foreground">Empresas &gt; Contratos</strong>.</li>
-                <li><strong className="text-foreground">Atenção:</strong> No contrato, o <strong>Ciclo de Medição</strong> (Ex: Dia 1 ao 30) dita como o faturamento agrupará os dias.</li>
-              </ul>
-              <ManualImage src="/manual-images/contrato-cliente.png" filename="contrato-cliente.png" alt="Tela de edição de contrato de cliente" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold">1.3 Lançamento de Medições e Viagens</h3>
-              <p className="text-muted-foreground mb-2">Toda operação diária deve ser registrada em <strong className="text-foreground">Medições &gt; Horímetro</strong>.</p>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                <li><strong>Trabalho:</strong> Lance o horímetro final da máquina. O sistema calcula a diferença sozinho.</li>
-                <li><strong>Viagens:</strong> Altere a chave para "Viagem". Preencha Origem/Destino, Nº da O.S, e Valor do trecho.</li>
-                <li><strong>Indisponível:</strong> Máquinas quebradas devem ser lançadas aqui para que o sistema não cobre do cliente essas horas paradas.</li>
-              </ul>
-              <ManualImage src="/manual-images/lancamento-diario.png" filename="lancamento-diario.png" alt="Formulário de lançamento de horímetro ou viagem" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold">1.4 Faturamento e Emissão de Faturas</h3>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                <li><strong className="text-foreground">Emitir Medição:</strong> No fim do mês, acesse <strong className="text-foreground">Medições &gt; Emitir Medição</strong>. Escolha o período e o sistema cruzará os laçamentos com o contrato (franquias, horas extras, descontos). Salve a medição.</li>
-                <li>Gere o <strong>PDF Espelho</strong> na aba de Histórico e envie ao cliente.</li>
-                <li><strong className="text-foreground">Fatura Final:</strong> Acesse <strong className="text-foreground">Financeiro &gt; Emissão de faturas</strong>, clique em "Gerar Fatura", vincule à medição e anexe a NF-e e o Boleto para acompanhamento.</li>
-              </ul>
-              <ManualImage src="/manual-images/faturamento-medicao.png" filename="faturamento-medicao.png" alt="Tela de cálculo e resumo da medição no fim do mês" />
-            </div>
-          </div>
-        </section>
-
-        {/* 2. LOCAÇÃO DE TERCEIROS */}
-        <section className="print:break-inside-avoid print:mt-12">
-          <div className="flex items-center gap-2 mb-4 border-b pb-2">
-            <Handshake className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold">2. Locação de Terceiros (Agregados e Fornecedores)</h2>
-          </div>
-          
-          <div className="space-y-6 pl-4 border-l-2 border-muted ml-2">
-            <p className="text-muted-foreground">Toda a gestão de máquinas de terceiros fica isolada no módulo <strong>Locação Terceiros</strong> para não misturar com a frota própria.</p>
-
-            <div>
-              <h3 className="text-xl font-bold">2.1 Fornecedores e Equipamentos Terceirizados</h3>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                <li>Em <strong className="text-foreground">Locação Terceiros &gt; Fornecedores</strong>, cadastre a empresa dona da máquina.</li>
-                <li>Em <strong className="text-foreground">Equipamentos</strong> (dentro de Locação Terceiros), cadastre a máquina vinculando-a ao fornecedor que você acabou de criar.</li>
-              </ul>
-              <ManualImage src="/manual-images/fornecedores-terceiros.png" filename="fornecedores-terceiros.png" alt="Tela de cadastro de equipamentos de terceiros" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold">2.2 Contrato e Lançamentos do Terceiro</h3>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                <li><strong>Contrato:</strong> Acesse a aba Contratos (em Terceiros) e defina quanto VOCÊ vai pagar ao fornecedor pela máquina (Valor Base, Tipo de Medição).</li>
-                <li><strong>Lançamentos Diários:</strong> Funcionam idênticos ao da frota própria, mas são feitos na aba <strong>Lançamento</strong> dentro do módulo de Terceiros.</li>
-                <li><strong>Medição de Pagamento:</strong> No final do mês, a aba <strong>Medição</strong> (em Terceiros) calcula automaticamente quanto você deve transferir para o Fornecedor, gerando um PDF de conferência idêntico ao do faturamento de clientes!</li>
-              </ul>
-              <ManualImage src="/manual-images/medicao-terceiros.png" filename="medicao-terceiros.png" alt="PDF ou tela de medição gerada para um fornecedor" />
-            </div>
-          </div>
-        </section>
-
-        {/* 3. AGENDA */}
-        <section className="print:break-inside-avoid print:mt-12">
-          <div className="flex items-center gap-2 mb-4 border-b pb-2">
-            <Calendar className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold">3. Agenda & Kanban</h2>
-          </div>
-          
-          <div className="space-y-4 pl-4 border-l-2 border-muted ml-2">
-            <p className="text-muted-foreground">Visão visual de onde está cada máquina.</p>
-            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li>Acesse <strong className="text-foreground">Agenda & Kanban</strong>. O sistema mostrará colunas (Pátio, Locado, Manutenção, etc).</li>
-              <li>Você pode <strong className="text-foreground">arrastar e soltar (drag & drop)</strong> os cards das máquinas de uma coluna para outra. O status do equipamento é atualizado na mesma hora.</li>
-              <li>Utilize o filtro no topo para buscar uma placa específica ou visualizar apenas máquinas de terceiros.</li>
-            </ul>
-            <ManualImage src="/manual-images/agenda-kanban.png" filename="agenda-kanban.png" alt="Tela do painel Kanban de equipamentos" />
-          </div>
-        </section>
-
-        {/* 4. SEGUROS */}
-        <section className="print:break-inside-avoid print:mt-12">
-          <div className="flex items-center gap-2 mb-4 border-b pb-2">
-            <Shield className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold">4. Seguros de Frota</h2>
-          </div>
-          
-          <div className="space-y-4 pl-4 border-l-2 border-muted ml-2">
-            <p className="text-muted-foreground">Gerencie o vencimento e os sinistros das suas apólices.</p>
-            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li>Acesse <strong className="text-foreground">Seguros &gt; Cadastro</strong> para registrar a Seguradora.</li>
-              <li>Em <strong className="text-foreground">Apólices</strong>, cadastre a vigência, anexe o PDF do contrato e vincule os equipamentos cobertos por ela.</li>
-              <li><strong className="text-foreground">Sinistros:</strong> Caso bata um veículo, abra um sinistro na aba Sinistros, vincule à apólice e documente o Boletim de Ocorrência, custos de franquia e status do conserto.</li>
-            </ul>
-            <ManualImage src="/manual-images/seguros-sinistros.png" filename="seguros-sinistros.png" alt="Lista de apólices e status de vencimento" />
-          </div>
-        </section>
-
-        {/* 5. FINANCEIRO E CUSTOS */}
-        <section className="print:break-inside-avoid print:mt-12">
-          <div className="flex items-center gap-2 mb-4 border-b pb-2">
-            <DollarSign className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold">5. Financeiro e Custos Diários</h2>
-          </div>
-          
-          <div className="space-y-4 pl-4 border-l-2 border-muted ml-2">
-            <p className="text-muted-foreground">O sistema não faz só o faturamento, mas também as despesas operacionais (DRE).</p>
-            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li><strong className="text-foreground">Custos Gerais:</strong> Em <strong className="text-foreground">Financeiro &gt; Custos</strong>, lance despesas fixas (água, luz, folha de pagamento).</li>
-              <li><strong className="text-foreground">Custos por Equipamento:</strong> Ao comprar peça ou combustível para uma máquina específica, abra o cadastro dela em <strong className="text-foreground">Equipamentos</strong> e vá na aba <strong className="text-foreground">Custos do Equipamento</strong>. Lançando o custo lá, o sistema saberá exatamente qual foi a margem de lucro de cada máquina individualmente!</li>
-            </ul>
-            <ManualImage src="/manual-images/custos-equipamento.png" filename="custos-equipamento.png" alt="Lançamento de custos vinculados a uma placa" />
-          </div>
-        </section>
-
-        {/* 6. CONTROLADORIA */}
-        <section className="print:break-inside-avoid print:mt-12">
-          <div className="flex items-center gap-2 mb-4 border-b pb-2">
-            <BarChart3 className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-semibold">6. Controladoria (B.I. e Inteligência)</h2>
-          </div>
-          
-          <div className="space-y-4 pl-4 border-l-2 border-muted ml-2">
-            <p className="text-muted-foreground">O cérebro financeiro da diretoria.</p>
-            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li>Acesse <strong className="text-foreground">Controladoria &gt; Visão Geral & B.I.</strong>.</li>
-              <li>Este painel cruza o faturamento total com os custos operacionais, mostrando a <strong>Margem Bruta (Rentabilidade)</strong> da empresa no mês.</li>
-              <li>O gráfico de <em>Receitas vs Despesas</em> é montado automaticamente baseado nos contratos faturados e nos gastos inseridos no sistema. Sem planilhas externas!</li>
-            </ul>
-            <ManualImage src="/manual-images/controladoria-bi.png" filename="controladoria-bi.png" alt="Gráficos do painel de Business Intelligence" />
-          </div>
-        </section>
-
+        </Tabs>
       </div>
     </Layout>
   );
