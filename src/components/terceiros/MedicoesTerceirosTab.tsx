@@ -315,6 +315,8 @@ export const MedicoesTerceirosTab = () => {
                     <Badge variant="destructive" className="text-xs gap-1"><AlertTriangle className="h-3 w-3" /> Indisponível</Badge>
                   ) : item.tipo === "Diária" ? (
                     <Badge className="bg-primary/10 text-primary border-0 text-xs gap-1"><CalendarDays className="h-3 w-3" /> Diária</Badge>
+                  ) : item.tipo === "Viagem" ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-600 border-0 text-xs">Viagem</Badge>
                   ) : (
                     <Badge className="bg-accent/10 text-accent border-0 text-xs">Trabalho</Badge>
                   )}

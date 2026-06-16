@@ -315,7 +315,9 @@ export const ContratosTerceirosTab = () => {
                         <Label className="text-xs">Equipamento</Label>
                         <SearchableSelect value={eq.equipamento_id} onValueChange={v => updateEquip(idx, "equipamento_id", v)} placeholder="Selecione..." options={equipamentos.map(e => ({ value: e.id, label: getLabel(e) }))} />
                       </div>
-                      <div><Label className="text-xs">{valorLabel}</Label><CurrencyInput value={eq.valor_hora} onValueChange={v => updateEquip(idx, "valor_hora", v)} /></div>
+                      {form.tipo_medicao !== "viagem" && (
+                        <div><Label className="text-xs">{valorLabel}</Label><CurrencyInput value={eq.valor_hora} onValueChange={v => updateEquip(idx, "valor_hora", v)} /></div>
+                      )}
                       {form.tipo_medicao !== "diarias" && form.tipo_medicao !== "viagem" && (
                         <>
                           <div><Label className="text-xs">Valor Excedente</Label><CurrencyInput value={eq.valor_hora_excedente} onValueChange={v => updateEquip(idx, "valor_hora_excedente", v)} /></div>

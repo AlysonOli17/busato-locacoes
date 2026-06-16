@@ -273,6 +273,13 @@ export const MedicaoTerceirosTab = () => {
     ]));
     const medResults = await Promise.all(medPromises);
 
+    const firstError = medResults.find(r => r[1].error)?.result?.[1]?.error || medResults.find(r => r[1].error)?.[1].error;
+    if (firstError) {
+      toast({ title: "Erro na busca", description: firstError.message, variant: "destructive" });
+      setLoadingMedicoes(false);
+      return;
+    }
+
     // Filter: exclude equipment returned before period
     const filteredEquipIds = allEquipIds.filter(eqId => {
       const ce = ceList.find(c => c.equipamento_id === eqId);
