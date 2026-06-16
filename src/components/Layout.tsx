@@ -229,7 +229,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
   return (
     <>
-    <div className="flex h-screen bg-background lg:p-3 lg:gap-3">
+    <div className="flex h-screen print:h-auto bg-background lg:p-3 lg:gap-3">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-foreground/30 backdrop-blur-sm z-40 lg:hidden"
@@ -239,7 +239,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
       <aside
         className={cn(
-          "fixed lg:relative inset-y-0 left-0 z-50 bg-sidebar flex flex-col transition-all duration-300 ease-in-out lg:rounded-xl shadow-lg lg:shadow-md lg:border border-sidebar-border overflow-hidden",
+          "fixed lg:relative inset-y-0 left-0 z-50 bg-sidebar flex flex-col transition-all duration-300 ease-in-out lg:rounded-xl shadow-lg lg:shadow-md lg:border border-sidebar-border overflow-hidden print:hidden",
           collapsed ? "lg:w-[68px] w-64" : "w-64",
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
@@ -434,7 +434,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
         </button>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-card/30 lg:bg-card lg:rounded-xl lg:border border-border/50 lg:shadow-sm">
+      <div className="flex-1 flex flex-col overflow-hidden print:overflow-visible bg-card/30 lg:bg-card lg:rounded-xl lg:border border-border/50 lg:shadow-sm print:border-none print:shadow-none">
         <header className="h-14 border-b border-border/50 glass z-10 sticky top-0 flex items-center px-4 gap-4 shrink-0 lg:rounded-t-xl transition-all print:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -453,7 +453,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
           <NotificationsDropdown />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin relative">
+        <main className="flex-1 overflow-y-auto print:overflow-visible p-4 md:p-6 print:p-0 scrollbar-thin relative">
           <div className="animate-fade-in">{children}</div>
         </main>
       </div>
