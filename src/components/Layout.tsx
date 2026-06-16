@@ -229,7 +229,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
 
   return (
     <>
-    <div className="flex h-screen print:h-auto bg-background lg:p-3 lg:gap-3">
+    <div className="flex h-screen print:h-auto bg-background print:bg-white lg:p-3 lg:gap-3">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-foreground/30 backdrop-blur-sm z-40 lg:hidden"
@@ -434,7 +434,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
         </button>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden print:overflow-visible bg-card/30 lg:bg-card lg:rounded-xl lg:border border-border/50 lg:shadow-sm print:border-none print:shadow-none">
+      <div className="flex-1 flex flex-col overflow-hidden print:overflow-visible bg-card/30 lg:bg-card print:bg-transparent lg:rounded-xl lg:border border-border/50 lg:shadow-sm print:border-none print:shadow-none">
         <header className="h-14 border-b border-border/50 glass z-10 sticky top-0 flex items-center px-4 gap-4 shrink-0 lg:rounded-t-xl transition-all print:hidden">
           <button
             onClick={() => setSidebarOpen(true)}

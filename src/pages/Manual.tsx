@@ -58,7 +58,7 @@ const ManualPage = () => {
         </Button>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm p-2 sm:p-6 print:p-0 print:shadow-none print:border-none">
+      <div className="bg-card print:bg-transparent rounded-xl border border-border shadow-sm p-2 sm:p-6 print:p-0 print:shadow-none print:border-none">
         
         <Tabs value={activeTab} onValueChange={setTab} className="w-full">
           <TabsList className="flex flex-wrap h-auto gap-2 mb-8 bg-transparent print:hidden">
