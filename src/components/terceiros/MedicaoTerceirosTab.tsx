@@ -566,6 +566,8 @@ export const MedicaoTerceirosTab = () => {
             quantidade: v.quantidade,
             valor_total: v.valor_total,
             equipamento_label: v.equipamento_label,
+            data: v.data,
+            numero_os: v.numero_os,
           }))
         : equipForms.map(ef => ({
             equipamento_id: ef.equipamento_id,
