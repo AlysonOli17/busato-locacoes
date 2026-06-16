@@ -268,7 +268,7 @@ export const MedicaoTerceirosTab = () => {
       supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horimetro_final, data")
         .eq("equipamento_terceiro_id", eqId).eq("tipo", "Trabalho")
         .lt("data", inicio).order("data", { ascending: false }).limit(1),
-      supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horas_trabalhadas, tipo, horimetro_final, data, observacoes, placa_equipamento, origem_destino, valor_servico")
+      supabase.from("medicoes_terceiros").select("equipamento_terceiro_id, horas_trabalhadas, tipo, horimetro_final, data, observacoes, placa_equipamento, origem_destino, valor_servico, numero_os")
         .eq("equipamento_terceiro_id", eqId).gte("data", inicio).lte("data", fim),
     ]));
     const medResults = await Promise.all(medPromises);
@@ -305,6 +305,8 @@ export const MedicaoTerceirosTab = () => {
             quantidade: Number(m.horas_trabalhadas || 1),
             valor_total: Number(m.valor_servico || 0),
             equipamento_label: getEquipLabel(eq ?? null),
+            data: m.data,
+            numero_os: m.numero_os || "",
           });
         });
       });
@@ -852,8 +854,10 @@ export const MedicaoTerceirosTab = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Data</TableHead>
                         <TableHead>Equipamento</TableHead>
                         <TableHead>Origem/Destino</TableHead>
+                        <TableHead>Nº O.S</TableHead>
                         <TableHead className="text-right">Quantidade</TableHead>
                         <TableHead className="text-right">Valor Serv.</TableHead>
                         <TableHead className="text-right">Subtotal</TableHead>
@@ -862,8 +866,10 @@ export const MedicaoTerceirosTab = () => {
                     <TableBody>
                       {viagens.map((v, idx) => (
                         <TableRow key={idx}>
+                          <TableCell>{v.data ? new Date(v.data).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—"}</TableCell>
                           <TableCell className="font-medium">{v.equipamento_label}</TableCell>
                           <TableCell>{v.origem_destino || "—"}</TableCell>
+                          <TableCell>{v.numero_os || "—"}</TableCell>
                           <TableCell className="text-right">{v.quantidade}</TableCell>
                           <TableCell className="text-right">R$ {fmt(v.valor_total / (v.quantidade || 1))}</TableCell>
                           <TableCell className="text-right font-bold">R$ {fmt(v.valor_total)}</TableCell>

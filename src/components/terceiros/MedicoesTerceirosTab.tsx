@@ -166,6 +166,7 @@ export const MedicoesTerceirosTab = () => {
       origem_destino: (m as any).origem_destino || "",
       quantidade: m.tipo === "Viagem" ? Number(m.horas_trabalhadas || 1) : 1,
       valor_servico: Number((m as any).valor_servico || 0),
+      numero_os: (m as any).numero_os || "",
     });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDialogOpen(true);
@@ -208,6 +209,7 @@ export const MedicoesTerceirosTab = () => {
       placa_equipamento: isViagem ? (form.placa_equipamento || null) : null,
       origem_destino: isViagem ? (form.origem_destino || null) : null,
       valor_servico: isViagem ? form.valor_servico : null,
+      numero_os: isViagem ? (form.numero_os || null) : null,
     };
 
     if (editingId) {
@@ -424,9 +426,15 @@ export const MedicoesTerceirosTab = () => {
                     <CurrencyInput value={form.valor_servico || 0} onValueChange={v => setForm(f => ({ ...f, valor_servico: v }))} />
                   </div>
                 </div>
-                <div>
-                  <Label>Observações</Label>
-                  <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Ex: O.S, local, atividade..." rows={2} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Nº Ordem de Serviço</Label>
+                    <Input value={form.numero_os || ""} onChange={e => setForm(f => ({ ...f, numero_os: e.target.value }))} placeholder="Opcional" />
+                  </div>
+                  <div>
+                    <Label>Observações</Label>
+                    <Textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Ex: local, atividade..." rows={1} />
+                  </div>
                 </div>
               </div>
             )}

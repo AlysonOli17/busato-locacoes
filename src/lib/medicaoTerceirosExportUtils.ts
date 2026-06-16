@@ -145,12 +145,17 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
       doc.setTextColor(0, 0, 0);
       y += 7;
 
+      const dataFmt = det.data ? new Date(det.data).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—";
+      const numeroOs = det.numero_os || "—";
+
       autoTable(doc, {
         startY: y,
         margin: tableMargin,
-        head: [["Origem / Destino", "Quantidade", "Valor Serv.", "Subtotal"]],
+        head: [["Data", "Origem / Destino", "Nº O.S", "Quantidade", "Valor Serv.", "Subtotal"]],
         body: [[
+          dataFmt,
           origemDestino,
+          numeroOs,
           `${qtd} viagem(ns)`,
           fmtBRL(valorUnit),
           fmtBRL(valorTotal),
@@ -158,10 +163,12 @@ export const exportMedicaoTerceirosPDF = async (item: any) => {
         styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
         headStyles: { fillColor: [235, 235, 235], textColor: [60, 60, 60], fontStyle: "bold", halign: "center", fontSize: 7.5 },
         columnStyles: {
-          0: { halign: "left" },
-          1: { halign: "center" },
-          2: { halign: "right" },
-          3: { halign: "right", fontStyle: "bold" },
+          0: { halign: "center" },
+          1: { halign: "left" },
+          2: { halign: "center" },
+          3: { halign: "center" },
+          4: { halign: "right" },
+          5: { halign: "right", fontStyle: "bold" },
         },
         theme: "grid",
       });

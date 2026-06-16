@@ -1362,6 +1362,7 @@ export type Database = {
           origem_destino: string | null
           placa_equipamento: string | null
           tipo: string
+          numero_os: string | null
           valor_servico: number | null
         }
         Insert: {
@@ -1376,6 +1377,7 @@ export type Database = {
           origem_destino?: string | null
           placa_equipamento?: string | null
           tipo?: string
+          numero_os?: string | null
           valor_servico?: number | null
         }
         Update: {
@@ -1390,6 +1392,7 @@ export type Database = {
           origem_destino?: string | null
           placa_equipamento?: string | null
           tipo?: string
+          numero_os?: string | null
           valor_servico?: number | null
         }
         Relationships: [
