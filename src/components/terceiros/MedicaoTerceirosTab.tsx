@@ -837,10 +837,91 @@ export const MedicaoTerceirosTab = () => {
               </>
               );
             })()}
+
+            {/* Viagens measurement results */}
+            {viagens.length > 0 && (
+              <>
+                <div className="rounded-md border overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Equipamento</TableHead>
+                        <TableHead>Origem/Destino</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead className="text-right">Valor Serv.</TableHead>
+                        <TableHead className="text-right">Subtotal</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {viagens.map((v, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-medium">{v.equipamento_label}</TableCell>
+                          <TableCell>{v.origem_destino || "—"}</TableCell>
+                          <TableCell className="text-right">{v.quantidade}</TableCell>
+                          <TableCell className="text-right">R$ {fmt(v.valor_total / (v.quantidade || 1))}</TableCell>
+                          <TableCell className="text-right font-bold">R$ {fmt(v.valor_total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Custos */}
+                {custos.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm">Custos no Período</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {custos.map(c => (
+                            <TableRow key={c.id}>
+                              <TableCell>{c.descricao}</TableCell>
+                              <TableCell><Badge variant="outline">{c.tipo}</Badge></TableCell>
+                              <TableCell className="text-right font-medium">R$ {fmt(Number(c.valor))}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Totals */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Card>
+                    <CardContent className="p-3">
+                      <p className="text-xs text-muted-foreground">Total Viagens</p>
+                      <p className="text-lg font-bold">R$ {fmt(totalViagens)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3">
+                      <p className="text-xs text-muted-foreground">(-) Custos</p>
+                      <p className="text-lg font-bold text-destructive">R$ {fmt(totalCustos)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-accent/30 bg-accent/5">
+                    <CardContent className="p-3">
+                      <p className="text-xs text-muted-foreground font-medium">Valor Total</p>
+                      <p className="text-xl font-bold text-accent">R$ {fmt(valorTotal)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={equipForms.length === 0}>Salvar Medição</Button>
+            <Button onClick={handleSave} disabled={equipForms.length === 0 && viagens.length === 0}>Salvar Medição</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
