@@ -13,6 +13,9 @@ export const defaultAlertConfig = {
   enableApolices: true,
   enableContratos: true,
   enableManutencao: true,
+  enableMedicaoAtrasada: true,
+  enableFaturamentoPendente: true,
+  enableChecklistPendente: true,
   daysAntecedencia: 15,
 };
 
@@ -132,6 +135,39 @@ export default function Configuracoes() {
                     <Switch 
                       checked={config.enableManutencao} 
                       onCheckedChange={(c) => setConfig({ ...config, enableManutencao: c })} 
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Medição Atrasada</Label>
+                      <p className="text-xs text-muted-foreground">Avisa quando o ciclo de medição de um contrato passou da data de corte e não foi feito.</p>
+                    </div>
+                    <Switch 
+                      checked={config.enableMedicaoAtrasada} 
+                      onCheckedChange={(c) => setConfig({ ...config, enableMedicaoAtrasada: c })} 
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Faturamento Pendente</Label>
+                      <p className="text-xs text-muted-foreground">Notifica faturas com status Pendente aguardando emissão.</p>
+                    </div>
+                    <Switch 
+                      checked={config.enableFaturamentoPendente} 
+                      onCheckedChange={(c) => setConfig({ ...config, enableFaturamentoPendente: c })} 
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Checklist Pendente</Label>
+                      <p className="text-xs text-muted-foreground">Lembra de gerar checklists de equipamentos com data de entrega/devolução próximas.</p>
+                    </div>
+                    <Switch 
+                      checked={config.enableChecklistPendente} 
+                      onCheckedChange={(c) => setConfig({ ...config, enableChecklistPendente: c })} 
                     />
                   </div>
                 </CardContent>

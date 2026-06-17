@@ -89,9 +89,95 @@ export function useSmartAlerts() {
               });
             }, 3500 + (idx * 500));
           });
-        } 
+        } // End of Equipamentos if
         } // End of config.enableManutencao
 
+        // 4. Medição Atrasada
+        if (config.enableMedicaoAtrasada) {
+          const diaAtual = today.getDate();
+          
+          const { data: contratosMedicao } = await supabase
+            .from("contratos")
+            .select("id, dia_medicao_fim, empresas(nome, razao_social)")
+            .eq("status", "Ativo")
+            .not("dia_medicao_fim", "is", null);
+            
+          if (contratosMedicao && contratosMedicao.length > 0) {
+            contratosMedicao.forEach((c, idx) => {
+              if (c.dia_medicao_fim && diaAtual > c.dia_medicao_fim) {
+                // Em um cenário real, aqui checaríamos se já existe faturamento para o mês atual.
+                // Como não temos a data exata do último faturamento no objeto contrato, 
+                // vamos alertar se passou até 5 dias do dia de corte (para não alertar o mês todo).
+                if (diaAtual <= c.dia_medicao_fim + 5) {
+                  const nomeCliente = c.empresas?.nome || c.empresas?.razao_social || "Cliente Desconhecido";
+                  setTimeout(() => {
+                    pushToastNotification({
+                      id: `medicao-atrasada-${c.id}`,
+                      titulo: "Medição Atrasada",
+                      mensagem: `O ciclo do contrato de ${nomeCliente} fechou dia ${c.dia_medicao_fim}. Verifique as medições.`,
+                    });
+                  }, 4000 + (idx * 500));
+                }
+              }
+            });
+          }
+        } // End of enableMedicaoAtrasada
+        
+        // 5. Faturamento Pendente
+        if (config.enableFaturamentoPendente) {
+          const { data: faturamentosPendente } = await supabase
+            .from("faturamento")
+            .select("id, contrato_id, periodo")
+            .eq("status", "Pendente");
+            
+          if (faturamentosPendente && faturamentosPendente.length > 0) {
+            faturamentosPendente.forEach((fat, idx) => {
+              setTimeout(() => {
+                pushToastNotification({
+                  id: `fat-pendente-${fat.id}`,
+                  titulo: "Faturamento Pendente",
+                  mensagem: `Existem faturas aprovadas aguardando emissão para o período ${fat.periodo}.`,
+                });
+              }, 5000 + (idx * 500));
+            });
+          }
+        } // End of enableFaturamentoPendente
+
+        // 6. Checklist Pendente
+        if (config.enableChecklistPendente) {
+          const { data: eqContratos } = await supabase
+            .from("contratos_equipamentos")
+            .select("id, data_entrega, data_devolucao, equipamentos(tipo, modelo, tag_placa)")
+            .or(`data_entrega.lte.${limitDateStr},data_devolucao.lte.${limitDateStr}`);
+            
+          if (eqContratos && eqContratos.length > 0) {
+            eqContratos.forEach((eqc, idx) => {
+              const eq = eqc.equipamentos;
+              if (eq) {
+                let motivo = "";
+                let data = "";
+                if (eqc.data_entrega && eqc.data_entrega <= limitDateStr && eqc.data_entrega >= todayStr) {
+                  motivo = "Mobilização (Entrega)";
+                  data = new Date(eqc.data_entrega).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+                } else if (eqc.data_devolucao && eqc.data_devolucao <= limitDateStr && eqc.data_devolucao >= todayStr) {
+                  motivo = "Desmobilização (Devolução)";
+                  data = new Date(eqc.data_devolucao).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+                }
+                
+                if (motivo) {
+                  setTimeout(() => {
+                    pushToastNotification({
+                      id: `checklist-pendente-${eqc.id}`,
+                      titulo: "Checklist Pendente",
+                      mensagem: `Lembrete de checklist de ${motivo} do equipamento ${eq.tag_placa || eq.tipo} previsto para ${data}.`,
+                    });
+                  }, 6000 + (idx * 500));
+                }
+              }
+            });
+          }
+        } // End of enableChecklistPendente
+        
       } catch (error) {
         console.error("Erro ao rodar o Robô de Alertas:", error);
       }
