@@ -4,7 +4,7 @@ import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
   ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen,
-  PieChart, Handshake, Truck, Cog, Bot
+  PieChart, Handshake, Truck, Cog, Bot, CheckSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
