@@ -45,7 +45,8 @@ export function useSmartAlerts() {
               });
             }, 1000); // Small delay to avoid playing sound at the exact same millisecond
           });
-        } // End of Apolices if
+        } 
+        } // End of config.enableApolices
 
         // 2. Contratos Vencendo
         if (config.enableContratos) {
@@ -68,7 +69,8 @@ export function useSmartAlerts() {
               });
             }, 2000 + (idx * 500)); 
           });
-        } // End of Contratos if
+        } 
+        } // End of config.enableContratos
 
         // 3. Equipamentos em Manutenção
         if (config.enableManutencao) {
@@ -87,7 +89,8 @@ export function useSmartAlerts() {
               });
             }, 3500 + (idx * 500));
           });
-        } // End of Equipamentos if
+        } 
+        } // End of config.enableManutencao
 
       } catch (error) {
         console.error("Erro ao rodar o Robô de Alertas:", error);
