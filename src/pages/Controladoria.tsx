@@ -1,199 +1,243 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { VisaoGeralTab } from "@/components/VisaoGeralTab";
-import { RelatoriosGerenciaisTab } from "@/components/RelatoriosGerenciaisTab";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
-interface Empresa {
-  id: string;
-  nome: string;
-  cnpj: string;
-}
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#ffc658'];
 
-interface Contrato {
-  id: string;
-  empresa_id: string;
-  equipamento_id: string;
-  valor_hora: number;
-  horas_contratadas: number;
-  data_inicio: string;
-  data_fim: string;
-  dia_medicao_inicio: number;
-  dia_medicao_fim: number;
-  prazo_faturamento: number;
-  status: string;
-  empresas: { nome: string; cnpj: string };
-  equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
-  contratos_equipamentos?: { equipamento_id: string }[];
-}
-
-interface Fatura {
-  id: string;
-  contrato_id: string;
-  periodo: string;
-  emissao: string;
-  numero_nota: string | null;
-  status: string;
-  valor_total: number;
-  horas_normais: number;
-  horas_excedentes: number;
-  periodo_medicao_inicio: string | null;
-  periodo_medicao_fim: string | null;
-  total_gastos: number;
-  contratos: {
-    id: string;
-    empresas: { nome: string; cnpj: string };
-    equipamentos: { tipo: string; modelo: string; tag_placa: string | null };
-    horas_contratadas: number;
-    valor_hora: number;
-    dia_medicao_inicio?: number;
-    dia_medicao_fim?: number;
-    prazo_faturamento?: number;
-  };
-}
-
-const Controladoria = () => {
-  const location = useLocation();
-  const [activeTab, setActiveTab] = useState(() => {
-    return new URLSearchParams(window.location.search).get("tab") || "visao-geral";
-  });
-
-  useEffect(() => {
-    const tab = new URLSearchParams(location.search).get("tab") || "visao-geral";
-    setActiveTab(tab);
-  }, [location.search]);
-
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [contratos, setContratos] = useState<Contrato[]>([]);
-  const [faturas, setFaturas] = useState<Fatura[]>([]);
+export default function Controladoria() {
   const [equipamentos, setEquipamentos] = useState<any[]>([]);
   const [gastos, setGastos] = useState<any[]>([]);
-  const [medicoes, setMedicoes] = useState<any[]>([]);
-  const [apolices, setApolices] = useState<any[]>([]);
-  const [apolicesEquipamentos, setApolicesEquipamentos] = useState<any[]>([]);
-  const [contratosAditivos, setContratosAditivos] = useState<any[]>([]);
-  const [aditivosEquipamentos, setAditivosEquipamentos] = useState<any[]>([]);
-  const [sinistros, setSinistros] = useState<any[]>([]);
-  const [faturamentoGastos, setFaturamentoGastos] = useState<any[]>([]);
-  const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
+  const [faturamentos, setFaturamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAll = async () => {
-      const [
-        empRes, 
-        ctRes, 
-        ceRes, 
-        fatRes, 
-        eqRes, 
-        gastRes, 
-        medRes,
-        apolRes,
-        apolEqRes,
-        aditivosRes,
-        aditivosEqRes,
-        sinistrosRes,
-        fatGastosRes
-      ] = await Promise.all([
-        supabase.from("empresas").select("*").order("nome"),
-        supabase.from("contratos").select("*").order("created_at", { ascending: false }),
-        supabase.from("contratos_equipamentos").select("*"),
-        supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
-        supabase.from("equipamentos").select("*").order("tipo"),
-        supabase.from("gastos").select("*").order("data", { ascending: false }),
-        supabase.from("medicoes").select("*").order("data", { ascending: false }),
-        supabase.from("apolices").select("*"),
-        supabase.from("apolices_equipamentos").select("*"),
-        supabase.from("contratos_aditivos").select("*"),
-        supabase.from("aditivos_equipamentos").select("*"),
-        supabase.from("sinistros").select("*"),
-        supabase.from("faturamento_gastos").select("*")
-      ]);
-      
-      if (empRes.data) setEmpresas(empRes.data as Empresa[]);
-      if (eqRes.data) setEquipamentos(eqRes.data);
-      if (gastRes.data) setGastos(gastRes.data);
-      if (medRes.data) setMedicoes(medRes.data);
-      if (apolRes.data) setApolices(apolRes.data);
-      if (apolEqRes.data) setApolicesEquipamentos(apolEqRes.data);
-      if (aditivosRes.data) setContratosAditivos(aditivosRes.data);
-      if (aditivosEqRes.data) setAditivosEquipamentos(aditivosEqRes.data);
-      if (sinistrosRes.data) setSinistros(sinistrosRes.data);
-      if (fatGastosRes.data) setFaturamentoGastos(fatGastosRes.data);
-      if (ceRes.data) setContratosEquipamentos(ceRes.data);
-
-      if (empRes.data && eqRes.data && ctRes.data) {
-        const empMap = new Map(empRes.data.map((e: any) => [e.id, e]));
-        const eqMap = new Map(eqRes.data.map((e: any) => [e.id, e]));
-        
-        const ceMap = new Map<string, any[]>();
-        if (ceRes.data) {
-          ceRes.data.forEach((ce: any) => {
-            const list = ceMap.get(ce.contrato_id) || [];
-            list.push(ce);
-            ceMap.set(ce.contrato_id, list);
-          });
-        }
-
-        const mappedContratos = ctRes.data.map((c: any) => ({
-          ...c,
-          empresas: empMap.get(c.empresa_id) || null,
-          equipamentos: eqMap.get(c.equipamento_id) || null,
-          contratos_equipamentos: ceMap.get(c.id) || []
-        }));
-        setContratos(mappedContratos as unknown as Contrato[]);
-
-        if (fatRes.data) {
-          const ctMap = new Map(mappedContratos.map(c => [c.id, c]));
-          const mappedFaturas = fatRes.data.map((f: any) => ({
-            ...f,
-            contratos: ctMap.get(f.contrato_id) || null
-          }));
-          setFaturas(mappedFaturas as unknown as Fatura[]);
-        }
-      }
-      setLoading(false);
-    };
-    fetchAll();
+    fetchDados();
   }, []);
 
+  const fetchDados = async () => {
+    setLoading(true);
+    
+    const [
+      { data: eqs },
+      { data: gsts },
+      { data: fats }
+    ] = await Promise.all([
+      supabase.from("equipamentos").select("*"),
+      supabase.from("gastos").select("*"),
+      supabase.from("faturamento_equipamentos").select("*, faturamento(status)")
+    ]);
+
+    if (eqs) setEquipamentos(eqs);
+    if (gsts) setGastos(gsts);
+    if (fats) setFaturamentos(fats);
+    
+    setLoading(false);
+  };
+
+  // 1. DRE por Equipamento
+  const dreData = equipamentos.map(eq => {
+    // Somar Gastos (Despesas)
+    const eqGastos = gastos.filter(g => g.equipamento_id === eq.id);
+    const totalGastos = eqGastos.reduce((acc, curr) => acc + (curr.valor || 0), 0);
+
+    // Somar Receitas (Faturamentos não cancelados)
+    const eqFats = faturamentos.filter(f => f.equipamento_id === eq.id && f.faturamento?.status !== "Cancelado");
+    const totalReceita = eqFats.reduce((acc, curr) => {
+      const valorHorasNormais = (curr.horas_medidas || 0) * (curr.valor_hora || 0);
+      const valorHorasExcedentes = (curr.horas_excedentes || 0) * (curr.valor_hora_excedente || 0);
+      return acc + valorHorasNormais + valorHorasExcedentes;
+    }, 0);
+
+    const saldo = totalReceita - totalGastos;
+    const margem = totalReceita > 0 ? (saldo / totalReceita) * 100 : (totalGastos > 0 ? -100 : 0);
+
+    return {
+      ...eq,
+      totalGastos,
+      totalReceita,
+      saldo,
+      margem,
+      nomeExibicao: `${eq.tag_placa || ''} - ${eq.modelo || eq.tipo}`,
+    };
+  }).sort((a, b) => b.saldo - a.saldo);
+
+  // 2. Agrupamento de Gastos por Classificação para Gráfico de Pizza
+  const gastosPorClassificacao = gastos.reduce((acc, curr) => {
+    const classif = curr.classificacao || "Outros";
+    acc[classif] = (acc[classif] || 0) + (curr.valor || 0);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const pieData = Object.entries(gastosPorClassificacao).map(([name, value]) => ({
+    name, value
+  })).sort((a, b) => b.value - a.value);
+
+  // 3. Totais Globais
+  const receitaTotal = dreData.reduce((acc, curr) => acc + curr.totalReceita, 0);
+  const despesaTotal = dreData.reduce((acc, curr) => acc + curr.totalGastos, 0);
+  const lucroTotal = receitaTotal - despesaTotal;
+  const margemTotal = receitaTotal > 0 ? (lucroTotal / receitaTotal) * 100 : 0;
+
   return (
-    <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : "Cockpit executivo e indicadores de performance"}>
-      <div className="space-y-6">
-        {!loading && (
-          activeTab === "relatorios" ? (
-            <RelatoriosGerenciaisTab
-              empresas={empresas}
-              contratos={contratos}
-              faturas={faturas}
-              equipamentos={equipamentos}
-              gastos={gastos}
-              medicoes={medicoes}
-              contratosEquipamentos={contratosEquipamentos}
-              faturamentoGastos={faturamentoGastos}
-            />
-          ) : (
-            <VisaoGeralTab
-              empresas={empresas}
-              contratos={contratos}
-              faturas={faturas}
-              equipamentos={equipamentos}
-              gastos={gastos}
-              medicoes={medicoes}
-              apolices={apolices}
-              apolicesEquipamentos={apolicesEquipamentos}
-              contratosAditivos={contratosAditivos}
-              aditivosEquipamentos={aditivosEquipamentos}
-              sinistros={sinistros}
-              faturamentoGastos={faturamentoGastos}
-              contratosEquipamentos={contratosEquipamentos}
-            />
-          )
-        )}
-      </div>
+    <Layout title="Controladoria" subtitle="Inteligência de frota e DRE por equipamento">
+      
+      {loading ? (
+        <div className="flex justify-center items-center h-64">Carregando inteligência de dados...</div>
+      ) : (
+        <div className="space-y-6">
+          
+          {/* Top Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <CardContent className="p-6">
+                <p className="text-sm font-medium opacity-80">Receita Total Bruta</p>
+                <h3 className="text-3xl font-bold mt-2">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receitaTotal)}
+                </h3>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white">
+              <CardContent className="p-6">
+                <p className="text-sm font-medium opacity-80">Despesas Totais (Custos Internos)</p>
+                <h3 className="text-3xl font-bold mt-2">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(despesaTotal)}
+                </h3>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+              <CardContent className="p-6">
+                <p className="text-sm font-medium opacity-80">Lucro Operacional</p>
+                <h3 className="text-3xl font-bold mt-2">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lucroTotal)}
+                </h3>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-blue-200">
+              <CardContent className="p-6">
+                <p className="text-sm font-medium text-slate-500">Margem Geral</p>
+                <h3 className={`text-3xl font-bold mt-2 ${margemTotal >= 20 ? 'text-emerald-600' : margemTotal > 0 ? 'text-amber-500' : 'text-red-600'}`}>
+                  {margemTotal.toFixed(1)}%
+                </h3>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Gráfico de Pizza: Gastos */}
+            <Card className="col-span-1 border-t-4 border-t-red-500 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Distribuição de Custos Internos</CardTitle>
+              </CardHeader>
+              <CardContent className="h-80">
+                {pieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">Nenhum gasto registrado</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Gráfico de Barras: Top 10 Receitas */}
+            <Card className="col-span-1 lg:col-span-2 border-t-4 border-t-emerald-500 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Equipamentos Mais Lucrativos (Top 10)</CardTitle>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dreData.slice(0, 10)}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="tag_placa" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(val) => `R$${(val / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)} />
+                    <Legend />
+                    <Bar dataKey="totalReceita" name="Receita" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="totalGastos" name="Despesa (Custo Interno)" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* DRE Detalhado */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>DRE por Equipamento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader className="bg-slate-50">
+                    <TableRow>
+                      <TableHead>Equipamento</TableHead>
+                      <TableHead className="text-right">Receita Total</TableHead>
+                      <TableHead className="text-right">Despesas Internas</TableHead>
+                      <TableHead className="text-right">Saldo Líquido</TableHead>
+                      <TableHead className="text-center">Margem</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dreData.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">{row.nomeExibicao}</TableCell>
+                        <TableCell className="text-right text-emerald-600 font-semibold">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.totalReceita)}
+                        </TableCell>
+                        <TableCell className="text-right text-red-500">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.totalGastos)}
+                        </TableCell>
+                        <TableCell className={`text-right font-bold ${row.saldo >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.saldo)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {row.margem.toFixed(1)}%
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {row.margem >= 30 ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Alta Lucratividade</Badge>
+                          ) : row.margem > 0 ? (
+                            <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">Margem Apertada</Badge>
+                          ) : row.totalGastos === 0 && row.totalReceita === 0 ? (
+                            <Badge variant="outline" className="text-slate-500">Sem Movimentação</Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Prejuízo</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+        </div>
+      )}
     </Layout>
   );
-};
-
-export default Controladoria;
+}
