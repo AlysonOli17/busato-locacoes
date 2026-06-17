@@ -13,7 +13,8 @@ import { NotificationsDropdown, NotificationToastContainer } from "@/components/
 import logoBusato from "@/assets/logo-busato.png";
 import globoBusato from "@/assets/globo-busato.png";
 import { useSmartAlerts } from "@/hooks/useSmartAlerts";
-
+import { GlobalSearch } from "./GlobalSearch";
+import { Search } from "lucide-react";
 interface SubNavItem {
   to: string;
   label: string;
@@ -456,6 +457,26 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
             </div>
           )}
           <div className="flex-1" />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="hidden md:flex items-center gap-2 text-muted-foreground mr-2 h-9 px-3"
+            onClick={() => window.dispatchEvent(new Event("open-global-search"))}
+          >
+            <Search className="h-4 w-4" />
+            <span className="text-xs">Buscar...</span>
+            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden mr-1"
+            onClick={() => window.dispatchEvent(new Event("open-global-search"))}
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           <NotificationsDropdown />
         </header>
 
@@ -464,6 +485,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
         </main>
       </div>
     </div>
+    <GlobalSearch />
     <NotificationToastContainer />
     </>
   );
