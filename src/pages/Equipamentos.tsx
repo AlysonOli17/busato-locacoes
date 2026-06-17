@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle, Wrench, Activity, Tractor, Box } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle, Wrench, Activity, Tractor, Box, LayoutGrid, List } from "lucide-react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,7 @@ const EquipamentosLista = () => {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [insuredIds, setInsuredIds] = useState<Set<string>>(new Set());
   const [rentedIds, setRentedIds] = useState<Set<string>>(new Set());
@@ -301,6 +302,15 @@ const EquipamentosLista = () => {
                 <FileSpreadsheet className="h-4 w-4 mr-2 text-success" /> Excel
               </Button>
             </div>
+            
+            <div className="flex gap-1 bg-background p-1 rounded-md border border-border/50">
+              <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="sm" className="px-2 h-7" onClick={() => setViewMode("list")}>
+                <List className="h-4 w-4" />
+              </Button>
+              <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="sm" className="px-2 h-7" onClick={() => setViewMode("grid")}>
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
             <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-full px-5">
               <Plus className="h-4 w-4 mr-2" /> Novo Equipamento
             </Button>
@@ -330,9 +340,8 @@ const EquipamentosLista = () => {
             ))}
         </div>
 
-        <div className="flex flex-col gap-2">
           {/* Cabeçalho sutil (desktop) */}
-          {sorted.length > 0 && (
+          {sorted.length > 0 && viewMode === "list" && (
             <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <div className="w-[48px]"></div>
               <div className="flex-1 min-w-0">Equipamento</div>
@@ -344,6 +353,9 @@ const EquipamentosLista = () => {
               <div className="w-[80px]"></div>
             </div>
           )}
+
+          <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "flex flex-col gap-2"}>
+
 
           {sorted.map((item) => {
             const isInsured = insuredIds.has(item.id);
@@ -359,54 +371,65 @@ const EquipamentosLista = () => {
             return (
               <div 
                 key={item.id} 
-                className={`group bg-card/60 backdrop-blur-sm hover:bg-accent/5 border border-border/60 hover:border-accent/40 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all duration-300 relative border-l-4 ${getBorderColor()} shadow-sm hover:shadow-md`}
+                className={`group bg-card/60 backdrop-blur-sm hover:bg-accent/5 border border-border/60 hover:border-accent/40 rounded-2xl p-4 flex ${viewMode === "grid" ? "flex-col" : "flex-col md:flex-row md:items-center"} gap-4 transition-all duration-300 relative border-l-4 ${getBorderColor()} shadow-sm hover:shadow-md`}
               >
-                {/* Ícone */}
-                <div className="hidden md:flex h-10 w-10 rounded-lg bg-accent/10 items-center justify-center text-accent shrink-0">
-                  <Tractor className="h-5 w-5" />
-                </div>
-
-                {/* Info Principal */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-foreground truncate">{item.tipo}</h3>
-                    <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent border-accent/20">
-                      {item.tag_placa || "S/ PLACA"}
-                    </Badge>
+                {/* Header do Card (Ícone + Título + Ações) */}
+                <div className={`flex ${viewMode === "grid" ? "items-start justify-between w-full" : "items-center gap-4 flex-1 min-w-0"}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                      <Tractor className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-bold text-sm text-foreground truncate">{item.tipo}</h3>
+                        <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent border-accent/20">
+                          {item.tag_placa || "S/ PLACA"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.modelo}</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 truncate">{item.modelo}</p>
+                  
+                  {viewMode === "grid" && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Série / Ano */}
-                <div className="flex items-center gap-4 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
-                  <div className="md:w-[140px] flex flex-col">
-                    <span className="text-[10px] text-muted-foreground uppercase md:hidden mb-0.5">Série / Ano</span>
+                {viewMode === "grid" && <div className="h-px w-full bg-border/50 my-1"></div>}
+
+                {/* Série / Ano / Valor */}
+                <div className={`flex ${viewMode === "grid" ? "justify-between w-full" : "items-center gap-4 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0"}`}>
+                  <div className={`${viewMode === "grid" ? "" : "md:w-[140px]"} flex flex-col`}>
+                    <span className={`text-[10px] text-muted-foreground uppercase mb-0.5 ${viewMode === "list" && "md:hidden"}`}>Série / Ano</span>
                     <span className="font-medium text-xs truncate" title={item.numero_serie || "S/N"}>{item.numero_serie || "—"}</span>
-                    <span className="text-xs text-muted-foreground">{item.ano || "—"}</span>
+                    <span className="text-[10px] text-muted-foreground">{item.ano || "—"}</span>
                   </div>
-                </div>
-
-                {/* Valor do Bem */}
-                <div className="flex items-center gap-4 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
-                  <div className="md:w-[140px] md:text-right flex flex-col">
-                    <span className="text-[10px] text-muted-foreground uppercase md:hidden mb-0.5">Valor do Bem</span>
+                  <div className={`${viewMode === "grid" ? "text-right" : "md:w-[140px] md:text-right"} flex flex-col`}>
+                    <span className={`text-[10px] text-muted-foreground uppercase mb-0.5 ${viewMode === "list" && "md:hidden"}`}>Valor do Bem</span>
                     <span className="font-bold text-sm text-foreground">{formatCurrency(item.valor_bem)}</span>
                   </div>
                 </div>
 
                 {/* Badges de Status (Status, Seguro, Locação) */}
-                <div className="flex items-center gap-2 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0 flex-wrap md:flex-nowrap">
-                  <div className="md:w-[100px] flex justify-start md:justify-center md:ml-4">
+                <div className={`flex ${viewMode === "grid" ? "flex-wrap gap-2 pt-2" : "items-center gap-2 md:gap-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0 flex-wrap md:flex-nowrap"}`}>
+                  <div className={`${viewMode === "grid" ? "" : "md:w-[100px] flex justify-start md:justify-center md:ml-4"}`}>
                     <Badge className={cn("text-[10px] py-0 px-1.5", statusColor(item.status))}>{item.status}</Badge>
                   </div>
 
-                  <div className="md:w-[100px] flex justify-start md:justify-center">
+                  <div className={`${viewMode === "grid" ? "" : "md:w-[100px] flex justify-start md:justify-center"}`}>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className={cn("flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors cursor-help w-fit", isInsured ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
                             {isInsured ? <ShieldCheck className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
-                            {isInsured ? "Assegurado" : "S/ Seguro"}
+                            {isInsured ? "Segurado" : "S/ Seguro"}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>{isInsured ? "Possui apólice vigente" : "Sem cobertura de seguro"}</TooltipContent>
@@ -414,7 +437,7 @@ const EquipamentosLista = () => {
                     </TooltipProvider>
                   </div>
 
-                  <div className="md:w-[100px] flex justify-start md:justify-center">
+                  <div className={`${viewMode === "grid" ? "" : "md:w-[100px] flex justify-start md:justify-center"}`}>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -429,18 +452,21 @@ const EquipamentosLista = () => {
                   </div>
                 </div>
 
-                {/* Actions (Sempre visível no mobile, visível no hover no desktop) */}
-                <div className="flex md:w-[80px] justify-end gap-1 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                {/* Actions (List View) */}
+                {viewMode === "list" && (
+                  <div className="flex md:w-[80px] justify-end gap-1 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             );
           })}
+          </div>
           
           {!loading && sorted.length === 0 && (
             <div className="py-12 text-center text-muted-foreground bg-card rounded-xl border border-border border-dashed">
@@ -449,7 +475,6 @@ const EquipamentosLista = () => {
               <p className="text-xs opacity-70 mt-1">Tente ajustar seus filtros ou busca.</p>
             </div>
           )}
-        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
