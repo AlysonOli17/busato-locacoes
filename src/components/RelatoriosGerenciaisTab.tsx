@@ -527,6 +527,7 @@ export const RelatoriosGerenciaisTab = ({
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Despesas Operacionais</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Margem Líquida</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Margem (%)</TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-center">Lucratividade</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-center">Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -552,6 +553,17 @@ export const RelatoriosGerenciaisTab = ({
                         </TableCell>
                         <TableCell className={`text-right text-xs ${margemColor}`}>
                           {eq.margemPct.toFixed(1)}%
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {eq.margemPct >= 30 ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-0 text-[10px]">Alta</Badge>
+                          ) : eq.margemPct > 0 ? (
+                            <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-0 text-[10px]">Apertada</Badge>
+                          ) : eq.despesa === 0 && eq.receita === 0 ? (
+                            <Badge variant="outline" className="text-slate-500 border-0 text-[10px]">Inativo</Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-0 text-[10px]">Prejuízo</Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className={`text-[9px] font-bold uppercase py-0.5 px-2 border-0 text-white ${
