@@ -688,7 +688,7 @@ const Medicoes = () => {
     } else {
       hInicial = isIndisp 
         ? form.horimetro_inicial_indisp 
-        : form.horimetro_inicial;
+        : (!dataAnterior ? form.horimetro : form.horimetro_inicial);
       hFinal = form.horimetro;
       horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
 
@@ -1357,18 +1357,6 @@ const Medicoes = () => {
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          {!dataAnterior && (
-                            <div>
-                              <Label>Horímetro Inicial (Primeiro registro do sistema)</Label>
-                              <Input 
-                                type="number" 
-                                step="0.1" 
-                                value={form.horimetro_inicial || ""} 
-                                onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} 
-                                placeholder="Ex: 18090.0" 
-                              />
-                            </div>
-                          )}
                           <div>
                             <Label>Leitura Final do Horímetro</Label>
                             <Input 
@@ -1378,15 +1366,14 @@ const Medicoes = () => {
                               onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} 
                               placeholder="Ex: 10350.5" 
                             />
-                            {dataAnterior && (
+                            {dataAnterior ? (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Último registro: <strong>{horimetroAnterior.toFixed(1)}</strong>
                                 {form.horimetro > 0 && ` → Trabalhadas: ${Math.max(0, form.horimetro - horimetroAnterior).toFixed(1)}h`}
                               </p>
-                            )}
-                            {!dataAnterior && form.horimetro > 0 && form.horimetro_inicial > 0 && (
+                            ) : (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Trabalhadas: <strong>{Math.max(0, form.horimetro - form.horimetro_inicial).toFixed(1)}h</strong>
+                                <strong>Primeiro registro desta máquina.</strong> As horas trabalhadas serão contabilizadas a partir do próximo lançamento.
                               </p>
                             )}
                           </div>
