@@ -108,15 +108,10 @@ const allGroups: NavGroup[] = [
     icon: Users,
     items: [
       { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
+      { to: "/configuracoes?tab=robo", icon: Bot, label: "Alerta Robô", adminOnly: true },
     ]
   },
-  {
-    label: "Configuração",
-    icon: Cog,
-    items: [
-      { to: "/configuracoes?tab=robo", icon: Bot, label: "Alerta Robô" },
-    ]
-  },
+
   {
     label: "Manual do Sistema",
     icon: BookOpen,

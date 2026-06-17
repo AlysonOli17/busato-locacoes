@@ -14,9 +14,26 @@ export function useSmartAlerts() {
     const checkAlerts = async () => {
       try {
         let config = defaultAlertConfig;
-        const saved = localStorage.getItem("smart-alerts-config");
-        if (saved) {
-          try { config = JSON.parse(saved); } catch (e) {}
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data, error } = await supabase
+            .from("alertas_configuracoes")
+            .select("*")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+            
+          if (data) {
+            config = {
+              enableApolices: data.enable_apolices,
+              enableContratos: data.enable_contratos,
+              enableManutencao: data.enable_manutencao,
+              enableMedicaoAtrasada: data.enable_medicao_atrasada,
+              enableFaturamentoPendente: data.enable_faturamento_pendente,
+              enableChecklistPendente: data.enable_checklist_pendente,
+              daysAntecedencia: data.days_antecedencia || 15
+            };
+          }
         }
 
         const today = new Date();
