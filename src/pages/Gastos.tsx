@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { Plus, Search, Pencil, Trash2, DollarSign, TrendingDown, CalendarClock, FileCheck } from "lucide-react";
+import { Wrench, Plus, Pencil, Trash2, Search, FileDown, ArrowUpDown, ChevronDown, Check, Download, AlertTriangle, Filter, Building2, DollarSign } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -36,8 +36,8 @@ interface Gasto {
   fatura?: FaturaRef | null;
 }
 
-const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Outros"];
-const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente"];
+const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
+const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente", "Custo Assumido"];
 const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0] };
 
 const Gastos = () => {
@@ -190,11 +190,51 @@ const Gastos = () => {
   };
 
   return (
-    <Layout title="Custos" subtitle={`${filtered.length} custo(s) no período`}>
+    <Layout title="Central de Despesas" subtitle={`${filtered.length} registro(s) no período`}>
       <div className="space-y-6">
 
-
-
+        {/* KPIs Consolidados */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+          <Card className="border-accent/20 shadow-sm bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Despesas Operacionais</p>
+                <p className="text-2xl font-bold mt-1 text-foreground">
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    filtered.filter(i => !["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"].includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
+                  )}
+                </p>
+              </div>
+              <Wrench className="h-8 w-8 text-muted-foreground/30" />
+            </CardContent>
+          </Card>
+          <Card className="border-accent/20 shadow-sm bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Encargos Fixos</p>
+                <p className="text-2xl font-bold mt-1 text-foreground">
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    filtered.filter(i => ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"].includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
+                  )}
+                </p>
+              </div>
+              <Building2 className="h-8 w-8 text-muted-foreground/30" />
+            </CardContent>
+          </Card>
+          <Card className="border-accent/40 shadow-sm bg-accent/5 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-accent uppercase">Custo Total no Período</p>
+                <p className="text-2xl font-black mt-1 text-accent">
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    filtered.reduce((acc, curr) => acc + curr.valor, 0)
+                  )}
+                </p>
+              </div>
+              <DollarSign className="h-8 w-8 text-accent/30" />
+            </CardContent>
+          </Card>
+        </div>
         {/* Action Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card/60 backdrop-blur-md p-5 rounded-2xl border border-border/60 shadow-sm">
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
@@ -258,8 +298,12 @@ const Gastos = () => {
                 {/* Classificação / Tipo */}
                 <div className="md:w-1/6 flex flex-col md:items-center gap-1.5">
                    <Badge className={cn("text-[10px]", tipoColor(item.tipo))}>{item.tipo}</Badge>
-                   <Badge className={cn("text-[9px] px-1 py-0", item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : "bg-success/10 text-success border-0")}>
-                      {item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                   <Badge className={cn("text-[9px] px-1 py-0", 
+                     item.classificacao === "Custo Assumido" ? "bg-muted text-muted-foreground border-0" :
+                     item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : 
+                     "bg-success/10 text-success border-0"
+                   )}>
+                      {item.classificacao === "Custo Assumido" ? "Custo Interno" : item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
                    </Badge>
                 </div>
 

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { ChecklistsTab } from "@/components/ChecklistsTab";
-import { CustosEquipamentoTab } from "@/components/CustosEquipamentoTab";
 import { ComodatosTab } from "@/components/ComodatosTab";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -533,8 +532,6 @@ const Equipamentos = () => {
     switch (activeTab) {
       case "checklist":
         return "Inspeções e laudos de entrega e devolução";
-      case "custos":
-        return "Custos operacionais e encargos fixos";
       case "comodatos":
         return "Gerenciamento de contratos de comodato";
       default:
@@ -545,7 +542,6 @@ const Equipamentos = () => {
   return (
     <Layout title="Equipamentos" subtitle={getSubtitle()}>
       {activeTab === "checklist" && <ChecklistsTab />}
-      {activeTab === "custos" && <CustosEquipamentoTab />}
       {activeTab === "comodatos" && <ComodatosTab />}
       {activeTab === "cadastro" && <EquipamentosLista />}
     </Layout>

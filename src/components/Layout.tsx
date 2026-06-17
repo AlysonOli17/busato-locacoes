@@ -50,7 +50,6 @@ const allGroups: NavGroup[] = [
     items: [
       { to: "/equipamentos?tab=cadastro", icon: Wrench, label: "Cadastro" },
       { to: "/equipamentos?tab=checklist", icon: ClipboardCheck, label: "Checklist" },
-      { to: "/equipamentos?tab=custos", icon: DollarSign, label: "Custos do Equipamento" },
       { to: "/equipamentos?tab=comodatos", icon: Handshake, label: "Comodatos" }
     ]
   },
@@ -102,7 +101,7 @@ const allGroups: NavGroup[] = [
     items: [
       { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Emissão de faturas" },
       { to: "/medicoes?tab=historico-faturamento", icon: Receipt, label: "Histórico Financeiro" },
-      { to: "/gastos", icon: DollarSign, label: "Custos" },
+      { to: "/gastos", icon: DollarSign, label: "Central de Despesas" },
     ]
   },
   {
