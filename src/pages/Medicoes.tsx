@@ -1319,22 +1319,12 @@ const Medicoes = () => {
                         />
                       </div>
                       {!isDiaria && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-3">
                           <div>
-                            <Label>Horímetro Inicial</Label>
-                            <Input type="number" step="0.1" value={form.horimetro_inicial_indisp || ""} onChange={(e) => {
-                              const val = Number(e.target.value);
-                              const diff = Math.max(0, form.horimetro - val);
-                              setForm({ ...form, horimetro_inicial_indisp: val, horas_indisp: diff });
-                            }} placeholder="Ex: 180.0" />
-                          </div>
-                          <div>
-                            <Label>Horímetro Final</Label>
+                            <Label>Leitura Atual do Horímetro (Opcional)</Label>
                             <Input type="number" step="0.1" value={form.horimetro || ""} onChange={(e) => {
-                              const val = Number(e.target.value);
-                              const diff = Math.max(0, val - form.horimetro_inicial_indisp);
-                              setForm({ ...form, horimetro: val, horas_indisp: diff });
-                            }} placeholder="Ex: 189.5" />
+                              setForm({ ...form, horimetro: Number(e.target.value) });
+                            }} placeholder="Ex: 10350.5" />
                           </div>
                         </div>
                       )}
@@ -1366,26 +1356,22 @@ const Medicoes = () => {
                           </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-3">
                           <div>
-                            <Label>Horímetro Inicial</Label>
-                            <Input 
-                              type="number" 
-                              step="0.1" 
-                              value={form.horimetro_inicial || ""} 
-                              onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} 
-                              placeholder="Ex: 180.0" 
-                            />
-                          </div>
-                          <div>
-                            <Label>Horímetro Atual</Label>
+                            <Label>Leitura do Horímetro</Label>
                             <Input 
                               type="number" 
                               step="0.1" 
                               value={form.horimetro || ""} 
                               onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} 
-                              placeholder="Ex: 189.5" 
+                              placeholder="Ex: 10350.5" 
                             />
+                            {horimetroAnterior > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Último registro: <strong>{horimetroAnterior.toFixed(1)}</strong>
+                                {form.horimetro > 0 && ` → Diferença: ${Math.max(0, form.horimetro - horimetroAnterior).toFixed(1)}h`}
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
