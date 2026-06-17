@@ -4,7 +4,7 @@ import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
   ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen,
-  PieChart, Handshake, Truck, Cog, Bot, ClipboardList
+  PieChart, Handshake, Truck, Cog, Bot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -100,14 +100,7 @@ const allGroups: NavGroup[] = [
     items: [
       { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Emissão de faturas" },
       { to: "/medicoes?tab=historico-faturamento", icon: Receipt, label: "Histórico Financeiro" },
-      { to: "/custos", icon: ClipboardList, label: "Registro de Custos" },
-    ]
-  },
-  {
-    label: "Controladoria",
-    icon: PieChart,
-    items: [
-      { to: "/controladoria", icon: PieChart, label: "DRE Equipamentos" },
+      { to: "/gastos", icon: DollarSign, label: "Custos" },
     ]
   },
   {
