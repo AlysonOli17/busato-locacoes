@@ -751,7 +751,7 @@ const Medicoes = () => {
           
           toast({ title: "Lançamentos distribuídos", description: `${dias} registros diários foram gerados de ${parseLocalDate(dataAnterior).toLocaleDateString("pt-BR")} a ${parseLocalDate(form.data).toLocaleDateString("pt-BR")}.` });
           setDialogOpen(false);
-          fetchData();
+          fetchData(true);
           return;
         }
       }
@@ -783,7 +783,7 @@ const Medicoes = () => {
     }
     setDialogOpen(false);
     setEditingId(null);
-    fetchData();
+    fetchData(true);
   };
 
   const handleDelete = async () => {
