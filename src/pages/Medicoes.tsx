@@ -955,8 +955,8 @@ const Medicoes = () => {
                     m.equipamentos?.tag_placa || "—",
                     parseLocalDate(m.data).toLocaleDateString("pt-BR"),
                     m.tipo || "Trabalho",
-                    isDiaria ? "Diária (Trabalho)" : Number(m.horimetro_final).toFixed(1),
-                    (m.tipo || "Trabalho") === "Indisponível" ? `${Number(m.horas_trabalhadas).toFixed(1)}${isDiaria ? "d" : "h"}` : "—"
+                    isDiaria ? "Diária (Trabalho)" : Number(m.horimetro_final).toString(),
+                    (m.tipo || "Trabalho") === "Indisponível" ? `${Number(m.horas_trabalhadas).toString()}${isDiaria ? "d" : "h"}` : "-"
                   ];
                 });
                 const periodo = dataInicio && dataFim ? ` - ${format(dataInicio, "dd/MM/yyyy")} a ${format(dataFim, "dd/MM/yyyy")}` : "";
@@ -1014,14 +1014,14 @@ const Medicoes = () => {
                      </TableCell>
                      <TableCell className="text-sm font-medium">
                        {equipMedicaoTypes.get(item.equipamento_id) === "diarias" 
-                          ? (item.tipo === "Trabalho" ? `${Number(item.horas_trabalhadas).toFixed(1)}d` : "—") 
-                          : Number(item.horimetro_final).toFixed(1)}
+                          ? (item.tipo === "Trabalho" ? `${Number(item.horas_trabalhadas).toString()}d` : "-") 
+                          : Number(item.horimetro_final).toString()}
                      </TableCell>
                      <TableCell>
                         {(item.tipo || "Trabalho") === "Indisponível" ? (
                           <Badge className="font-semibold border-0 bg-destructive/10 text-destructive">
                             <Clock className="h-3 w-3 mr-1" />
-                            {Number(item.horas_trabalhadas).toFixed(1)}
+                            {Number(item.horas_trabalhadas).toString()}
                             {equipMedicaoTypes.get(item.equipamento_id) === "diarias" ? "d" : "h"}
                           </Badge>
                         ) : (
@@ -1167,7 +1167,7 @@ const Medicoes = () => {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-center align-middle font-mono font-semibold text-xs text-muted-foreground">
-                                {isDiaria ? "—" : `${item.horimetro_inicial.toFixed(1)}h`}
+                                {isDiaria ? "—" : `${Number(item.horimetro_inicial).toString()}h`}
                               </TableCell>
                               <TableCell className="align-middle">
                                 <Select value={item.tipo} onValueChange={(v) => updateField("tipo", v)}>
@@ -1216,13 +1216,13 @@ const Medicoes = () => {
                                         "h-8 text-xs font-mono font-bold text-center w-24 bg-background",
                                         item.horimetro_final < item.horimetro_inicial ? "border-destructive focus-visible:ring-destructive text-destructive" : ""
                                       )}
-                                      placeholder={`${item.horimetro_inicial.toFixed(1)}h`}
+                                      placeholder={`${Number(item.horimetro_inicial).toString()}h`}
                                       value={item.horimetro_final || ""}
                                       onChange={(e) => updateField("horimetro_final", Number(e.target.value))}
                                     />
                                     {item.horimetro_final > item.horimetro_inicial ? (
                                       <span className="text-[10px] font-semibold text-success mt-0.5 whitespace-nowrap">
-                                        +{Math.max(0, item.horimetro_final - item.horimetro_inicial).toFixed(1)}h rodadas
+                                        +{Math.max(0, item.horimetro_final - item.horimetro_inicial).toString()}h rodadas
                                       </span>
                                     ) : item.horimetro_final < item.horimetro_inicial && item.horimetro_final !== 0 ? (
                                       <span className="text-[10px] font-semibold text-destructive mt-0.5 whitespace-nowrap">
@@ -1368,8 +1368,8 @@ const Medicoes = () => {
                             />
                             {dataAnterior ? (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Último registro: <strong>{horimetroAnterior.toFixed(1)}</strong>
-                                {form.horimetro > 0 && ` → Trabalhadas: ${Math.max(0, form.horimetro - horimetroAnterior).toFixed(1)}h`}
+                                Último registro: <strong>{Number(horimetroAnterior).toString()}</strong>
+                                {form.horimetro > 0 && ` → Trabalhadas: ${Math.max(0, form.horimetro - horimetroAnterior).toString()}h`}
                               </p>
                             ) : (
                               <p className="text-xs text-muted-foreground mt-1">
@@ -1386,18 +1386,18 @@ const Medicoes = () => {
                       <p className="text-sm text-muted-foreground">
                         {form.tipo === "Indisponível" ? "Horas indisponíveis (serão descontadas)" : "Horas trabalhadas (diferença)"}
                       </p>
-                      <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{horasCalculadas.toFixed(1)}h</p>
+                      <p className={cn("text-2xl font-bold", form.tipo === "Indisponível" ? "text-destructive" : "text-accent")}>{Number(horasCalculadas).toString()}h</p>
                       <p className="text-xs text-muted-foreground">
                         {form.tipo === "Indisponível" 
-                          ? form.horimetro_inicial_indisp.toFixed(1) 
-                          : form.horimetro_inicial.toFixed(1)} → {form.horimetro.toFixed(1)}
+                          ? Number(form.horimetro_inicial_indisp).toString() 
+                          : Number(form.horimetro_inicial).toString()} → {Number(form.horimetro).toString()}
                       </p>
                     </div>
                   )}
                   {isDiaria && form.tipo === "Indisponível" && form.horas_indisp > 0 && (
                     <div className="p-3 rounded-lg text-center bg-destructive/10">
                       <p className="text-sm text-muted-foreground">Diárias indisponíveis (serão descontadas)</p>
-                      <p className="text-2xl font-bold text-destructive">{form.horas_indisp.toFixed(1)}d</p>
+                      <p className="text-2xl font-bold text-destructive">{Number(form.horas_indisp).toString()}d</p>
                     </div>
                   )}
                 </div>
