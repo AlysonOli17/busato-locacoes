@@ -4,7 +4,7 @@ import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
   ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen,
-  PieChart, Handshake, Truck
+  PieChart, Handshake, Truck, Cog, Bot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { NotificationsDropdown, NotificationToastContainer } from "@/components/NotificationsDropdown";
 import logoBusato from "@/assets/logo-busato.png";
 import globoBusato from "@/assets/globo-busato.png";
+import { useSmartAlerts } from "@/hooks/useSmartAlerts";
 
 interface SubNavItem {
   to: string;
@@ -110,6 +111,13 @@ const allGroups: NavGroup[] = [
     ]
   },
   {
+    label: "Configuração",
+    icon: Cog,
+    items: [
+      { to: "/configuracoes?tab=robo", icon: Bot, label: "Alerta Robô" },
+    ]
+  },
+  {
     label: "Manual do Sistema",
     icon: BookOpen,
     items: [
@@ -136,6 +144,9 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
   });
   const { role, permissions, signOut, profile } = useAuth();
   const location = useLocation();
+
+  // Initialize Smart Alerts
+  useSmartAlerts();
 
   // Expanded groups state
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {

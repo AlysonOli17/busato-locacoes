@@ -18,6 +18,7 @@ import Controladoria from "./pages/Controladoria";
 import Agregados from "./pages/Agregados";
 import Login from "./pages/Login";
 import Agenda from "./pages/Agenda";
+import Configuracoes from "./pages/Configuracoes";
 import ManualPage from "./pages/Manual";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/acompanhamento" element={<Navigate to="/controladoria" replace />} />
             <Route path="/agregados" element={<ProtectedRoute requiredPermission="/agregados"><Agregados /></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute requiredPermission="/agenda"><Agenda /></ProtectedRoute>} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/manual" element={<ManualPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
