@@ -810,6 +810,10 @@ const Contratos = () => {
     const { error: jError } = await supabase.from("contratos_equipamentos").insert(junctionRows);
     if (jError) { toast({ title: "Aviso", description: "Contrato salvo, mas houve erro ao associar equipamentos: " + jError.message, variant: "destructive" }); }
 
+    if (editing) {
+      await syncAditivosEquipamentos(contratoId, "", 0, junctionRows);
+    }
+
     setDialogOpen(false);
     fetchData();
     uploadMovementPDFToGDrive(contratoId);
@@ -1149,7 +1153,7 @@ const Contratos = () => {
     setAditivoFormOpen(true);
   };
 
-  const syncAditivosEquipamentos = async (
+  async function syncAditivosEquipamentos(
     contratoId: string,
     currentAditivoId: string,
     currentNumero: number,
@@ -1178,7 +1182,9 @@ const Contratos = () => {
             Number(existing.valor_hora) !== Number(eq.valor_hora) ||
             Number(existing.horas_contratadas) !== Number(eq.horas_contratadas) ||
             Number(existing.valor_hora_excedente) !== Number(eq.valor_hora_excedente) ||
-            Number(existing.hora_minima) !== Number(eq.hora_minima);
+            Number(existing.hora_minima) !== Number(eq.hora_minima) ||
+            existing.data_entrega !== (eq.data_entrega || null) ||
+            existing.data_devolucao !== (eq.data_devolucao || null);
 
           if (needsUpdate) {
             await supabase
@@ -1188,6 +1194,8 @@ const Contratos = () => {
                 horas_contratadas: Number(eq.horas_contratadas),
                 valor_hora_excedente: Number(eq.valor_hora_excedente),
                 hora_minima: Number(eq.hora_minima),
+                data_entrega: eq.data_entrega || null,
+                data_devolucao: eq.data_devolucao || null,
               })
               .eq("id", existing.id);
           }
@@ -1205,6 +1213,41 @@ const Contratos = () => {
               data_entrega: eq.data_entrega || null,
               data_devolucao: eq.data_devolucao || null,
             });
+        }
+      }
+    }
+
+    // Sync to base contratos_equipamentos
+    const { data: baseEquips } = await supabase
+      .from("contratos_equipamentos")
+      .select("id, equipamento_id, valor_hora, horas_contratadas, valor_hora_excedente, hora_minima, data_entrega, data_devolucao")
+      .eq("contrato_id", contratoId);
+
+    if (baseEquips) {
+      for (const eq of currentEquipamentos) {
+        const base = baseEquips.find((b: any) => b.equipamento_id === eq.equipamento_id);
+        if (base) {
+          const needsBaseUpdate =
+            Number(base.valor_hora) !== Number(eq.valor_hora) ||
+            Number(base.horas_contratadas) !== Number(eq.horas_contratadas) ||
+            Number(base.valor_hora_excedente) !== Number(eq.valor_hora_excedente) ||
+            Number(base.hora_minima) !== Number(eq.hora_minima) ||
+            base.data_entrega !== (eq.data_entrega || null) ||
+            base.data_devolucao !== (eq.data_devolucao || null);
+
+          if (needsBaseUpdate) {
+            await supabase
+              .from("contratos_equipamentos")
+              .update({
+                valor_hora: Number(eq.valor_hora),
+                horas_contratadas: Number(eq.horas_contratadas),
+                valor_hora_excedente: Number(eq.valor_hora_excedente),
+                hora_minima: Number(eq.hora_minima),
+                data_entrega: eq.data_entrega || null,
+                data_devolucao: eq.data_devolucao || null,
+              })
+              .eq("id", base.id);
+          }
         }
       }
     }
