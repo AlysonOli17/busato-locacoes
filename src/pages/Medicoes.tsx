@@ -1357,8 +1357,20 @@ const Medicoes = () => {
                         </div>
                       ) : (
                         <div className="space-y-3">
+                          {!dataAnterior && (
+                            <div>
+                              <Label>Horímetro Inicial (Primeiro registro do sistema)</Label>
+                              <Input 
+                                type="number" 
+                                step="0.1" 
+                                value={form.horimetro_inicial || ""} 
+                                onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} 
+                                placeholder="Ex: 18090.0" 
+                              />
+                            </div>
+                          )}
                           <div>
-                            <Label>Leitura do Horímetro</Label>
+                            <Label>Leitura Final do Horímetro</Label>
                             <Input 
                               type="number" 
                               step="0.1" 
@@ -1366,10 +1378,15 @@ const Medicoes = () => {
                               onChange={(e) => setForm({ ...form, horimetro: Number(e.target.value) })} 
                               placeholder="Ex: 10350.5" 
                             />
-                            {horimetroAnterior > 0 && (
+                            {dataAnterior && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Último registro: <strong>{horimetroAnterior.toFixed(1)}</strong>
-                                {form.horimetro > 0 && ` → Diferença: ${Math.max(0, form.horimetro - horimetroAnterior).toFixed(1)}h`}
+                                {form.horimetro > 0 && ` → Trabalhadas: ${Math.max(0, form.horimetro - horimetroAnterior).toFixed(1)}h`}
+                              </p>
+                            )}
+                            {!dataAnterior && form.horimetro > 0 && form.horimetro_inicial > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Trabalhadas: <strong>{Math.max(0, form.horimetro - form.horimetro_inicial).toFixed(1)}h</strong>
                               </p>
                             )}
                           </div>
