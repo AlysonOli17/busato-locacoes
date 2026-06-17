@@ -60,7 +60,7 @@ const COST_COLORS = [
 const CostChart = ({ gastosFiltered, fmt, fmtShort }: { gastosFiltered: any[]; fmt: (v: any) => string; fmtShort: (v: any) => string }) => {
   const data = useMemo(() => {
     const map: Record<string, number> = {};
-    gastosFiltered.forEach(g => { map[g.tipo] = (map[g.tipo] || 0) + Number(g.valor); });
+    gastosFiltered.forEach(g => { const t = g.tipo || "Outros"; map[t] = (map[t] || 0) + Number(g.valor); });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
   }, [gastosFiltered]);
 
@@ -344,8 +344,12 @@ export const VisaoGeralTab = ({
 
   // 4. Finanças & Custos
   const gastosStats = useMemo(() => {
-    const semMob = gastos.filter(g => g.tipo !== "Mobilização" && g.tipo !== "Desmobilização");
-    const mob = gastos.filter(g => g.tipo === "Mobilização" || g.tipo === "Desmobilização");
+    const tiposFixos = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"];
+    const tiposMob = ["Mobilização", "Desmobilização"];
+
+    const semMob = gastos.filter(g => !tiposMob.includes(g.tipo));
+    const mob = gastos.filter(g => tiposMob.includes(g.tipo));
+    const fixos = gastos.filter(g => tiposFixos.includes(g.tipo));
     
     const fatGastoSet = new Set((faturamentoGastos || []).map(fg => fg.gasto_id));
     const deduzidosList = gastos.filter(g => fatGastoSet.has(g.id));
@@ -353,10 +357,11 @@ export const VisaoGeralTab = ({
 
     const totalCustos = semMob.reduce((acc, i) => acc + Number(i.valor), 0);
     const totalMobilizacao = mob.reduce((acc, i) => acc + Number(i.valor), 0);
+    const totalFixo = fixos.reduce((acc, i) => acc + Number(i.valor), 0);
     const totalDeduzido = deduzidosList.reduce((acc, i) => acc + Number(i.valor), 0);
     const totalNaoDeduzido = naoDeduzidosList.reduce((acc, i) => acc + Number(i.valor), 0);
 
-    return { totalCustos, totalMobilizacao, totalDeduzido, totalNaoDeduzido };
+    return { totalCustos, totalMobilizacao, totalFixo, totalDeduzido, totalNaoDeduzido };
   }, [gastos, faturamentoGastos]);
 
   // 5. Medições
@@ -383,6 +388,7 @@ export const VisaoGeralTab = ({
 
   const gastosFiltered = useMemo(() => {
     return gastos.filter(g => {
+      if (!g.data) return false;
       if (dataInicio && g.data < dataInicio) return false;
       if (dataFim && g.data > dataFim) return false;
       if (filtroEquipamento !== "all" && g.equipamento_id !== filtroEquipamento) return false;

@@ -98,6 +98,7 @@ export const RelatoriosGerenciaisTab = ({
     });
 
     return gastos.filter(g => {
+      if (!g.data) return false;
       if (dataInicio && g.data < dataInicio) return false;
       if (dataFim && g.data > dataFim) return false;
 
@@ -134,19 +135,27 @@ export const RelatoriosGerenciaisTab = ({
       .filter(f => f.status === "Pago" || f.status === "Aprovado")
       .reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
 
+    const tiposFixos = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"];
+    const tiposManutencao = ["Manutenção", "Peças", "Combustível"];
+    const tiposMobilizacao = ["Mobilização", "Desmobilização"];
+
     const custoManutencao = gastosFiltrados
-      .filter(g => g.tipo === "Manutenção" || g.tipo === "Peças" || g.tipo === "Combustível")
+      .filter(g => tiposManutencao.includes(g.tipo))
       .reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
     const custoMobilizacao = gastosFiltrados
-      .filter(g => g.tipo === "Mobilização" || g.tipo === "Desmobilização")
+      .filter(g => tiposMobilizacao.includes(g.tipo))
+      .reduce((sum, g) => sum + Number(g.valor || 0), 0);
+
+    const custoFixo = gastosFiltrados
+      .filter(g => tiposFixos.includes(g.tipo))
       .reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
     const custoOutros = gastosFiltrados
-      .filter(g => g.tipo !== "Manutenção" && g.tipo !== "Peças" && g.tipo !== "Combustível" && g.tipo !== "Mobilização" && g.tipo !== "Desmobilização")
+      .filter(g => !tiposManutencao.includes(g.tipo) && !tiposMobilizacao.includes(g.tipo) && !tiposFixos.includes(g.tipo))
       .reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    const totalCustos = custoManutencao + custoMobilizacao + custoOutros;
+    const totalCustos = custoManutencao + custoMobilizacao + custoFixo + custoOutros;
     const resultadoEbitda = receitaBruta - totalCustos;
     const margemEbitda = receitaBruta > 0 ? (resultadoEbitda / receitaBruta) * 100 : 0;
 
@@ -154,6 +163,7 @@ export const RelatoriosGerenciaisTab = ({
       receitaBruta,
       custoManutencao,
       custoMobilizacao,
+      custoFixo,
       custoOutros,
       totalCustos,
       resultadoEbitda,
@@ -331,6 +341,7 @@ export const RelatoriosGerenciaisTab = ({
         `"Receita Bruta";${r.receitaBruta.toFixed(2)};100.0`,
         `"Custos de Manutenção";${r.custoManutencao.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoManutencao / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
         `"Custos de Mobilização";${r.custoMobilizacao.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoMobilizacao / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
+        `"Encargos Fixos (Seguros, Parcelas, Telecom)";${r.custoFixo.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoFixo / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
         `"Outros Custos";${r.custoOutros.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoOutros / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
         `"Total Custos Operacionais";${r.totalCustos.toFixed(2)};${r.receitaBruta > 0 ? ((r.totalCustos / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
         `"Resultado Operacional (EBITDA)";${r.resultadoEbitda.toFixed(2)};${r.margemEbitda.toFixed(1)}`
@@ -426,6 +437,10 @@ export const RelatoriosGerenciaisTab = ({
               <div className="flex justify-between items-center text-xs text-muted-foreground">
                 <span>Mobilização / Desmobilização</span>
                 <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoMobilizacao)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs text-muted-foreground">
+                <span>Encargos Fixos (Seguros, Parcelas)</span>
+                <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoFixo)}</span>
               </div>
               <div className="flex justify-between items-center text-xs text-muted-foreground">
                 <span>Outros Gastos Diretos</span>
