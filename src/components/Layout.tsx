@@ -90,7 +90,8 @@ const allGroups: NavGroup[] = [
     label: "Medições",
     icon: Clock,
     items: [
-      { to: "/medicoes?tab=medicoes", icon: Clock, label: "Horímetro" },
+      { to: "/medicoes?tab=lancamento-lote", icon: CheckSquare, label: "Apontamento Rápido" },
+      { to: "/medicoes?tab=medicoes", icon: Clock, label: "Histórico de Medições" },
       { to: "/medicoes?tab=faturamento", icon: Receipt, label: "Emitir medição" },
       { to: "/medicoes?tab=pendentes-medicao", icon: AlertCircle, label: "Pendente de Medição" },
     ]
