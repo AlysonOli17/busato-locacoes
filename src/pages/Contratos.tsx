@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban, Briefcase, Activity, BookOpen } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, FileDown, FileSpreadsheet, X, BarChart3, AlertTriangle, TrendingUp, Settings2, CalendarRange, FilePlus2, FileSignature, Package, CheckCircle2, CalendarPlus, Ban, Briefcase, Activity, BookOpen, LayoutGrid, List } from "lucide-react";
 import { ModeloClausulasTab, ContratoClausulasTab } from "@/components/ModeloClausulasTab";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -62,6 +62,7 @@ const Contratos = () => {
   const [activeTab, setActiveTab] = useState(() => {
     return new URLSearchParams(window.location.search).get("tab") || "contratos";
   });
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
 
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get("tab") || "contratos";
@@ -1572,6 +1573,24 @@ const Contratos = () => {
               <div className="flex flex-wrap items-center gap-2 justify-between">
                 <p className="text-xs text-muted-foreground">{sorted.length} contrato{sorted.length !== 1 ? "s" : ""} encontrado{sorted.length !== 1 ? "s" : ""}</p>
                 <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center bg-background/50 backdrop-blur-sm border border-border/50 rounded-md p-0.5">
+                    <Button
+                      variant={viewMode === "grid" ? "secondary" : "ghost"}
+                      size="sm"
+                      className={`h-7 px-2.5 ${viewMode === "grid" ? "shadow-sm" : ""}`}
+                      onClick={() => setViewMode("grid")}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
+                      size="sm"
+                      className={`h-7 px-2.5 ${viewMode === "list" ? "shadow-sm" : ""}`}
+                      onClick={() => setViewMode("list")}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={exportDetailedPDFWrapper} className="bg-background/50 backdrop-blur-sm border-accent/20 hover:bg-accent/10">
                       <FileDown className="h-4 w-4 mr-1 text-primary" /> Movimentação
@@ -1592,7 +1611,7 @@ const Contratos = () => {
 
             <div className="flex flex-col gap-2">
               {/* Cabeçalho sutil (desktop) */}
-              {sorted.length > 0 && (
+              {sorted.length > 0 && viewMode === "list" && (
                 <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   <div className="w-[40px]"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></div>
                   <div className="flex-1 min-w-0 cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("empresa")}>
@@ -1609,13 +1628,14 @@ const Contratos = () => {
                 </div>
               )}
 
+              <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "flex flex-col gap-2"}>
               {sorted.map((item) => {
                 const ces = getContratoEquipamentos(item);
                 const numContrato = getNumeroContrato(item);
                 const isExpanded = expandedContractId === item.id;
                 return (
                   <div key={item.id} className={`group bg-card/60 backdrop-blur-sm border border-border/60 hover:border-accent/40 rounded-2xl transition-all duration-300 relative shadow-sm hover:shadow-md ${selected.has(item.id) ? "ring-2 ring-accent border-transparent" : ""}`}>
-                  <div className={`flex flex-col md:flex-row md:items-center gap-4 p-4 hover:bg-accent/5 ${isExpanded ? "rounded-t-2xl" : "rounded-2xl"}`}>
+                  <div className={`flex ${viewMode === "grid" ? "flex-col" : "flex-col md:flex-row md:items-center"} gap-4 p-4 hover:bg-accent/5 ${isExpanded ? "rounded-t-2xl" : "rounded-2xl"}`}>
                     
                     {/* Checkbox */}
                     <div className="absolute top-4 right-4 md:static md:w-[40px]">
@@ -1647,7 +1667,7 @@ const Contratos = () => {
                     </div>
 
                     {/* Equipamentos */}
-                    <div className="md:w-[220px] pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                    <div className={`${viewMode === "grid" ? "w-full" : "md:w-[220px]"} pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0`}>
                       <HoverCard>
                         <HoverCardTrigger asChild>
                           <button className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors cursor-pointer bg-muted/30 px-2.5 py-1.5 rounded-md w-fit">
@@ -1738,7 +1758,7 @@ const Contratos = () => {
                     </div>
 
                     {/* Período + Progresso + Valor */}
-                    <div className="md:w-[200px] flex flex-col gap-1 pt-2 md:pt-0">
+                    <div className={`${viewMode === "grid" ? "w-full" : "md:w-[200px]"} flex flex-col gap-1 pt-2 md:pt-0`}>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <CalendarRange className="h-3.5 w-3.5" />
                         <span>Início: <strong className="text-foreground font-medium">{formatLocalDate(item.data_inicio)}</strong></span>
@@ -1779,7 +1799,7 @@ const Contratos = () => {
                     </div>
 
                     {/* Status */}
-                    <div className="md:w-[100px] flex md:flex-col md:items-center gap-2 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                    <div className={`${viewMode === "grid" ? "w-full flex-row" : "md:w-[100px] md:flex-col md:items-center"} flex gap-2 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0`}>
                       <Badge className={statusColor(item.status)}>{item.status}</Badge>
                       {/* Vencimento badge */}
                       {(() => {
@@ -1796,7 +1816,7 @@ const Contratos = () => {
                     </div>
 
                     {/* Ações */}
-                    <div className="md:w-[200px] flex flex-wrap justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0">
+                    <div className={`${viewMode === "grid" ? "w-full" : "md:w-[200px]"} flex flex-wrap justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0`}>
                       <Button variant="ghost" size="icon" onClick={() => openAjustesWithAditivos(item)} title="Gestão do Contrato" className="h-8 w-8 hover:bg-muted/50">
                         <Settings2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
@@ -1890,6 +1910,8 @@ const Contratos = () => {
                   </div>
                 );
               })}
+              </div>
+
               {!loading && sorted.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
                   Nenhum contrato encontrado
