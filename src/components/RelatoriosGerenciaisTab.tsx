@@ -11,6 +11,7 @@ import {
   TrendingUp, DollarSign, Calendar, FileDown, ArrowUpRight, ArrowDownRight,
   TrendingDown, Percent, BarChart3, AlertCircle, Clock
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend
 } from "recharts";
@@ -51,6 +52,10 @@ export const RelatoriosGerenciaisTab = ({
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("all");
   const [selectedEquipamento, setSelectedEquipamento] = useState<string>("all");
   const [faturamentoEquipamentosList, setFaturamentoEquipamentosList] = useState<any[]>([]);
+
+  // Modais de detalhamento
+  const [dreDetailModal, setDreDetailModal] = useState<{ isOpen: boolean; type: "receitaBruta" | "custoManutencao" | "custoMobilizacao" | "custoFixo" | "custoOutros" | null; title: string; }>({ isOpen: false, type: null, title: "" });
+  const [rentabilidadeDetailModal, setRentabilidadeDetailModal] = useState<{ isOpen: boolean; equipId: string | null; }>({ isOpen: false, equipId: null });
 
   useEffect(() => {
     const loadFaturamentoEquipamentos = async () => {
@@ -131,40 +136,35 @@ export const RelatoriosGerenciaisTab = ({
 
   // 2. DRE Operacional
   const dreStats = useMemo(() => {
-    const receitaBruta = faturasFiltradas
-      .filter(f => f.status === "Pago" || f.status === "Aprovado")
-      .reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+    const faturasReceita = faturasFiltradas.filter(f => f.status === "Pago" || f.status === "Aprovado");
+    const receitaBruta = faturasReceita.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
 
     const tiposFixos = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"];
     const tiposManutencao = ["Manutenção", "Peças", "Combustível"];
     const tiposMobilizacao = ["Mobilização", "Desmobilização"];
 
-    const custoManutencao = gastosFiltrados
-      .filter(g => tiposManutencao.includes(g.tipo))
-      .reduce((sum, g) => sum + Number(g.valor || 0), 0);
+    const gastosManutencao = gastosFiltrados.filter(g => tiposManutencao.includes(g.tipo));
+    const custoManutencao = gastosManutencao.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    const custoMobilizacao = gastosFiltrados
-      .filter(g => tiposMobilizacao.includes(g.tipo))
-      .reduce((sum, g) => sum + Number(g.valor || 0), 0);
+    const gastosMobilizacao = gastosFiltrados.filter(g => tiposMobilizacao.includes(g.tipo) && g.status === "Custo Assumido");
+    const custoMobilizacao = gastosMobilizacao.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    const custoFixo = gastosFiltrados
-      .filter(g => tiposFixos.includes(g.tipo))
-      .reduce((sum, g) => sum + Number(g.valor || 0), 0);
+    const gastosFixo = gastosFiltrados.filter(g => tiposFixos.includes(g.tipo));
+    const custoFixo = gastosFixo.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    const custoOutros = gastosFiltrados
-      .filter(g => !tiposManutencao.includes(g.tipo) && !tiposMobilizacao.includes(g.tipo) && !tiposFixos.includes(g.tipo))
-      .reduce((sum, g) => sum + Number(g.valor || 0), 0);
+    const gastosOutros = gastosFiltrados.filter(g => !tiposManutencao.includes(g.tipo) && !tiposMobilizacao.includes(g.tipo) && !tiposFixos.includes(g.tipo));
+    const custoOutros = gastosOutros.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
     const totalCustos = custoManutencao + custoMobilizacao + custoFixo + custoOutros;
     const resultadoEbitda = receitaBruta - totalCustos;
     const margemEbitda = receitaBruta > 0 ? (resultadoEbitda / receitaBruta) * 100 : 0;
 
     return {
-      receitaBruta,
-      custoManutencao,
-      custoMobilizacao,
-      custoFixo,
-      custoOutros,
+      receitaBruta, faturasReceita,
+      custoManutencao, gastosManutencao,
+      custoMobilizacao, gastosMobilizacao,
+      custoFixo, gastosFixo,
+      custoOutros, gastosOutros,
       totalCustos,
       resultadoEbitda,
       margemEbitda
@@ -180,6 +180,7 @@ export const RelatoriosGerenciaisTab = ({
       // Filter items whose parent faturamento matches our active filters (faturasFiltradas)
       // and is Pago or Aprovado
       let receita = 0;
+      let faturasReceita: any[] = [];
       eqItems.forEach(item => {
         const fat = faturasFiltradas.find(f => f.id === item.faturamento_id && (f.status === "Pago" || f.status === "Aprovado"));
         if (fat) {
@@ -190,6 +191,14 @@ export const RelatoriosGerenciaisTab = ({
           
           const totalItem = (horasNormais * valorHora) + (horasExcedentes * valorHoraExcedente);
           receita += totalItem;
+          faturasReceita.push({
+            faturaId: fat.id,
+            numero_nota: fat.numero_nota,
+            periodo: fat.periodo,
+            valor_original: fat.valor_total,
+            valor_atribuido: totalItem,
+            cliente: contratos.find(c => c.id === fat.contrato_id)?.empresas?.nome || "Desconhecido"
+          });
         }
       });
 
@@ -201,10 +210,19 @@ export const RelatoriosGerenciaisTab = ({
           return ct?.equipamento_id === eq.id && (f.status === "Pago" || f.status === "Aprovado");
         });
         receita = eqFaturas.reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
+        faturasReceita = eqFaturas.map(f => ({
+          faturaId: f.id,
+          numero_nota: f.numero_nota,
+          periodo: f.periodo,
+          valor_original: f.valor_total,
+          valor_atribuido: f.valor_total,
+          cliente: contratos.find(c => c.id === f.contrato_id)?.empresas?.nome || "Desconhecido"
+        }));
       }
 
       const eqGastos = gastosFiltrados.filter(g => g.equipamento_id === eq.id);
-      const despesa = eqGastos.reduce((sum, g) => sum + Number(g.valor || 0), 0);
+      const gastosDespesa = eqGastos.filter(g => !(g.tipo === "Mobilização" || g.tipo === "Desmobilização") || g.status === "Custo Assumido");
+      const despesa = gastosDespesa.reduce((sum, g) => sum + Number(g.valor || 0), 0);
       const margem = receita - despesa;
       const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
 
@@ -217,7 +235,9 @@ export const RelatoriosGerenciaisTab = ({
         despesa,
         margem,
         margemPct,
-        status: eq.status
+        status: eq.status,
+        faturasReceita,
+        gastosDespesa
       };
     }).sort((a, b) => b.margem - a.margem);
   }, [equipamentos, faturasFiltradas, gastosFiltrados, contratos, faturamentoEquipamentosList]);
@@ -425,29 +445,44 @@ export const RelatoriosGerenciaisTab = ({
             <CardDescription>Resumo de receitas e despesas no período</CardDescription>
           </CardHeader>
           <CardContent className="pt-4 space-y-4">
-            <div className="flex justify-between items-center py-2 border-b border-border/5">
+            <div 
+              className="flex justify-between items-center py-2 border-b border-border/5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
+              onClick={() => setDreDetailModal({ isOpen: true, type: "receitaBruta", title: "Receita Bruta" })}
+            >
               <span className="text-xs font-bold text-muted-foreground uppercase">Receita Bruta</span>
               <span className="text-sm font-black text-foreground">R$ {fmt(dreStats.receitaBruta)}</span>
             </div>
-            <div className="space-y-2 py-2 border-b border-border/5">
-              <div className="flex justify-between items-center text-xs text-muted-foreground">
+            <div className="space-y-0.5 py-1 border-b border-border/5">
+              <div 
+                className="flex justify-between items-center text-xs text-muted-foreground py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
+                onClick={() => setDreDetailModal({ isOpen: true, type: "custoManutencao", title: "Custos de Manutenção" })}
+              >
                 <span>Custos de Manutenção</span>
                 <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoManutencao)}</span>
               </div>
-              <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <div 
+                className="flex justify-between items-center text-xs text-muted-foreground py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
+                onClick={() => setDreDetailModal({ isOpen: true, type: "custoMobilizacao", title: "Mobilização / Desmobilização" })}
+              >
                 <span>Mobilização / Desmobilização</span>
                 <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoMobilizacao)}</span>
               </div>
-              <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <div 
+                className="flex justify-between items-center text-xs text-muted-foreground py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
+                onClick={() => setDreDetailModal({ isOpen: true, type: "custoFixo", title: "Encargos Fixos (Seguros, Parcelas)" })}
+              >
                 <span>Encargos Fixos (Seguros, Parcelas)</span>
                 <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoFixo)}</span>
               </div>
-              <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <div 
+                className="flex justify-between items-center text-xs text-muted-foreground py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
+                onClick={() => setDreDetailModal({ isOpen: true, type: "custoOutros", title: "Outros Gastos Diretos" })}
+              >
                 <span>Outros Gastos Diretos</span>
                 <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoOutros)}</span>
               </div>
             </div>
-            <div className="flex justify-between items-center py-1">
+            <div className="flex justify-between items-center py-1 px-2 -mx-2">
               <span className="text-xs font-bold text-muted-foreground uppercase">Total Custos</span>
               <span className="text-xs font-bold text-destructive">R$ {fmt(dreStats.totalCustos)}</span>
             </div>
@@ -558,8 +593,12 @@ export const RelatoriosGerenciaisTab = ({
                     const isProfit = eq.margem >= 0;
                     const margemColor = eq.margemPct >= 40 ? "text-success font-black" : eq.margemPct >= 10 ? "text-warning font-black" : "text-destructive font-black";
                     return (
-                      <TableRow key={eq.id} className="hover:bg-muted/10 transition-colors">
-                        <TableCell className="font-bold text-xs text-foreground">{eq.tipo} {eq.modelo}</TableCell>
+                      <TableRow 
+                        key={eq.id} 
+                        className="hover:bg-muted/20 transition-colors cursor-pointer"
+                        onClick={() => setRentabilidadeDetailModal({ isOpen: true, equipId: eq.id })}
+                      >
+                        <TableCell className="font-bold text-xs text-foreground hover:underline">{eq.tipo} {eq.modelo}</TableCell>
                         <TableCell className="font-mono text-xs font-semibold">{eq.tag}</TableCell>
                         <TableCell className="text-right text-xs font-semibold text-foreground">R$ {fmt(eq.receita)}</TableCell>
                         <TableCell className="text-right text-xs font-semibold text-destructive">R$ {fmt(eq.despesa)}</TableCell>
@@ -709,6 +748,188 @@ export const RelatoriosGerenciaisTab = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* MODAL DE DETALHES DO DRE */}
+      <Dialog open={dreDetailModal.isOpen} onOpenChange={(v) => !v && setDreDetailModal({ isOpen: false, type: null, title: "" })}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhamento: {dreDetailModal.title}</DialogTitle>
+            <DialogDescription>
+              Lista de itens que compõem este indicador no período selecionado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {dreDetailModal.type === "receitaBruta" ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nota Fiscal</TableHead>
+                    <TableHead>Período</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dreStats.faturasReceita.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem registros</TableCell></TableRow>
+                  )}
+                  {dreStats.faturasReceita.map(f => (
+                    <TableRow key={f.id}>
+                      <TableCell className="font-medium">{f.numero_nota || f.numero_sequencial || "Sem nota"}</TableCell>
+                      <TableCell>{f.periodo}</TableCell>
+                      <TableCell>{contratos.find(c => c.id === f.contrato_id)?.empresas?.nome || "-"}</TableCell>
+                      <TableCell className="text-right font-bold text-success">R$ {fmt(f.valor_total)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-muted/50">
+                    <TableCell colSpan={3} className="text-right font-bold">Total</TableCell>
+                    <TableCell className="text-right font-bold text-success">R$ {fmt(dreStats.receitaBruta)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            ) : dreDetailModal.type && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Equipamento</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    let list: any[] = [];
+                    let total = 0;
+                    if (dreDetailModal.type === "custoManutencao") { list = dreStats.gastosManutencao; total = dreStats.custoManutencao; }
+                    if (dreDetailModal.type === "custoMobilizacao") { list = dreStats.gastosMobilizacao; total = dreStats.custoMobilizacao; }
+                    if (dreDetailModal.type === "custoFixo") { list = dreStats.gastosFixo; total = dreStats.custoFixo; }
+                    if (dreDetailModal.type === "custoOutros") { list = dreStats.gastosOutros; total = dreStats.custoOutros; }
+                    
+                    if (list.length === 0) return <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Sem registros</TableCell></TableRow>;
+                    
+                    return (
+                      <>
+                        {list.map(g => (
+                          <TableRow key={g.id}>
+                            <TableCell>{g.data ? new Date(g.data + "T00:00:00").toLocaleDateString("pt-BR") : ""}</TableCell>
+                            <TableCell className="font-medium max-w-[200px] truncate" title={g.descricao}>{g.descricao}</TableCell>
+                            <TableCell><Badge variant="outline">{g.tipo}</Badge></TableCell>
+                            <TableCell>{equipamentos.find(eq => eq.id === g.equipamento_id)?.tag_placa || "Geral"}</TableCell>
+                            <TableCell className="text-right font-bold text-destructive">R$ {fmt(g.valor)}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/50">
+                          <TableCell colSpan={4} className="text-right font-bold">Total</TableCell>
+                          <TableCell className="text-right font-bold text-destructive">R$ {fmt(total)}</TableCell>
+                        </TableRow>
+                      </>
+                    );
+                  })()}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE DETALHES DE RENTABILIDADE POR EQUIPAMENTO */}
+      <Dialog open={rentabilidadeDetailModal.isOpen} onOpenChange={(v) => !v && setRentabilidadeDetailModal({ isOpen: false, equipId: null })}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          {(() => {
+            const eqData = rentabilidadeEquipamentos.find(r => r.id === rentabilidadeDetailModal.equipId);
+            if (!eqData) return null;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Rentabilidade: {eqData.tipo} {eqData.modelo} ({eqData.tag})</DialogTitle>
+                  <DialogDescription>
+                    Detalhamento de faturas atribuídas e gastos lançados neste equipamento no período.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div className="p-4 bg-success/10 rounded-xl border border-success/20">
+                    <span className="text-xs font-bold text-success uppercase block">Total Receita</span>
+                    <span className="text-2xl font-black text-success">R$ {fmt(eqData.receita)}</span>
+                  </div>
+                  <div className="p-4 bg-destructive/10 rounded-xl border border-destructive/20">
+                    <span className="text-xs font-bold text-destructive uppercase block">Total Despesa</span>
+                    <span className="text-2xl font-black text-destructive">R$ {fmt(eqData.despesa)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-6 mt-4">
+                  <div>
+                    <h3 className="font-bold text-sm mb-2 flex items-center gap-2 text-success">
+                      <TrendingUp className="h-4 w-4" /> Composição das Receitas (Medições)
+                    </h3>
+                    <div className="border border-border/40 rounded-md">
+                      <Table>
+                        <TableHeader className="bg-muted/30">
+                          <TableRow>
+                            <TableHead>Mês/Período</TableHead>
+                            <TableHead>Nota</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead className="text-right">Valor Original</TableHead>
+                            <TableHead className="text-right">Valor Atribuído</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {eqData.faturasReceita.length === 0 && (
+                            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhuma fatura associada</TableCell></TableRow>
+                          )}
+                          {eqData.faturasReceita.map((f: any, idx: number) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-medium">{f.periodo}</TableCell>
+                              <TableCell>{f.numero_nota || "S/N"}</TableCell>
+                              <TableCell className="truncate max-w-[150px]">{f.cliente}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">R$ {fmt(f.valor_original)}</TableCell>
+                              <TableCell className="text-right font-bold text-success">R$ {fmt(f.valor_atribuido)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-sm mb-2 flex items-center gap-2 text-destructive">
+                      <TrendingDown className="h-4 w-4" /> Composição das Despesas (O.S / Custos)
+                    </h3>
+                    <div className="border border-border/40 rounded-md">
+                      <Table>
+                        <TableHeader className="bg-muted/30">
+                          <TableRow>
+                            <TableHead>Data</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {eqData.gastosDespesa.length === 0 && (
+                            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Nenhum gasto associado</TableCell></TableRow>
+                          )}
+                          {eqData.gastosDespesa.map((g: any) => (
+                            <TableRow key={g.id}>
+                              <TableCell>{g.data ? new Date(g.data + "T00:00:00").toLocaleDateString("pt-BR") : ""}</TableCell>
+                              <TableCell className="truncate max-w-[200px]" title={g.descricao}>{g.descricao}</TableCell>
+                              <TableCell><Badge variant="outline">{g.tipo}</Badge></TableCell>
+                              <TableCell className="text-right font-bold text-destructive">R$ {fmt(g.valor)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

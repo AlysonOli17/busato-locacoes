@@ -587,7 +587,7 @@ export const FaturamentoContent = () => {
     setEquipForms(newEquipForms);
 
     // Gastos
-    const existingGastos = (gastosRes.data || []) as GastoItem[];
+    const existingGastos = ((gastosRes.data || []) as GastoItem[]).filter(g => g.classificacao !== "Custo Assumido");
     setGastosEquip(existingGastos);
     setSelectedGastos(new Set());
     setTotalGastos(0);

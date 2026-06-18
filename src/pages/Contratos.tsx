@@ -1158,7 +1158,7 @@ const Contratos = () => {
     currentAditivoId: string,
     currentNumero: number,
     currentEquipamentos: any[]
-  ) => {
+  ) {
     const { data: aditivosData, error: aditivosErr } = await supabase
       .from("contratos_aditivos")
       .select("*, aditivos_equipamentos(*)")

@@ -125,10 +125,11 @@ const Gastos = () => {
 
   const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
-  // Summary calcs - separate mobilização as revenue
+  // Summary calcs - separate mobilização as revenue only if not internal cost
   const mobTypes = ["Mobilização", "Desmobilização"];
-  const gastosSemMob = filtered.filter(i => !mobTypes.includes(i.tipo));
-  const gastosMob = filtered.filter(i => mobTypes.includes(i.tipo));
+  const isReceitaMob = (i: Gasto) => mobTypes.includes(i.tipo) && i.classificacao !== "Custo Assumido";
+  const gastosSemMob = filtered.filter(i => !isReceitaMob(i));
+  const gastosMob = filtered.filter(i => isReceitaMob(i));
   const totalGastos = gastosSemMob.reduce((acc, i) => acc + Number(i.valor), 0);
   const totalMobilizacao = gastosMob.reduce((acc, i) => acc + Number(i.valor), 0);
   const deduzidos = gastosSemMob.filter(i => i.fatura);
