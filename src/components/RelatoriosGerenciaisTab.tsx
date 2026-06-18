@@ -12,6 +12,7 @@ import {
   TrendingDown, Percent, BarChart3, AlertCircle, Clock
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import * as XLSX from "xlsx";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend
 } from "recharts";
@@ -342,46 +343,62 @@ export const RelatoriosGerenciaisTab = ({
       .map(([, val]) => val);
   }, [faturasFiltradas, gastosFiltrados]);
 
-  // Função para exportação simples em CSV
-  const handleExportCSV = (tipo: "rentabilidade" | "dre" | "aging") => {
-    let headers = "";
-    let rows = [] as string[];
+  // Função para exportação em Excel (XLSX)
+  const handleExportExcel = (tipo: "rentabilidade" | "dre" | "aging") => {
+    let data: any[] = [];
     let filename = "";
 
     if (tipo === "rentabilidade") {
-      headers = "Equipamento;Placa/Tag;Receita (R$);Despesa (R$);Margem Líquida (R$);Margem (%)\n";
-      rows = rentabilidadeEquipamentos.map(eq => 
-        `"${eq.tipo} ${eq.modelo}";"${eq.tag}";${eq.receita.toFixed(2)};${eq.despesa.toFixed(2)};${eq.margem.toFixed(2)};${eq.margemPct.toFixed(1)}`
-      );
-      filename = "relatorio_rentabilidade_equipamentos.csv";
+      data = rentabilidadeEquipamentos.map(eq => ({
+        "Equipamento": `${eq.tipo} ${eq.modelo}`,
+        "Placa/Tag": eq.tag,
+        "Receita Bruta (R$)": Number(eq.receita.toFixed(2)),
+        "Despesas Operacionais (R$)": Number(eq.despesa.toFixed(2)),
+        "Margem Líquida (R$)": Number(eq.margem.toFixed(2)),
+        "Margem (%)": Number(eq.margemPct.toFixed(1)) / 100,
+        "Lucratividade": eq.margemPct >= 30 ? "Alta" : eq.margemPct > 0 ? "Apertada" : eq.despesa === 0 && eq.receita === 0 ? "Inativo" : "Prejuízo",
+        "Status": eq.status
+      }));
+      filename = "Rentabilidade_Equipamentos.xlsx";
     } else if (tipo === "dre") {
-      headers = "Categoria;Valor (R$);% da Receita\n";
       const r = dreStats;
-      rows = [
-        `"Receita Bruta";${r.receitaBruta.toFixed(2)};100.0`,
-        `"Custos de Manutenção";${r.custoManutencao.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoManutencao / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
-        `"Custos de Mobilização";${r.custoMobilizacao.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoMobilizacao / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
-        `"Encargos Fixos (Seguros, Parcelas, Telecom)";${r.custoFixo.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoFixo / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
-        `"Outros Custos";${r.custoOutros.toFixed(2)};${r.receitaBruta > 0 ? ((r.custoOutros / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
-        `"Total Custos Operacionais";${r.totalCustos.toFixed(2)};${r.receitaBruta > 0 ? ((r.totalCustos / r.receitaBruta) * 100).toFixed(1) : "0.0"}`,
-        `"Resultado Operacional (EBITDA)";${r.resultadoEbitda.toFixed(2)};${r.margemEbitda.toFixed(1)}`
+      data = [
+        { "Categoria": "Receita Bruta", "Valor (R$)": Number(r.receitaBruta.toFixed(2)), "% da Receita": 1 },
+        { "Categoria": "Custos de Manutenção", "Valor (R$)": Number(r.custoManutencao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoManutencao / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Custos de Mobilização", "Valor (R$)": Number(r.custoMobilizacao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoMobilizacao / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Encargos Fixos", "Valor (R$)": Number(r.custoFixo.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoFixo / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Outros Custos", "Valor (R$)": Number(r.custoOutros.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoOutros / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Total Custos Operacionais", "Valor (R$)": Number(r.totalCustos.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.totalCustos / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Resultado Operacional (EBITDA)", "Valor (R$)": Number(r.resultadoEbitda.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.resultadoEbitda / r.receitaBruta).toFixed(4)) : 0 }
       ];
-      filename = "dre_operacional.csv";
+      filename = "DRE_Operacional.xlsx";
     } else if (tipo === "aging") {
-      headers = "Nota Fiscal;Periodo;Cliente;Valor (R$);Vencimento;Dias Atraso;Faixa\n";
-      rows = agingList.list.map(f => 
-        `"${f.numeroNota}";"${f.periodo}";"${f.cliente}";${f.valor.toFixed(2)};"${f.vencimento}";${f.diasAtraso};"${f.status}"`
-      );
-      filename = "relatorio_aging_list.csv";
+      data = agingList.list.map(f => ({
+        "Nota Fiscal": f.numeroNota,
+        "Período": f.periodo,
+        "Cliente": f.cliente,
+        "Valor (R$)": Number(f.valor.toFixed(2)),
+        "Vencimento": f.vencimento,
+        "Dias em Aberto": f.diasAtraso,
+        "Faixa": f.status
+      }));
+      filename = "Aging_Contas_Receber.xlsx";
     }
 
-    const blob = new Blob(["\uFEFF" + headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.json_to_sheet(data);
+    
+    // Configurações básicas de coluna para melhor leitura no Excel
+    if (tipo === "rentabilidade") {
+      ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+    } else if (tipo === "dre") {
+      ws['!cols'] = [{ wch: 40 }, { wch: 20 }, { wch: 15 }];
+    } else if (tipo === "aging") {
+      ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+    XLSX.writeFile(wb, filename);
   };
 
   return (
@@ -438,7 +455,7 @@ export const RelatoriosGerenciaisTab = ({
                 <DollarSign className="h-4 w-4 text-primary" />
                 DRE Operacional Simplificado
               </CardTitle>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleExportCSV("dre")}>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleExportExcel("dre")}>
                 <FileDown className="h-4 w-4" />
               </Button>
             </div>
@@ -561,7 +578,7 @@ export const RelatoriosGerenciaisTab = ({
             </CardTitle>
             <CardDescription>Relação de receita líquida e eficiência financeira por ativo</CardDescription>
           </div>
-          <Button size="sm" variant="outline" className="h-8 gap-2 bg-background/50" onClick={() => handleExportCSV("rentabilidade")}>
+          <Button size="sm" variant="outline" className="h-8 gap-2 bg-background/50" onClick={() => handleExportExcel("rentabilidade")}>
             <FileDown className="h-3.5 w-3.5" />
             <span>Exportar</span>
           </Button>
@@ -690,7 +707,7 @@ export const RelatoriosGerenciaisTab = ({
               </CardTitle>
               <CardDescription>Detalhamento de faturamento por vencimento e dias em aberto</CardDescription>
             </div>
-            <Button size="sm" variant="outline" className="h-8 gap-2 bg-background/50" onClick={() => handleExportCSV("aging")}>
+            <Button size="sm" variant="outline" className="h-8 gap-2 bg-background/50" onClick={() => handleExportExcel("aging")}>
               <FileDown className="h-3.5 w-3.5" />
               <span>Exportar</span>
             </Button>
