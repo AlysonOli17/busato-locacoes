@@ -163,19 +163,23 @@ export function getDisplayStatus(
 ): string {
   if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
   
+  if (mode === "faturamento") {
+    if (fatura.status === "Aprovado") {
+      if (fatura.numero_nota) {
+        const venc = getVencimento(fatura, contrato);
+        if (venc && new Date() > venc) return "Em Atraso";
+        return "Pendente";
+      }
+      return "A Faturar";
+    }
+  } else {
+    if (fatura.status === "Aprovado") return fatura.status;
+  }
+
   const venc = getVencimento(fatura, contrato);
   if (venc && new Date() > venc) return "Em Atraso";
 
-  if (mode === "medicao") {
-    if (fatura.status === "Aprovado") return fatura.status;
-    return fatura.status;
-  } else {
-    if (fatura.status === "Aprovado") {
-      if (fatura.numero_nota) return "Pendente";
-      return "A Faturar";
-    }
-    return fatura.status;
-  }
+  return fatura.status;
 }
 
 export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
