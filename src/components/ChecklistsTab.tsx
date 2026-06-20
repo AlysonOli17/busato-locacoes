@@ -287,6 +287,9 @@ export const ChecklistsTab = () => {
         if (payloadFotosGerais[key].fotoFile) delete payloadFotosGerais[key].fotoFile;
       }
 
+      // Salva as fotos gerais dentro do JSON de itens para evitar a necessidade de criar nova coluna
+      payloadItens["__fotos_gerais"] = payloadFotosGerais;
+
       const payload = {
         contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
         equipamento_id: form.equipamento_id,
@@ -296,7 +299,6 @@ export const ChecklistsTab = () => {
         inspector: form.inspector,
         status: form.status,
         itens: payloadItens,
-        fotos_gerais: payloadFotosGerais,
         notas: form.notas
       };
 
