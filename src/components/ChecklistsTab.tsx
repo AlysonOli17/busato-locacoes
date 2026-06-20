@@ -296,7 +296,7 @@ export const ChecklistsTab = () => {
         inspector: form.inspector,
         status: form.status,
         itens: payloadItens,
-        fotosGerais: payloadFotosGerais,
+        fotos_gerais: payloadFotosGerais,
         notas: form.notas
       };
 
