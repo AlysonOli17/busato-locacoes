@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud } from "lucide-react";
+import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon } from "lucide-react";
 import { exportChecklistToPDF } from "@/lib/checklistExportUtils";
 
 export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
@@ -43,19 +43,59 @@ interface ChecklistItem {
   inspector: string;
   status: string;
   itens: Record<string, any>;
+  fotosGerais?: Record<string, any>;
   notas: string;
   equipamentos?: { tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null } | null;
   contratos?: { id: string; empresa_id: string; empresas?: { nome: string } | null } | null;
 }
 
-const defaultItens = {
-  estrutura_fisica: true,
-  motor_oleo: true,
-  sistema_freios: true,
-  iluminacao_e_eletrica: true,
-  rodas_pneus_esteiras: true,
-  horimetro_funcionando: true,
-  limpeza_geral: true
+export const checklistItemsTemplate = [
+  { id: "para_brisa", label: "Para-brisa sem avaria" },
+  { id: "limpadores", label: "Limpadores para-brisa" },
+  { id: "agua_para_brisa", label: "Água do reservatório do para-brisa" },
+  { id: "agua_radiador", label: "Nível de água radiador" },
+  { id: "oleo_motor", label: "Nível do óleo do motor" },
+  { id: "farol_sinalizadores", label: "Farol e sinalizadores de direção" },
+  { id: "antena", label: "Antena" },
+  { id: "documento", label: "Documento atualizado" },
+  { id: "difusores_ar", label: "Difusores de ar" },
+  { id: "luzes_painel", label: "Luzes do painel apagadas" },
+  { id: "revisao_km", label: "Revisão de Km" },
+  { id: "buzina", label: "Buzina" },
+  { id: "tapetes", label: "Tapetes" },
+  { id: "sem_odores", label: "Sem Odores" },
+  { id: "radio", label: "Funcionamento do rádio/multimídia" },
+  { id: "chave_reserva", label: "Chave Reserva" },
+  { id: "porta_luvas", label: "Porta Luvas Limpo" }
+];
+
+export const requiredPhotosTemplate = [
+  { id: "frente", label: "Frente" },
+  { id: "painel", label: "Painel" },
+  { id: "interior", label: "Interior do Veículo" },
+  { id: "lateral_direita", label: "Lateral direita" },
+  { id: "lateral_esquerda", label: "Lateral Esquerda" },
+  { id: "traseira", label: "Traseira" },
+  { id: "pneu_dianteiro_dir", label: "Pneu Dianteiro Direito" },
+  { id: "pneu_dianteiro_esq", label: "Pneu Dianteiro Esquerdo" },
+  { id: "pneu_traseiro_dir", label: "Pneu Traseiro Direito" },
+  { id: "pneu_traseiro_esq", label: "Pneu Traseiro Esquerdo" },
+  { id: "outros_1", label: "Outros" },
+  { id: "outros_2", label: "Outros" }
+];
+
+const getDefaultItens = () => {
+  return checklistItemsTemplate.reduce((acc, item) => {
+    acc[item.id] = { conforme: true, observacao: "", fotoUrl: null };
+    return acc;
+  }, {} as Record<string, any>);
+};
+
+const getDefaultFotosGerais = () => {
+  return requiredPhotosTemplate.reduce((acc, photo) => {
+    acc[photo.id] = { fotoUrl: null };
+    return acc;
+  }, {} as Record<string, any>);
 };
 
 const emptyForm = {
@@ -66,7 +106,8 @@ const emptyForm = {
   horimetro: 0,
   inspector: "",
   status: "Aprovado",
-  itens: { ...defaultItens },
+  itens: getDefaultItens(),
+  fotosGerais: getDefaultFotosGerais(),
   notas: ""
 };
 
@@ -172,11 +213,14 @@ export const ChecklistsTab = () => {
       horimetro: 0,
       inspector: "",
       status: "Aprovado",
-      itens: { ...defaultItens },
+      itens: getDefaultItens(),
+      fotosGerais: getDefaultFotosGerais(),
       notas: ""
     });
     setDialogOpen(true);
   };
+
+  const [uploading, setUploading] = useState(false);
 
   const handleSave = async () => {
     if (!form.equipamento_id) {
@@ -188,39 +232,123 @@ export const ChecklistsTab = () => {
       return;
     }
 
-    const payload = {
-      contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
-      equipamento_id: form.equipamento_id,
-      tipo: form.tipo,
-      data: form.data,
-      horimetro: Number(form.horimetro || 0),
-      inspector: form.inspector,
-      status: form.status,
-      itens: form.itens,
-      notas: form.notas
-    };
-
+    setUploading(true);
     try {
+      let payloadItens = { ...form.itens };
+      let payloadFotosGerais = { ...(form.fotosGerais || {}) };
+      
+      const accessToken = localStorage.getItem("gdrive_access_token");
+      const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
+      const isTokenValid = accessToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
+
+      // Upload photos to Google Drive if connected and linked to contract
+      if (isTokenValid && form.contrato_id && form.contrato_id !== "none") {
+        const ct = contratos.find(c => c.id === form.contrato_id);
+        if (ct?.gdrive_folder_id) {
+          const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
+          const subfolders = await gdriveListFiles(ct.gdrive_folder_id, accessToken);
+          let opFolder = subfolders.find(f => f.name === "2. Operacional" && f.mimeType === "application/vnd.google-apps.folder");
+          let opFolderId = opFolder ? opFolder.id : (await gdriveCreateFolder("2. Operacional", ct.gdrive_folder_id, accessToken)).id;
+
+          const opSub = await gdriveListFiles(opFolderId, accessToken);
+          let chkFolder = opSub.find(f => f.name === "Checklists" && f.mimeType === "application/vnd.google-apps.folder");
+          let chkFolderId = chkFolder ? chkFolder.id : (await gdriveCreateFolder("Checklists", opFolderId, accessToken)).id;
+
+          const uploadPhoto = async (file: File, prefix: string) => {
+            toast({ description: `Enviando foto: ${prefix}...` });
+            const filename = `${form.tipo}_${prefix}_${Date.now()}.${file.name.split('.').pop() || 'jpg'}`;
+            const uploaded = await gdriveUploadFile(file, filename, chkFolderId, accessToken);
+            return uploaded.webViewLink;
+          };
+
+          for (const key of Object.keys(payloadItens)) {
+            if (payloadItens[key].fotoFile) {
+              const url = await uploadPhoto(payloadItens[key].fotoFile, key);
+              payloadItens[key] = { ...payloadItens[key], fotoUrl: url };
+              delete payloadItens[key].fotoFile;
+            }
+          }
+
+          for (const key of Object.keys(payloadFotosGerais)) {
+            if (payloadFotosGerais[key].fotoFile) {
+              const url = await uploadPhoto(payloadFotosGerais[key].fotoFile, `Geral_${key}`);
+              payloadFotosGerais[key] = { ...payloadFotosGerais[key], fotoUrl: url };
+              delete payloadFotosGerais[key].fotoFile;
+            }
+          }
+        }
+      }
+
+      // Cleanup local File objects if drive upload failed or was skipped
+      for (const key of Object.keys(payloadItens)) {
+        if (payloadItens[key].fotoFile) delete payloadItens[key].fotoFile;
+      }
+      for (const key of Object.keys(payloadFotosGerais)) {
+        if (payloadFotosGerais[key].fotoFile) delete payloadFotosGerais[key].fotoFile;
+      }
+
+      const payload = {
+        contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
+        equipamento_id: form.equipamento_id,
+        tipo: form.tipo,
+        data: form.data,
+        horimetro: Number(form.horimetro || 0),
+        inspector: form.inspector,
+        status: form.status,
+        itens: payloadItens,
+        fotosGerais: payloadFotosGerais,
+        notas: form.notas
+      };
+
       const { data, error } = await supabase.from("checklists").insert(payload).select().single();
       if (error) throw error;
+      
       toast({ title: "Sucesso", description: "Checklist registrado com sucesso." });
       setDialogOpen(false);
       fetchAll();
 
-      // Auto GDrive sync if token is active
-      const cachedToken = localStorage.getItem("gdrive_access_token");
-      const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
-      const isTokenValid = cachedToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
-      if (isTokenValid && payload.contrato_id) {
-        if (isAfterDec2025(payload.data)) {
-          toast({ title: "Google Drive", description: "Enviando laudo automaticamente para o Dossiê..." });
-          handleUploadToGDrive(data as ChecklistItem);
-        } else {
-          console.log("Checklist anterior a dez/2025. Sincronização automática pulada.");
+      // Auto-insert horimetro in medicoes if valid
+      if (payload.horimetro > 0 && payload.equipamento_id) {
+        try {
+          const { data: lastMed } = await supabase.from("medicoes")
+            .select("horimetro_final, data")
+            .eq("equipamento_id", payload.equipamento_id)
+            .order("data", { ascending: false })
+            .limit(1);
+          
+          let hInicial = 0;
+          if (lastMed && lastMed.length > 0) {
+            hInicial = Number(lastMed[0].horimetro_final);
+          }
+          
+          // Only insert if it progresses from the last known reading
+          if (payload.horimetro >= hInicial) {
+            const horasTrabalhadas = payload.horimetro - hInicial;
+            await supabase.from("medicoes").insert({
+              id: crypto.randomUUID(),
+              equipamento_id: payload.equipamento_id,
+              data: payload.data,
+              horimetro_inicial: hInicial,
+              horimetro_final: payload.horimetro,
+              horas_trabalhadas: horasTrabalhadas,
+              tipo: "Trabalho",
+              observacoes: `Lançamento automático via Vistoria (${payload.tipo})`
+            });
+          }
+        } catch (e) {
+          console.error("Falha ao atualizar horímetro nas medições:", e);
         }
+      }
+
+      // Auto PDF sync
+      if (isTokenValid && payload.contrato_id && isAfterDec2025(payload.data)) {
+        toast({ title: "Google Drive", description: "Enviando laudo PDF..." });
+        handleUploadToGDrive(data as ChecklistItem);
       }
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -532,6 +660,7 @@ export const ChecklistsTab = () => {
                   <SelectContent>
                     <SelectItem value="Entrega">Checklist de Entrega (Mobilização)</SelectItem>
                     <SelectItem value="Devolução">Checklist de Devolução (Desmobilização)</SelectItem>
+                    <SelectItem value="Visita Técnica">Visita Técnica</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -553,24 +682,113 @@ export const ChecklistsTab = () => {
             </div>
 
             {/* Checklist de Itens */}
-            <div className="p-4 bg-muted/20 border border-border/40 rounded-xl space-y-3">
+            <div className="p-4 bg-muted/20 border border-border/40 rounded-xl space-y-4">
               <p className="text-xs font-bold text-accent uppercase tracking-wider">Itens de Verificação Técnica</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {Object.keys(form.itens).map(key => (
-                  <div key={key} className="flex items-center gap-2.5">
-                    <Checkbox
-                      id={`chk-${key}`}
-                      checked={form.itens[key]}
-                      onCheckedChange={(checked) => setForm(p => ({
-                        ...p,
-                        itens: { ...p.itens, [key]: !!checked }
-                      }))}
-                    />
-                    <Label htmlFor={`chk-${key}`} className="text-xs font-semibold text-foreground capitalize cursor-pointer">
-                      {key.replace(/_/g, " ")}
-                    </Label>
-                  </div>
-                ))}
+              <div className="space-y-4">
+                {checklistItemsTemplate.map(item => {
+                  const val = form.itens[item.id] || { conforme: true, observacao: "", fotoUrl: null };
+                  return (
+                    <Card key={item.id} className={`border p-3 transition-colors ${!val.conforme ? 'bg-destructive/5 border-destructive/30' : 'bg-background'}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm font-semibold text-foreground flex-1">{item.label}</Label>
+                        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg shrink-0">
+                          <Button
+                            size="sm"
+                            variant={val.conforme ? "default" : "ghost"}
+                            className={`h-7 px-3 text-xs ${val.conforme ? 'bg-success hover:bg-success/90 text-white' : 'text-muted-foreground'}`}
+                            onClick={() => setForm(p => ({ ...p, itens: { ...p.itens, [item.id]: { ...val, conforme: true } } }))}
+                          >
+                            <Check className="h-3 w-3 mr-1" /> Sim
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={!val.conforme ? "default" : "ghost"}
+                            className={`h-7 px-3 text-xs ${!val.conforme ? 'bg-destructive hover:bg-destructive/90 text-white' : 'text-muted-foreground'}`}
+                            onClick={() => setForm(p => ({ ...p, itens: { ...p.itens, [item.id]: { ...val, conforme: false } } }))}
+                          >
+                            <X className="h-3 w-3 mr-1" /> Não
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {!val.conforme && (
+                        <div className="mt-3 space-y-3 pt-3 border-t border-destructive/10 animate-in slide-in-from-top-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-destructive uppercase">Observação da Avaria</Label>
+                            <Input 
+                              placeholder="Descreva o problema encontrado..." 
+                              value={val.observacao || ""} 
+                              onChange={e => setForm(p => ({ ...p, itens: { ...p.itens, [item.id]: { ...val, observacao: e.target.value } } }))}
+                              className="bg-background border-destructive/20 focus-visible:ring-destructive"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-destructive uppercase">Foto da Avaria</Label>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                className="w-full relative border-dashed border-destructive/30 hover:bg-destructive/5 text-destructive"
+                              >
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  capture="environment" 
+                                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                  onChange={e => {
+                                    const file = e.target.files?.[0] || null;
+                                    setForm(p => ({ ...p, itens: { ...p.itens, [item.id]: { ...val, fotoFile: file } } }));
+                                  }}
+                                />
+                                <Camera className="h-4 w-4 mr-2" />
+                                {val.fotoFile ? 'Trocar Foto' : 'Tirar Foto'}
+                              </Button>
+                              {val.fotoFile && (
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/20 shrink-0">
+                                  <Check className="h-3 w-3 mr-1" /> Anexada
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Fotos Obrigatórias */}
+            <div className="p-4 bg-muted/20 border border-border/40 rounded-xl space-y-4">
+              <p className="text-xs font-bold text-accent uppercase tracking-wider">Fotos Obrigatórias Gerais</p>
+              <div className="grid grid-cols-2 gap-3">
+                {requiredPhotosTemplate.map(photo => {
+                  const pVal = form.fotosGerais?.[photo.id] || { fotoUrl: null };
+                  return (
+                    <div key={photo.id} className="space-y-1.5 p-3 border rounded-lg bg-background text-center">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase truncate w-full block" title={photo.label}>{photo.label}</Label>
+                      <Button 
+                        variant={pVal.fotoFile ? "default" : "outline"} 
+                        className={`w-full relative h-12 border-dashed ${pVal.fotoFile ? 'bg-success hover:bg-success/90 border-success/50 text-white' : 'border-border/50 text-muted-foreground'}`}
+                      >
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          capture="environment" 
+                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                          onChange={e => {
+                            const file = e.target.files?.[0] || null;
+                            setForm(p => ({ ...p, fotosGerais: { ...(p.fotosGerais || {}), [photo.id]: { ...pVal, fotoFile: file } } }));
+                          }}
+                        />
+                        {pVal.fotoFile ? (
+                          <><Check className="h-4 w-4 shrink-0 mr-1" /> <span className="truncate">Capturada</span></>
+                        ) : (
+                          <><ImageIcon className="h-4 w-4 shrink-0 mr-1" /> <span className="truncate">Adicionar</span></>
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -597,8 +815,14 @@ export const ChecklistsTab = () => {
           </div>
 
           <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-bold">Gravar Vistoria</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl" disabled={uploading}>Cancelar</Button>
+            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl" disabled={uploading}>
+              {uploading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando & Enviando Fotos...</>
+              ) : (
+                "Salvar Vistoria"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

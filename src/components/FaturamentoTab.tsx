@@ -269,6 +269,8 @@ export const FaturamentoTab = () => {
 
   const filteredFaturas = useMemo(() => {
     return faturas.filter(f => {
+      if (f.status === "Pendente" || f.status === "Aguardando Aprovação") return false;
+
       if (filterStatus !== "all") {
         const status = getDisplayStatus(f);
         if (filterStatus !== status) return false;
@@ -313,6 +315,8 @@ export const FaturamentoTab = () => {
     let atrasoQty = 0;
 
     faturas.forEach(f => {
+      if (f.status === "Pendente" || f.status === "Aguardando Aprovação") return;
+
       if (filterEmpresa !== "all") {
         const ct = getContrato(f.contrato_id);
         if (ct?.empresa_id !== filterEmpresa) return;
@@ -1155,7 +1159,7 @@ export const FaturamentoTab = () => {
                 <span className="font-mono font-bold text-sm text-foreground">
                   {f.numero_nota || String(f.numero_sequencial).padStart(3, "0")}
                 </span>
-                {!f.numero_nota && (
+                {f.status === "Aprovado" && !f.numero_nota && !f.emissao && (
                   <Badge variant="outline" className="mt-1 text-[9px] py-0 px-1 border-warning text-warning bg-warning/5 font-sans font-normal w-fit whitespace-nowrap">
                     Pendente de Emissão
                   </Badge>
@@ -1213,7 +1217,7 @@ export const FaturamentoTab = () => {
 
               {/* Ações */}
               <div className="md:w-[180px] flex justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0 flex-wrap">
-                {!f.numero_nota && (
+                {f.status === "Aprovado" && (!f.numero_nota || !f.emissao) && (
                   <Button
                     variant="ghost"
                     size="icon"

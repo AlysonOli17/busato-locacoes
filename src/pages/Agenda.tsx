@@ -866,16 +866,16 @@ ALTER TABLE public.agenda ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'Nen
               titulo = `Fatura Liquidada - ${clientNome} (Ref: ${periodo})`;
               descricao = `Faturamento concluído e pago.`;
             } else if (fat.status === "Aprovado") {
-              if (fat.numero_nota) {
+              if (fat.numero_nota || fat.emissao) {
                 status = "Concluído";
                 categoria = "Faturamento";
                 titulo = `Faturado - ${clientNome} (Ref: ${periodo})`;
-                descricao = `Nota fiscal emitida (${fat.numero_nota}). Faturamento concluído.`;
+                descricao = fat.numero_nota ? `Nota fiscal emitida (${fat.numero_nota}). Faturamento concluído.` : `Fatura emitida. Faturamento concluído.`;
               } else {
                 status = "A Fazer";
                 categoria = "Faturamento";
                 titulo = `Emitir Fatura - ${clientNome} (Ref: ${periodo})`;
-                descricao = `Medição aprovada. Lançar o número da nota fiscal (FAT...) para concluir o faturamento.`;
+                descricao = `Medição aprovada. Lançar o número da nota fiscal (FAT...) ou a data de emissão para concluir o faturamento.`;
               }
             } else if (fat.status === "Aguardando Aprovação") {
               status = "Aguardando Aprovação";

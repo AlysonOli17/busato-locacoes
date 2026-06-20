@@ -96,10 +96,19 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
 
   // Checklist Items Table
   const itemsHeaders = [["ITEM VERIFICADO", "SITUAÇÃO"]];
-  const itemsBody = Object.entries(checklist.itens || {}).map(([key, val]) => {
+  const itemsBody = Object.entries(checklist.itens || {}).map(([key, val]: [string, any]) => {
+    let sit = "N/A";
+    if (val && typeof val === 'object' && 'conforme' in val) {
+      sit = val.conforme ? "CONFORME (OK)" : "NÃO CONFORME (NOK)";
+      if (!val.conforme && val.observacao) sit += `\nObs: ${val.observacao}`;
+    } else if (val === true) {
+      sit = "CONFORME (OK)";
+    } else if (val === false) {
+      sit = "NÃO CONFORME (NOK)";
+    }
     return [
       key.replace(/_/g, " ").toUpperCase(),
-      val === true ? "CONFORME (OK)" : val === false ? "NÃO CONFORME (NOK)" : "NÃO APLICÁVEL (N/A)"
+      sit
     ];
   });
 
@@ -147,27 +156,29 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
   }
 
   // Signatures side by side
-  if (y + 30 > ph) {
-    doc.addPage();
-    y = 35;
+  if (checklist.tipo !== "Visita Técnica") {
+    if (y + 30 > ph) {
+      doc.addPage();
+      y = 35;
+    }
+
+    const sigWidth = (contentWidth - 15) / 2;
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, margin + sigWidth, y);
+    doc.line(margin + sigWidth + 15, y, margin + 2 * sigWidth + 15, y);
+
+    y += 4;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("RESPONSÁVEL PELA VISTORIA (INSPETOR)", margin + sigWidth / 2, y, { align: "center" });
+    doc.text("REPRESENTANTE DO CLIENTE", margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
+
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(checklist.inspector, margin + sigWidth / 2, y, { align: "center" });
+    doc.text(clientName.length > 30 ? clientName.slice(0, 30) + "..." : clientName, margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
   }
-
-  const sigWidth = (contentWidth - 15) / 2;
-  doc.setLineWidth(0.2);
-  doc.line(margin, y, margin + sigWidth, y);
-  doc.line(margin + sigWidth + 15, y, margin + 2 * sigWidth + 15, y);
-
-  y += 4;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("RESPONSÁVEL PELA VISTORIA (INSPETOR)", margin + sigWidth / 2, y, { align: "center" });
-  doc.text("REPRESENTANTE DO CLIENTE", margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
-
-  y += 4;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(checklist.inspector, margin + sigWidth / 2, y, { align: "center" });
-  doc.text(clientName.length > 30 ? clientName.slice(0, 30) + "..." : clientName, margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
 
   // Save PDF
   const filename = `Checklist_${checklist.tipo}_${equipamento.tag_placa || "Equipamento"}.pdf`;
