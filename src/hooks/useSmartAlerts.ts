@@ -142,18 +142,19 @@ export function useSmartAlerts() {
         
         // 5. Faturamento Pendente
         if (config.enableFaturamentoPendente) {
-          const { data: faturamentosPendente } = await supabase
+          const { data: faturamentosAprovados } = await supabase
             .from("faturamento")
-            .select("id, contrato_id, periodo")
-            .eq("status", "Pendente");
+            .select("id, contrato_id, periodo, numero_nota, emissao")
+            .eq("status", "Aprovado");
             
-          if (faturamentosPendente && faturamentosPendente.length > 0) {
+          if (faturamentosAprovados && faturamentosAprovados.length > 0) {
+            const faturamentosPendente = faturamentosAprovados.filter(f => !f.numero_nota && !f.emissao);
             faturamentosPendente.forEach((fat, idx) => {
               setTimeout(() => {
                 pushToastNotification({
                   id: `fat-pendente-${fat.id}`,
                   titulo: "Faturamento Pendente",
-                  mensagem: `Existem faturas aprovadas aguardando emissão para o período ${fat.periodo}.`,
+                  mensagem: `Existem faturas aprovadas aguardando emissão para o período ${fat.periodo || "atual"}.`,
                 });
               }, 5000 + (idx * 500));
             });
