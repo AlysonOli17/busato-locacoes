@@ -117,6 +117,8 @@ const Medicoes = () => {
 
     contratosEquipamentos.forEach(ce => {
       if (ce.equipamento_id === equipamentoId) {
+        if (ce.data_entrega && ce.data_entrega > dataStr) return;
+        if (ce.data_devolucao && ce.data_devolucao < dataStr) return;
         linkedContractIds.add(ce.contrato_id);
       }
     });
@@ -128,6 +130,8 @@ const Medicoes = () => {
 
     aditivosEquipamentos.forEach(ae => {
       if (ae.equipamento_id === equipamentoId) {
+        if (ae.data_entrega && ae.data_entrega > dataStr) return;
+        if (ae.data_devolucao && ae.data_devolucao < dataStr) return;
         const contratoId = aditivoToContract.get(ae.aditivo_id);
         if (contratoId) {
           linkedContractIds.add(contratoId);
@@ -157,9 +161,9 @@ const Medicoes = () => {
       supabase.from("medicoes").select("*").order("data", { ascending: false }),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id"),
-      supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id"),
+      supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id, data_entrega, data_devolucao"),
       supabase.from("contratos_aditivos").select("id, contrato_id"),
-      supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id"),
+      supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id, data_entrega, data_devolucao"),
       supabase.from("faturamento").select("id, status, contrato_id, periodo_medicao_inicio, periodo_medicao_fim")
     ]));
     
