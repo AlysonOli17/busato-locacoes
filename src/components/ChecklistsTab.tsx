@@ -250,7 +250,44 @@ export const ChecklistsTab = () => {
       const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
       const isTokenValid = accessToken && expiresAtStr && parseInt(expiresAtStr) > Date.now();
 
-      // Upload photos to Google Drive if connected and linked to contract
+      const compressImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const MAX_WIDTH = 800;
+              const MAX_HEIGHT = 800;
+              let width = img.width;
+              let height = img.height;
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height *= MAX_WIDTH / width;
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width *= MAX_HEIGHT / height;
+                  height = MAX_HEIGHT;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              ctx?.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", 0.5));
+            };
+            img.src = e.target?.result as string;
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+
+      let uploadPhoto: ((file: File, prefix: string) => Promise<string>) | null = null;
+      let gdriveReady = false;
+
+      // Prepare Google Drive upload function if connected and linked to contract
       if (isTokenValid && form.contrato_id && form.contrato_id !== "none") {
         const ct = contratos.find(c => c.id === form.contrato_id);
         if (ct?.gdrive_folder_id) {
@@ -263,25 +300,36 @@ export const ChecklistsTab = () => {
           let chkFolder = opSub.find(f => f.name === "Checklists" && f.mimeType === "application/vnd.google-apps.folder");
           let chkFolderId = chkFolder ? chkFolder.id : (await gdriveCreateFolder("Checklists", opFolderId, accessToken)).id;
 
-          const uploadPhoto = async (file: File, prefix: string) => {
+          uploadPhoto = async (file: File, prefix: string) => {
             toast({ description: `Enviando foto: ${prefix}...` });
             const filename = `${form.tipo}_${prefix}_${Date.now()}.${file.name.split('.').pop() || 'jpg'}`;
             const uploaded = await gdriveUploadFile(file, filename, chkFolderId, accessToken);
             return uploaded.webViewLink;
           };
+          gdriveReady = true;
+        }
+      }
 
-          for (const key of Object.keys(form.itens)) {
-            if (form.itens[key]?.fotoFile) {
-              const url = await uploadPhoto(form.itens[key].fotoFile, key);
-              payloadItens[key].fotoUrl = url;
-            }
+      for (const key of Object.keys(form.itens)) {
+        if (form.itens[key]?.fotoFile) {
+          const file = form.itens[key].fotoFile;
+          const b64 = await compressImage(file);
+          payloadItens[key].fotoBase64 = b64;
+          if (gdriveReady && uploadPhoto) {
+            const url = await uploadPhoto(file, key);
+            payloadItens[key].fotoUrl = url;
           }
+        }
+      }
 
-          for (const key of Object.keys(form.fotosGerais || {})) {
-            if ((form.fotosGerais || {})[key]?.fotoFile) {
-              const url = await uploadPhoto((form.fotosGerais || {})[key].fotoFile, `Geral_${key}`);
-              payloadFotosGerais[key].fotoUrl = url;
-            }
+      for (const key of Object.keys(form.fotosGerais || {})) {
+        if ((form.fotosGerais || {})[key]?.fotoFile) {
+          const file = (form.fotosGerais || {})[key].fotoFile;
+          const b64 = await compressImage(file);
+          payloadFotosGerais[key].fotoBase64 = b64;
+          if (gdriveReady && uploadPhoto) {
+            const url = await uploadPhoto(file, `Geral_${key}`);
+            payloadFotosGerais[key].fotoUrl = url;
           }
         }
       }

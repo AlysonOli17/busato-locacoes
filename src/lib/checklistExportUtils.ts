@@ -180,6 +180,74 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
     doc.text(clientName.length > 30 ? clientName.slice(0, 30) + "..." : clientName, margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
   }
 
+  // Anexos Fotográficos
+  const photosToDraw: { label: string, b64: string }[] = [];
+  
+  if (checklist.itens) {
+    Object.entries(checklist.itens).forEach(([key, val]: [string, any]) => {
+      if (key !== "__fotos_gerais" && val && val.fotoBase64) {
+        photosToDraw.push({
+          label: key.replace(/_/g, " ").toUpperCase(),
+          b64: val.fotoBase64
+        });
+      }
+    });
+    
+    if (checklist.itens["__fotos_gerais"]) {
+      Object.entries(checklist.itens["__fotos_gerais"]).forEach(([key, val]: [string, any]) => {
+        if (val && val.fotoBase64) {
+          photosToDraw.push({
+            label: `GERAL: ${key.replace(/_/g, " ").toUpperCase()}`,
+            b64: val.fotoBase64
+          });
+        }
+      });
+    }
+  }
+
+  if (photosToDraw.length > 0) {
+    doc.addPage();
+    let py = 20;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("ANEXOS FOTOGRÁFICOS", pw / 2, py, { align: "center" });
+    py += 15;
+
+    for (let i = 0; i < photosToDraw.length; i++) {
+      const p = photosToDraw[i];
+      const imgProps = await new Promise<{w: number, h: number}>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.width, h: img.height });
+        img.onerror = () => resolve({ w: 0, h: 0 });
+        img.src = p.b64;
+      });
+      
+      if (imgProps.w === 0) continue;
+      
+      let drawW = 150;
+      let drawH = (imgProps.h / imgProps.w) * drawW;
+      if (drawH > 100) {
+        drawH = 100;
+        drawW = (imgProps.w / imgProps.h) * drawH;
+      }
+      
+      if (py + drawH + 15 > ph) {
+        doc.addPage();
+        py = 20;
+      }
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(p.label, margin, py);
+      py += 5;
+      
+      const imgX = (pw - drawW) / 2;
+      doc.addImage(p.b64, "JPEG", imgX, py, drawW, drawH);
+      
+      py += drawH + 15;
+    }
+  }
+
   // Save PDF
   const filename = `Checklist_${checklist.tipo}_${equipamento.tag_placa || "Equipamento"}.pdf`;
   doc.save(filename);
