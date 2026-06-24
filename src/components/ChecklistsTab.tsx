@@ -234,8 +234,17 @@ export const ChecklistsTab = () => {
 
     setUploading(true);
     try {
-      let payloadItens = { ...form.itens };
-      let payloadFotosGerais = { ...(form.fotosGerais || {}) };
+      const payloadItens: Record<string, any> = {};
+      for (const key of Object.keys(form.itens)) {
+        const { fotoFile, ...rest } = form.itens[key] || {};
+        payloadItens[key] = rest;
+      }
+
+      const payloadFotosGerais: Record<string, any> = {};
+      for (const key of Object.keys(form.fotosGerais || {})) {
+        const { fotoFile, ...rest } = (form.fotosGerais || {})[key] || {};
+        payloadFotosGerais[key] = rest;
+      }
       
       const accessToken = localStorage.getItem("gdrive_access_token");
       const expiresAtStr = localStorage.getItem("gdrive_token_expires_at");
@@ -261,30 +270,20 @@ export const ChecklistsTab = () => {
             return uploaded.webViewLink;
           };
 
-          for (const key of Object.keys(payloadItens)) {
-            if (payloadItens[key].fotoFile) {
-              const url = await uploadPhoto(payloadItens[key].fotoFile, key);
-              payloadItens[key] = { ...payloadItens[key], fotoUrl: url };
-              delete payloadItens[key].fotoFile;
+          for (const key of Object.keys(form.itens)) {
+            if (form.itens[key]?.fotoFile) {
+              const url = await uploadPhoto(form.itens[key].fotoFile, key);
+              payloadItens[key].fotoUrl = url;
             }
           }
 
-          for (const key of Object.keys(payloadFotosGerais)) {
-            if (payloadFotosGerais[key].fotoFile) {
-              const url = await uploadPhoto(payloadFotosGerais[key].fotoFile, `Geral_${key}`);
-              payloadFotosGerais[key] = { ...payloadFotosGerais[key], fotoUrl: url };
-              delete payloadFotosGerais[key].fotoFile;
+          for (const key of Object.keys(form.fotosGerais || {})) {
+            if ((form.fotosGerais || {})[key]?.fotoFile) {
+              const url = await uploadPhoto((form.fotosGerais || {})[key].fotoFile, `Geral_${key}`);
+              payloadFotosGerais[key].fotoUrl = url;
             }
           }
         }
-      }
-
-      // Cleanup local File objects if drive upload failed or was skipped
-      for (const key of Object.keys(payloadItens)) {
-        if (payloadItens[key].fotoFile) delete payloadItens[key].fotoFile;
-      }
-      for (const key of Object.keys(payloadFotosGerais)) {
-        if (payloadFotosGerais[key].fotoFile) delete payloadFotosGerais[key].fotoFile;
       }
 
       // Salva as fotos gerais dentro do JSON de itens para evitar a necessidade de criar nova coluna
