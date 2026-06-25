@@ -146,7 +146,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
   const eqsDesmobilizados = eqs.filter((ae: any) => ae.data_devolucao);
 
   if (eqsAtivos.length > 0) {
-    const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "DATA DE INÍCIO"]];
+    const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "HORAS MÍNIMAS", "DATA DE INÍCIO"]];
     const tableBody = eqsAtivos.map((ae: any, idx: number) => {
       const eq = equipamentos.find(e => e.id === ae.equipamento_id);
       return [
@@ -156,6 +156,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
         eq?.modelo || "—",
         eq?.numero_serie || "—",
         fmtCurrency(ae.valor_hora),
+        ae.hora_minima > 0 ? `${ae.hora_minima}h` : "—",
         ae.data_entrega ? new Date(ae.data_entrega + "T00:00:00").toLocaleDateString("pt-BR") : (aditivo.data_inicio ? new Date(aditivo.data_inicio + "T00:00:00").toLocaleDateString("pt-BR") : "—")
       ];
     });
@@ -180,7 +181,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
 
   if (eqsDesmobilizados.length > 0) {
     printParagraph(`1.2. Fica registrado a desmobilização dos seguintes equipamentos:`);
-    const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "DATA DE DEVOLUÇÃO"]];
+    const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "HORAS MÍNIMAS", "DATA DE DEVOLUÇÃO"]];
     const tableBody = eqsDesmobilizados.map((ae: any, idx: number) => {
       const eq = equipamentos.find(e => e.id === ae.equipamento_id);
       return [
@@ -190,6 +191,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
         eq?.modelo || "—",
         eq?.numero_serie || "—",
         fmtCurrency(ae.valor_hora),
+        ae.hora_minima > 0 ? `${ae.hora_minima}h` : "—",
         new Date(ae.data_devolucao + "T00:00:00").toLocaleDateString("pt-BR")
       ];
     });
@@ -213,9 +215,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
   // Cláusula Segunda - Preço
   printParagraph("CLÁUSULA SEGUNDA – DO PREÇO", true, 4);
   
-  // Pegar a hora mínima média ou a principal
-  const hm = eqs.length > 0 ? (eqs[0].hora_minima > 0 ? eqs[0].hora_minima : 200) : 200;
-  printParagraph(`2. A Locatária pagará à Locadora o valor de acordo com a tabela definida no item 1.1 considerando o mínimo de ${hm} horas mensais por equipamento.`);
+  printParagraph(`2. A Locatária pagará à Locadora os valores estipulados na tabela do item 1.1, respeitando a franquia (horas mínimas) discriminada individualmente para cada equipamento.`);
 
   y += 5;
 
