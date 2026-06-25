@@ -155,31 +155,6 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
     y += splitNotes.length * 4.5 + 10;
   }
 
-  // Signatures side by side
-  if (checklist.tipo !== "Visita Técnica") {
-    if (y + 30 > ph) {
-      doc.addPage();
-      y = 35;
-    }
-
-    const sigWidth = (contentWidth - 15) / 2;
-    doc.setLineWidth(0.2);
-    doc.line(margin, y, margin + sigWidth, y);
-    doc.line(margin + sigWidth + 15, y, margin + 2 * sigWidth + 15, y);
-
-    y += 4;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text("RESPONSÁVEL PELA VISTORIA (INSPETOR)", margin + sigWidth / 2, y, { align: "center" });
-    doc.text("REPRESENTANTE DO CLIENTE", margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
-
-    y += 4;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(checklist.inspector, margin + sigWidth / 2, y, { align: "center" });
-    doc.text(clientName.length > 30 ? clientName.slice(0, 30) + "..." : clientName, margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
-  }
-
   // Anexos Fotográficos
   const photosToDraw: { label: string, b64: string }[] = [];
   
@@ -207,11 +182,17 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
 
   if (photosToDraw.length > 0) {
     doc.addPage();
-    let py = 20;
+    y = 20;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("ANEXOS FOTOGRÁFICOS", pw / 2, py, { align: "center" });
-    py += 15;
+    doc.text("ANEXOS FOTOGRÁFICOS", pw / 2, y, { align: "center" });
+    y += 15;
+
+    const cols = 2;
+    const colWidth = contentWidth / cols;
+    const maxDrawW = 75;
+    const maxDrawH = 65;
+    let currentMaxH = 0;
 
     for (let i = 0; i < photosToDraw.length; i++) {
       const p = photosToDraw[i];
@@ -224,28 +205,71 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
       
       if (imgProps.w === 0) continue;
       
-      let drawW = 150;
-      let drawH = (imgProps.h / imgProps.w) * drawW;
-      if (drawH > 100) {
-        drawH = 100;
-        drawW = (imgProps.w / imgProps.h) * drawH;
+      const colIndex = i % cols;
+      if (colIndex === 0 && i !== 0) {
+        y += currentMaxH + 15;
+        currentMaxH = 0;
       }
       
-      if (py + drawH + 15 > ph) {
-        doc.addPage();
-        py = 20;
+      let actualDrawW = maxDrawW;
+      let actualDrawH = (imgProps.h / imgProps.w) * actualDrawW;
+      if (actualDrawH > maxDrawH) {
+        actualDrawH = maxDrawH;
+        actualDrawW = (imgProps.w / imgProps.h) * actualDrawH;
       }
+      
+      // If adding this row exceeds page height, add new page
+      if (colIndex === 0 && y + maxDrawH + 15 > ph - 20) {
+        doc.addPage();
+        y = 20;
+      }
+      
+      currentMaxH = Math.max(currentMaxH, actualDrawH);
+      
+      const centerX = margin + colIndex * colWidth + colWidth / 2;
+      const imgX = centerX - actualDrawW / 2;
       
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text(p.label, margin, py);
-      py += 5;
+      doc.setFontSize(8);
+      // Truncate label if too long for the column
+      const labelStr = p.label.length > 40 ? p.label.slice(0, 37) + "..." : p.label;
+      doc.text(labelStr, centerX, y, { align: "center" });
       
-      const imgX = (pw - drawW) / 2;
-      doc.addImage(p.b64, "JPEG", imgX, py, drawW, drawH);
-      
-      py += drawH + 15;
+      doc.addImage(p.b64, "JPEG", imgX, y + 3, actualDrawW, actualDrawH);
     }
+    
+    y += currentMaxH + 20; // Final adjustment after all photos
+  } else {
+    y += 10;
+  }
+
+  // Signatures side by side at the very end
+  if (checklist.tipo !== "Visita Técnica") {
+    // Aumentar o espaçamento antes da assinatura
+    y += 15;
+
+    // Se não houver espaço suficiente para as assinaturas, quebra a página
+    if (y + 40 > ph) {
+      doc.addPage();
+      y = 35;
+    }
+
+    const sigWidth = (contentWidth - 15) / 2;
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, margin + sigWidth, y);
+    doc.line(margin + sigWidth + 15, y, margin + 2 * sigWidth + 15, y);
+
+    y += 4;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("RESPONSÁVEL PELA VISTORIA (INSPETOR)", margin + sigWidth / 2, y, { align: "center" });
+    doc.text("REPRESENTANTE DO CLIENTE", margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
+
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(checklist.inspector, margin + sigWidth / 2, y, { align: "center" });
+    doc.text(clientName.length > 30 ? clientName.slice(0, 30) + "..." : clientName, margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
   }
 
   // Save PDF
