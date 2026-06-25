@@ -142,9 +142,12 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
 
   // Tabela de Equipamentos do Aditivo
   const eqs = aditivo.aditivos_equipamentos || [];
-  if (eqs.length > 0) {
+  const eqsAtivos = eqs.filter((ae: any) => !ae.data_devolucao);
+  const eqsDesmobilizados = eqs.filter((ae: any) => ae.data_devolucao);
+
+  if (eqsAtivos.length > 0) {
     const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "DATA DE INÍCIO"]];
-    const tableBody = eqs.map((ae: any, idx: number) => {
+    const tableBody = eqsAtivos.map((ae: any, idx: number) => {
       const eq = equipamentos.find(e => e.id === ae.equipamento_id);
       return [
         (idx + 1).toString().padStart(2, '0'),
@@ -173,6 +176,38 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
     y = (doc as any).lastAutoTable.finalY + 10;
   } else {
     printParagraph(`(Nenhum equipamento listado neste aditivo)`, false, 5, "center");
+  }
+
+  if (eqsDesmobilizados.length > 0) {
+    printParagraph(`1.2. Fica registrado a desmobilização dos seguintes equipamentos:`);
+    const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "DATA DE DEVOLUÇÃO"]];
+    const tableBody = eqsDesmobilizados.map((ae: any, idx: number) => {
+      const eq = equipamentos.find(e => e.id === ae.equipamento_id);
+      return [
+        (idx + 1).toString().padStart(2, '0'),
+        eq?.tipo || "—",
+        eq?.tag_placa || "—",
+        eq?.modelo || "—",
+        eq?.numero_serie || "—",
+        fmtCurrency(ae.valor_hora),
+        new Date(ae.data_devolucao + "T00:00:00").toLocaleDateString("pt-BR")
+      ];
+    });
+
+    checkPageBreak(tableBody.length * 8 + 15);
+
+    autoTable(doc, {
+      startY: y,
+      head: tableHeaders,
+      body: tableBody,
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8, cellPadding: 3, textColor: darkGray, halign: "center", valign: "middle" },
+      headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 248, 252] },
+      theme: "striped",
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // Cláusula Segunda - Preço
