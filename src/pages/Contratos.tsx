@@ -1302,6 +1302,8 @@ const Contratos = () => {
     toast({ title: "Sucesso", description: editingAditivo ? "Aditivo atualizado." : "Aditivo criado." });
     fetchAditivos(ajustesContrato.id);
     uploadMovementPDFToGDrive(ajustesContrato.id);
+  };
+
   const handleExportAditivo = async (ad: Aditivo) => {
     try {
       const { exportAditivoToPDF } = await import("@/lib/aditivoExportUtils");
