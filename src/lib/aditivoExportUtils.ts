@@ -43,42 +43,40 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
   const ph = doc.internal.pageSize.getHeight();
   const contentWidth = pw - 2 * margin;
 
-  let y = 20;
+  const brandBlue: [number, number, number] = [41, 128, 185];
+  const darkGray: [number, number, number] = [30, 30, 30];
+  const medGray: [number, number, number] = [60, 60, 60];
+  const lightGray: [number, number, number] = [140, 140, 140];
+
+  let y = 35;
 
   // Header Footer and Page breaks
-  let currentPage = 1;
   const totalPagesExp = "{total_pages_count_string}";
 
-  const printHeaderFooter = (pageNo: number) => {
+  await loadLogo();
+
+  const printHeaderFooter = (pageNum: number) => {
     // Header
     if (logoCache) {
-      doc.addImage(logoCache, "PNG", margin, 15, 36, 9);
-    } else {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text("BUSATO", margin, 20);
+      doc.addImage(logoCache, "PNG", margin, 10, 48, 12);
     }
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Aditivo #${aditivo.numero} - Contrato ${contrato.id.slice(0, 5)}`, pw - margin, 20, { align: "right" });
-
     // Footer
-    doc.text(`Página ${pageNo} de ${totalPagesExp}`, pw / 2, ph - 10, { align: "center" });
-    
-    // Reset defaults for body
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(7.5);
+    doc.setTextColor(...lightGray);
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.4);
+    doc.line(margin, ph - 15, pw - margin, ph - 15);
+    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA  •  CNPJ: 54.167.719/0001-40", margin, ph - 10);
+    doc.text(`Página ${pageNum} de ${totalPagesExp}`, pw - margin, ph - 10, { align: "right" });
   };
 
   const checkPageBreak = (needed: number) => {
-    if (y + needed > ph - 25) {
+    if (y + needed > ph - 22) {
       doc.addPage();
-      currentPage++;
-      printHeaderFooter(currentPage);
-      y = 35; // Start position on next page
+      const pageCount = (doc.internal as any).getNumberOfPages();
+      printHeaderFooter(pageCount);
+      y = 30; // Start position on next page
       return true;
     }
     return false;
@@ -87,7 +85,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
   const printParagraph = (text: string, isTitle = false, spacing = 5, alignment: "left" | "justify" | "center" = "justify") => {
     doc.setFont("helvetica", isTitle ? "bold" : "normal");
     doc.setFontSize(isTitle ? 10 : 9.5);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(...(isTitle ? darkGray : medGray));
 
     const lines = doc.splitTextToSize(text, contentWidth);
     const needed = lines.length * 4.5 + spacing;
@@ -104,30 +102,36 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
     y += lines.length * 4.5 + spacing;
   };
 
-  await loadLogo();
   printHeaderFooter(1);
-  y = 40;
 
   // Título
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(11);
+  doc.setTextColor(...brandBlue);
   const title = `${aditivo.numero}º TERMO ADITIVO AO CONTRATO DE LOCAÇÃO DE EQUIPAMENTO`;
-  doc.text(title, pw / 2, y, { align: "center" });
-  y += 15;
+  const titleLines = doc.splitTextToSize(title, contentWidth - 55);
+  doc.text(titleLines, margin + 55, 15);
+
+  doc.setDrawColor(...brandBlue);
+  doc.setLineWidth(0.8);
+  doc.line(margin, 28, pw - margin, 28);
+  y = 35;
 
   // Qualificação das Partes
   const emp = contrato.empresas;
-  const qualifComodante = `De um lado, como Locadora,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA, empresa estabelecida Avenida Nossa Senhora da Penha, 595, Sala 510, Santa Lúcia, Vitória/ES, CEP: 29.056-250, inscrita no CNPJ sob o nº 54.167.719/0001-40, neste ato denominada simplesmente CONTRATADA.`;
+  const qualifLocadora = `De um lado, como Locadora,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA, empresa estabelecida Av. Coronel Manoel Nunes, 145, Planalto de Carapina, Serra/ES, CEP 29.162-715, inscrita no CNPJ sob o nº 00.865.596/0001-92, neste ato denominada simplesmente Locadora.`;
   
-  const qualifLocataria = `De outro lado, como locatária,\n${emp.razao_social || emp.nome}, empresa estabelecida à ${emp.endereco_logradouro}, nº ${emp.endereco_numero}${emp.endereco_complemento ? ` - ${emp.endereco_complemento}` : ""}, ${emp.endereco_bairro}, ${emp.endereco_cidade} - ${emp.endereco_uf}, inscrita no CNPJ sob o nº ${emp.cnpj}, neste ato denominada simplesmente CONTRATANTE.`;
+  const qualifLocataria = `De outro lado, como Locatária,\n${emp.razao_social || emp.nome}, empresa estabelecida à ${emp.endereco_logradouro}, nº ${emp.endereco_numero}${emp.endereco_complemento ? ` - ${emp.endereco_complemento}` : ""}, ${emp.endereco_bairro}, ${emp.endereco_cidade} - ${emp.endereco_uf}, inscrita no CNPJ sob o nº ${emp.cnpj}, neste ato denominada simplesmente Locatária.`;
   
-  printParagraph(qualifComodante);
-  printParagraph(qualifLocataria);
+  printParagraph(qualifLocadora, false, 8, "left");
+  printParagraph(qualifLocataria, false, 8, "left");
+
+  printParagraph(`Resolvem celebrar o presente Termo Aditivo ao Contrato de Locação de Veículo / Equipamento, doravante denominado “Contrato”, mediante as seguintes cláusulas e condições.`);
 
   y += 5;
 
   // Cláusula Primeira - Objeto
-  printParagraph("CLÁUSULA PRIMEIRA: Do objeto", true);
+  printParagraph("CLÁUSULA PRIMEIRA – DO OBJETO E CONDIÇÕES", true, 4);
   printParagraph(`1. Por meio deste instrumento, as Partes acordam em: ${aditivo.motivo}.`);
 
   if (aditivo.observacoes) {
@@ -143,7 +147,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
     const tableBody = eqs.map((ae: any, idx: number) => {
       const eq = equipamentos.find(e => e.id === ae.equipamento_id);
       return [
-        (idx + 1).toString(),
+        (idx + 1).toString().padStart(2, '0'),
         eq?.tipo || "—",
         eq?.tag_placa || "—",
         eq?.modelo || "—",
@@ -160,8 +164,10 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
       head: tableHeaders,
       body: tableBody,
       margin: { left: margin, right: margin },
-      styles: { fontSize: 8, font: "helvetica", halign: "center", valign: "middle" },
-      headStyles: { fillColor: [180, 195, 210], textColor: [0, 0, 0] }
+      styles: { fontSize: 8, cellPadding: 3, textColor: darkGray, halign: "center", valign: "middle" },
+      headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 248, 252] },
+      theme: "striped",
     });
 
     y = (doc as any).lastAutoTable.finalY + 10;
@@ -170,24 +176,24 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
   }
 
   // Cláusula Segunda - Preço
-  printParagraph("CLÁUSULA SEGUNDA: Do Preço", true);
+  printParagraph("CLÁUSULA SEGUNDA – DO PREÇO", true, 4);
   
   // Pegar a hora mínima média ou a principal
   const hm = eqs.length > 0 ? (eqs[0].hora_minima > 0 ? eqs[0].hora_minima : 200) : 200;
-  printParagraph(`2. A CONTRATANTE pagará à CONTRATADA o valor de acordo com a tabela definida no item 1.1 considerando o mínimo de ${hm} horas mensais por equipamento.`);
+  printParagraph(`2. A Locatária pagará à Locadora o valor de acordo com a tabela definida no item 1.1 considerando o mínimo de ${hm} horas mensais por equipamento.`);
 
   y += 5;
 
   // Cláusula Terceira - Vigência
-  printParagraph("CLÁUSULA TERCEIRA: Da Vigência", true);
+  printParagraph("CLÁUSULA TERCEIRA – DA VIGÊNCIA", true, 4);
   const dataInicioStr = aditivo.data_inicio ? new Date(aditivo.data_inicio + "T00:00:00").toLocaleDateString("pt-BR") : "—";
   const dataFimStr = aditivo.data_fim ? new Date(aditivo.data_fim + "T00:00:00").toLocaleDateString("pt-BR") : "—";
-  printParagraph(`3. O presente Termo Aditivo terá início em ${dataInicioStr} e término em ${dataFimStr}, podendo ser rescindido por qualquer das partes mediante comunicação prévia, escrita, com antecedência mínima de 5 (cinco) dias, sendo passível de prorrogação de comum acordo entre as partes, conforme necessidade da CONTRATANTE.`);
+  printParagraph(`3. O presente Termo Aditivo terá início em ${dataInicioStr} e término em ${dataFimStr}, podendo ser rescindido por qualquer das partes mediante comunicação prévia, escrita, com antecedência mínima de 5 (cinco) dias, sendo passível de prorrogação de comum acordo entre as partes, conforme necessidade da Locatária.`);
 
   y += 5;
 
   // Cláusula Quarta - Ratificação
-  printParagraph("CLÁUSULA QUARTA: Das Demais Condições Contratuais", true);
+  printParagraph("CLÁUSULA QUARTA – DAS DEMAIS CONDIÇÕES CONTRATUAIS", true, 4);
   printParagraph(`4. Permanecem inalteradas e em pleno vigor todas as demais cláusulas e condições do contrato original de locação, bem como os termos dos Aditivos anteriores, que não tenham sido expressamente modificadas por este instrumento.`);
 
   y += 10;
@@ -201,6 +207,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
 
   const sigWidth = (contentWidth - 15) / 2;
   doc.setLineWidth(0.2);
+  doc.setDrawColor(...darkGray);
   
   // Assinaturas Partes
   doc.line(margin, y, margin + sigWidth, y);
