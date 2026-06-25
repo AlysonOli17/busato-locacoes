@@ -18,7 +18,7 @@ async function loadLogo(): Promise<string | null> {
   }
 }
 
-export async function exportChecklistToPDF(checklist: any, equipamento: any, contrato: any) {
+export async function exportChecklistToPDF(checklist: any, equipamento: any, contrato: any, download: boolean = true) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
 
@@ -218,7 +218,6 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
         actualDrawW = (imgProps.w / imgProps.h) * actualDrawH;
       }
       
-      // If adding this row exceeds page height, add new page
       if (colIndex === 0 && y + maxDrawH + 15 > ph - 20) {
         doc.addPage();
         y = 20;
@@ -231,24 +230,20 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
       
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      // Truncate label if too long for the column
       const labelStr = p.label.length > 40 ? p.label.slice(0, 37) + "..." : p.label;
       doc.text(labelStr, centerX, y, { align: "center" });
       
       doc.addImage(p.b64, "JPEG", imgX, y + 3, actualDrawW, actualDrawH);
     }
     
-    y += currentMaxH + 20; // Final adjustment after all photos
+    y += currentMaxH + 20;
   } else {
     y += 10;
   }
 
   // Signatures side by side at the very end
   if (checklist.tipo !== "Visita Técnica") {
-    // Aumentar o espaçamento antes da assinatura
     y += 15;
-
-    // Se não houver espaço suficiente para as assinaturas, quebra a página
     if (y + 40 > ph) {
       doc.addPage();
       y = 35;
@@ -272,8 +267,10 @@ export async function exportChecklistToPDF(checklist: any, equipamento: any, con
     doc.text(clientName.length > 30 ? clientName.slice(0, 30) + "..." : clientName, margin + sigWidth + 15 + sigWidth / 2, y, { align: "center" });
   }
 
-  // Save PDF
-  const filename = `Checklist_${checklist.tipo}_${equipamento.tag_placa || "Equipamento"}.pdf`;
-  doc.save(filename);
+  // Save PDF conditionally
+  if (download) {
+    const filename = `Checklist_${checklist.tipo}_${equipamento.tag_placa || "Equipamento"}.pdf`;
+    doc.save(filename);
+  }
   return doc;
 }

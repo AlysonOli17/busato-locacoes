@@ -28,7 +28,7 @@ function getMesNome(mesIndex: number): string {
   return meses[mesIndex];
 }
 
-export async function exportComodatoToPDF(comodato: any, equipamento: any) {
+export async function exportComodatoToPDF(comodato: any, equipamento: any, download: boolean = true) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
 
@@ -221,8 +221,10 @@ E, por estarem justas e contratadas, assinam o presente instrumento em 02 (duas)
   doc.text(`CNPJ: ${comodato.comodante_cnpj}`, margin, y);
   doc.text(`CNPJ: ${comodato.comodataria_cnpj}`, margin + sigWidth + 15, y);
 
-  // Save the PDF
-  const safeTitle = `Comodato_${equipamento.tag_placa || "Equipamento"}.pdf`;
-  doc.save(safeTitle);
+  // Save the PDF conditionally
+  if (download) {
+    const safeTitle = `Comodato_${equipamento.tag_placa || "Equipamento"}.pdf`;
+    doc.save(safeTitle);
+  }
   return doc;
 }

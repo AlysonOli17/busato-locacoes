@@ -290,7 +290,7 @@ export const ContratosDossieTab = () => {
           if (eq) {
             const filename = `Checklist_${item.tipo}_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
             if (existingOps.some(f => f.name === filename)) continue;
-            const doc = await exportChecklistToPDF(item, eq, selectedContrato);
+            const doc = await exportChecklistToPDF(item, eq, selectedContrato, false);
             const blob = doc.output("blob");
             await gdriveUploadFile(blob, filename, opFolderId, accessToken);
             uploadCount++;
@@ -325,7 +325,7 @@ export const ContratosDossieTab = () => {
             if (eq) {
               const filename = `Comodato_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
               if (existingComs.some(f => f.name === filename)) continue;
-              const doc = await exportComodatoToPDF(item, eq);
+              const doc = await exportComodatoToPDF(item, eq, false);
               const blob = doc.output("blob");
               await gdriveUploadFile(blob, filename, comFolderId, accessToken);
               uploadCount++;
@@ -383,7 +383,7 @@ export const ContratosDossieTab = () => {
           const filename = `Boletim_Medicao_${item.id.slice(0, 5)}_${new Date().toISOString().slice(0, 10)}.pdf`;
           if (existingFins.some(f => f.name === filename)) continue;
           const fullRecord = { ...item, contratos: selectedContrato };
-          const doc = await exportDetailedFaturamentoPDF([fullRecord], empData || []);
+          const doc = await exportDetailedFaturamentoPDF([fullRecord], empData || [], false);
           const blob = doc.output("blob");
           await gdriveUploadFile(blob, filename, finFolderId, accessToken);
           uploadCount++;

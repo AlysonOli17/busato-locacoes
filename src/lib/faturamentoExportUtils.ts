@@ -24,7 +24,7 @@ const loadLogo = async (): Promise<string | null> => {
 /**
  * Exports detailed billing information to a PDF document matching the provided template.
  */
-export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: any[]) => {
+export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: any[], download: boolean = true) => {
   if (data.length === 0) return;
 
   const { jsPDF } = await import("jspdf");
@@ -604,6 +604,8 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     );
   }
 
-  doc.save(`boletim_medicao_${new Date().toISOString().slice(0, 10)}.pdf`);
+  if (download) {
+    doc.save(`boletim_medicao_${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
   return doc;
 };
