@@ -44,8 +44,8 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
   const contentWidth = pw - 2 * margin;
 
   const brandBlue: [number, number, number] = [41, 128, 185];
-  const darkGray: [number, number, number] = [30, 30, 30];
-  const medGray: [number, number, number] = [30, 30, 30];
+  const darkGray: [number, number, number] = [0, 0, 0];
+  const medGray: [number, number, number] = [0, 0, 0];
   const lightGray: [number, number, number] = [140, 140, 140];
 
   let y = 35;
@@ -146,7 +146,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
   const eqsDesmobilizados = eqs.filter((ae: any) => ae.data_devolucao);
 
   if (eqsAtivos.length > 0) {
-    const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "HORAS MÍNIMAS", "DATA DE INÍCIO"]];
+    const tableHeaders = [["ITEM", "TIPO", "PLACA", "MODELO", "SÉRIE", "VALOR", "MÍNIMO", "INÍCIO"]];
     const tableBody = eqsAtivos.map((ae: any, idx: number) => {
       const eq = equipamentos.find(e => e.id === ae.equipamento_id);
       return [
@@ -181,7 +181,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
 
   if (eqsDesmobilizados.length > 0) {
     printParagraph(`1.2. Fica registrado a desmobilização dos seguintes equipamentos:`);
-    const tableHeaders = [["ITEM", "TIPO", "PLACA/TAG", "MODELO", "Nº SÉRIE", "VALOR", "HORAS MÍNIMAS", "DATA DE DEVOLUÇÃO"]];
+    const tableHeaders = [["ITEM", "TIPO", "PLACA", "MODELO", "SÉRIE", "VALOR", "MÍNIMO", "SAÍDA"]];
     const tableBody = eqsDesmobilizados.map((ae: any, idx: number) => {
       const eq = equipamentos.find(e => e.id === ae.equipamento_id);
       return [
