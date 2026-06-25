@@ -411,15 +411,6 @@ export const ContratosDossieTab = () => {
   const handleCreateDossierFolder = async () => {
     if (!accessToken || !selectedContrato) return;
     
-    if (!isAfterDec2025(selectedContrato.created_at)) {
-      toast({
-        title: "Operação não permitida",
-        description: "Este contrato é anterior a dez/2025. Não é permitida a criação de dossiê para ele.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setCreatingFolder(true);
 
 
