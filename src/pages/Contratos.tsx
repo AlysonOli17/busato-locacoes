@@ -1302,6 +1302,16 @@ const Contratos = () => {
     toast({ title: "Sucesso", description: editingAditivo ? "Aditivo atualizado." : "Aditivo criado." });
     fetchAditivos(ajustesContrato.id);
     uploadMovementPDFToGDrive(ajustesContrato.id);
+  const handleExportAditivo = async (ad: Aditivo) => {
+    try {
+      const { exportAditivoToPDF } = await import("@/lib/aditivoExportUtils");
+      const eqs = ad.aditivos_equipamentos || [];
+      await exportAditivoToPDF(ad, ajustesContrato, equipamentos);
+      toast({ title: "Sucesso", description: "O Aditivo foi emitido com sucesso." });
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Erro", description: "Falha ao gerar o Aditivo em PDF.", variant: "destructive" });
+    }
   };
 
   const handleDeleteAditivo = async (id: string) => {
@@ -2585,6 +2595,9 @@ const Contratos = () => {
                           {futuro && <Badge variant="outline" className="text-xs text-muted-foreground">Futuro</Badge>}
                         </div>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleExportAditivo(ad)} title="Emitir PDF">
+                            <FileDown className="h-3 w-3" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAditivo(ad)}><Pencil className="h-3 w-3" /></Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
