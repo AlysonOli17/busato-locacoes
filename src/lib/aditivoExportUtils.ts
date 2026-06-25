@@ -45,7 +45,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
 
   const brandBlue: [number, number, number] = [41, 128, 185];
   const darkGray: [number, number, number] = [30, 30, 30];
-  const medGray: [number, number, number] = [60, 60, 60];
+  const medGray: [number, number, number] = [30, 30, 30];
   const lightGray: [number, number, number] = [140, 140, 140];
 
   let y = 35;
