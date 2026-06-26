@@ -253,19 +253,6 @@ export default function VistoriaPublica() {
                     className="mt-1.5 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500"
                   />
                 </div>
-                <div>
-                  <Label className="text-slate-300 text-sm">Status geral da máquina</Label>
-                  <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="mt-1.5 bg-slate-700 border-slate-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Aprovado">✅ Aprovado (Operacional)</SelectItem>
-                      <SelectItem value="Com Ressalvas">⚠️ Aprovado com Ressalvas</SelectItem>
-                      <SelectItem value="Reprovado">❌ Reprovado (Em Manutenção)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </CardContent>
             </Card>
 
@@ -322,6 +309,20 @@ export default function VistoriaPublica() {
                 <AlertTriangle className="h-4 w-4 shrink-0" /> {nonConformes} item(ns) não conforme(s) registrado(s).
               </div>
             )}
+
+            <div>
+              <Label className="text-slate-300 text-sm">Status geral da máquina *</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="mt-1.5 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Aprovado">✅ Aprovado (Operacional)</SelectItem>
+                  <SelectItem value="Com Ressalvas">⚠️ Aprovado com Ressalvas</SelectItem>
+                  <SelectItem value="Reprovado">❌ Reprovado (Em Manutenção)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div>
               <Label className="text-slate-300 text-sm">Observações gerais (opcional)</Label>
