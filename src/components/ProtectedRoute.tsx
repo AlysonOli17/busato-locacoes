@@ -21,8 +21,8 @@ export const ProtectedRoute = ({ children, requiredPermission }: Props) => {
   if (!user || !profile) return <Navigate to="/login" replace />;
   if (profile.status !== "Ativo") return <Navigate to="/login" replace />;
 
-  // Admin has access to everything
-  if (role === "admin") return <>{children}</>;
+  // Admin and Master have access to everything
+  if (role === "admin" || role === "master") return <>{children}</>;
 
   // Check specific permission
   const hasPermission = requiredPermission
