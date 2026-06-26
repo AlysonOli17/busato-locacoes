@@ -1,24 +1,5 @@
 import { parseLocalDate } from "@/lib/utils";
-
-let logoCache: string | null = null;
-async function loadLogo(): Promise<string | null> {
-  if (logoCache) return logoCache;
-  try {
-    const resp = await fetch("/images/logo-busato-horizontal.png");
-    const blob = await resp.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        logoCache = reader.result as string;
-        resolve(logoCache);
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
+import { addLetterhead } from "@/lib/exportUtils";
 
 function getMesNome(mesIndex: number): string {
   const meses = [
@@ -45,29 +26,18 @@ export async function exportComodatoToPDF(comodato: any, equipamento: any, downl
 
   let y = 20;
 
-  // Helper function to print page headers/footers
-  const printHeaderFooter = (pageNumber: number) => {
-    // Header Logo
-    if (logoCache) {
-      doc.addImage(logoCache, "PNG", margin, 15, 36, 9);
-    } else {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(50, 50, 50);
-      doc.text("BUSATO", margin, 20);
-    }
-    // Footer Page Number
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(120, 120, 120);
-    doc.text(`Página ${pageNumber} de 2`, pw - margin, ph - 10, { align: "right" });
-  };
-
-  // Helper for page break checks
   const checkPageBreak = (neededHeight: number) => {
     if (y + neededHeight > ph - 20) {
       doc.addPage();
-      y = 35; // Start position on next page (leaves room for header)
+      y = 20; // Default margin for subsequent pages
+      
+      // Footer Page Number
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Página ${pageCount}`, pw - margin, ph - 10, { align: "right" });
+      
       return true;
     }
     return false;
@@ -92,19 +62,14 @@ export async function exportComodatoToPDF(comodato: any, equipamento: any, downl
     y += lines.length * 4.5 + spacing;
   };
 
-  // Pre-load logo to cache
-  await loadLogo();
-
-  // Page 1 Setup
-  printHeaderFooter(1);
-  y = 35;
-
-  // 1. Document Title
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text("CONTRATO DE COMODATO DE EQUIPAMENTO", pw / 2, y, { align: "center" });
-  y += 12;
+  // Page 1 Setup (Letterhead)
+  y = await addLetterhead(doc, "Contrato de Comodato de Equipamento");
+  
+  // Set first page footer
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Página 1`, pw - margin, ph - 10, { align: "right" });
 
   // 2. Opening Paragraph
   const openingText = `Pelo presente instrumento particular de contrato de comodato, de um lado, como COMODANTE:
@@ -174,8 +139,14 @@ As partes acima qualificadas, de comum acordo, celebram o presente contrato de c
 
   // FORCE PAGE BREAK FOR PAGE 2
   doc.addPage();
-  y = 35;
-  printHeaderFooter(2);
+  y = 20;
+  
+  // Footer Page Number for Page 2
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Página ${pageCount}`, pw - margin, ph - 10, { align: "right" });
 
   // 8. Clause 6
   printParagraph("CLÁUSULA SEXTA - DA RESCISÃO", true, 3, "left");
