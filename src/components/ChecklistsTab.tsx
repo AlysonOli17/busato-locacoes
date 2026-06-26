@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon, Pencil, Link2, Copy } from "lucide-react";
+import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon, Pencil, Link2, Copy, Send } from "lucide-react";
 import { exportChecklistToPDF } from "@/lib/checklistExportUtils";
 
 export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
@@ -122,17 +122,21 @@ export const ChecklistsTab = () => {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [linkModal, setLinkModal] = useState<{ open: boolean; url: string; expires: string } | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestForm, setRequestForm] = useState({ equipamento_id: "", contrato_id: "none", tipo: "Entrega" });
   const { toast } = useToast();
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [chkRes, eqRes, ctRes, ceRes, empRes] = await Promise.all([
+      const [chkRes, eqRes, ctRes, ceRes, empRes, tokensRes] = await Promise.all([
         supabase.from("checklists").select("*").order("created_at", { ascending: false }),
         supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
         supabase.from("contratos").select("id, empresa_id, status"),
         supabase.from("contratos_equipamentos").select("id, contrato_id, equipamento_id, data_devolucao"),
-        supabase.from("empresas").select("id, nome")
+        supabase.from("empresas").select("id, nome"),
+        supabase.from("checklist_tokens").select("*, equipamentos(tipo, modelo, tag_placa), contratos(empresas(nome))").eq("used", false).order("created_at", { ascending: false })
       ]);
 
       const eqMap = new Map((eqRes.data || []).map(e => [e.id, e]));
@@ -154,6 +158,11 @@ export const ChecklistsTab = () => {
       if (eqRes.data) setEquipamentos(eqRes.data);
       if (ctRes.data) setContratos(ctRes.data.map((c: any) => ({ ...c, empresas: empMap.get(c.empresa_id) })));
       if (ceRes.data) setContratosEquipamentos(ceRes.data);
+
+      if (tokensRes.data) {
+        const validTokens = tokensRes.data.filter((t: any) => new Date(t.expires_at) > new Date());
+        setPendingRequests(validTokens);
+      }
     } catch (err: any) {
       console.error("Erro ao carregar dados do checklist:", err.message);
     } finally {
@@ -433,7 +442,11 @@ export const ChecklistsTab = () => {
     }
   };
 
-  const handleGerarLink = async (item: ChecklistItem) => {
+  const handleGerarLink = async () => {
+    if (!requestForm.equipamento_id) {
+      toast({ title: "Campo obrigatório", description: "Selecione o equipamento.", variant: "destructive" });
+      return;
+    }
     try {
       const expires = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
       const tokenHex = Array.from(crypto.getRandomValues(new Uint8Array(24)))
@@ -442,12 +455,15 @@ export const ChecklistsTab = () => {
       const { error } = await supabase.from("checklist_tokens").insert({
         id: crypto.randomUUID(),
         token: tokenHex,
-        contrato_id: item.contrato_id,
-        equipamento_id: item.equipamento_id,
-        tipo: item.tipo,
+        contrato_id: requestForm.contrato_id === "none" ? null : requestForm.contrato_id,
+        equipamento_id: requestForm.equipamento_id,
+        tipo: requestForm.tipo,
         expires_at: expires,
       });
       if (error) throw error;
+
+      setRequestDialogOpen(false);
+      fetchAll();
 
       const url = `${window.location.origin}/vistoria/${tokenHex}`;
       setLinkModal({
@@ -458,6 +474,23 @@ export const ChecklistsTab = () => {
     } catch (e: any) {
       toast({ title: "Erro ao gerar link", description: e.message, variant: "destructive" });
     }
+  };
+
+  const handleExcluirToken = async (id: string) => {
+    if (!confirm("Tem certeza que deseja cancelar esta solicitação? O link enviado não funcionará mais.")) return;
+    try {
+      await supabase.from("checklist_tokens").delete().eq("id", id);
+      toast({ title: "Sucesso", description: "Solicitação cancelada." });
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleCopyLink = (token: string, expires: string) => {
+    const url = `${window.location.origin}/vistoria/${token}`;
+    const expDate = new Date(expires).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    setLinkModal({ open: true, url, expires: expDate });
   };
 
   const handleDelete = async (id: string) => {
@@ -616,11 +649,73 @@ export const ChecklistsTab = () => {
             className="pl-9 bg-background/50 border-border/60 rounded-xl"
           />
         </div>
-        <Button onClick={() => handleOpenAdd()} className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl gap-2 w-full sm:w-auto font-bold uppercase tracking-wider text-xs py-2">
-          <Plus className="h-4 w-4" />
-          Fazer Vistoria
-        </Button>
+        <div className="flex w-full sm:w-auto gap-2">
+          <Button onClick={() => { setRequestForm({ equipamento_id: "", contrato_id: "none", tipo: "Entrega" }); setRequestDialogOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-2 flex-1 sm:flex-none font-bold uppercase tracking-wider text-xs py-2">
+            <Link2 className="h-4 w-4" />
+            Solicitar Vistoria Externa
+          </Button>
+          <Button onClick={() => handleOpenAdd()} className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl gap-2 flex-1 sm:flex-none font-bold uppercase tracking-wider text-xs py-2">
+            <Plus className="h-4 w-4" />
+            Fazer Vistoria
+          </Button>
+        </div>
       </div>
+
+      {/* Tabela de Solicitações Pendentes (Links) */}
+      {pendingRequests.length > 0 && (
+        <Card className="glass border-blue-500/20 shadow-sm overflow-hidden mb-6">
+          <div className="bg-blue-500/10 px-4 py-3 border-b border-blue-500/10 flex items-center gap-2">
+            <Send className="h-4 w-4 text-blue-500" />
+            <h3 className="font-bold text-sm text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+              Solicitações Externas Aguardando Preenchimento
+            </h3>
+          </div>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/20">
+                  <TableRow>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider">Equipamento</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider">Tipo</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider">Cliente/Contrato</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider">Expira Em</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right pr-6">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingRequests.map(req => (
+                    <TableRow key={req.id} className="hover:bg-muted/5 transition-colors">
+                      <TableCell className="font-bold text-xs text-foreground">
+                        {req.equipamentos?.tipo || "Desconhecido"} {req.equipamentos?.tag_placa ? `(${req.equipamentos.tag_placa})` : ""}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <Badge variant="outline" className="text-[9px] font-bold uppercase py-0.5 px-2">
+                          {req.tipo}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs font-semibold text-muted-foreground truncate max-w-[200px]">
+                        {req.contratos?.empresas?.nome || "Sem Contrato"}
+                      </TableCell>
+                      <TableCell className="text-xs font-medium text-amber-500 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {new Date(req.expires_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </TableCell>
+                      <TableCell className="text-right pr-6 space-x-1 whitespace-nowrap">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10" onClick={() => handleCopyLink(req.token, req.expires_at)} title="Ver / Copiar Link">
+                          <Link2 className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleExcluirToken(req.id)} title="Cancelar Solicitação">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Listagem de Checklists */}
       <Card className="glass border-border/40 shadow-sm overflow-hidden">
@@ -702,9 +797,6 @@ export const ChecklistsTab = () => {
                             )}
                           </Button>
                         )}
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-blue-500" onClick={() => handleGerarLink(item)} title="Gerar Link para Preenchimento Externo">
-                          <Link2 className="h-4 w-4" />
-                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(item)} title="Editar Checklist">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -938,6 +1030,62 @@ export const ChecklistsTab = () => {
               ) : (
                 "Salvar Vistoria"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Solicitar Vistoria Externa */}
+      <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-blue-500" /> Solicitar Vistoria Externa
+            </DialogTitle>
+            <DialogDescription>
+              Configure os dados básicos. Um link de uso único será gerado para que a pessoa preencha a vistoria remotamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label className="text-xs font-bold text-muted-foreground uppercase">Equipamento *</Label>
+              <Select value={requestForm.equipamento_id} onValueChange={val => setRequestForm(p => ({ ...p, equipamento_id: val }))}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {equipamentos.map(eq => (
+                    <SelectItem key={eq.id} value={eq.id}>{eq.tipo} {eq.modelo} {eq.tag_placa ? `(${eq.tag_placa})` : ""}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-muted-foreground uppercase">Contrato Vinculado</Label>
+              <Select value={requestForm.contrato_id} onValueChange={val => setRequestForm(p => ({ ...p, contrato_id: val }))}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum / Venda Avulsa</SelectItem>
+                  {contratos.map(ct => (
+                    <SelectItem key={ct.id} value={ct.id}>{ct.empresas?.nome || "Desconhecido"} (Ref: {ct.id.slice(0, 5)})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-muted-foreground uppercase">Tipo de Vistoria</Label>
+              <Select value={requestForm.tipo} onValueChange={val => setRequestForm(p => ({ ...p, tipo: val }))}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Entrega">Entrega (Mobilização)</SelectItem>
+                  <SelectItem value="Devolução">Devolução (Desmobilização)</SelectItem>
+                  <SelectItem value="Periódica">Inspeção Periódica / Manutenção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleGerarLink} className="bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2">
+              <Link2 className="h-4 w-4" /> Gerar Link Público
             </Button>
           </DialogFooter>
         </DialogContent>
