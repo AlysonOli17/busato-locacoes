@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon } from "lucide-react";
+import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon, Pencil } from "lucide-react";
 import { exportChecklistToPDF } from "@/lib/checklistExportUtils";
 
 export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
@@ -120,6 +120,7 @@ export const ChecklistsTab = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchAll = async () => {
@@ -217,6 +218,33 @@ export const ChecklistsTab = () => {
       fotosGerais: getDefaultFotosGerais(),
       notas: ""
     });
+    setEditingId(null);
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (item: ChecklistItem) => {
+    // Extract fotos gerais from itens json
+    const rawItens = { ...(item.itens || {}) };
+    const fotosGeraisRaw = rawItens["__fotos_gerais"] || getDefaultFotosGerais();
+    delete rawItens["__fotos_gerais"];
+
+    // Merge with defaults to ensure all keys exist
+    const mergedItens = { ...getDefaultItens(), ...rawItens };
+    const mergedFotos = { ...getDefaultFotosGerais(), ...fotosGeraisRaw };
+
+    setForm({
+      contrato_id: item.contrato_id || "none",
+      equipamento_id: item.equipamento_id,
+      tipo: item.tipo,
+      data: item.data,
+      horimetro: item.horimetro,
+      inspector: item.inspector,
+      status: item.status,
+      itens: mergedItens,
+      fotosGerais: mergedFotos,
+      notas: item.notas || ""
+    });
+    setEditingId(item.id);
     setDialogOpen(true);
   };
 
@@ -349,11 +377,14 @@ export const ChecklistsTab = () => {
         notas: form.notas
       };
 
-      const { data, error } = await supabase.from("checklists").insert(payload).select().single();
+      const { data, error } = editingId
+        ? await supabase.from("checklists").update(payload).eq("id", editingId).select().single()
+        : await supabase.from("checklists").insert(payload).select().single();
       if (error) throw error;
-      
-      toast({ title: "Sucesso", description: "Checklist registrado com sucesso." });
+
+      toast({ title: "Sucesso", description: editingId ? "Checklist atualizado com sucesso." : "Checklist registrado com sucesso." });
       setDialogOpen(false);
+      setEditingId(null);
       fetchAll();
 
       // Auto-insert horimetro in medicoes if valid
@@ -643,6 +674,9 @@ export const ChecklistsTab = () => {
                             )}
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(item)} title="Editar Checklist">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)} title="Excluir Registro">
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -661,8 +695,8 @@ export const ChecklistsTab = () => {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-accent" />
-              Preenchimento de Laudo de Vistoria
+              {editingId ? <Pencil className="h-5 w-5 text-primary" /> : <ClipboardCheck className="h-5 w-5 text-accent" />}
+              {editingId ? "Editar Laudo de Vistoria" : "Preenchimento de Laudo de Vistoria"}
             </DialogTitle>
             <DialogDescription>
               Preencha os testes físicos e fotografe o estado geral da máquina.
@@ -868,6 +902,8 @@ export const ChecklistsTab = () => {
             <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl" disabled={uploading}>
               {uploading ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando & Enviando Fotos...</>
+              ) : editingId ? (
+                "Salvar Alterações"
               ) : (
                 "Salvar Vistoria"
               )}
