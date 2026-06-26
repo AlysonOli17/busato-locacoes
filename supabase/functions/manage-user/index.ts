@@ -42,10 +42,51 @@ const UpdatePermissionsSchema = z.object({
   permissions: z.array(z.string().max(255)),
 });
 
+const UpdateGranularPermissionsSchema = z.object({
+  action: z.literal("update_granular_permissions"),
+  role: z.string().min(1).max(50),
+  permissions: z.array(z.object({
+    permission: z.string(),
+    actions: z.array(z.string()),
+  })),
+});
+
+const GetAuditLogsSchema = z.object({
+  action: z.literal("get_audit_logs"),
+  limit: z.number().optional(),
+  offset: z.number().optional(),
+  module: z.string().optional(),
+  user_id: z.string().optional(),
+});
+
 const RepairAuthSchema = z.object({
   action: z.literal("repair_auth"),
   email: z.string().email(),
 });
+
+// Helper to write audit log
+async function writeAuditLog(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string | null,
+  userName: string,
+  action: string,
+  module: string,
+  description: string,
+  metadata?: Record<string, unknown>
+) {
+  try {
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: userId,
+      user_name: userName,
+      action,
+      module,
+      description,
+      metadata: metadata ?? null,
+    });
+  } catch (e) {
+    console.error("Failed to write audit log:", e);
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -70,6 +111,14 @@ Deno.serve(async (req) => {
       .single();
     if (!callerRole || callerRole.role !== "admin") throw new Error("Not authorized");
 
+    // Get caller name for audit log
+    const { data: callerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("nome")
+      .eq("user_id", caller.id)
+      .single();
+    const callerName = callerProfile?.nome ?? caller.email ?? "Admin";
+
     const body = await req.json();
     const { action } = body;
 
@@ -88,7 +137,6 @@ Deno.serve(async (req) => {
       }
       console.log("Auth user created:", authUser.user.id);
 
-      // Use upsert to handle potential race condition with the database trigger
       console.log("Inserting profile...");
       const { error: pError } = await supabaseAdmin.from("profiles").insert({ 
         id: crypto.randomUUID(),
@@ -99,7 +147,6 @@ Deno.serve(async (req) => {
       });
       if (pError) {
         console.error("Profile insert error:", pError);
-        // Fallback: If it already exists due to trigger, just update it
         if (pError.code === '23505') {
           await supabaseAdmin.from("profiles").update({ 
             nome: validated.nome, 
@@ -115,6 +162,11 @@ Deno.serve(async (req) => {
         role: validated.role 
       });
       if (rError) console.error("Role upsert error:", rError);
+
+      await writeAuditLog(supabaseAdmin, caller.id, callerName, "create_user", "Usuários", 
+        `Criou o usuário ${validated.nome} (${validated.email}) com o perfil ${validated.role}`,
+        { target_user_id: authUser.user.id, email: validated.email, role: validated.role }
+      );
 
       return new Response(JSON.stringify({ success: true, user_id: authUser.user.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -138,6 +190,19 @@ Deno.serve(async (req) => {
 
       if (validated.password) {
         await supabaseAdmin.auth.admin.updateUserById(validated.user_id, { password: validated.password });
+        await writeAuditLog(supabaseAdmin, caller.id, callerName, "reset_password", "Usuários",
+          `Redefiniu a senha do usuário ${validated.user_id}`,
+          { target_user_id: validated.user_id }
+        );
+      } else {
+        const changes: string[] = [];
+        if (validated.nome) changes.push(`nome: ${validated.nome}`);
+        if (validated.status) changes.push(`status: ${validated.status}`);
+        if (validated.role) changes.push(`perfil: ${validated.role}`);
+        await writeAuditLog(supabaseAdmin, caller.id, callerName, "update_user", "Usuários",
+          `Atualizou os dados do usuário ${validated.user_id}: ${changes.join(", ")}`,
+          { target_user_id: validated.user_id, changes }
+        );
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -147,10 +212,20 @@ Deno.serve(async (req) => {
 
     if (action === "delete") {
       const validated = DeleteUserSchema.parse(body);
-      // Explicitly delete from tables first to ensure immediate reflection in queries
+      
+      // Get info before deletion for the log
+      const { data: deletedProfile } = await supabaseAdmin
+        .from("profiles").select("nome, email").eq("user_id", validated.user_id).single();
+      
       await supabaseAdmin.from("user_roles").delete().eq("user_id", validated.user_id);
       await supabaseAdmin.from("profiles").delete().eq("user_id", validated.user_id);
       await supabaseAdmin.auth.admin.deleteUser(validated.user_id);
+
+      await writeAuditLog(supabaseAdmin, caller.id, callerName, "delete_user", "Usuários",
+        `Removeu o usuário ${deletedProfile?.nome ?? "?"} (${deletedProfile?.email ?? validated.user_id})`,
+        { target_user_id: validated.user_id, nome: deletedProfile?.nome, email: deletedProfile?.email }
+      );
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -187,14 +262,56 @@ Deno.serve(async (req) => {
           validated.permissions.map((p: string) => ({ role: validated.role, permission: p }))
         );
       }
+      await writeAuditLog(supabaseAdmin, caller.id, callerName, "update_permissions", "Usuários",
+        `Atualizou as permissões do perfil ${validated.role}`,
+        { role: validated.role, permissions: validated.permissions }
+      );
       return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "update_granular_permissions") {
+      const validated = UpdateGranularPermissionsSchema.parse(body);
+      await supabaseAdmin.from("role_permissions").delete().eq("role", validated.role);
+      if (validated.permissions.length > 0) {
+        await supabaseAdmin.from("role_permissions").insert(
+          validated.permissions.map((p) => ({ 
+            role: validated.role, 
+            permission: p.permission,
+            actions: p.actions,
+          }))
+        );
+      }
+      await writeAuditLog(supabaseAdmin, caller.id, callerName, "update_granular_permissions", "Usuários",
+        `Atualizou as permissões granulares do perfil ${validated.role}`,
+        { role: validated.role }
+      );
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "get_audit_logs") {
+      const validated = GetAuditLogsSchema.parse(body);
+      let query = supabaseAdmin
+        .from("audit_logs")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(validated.limit ?? 100)
+        .range(validated.offset ?? 0, (validated.offset ?? 0) + (validated.limit ?? 100) - 1);
+
+      if (validated.module) query = query.eq("module", validated.module);
+      if (validated.user_id) query = query.eq("user_id", validated.user_id);
+
+      const { data, count } = await query;
+      return new Response(JSON.stringify({ data: data ?? [], count: count ?? 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (action === "repair_auth") {
       const validated = RepairAuthSchema.parse(body);
-      // Retrieve all users (paginated, but usually enough for small apps)
       const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
       if (listError) throw listError;
       
