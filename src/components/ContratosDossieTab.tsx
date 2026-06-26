@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -629,18 +630,16 @@ export const ContratosDossieTab = () => {
           {/* Contract Selector */}
           <div className="space-y-1">
             <Label className="text-xs font-bold text-muted-foreground uppercase">Contrato Ativo</Label>
-            <Select value={selectedContratoId} onValueChange={setSelectedContratoId}>
-              <SelectTrigger className="bg-background border-border/60">
-                <SelectValue placeholder="Selecione um contrato comercial para abrir o Dossiê..." />
-              </SelectTrigger>
-              <SelectContent>
-                {contratos.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    Contrato com {c.empresas?.nome || "Desconhecido"} (ID: {c.id.slice(0, 8)}) {c.gdrive_folder_id ? "✓ Dossie Ativo" : "— Sem Dossie"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={selectedContratoId} 
+              onValueChange={setSelectedContratoId}
+              placeholder="Selecione um contrato comercial para abrir o Dossiê..."
+              searchPlaceholder="Pesquisar contrato, ID ou empresa..."
+              options={contratos.map(c => ({
+                value: c.id,
+                label: `Contrato com ${c.empresas?.nome || "Desconhecido"} (ID: ${c.id.slice(0, 8)}) ${c.gdrive_folder_id ? "✓ Dossie Ativo" : "— Sem Dossie"}`
+              }))}
+            />
           </div>
         </CardContent>
       </Card>
