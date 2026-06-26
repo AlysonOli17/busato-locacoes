@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon, Pencil } from "lucide-react";
+import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon, Pencil, Link2, Copy } from "lucide-react";
 import { exportChecklistToPDF } from "@/lib/checklistExportUtils";
 
 export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
@@ -121,6 +121,7 @@ export const ChecklistsTab = () => {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [linkModal, setLinkModal] = useState<{ open: boolean; url: string; expires: string } | null>(null);
   const { toast } = useToast();
 
   const fetchAll = async () => {
@@ -432,6 +433,33 @@ export const ChecklistsTab = () => {
     }
   };
 
+  const handleGerarLink = async (item: ChecklistItem) => {
+    try {
+      const expires = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+      const tokenHex = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
+
+      const { error } = await supabase.from("checklist_tokens").insert({
+        id: crypto.randomUUID(),
+        token: tokenHex,
+        contrato_id: item.contrato_id,
+        equipamento_id: item.equipamento_id,
+        tipo: item.tipo,
+        expires_at: expires,
+      });
+      if (error) throw error;
+
+      const url = `${window.location.origin}/vistoria/${tokenHex}`;
+      setLinkModal({
+        open: true,
+        url,
+        expires: new Date(expires).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      });
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar link", description: e.message, variant: "destructive" });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja remover este checklist?")) return;
     try {
@@ -674,6 +702,9 @@ export const ChecklistsTab = () => {
                             )}
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-blue-500" onClick={() => handleGerarLink(item)} title="Gerar Link para Preenchimento Externo">
+                          <Link2 className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(item)} title="Editar Checklist">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -909,6 +940,48 @@ export const ChecklistsTab = () => {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Modal: Link Gerado */}
+      <Dialog open={!!linkModal?.open} onOpenChange={() => setLinkModal(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-blue-500" /> Link de Vistoria Gerado
+            </DialogTitle>
+            <DialogDescription>
+              Envie este link por WhatsApp ou e-mail. Ele expira em <strong>{linkModal?.expires}</strong> e pode ser usado apenas uma vez.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted border border-border">
+              <p className="text-sm text-foreground break-all flex-1 font-mono select-all">{linkModal?.url}</p>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="shrink-0"
+                onClick={() => {
+                  if (linkModal?.url) {
+                    navigator.clipboard.writeText(linkModal.url);
+                    toast({ title: "Link copiado!", description: "Cole no WhatsApp ou e-mail." });
+                  }
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
+              onClick={() => {
+                if (linkModal?.url) {
+                  const msg = encodeURIComponent(`Olá! Segue o link para preenchimento do laudo de vistoria:\n\n${linkModal.url}\n\nO link expira em ${linkModal.expires}.`);
+                  window.open(`https://wa.me/?text=${msg}`, "_blank");
+                }
+              }}
+            >
+              📲 Enviar pelo WhatsApp
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

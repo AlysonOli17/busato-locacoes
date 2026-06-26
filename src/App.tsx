@@ -21,6 +21,7 @@ import Agenda from "./pages/Agenda";
 import Configuracoes from "./pages/Configuracoes";
 import ManualPage from "./pages/Manual";
 import NotFound from "./pages/NotFound";
+import VistoriaPublica from "./pages/VistoriaPublica";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,8 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* Rota pública sem autenticação */}
+            <Route path="/vistoria/:token" element={<VistoriaPublica />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/equipamentos" element={<ProtectedRoute requiredPermission="/equipamentos"><Equipamentos /></ProtectedRoute>} />
