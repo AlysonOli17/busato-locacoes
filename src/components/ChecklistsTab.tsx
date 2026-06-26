@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon, Pencil, Link2, Copy, Send } from "lucide-react";
+import { ClipboardCheck, Plus, Search, FileDown, Trash2, AlertTriangle, Loader2, UploadCloud, Camera, Check, X, Image as ImageIcon, Pencil, Link2, Copy, Send, Clock } from "lucide-react";
 import { exportChecklistToPDF } from "@/lib/checklistExportUtils";
 
 export const isAfterDec2025 = (dateStr: string | null | undefined): boolean => {
@@ -174,8 +175,6 @@ export const ChecklistsTab = () => {
     fetchAll();
   }, []);
 
-  // 1. Lógica de Pendências de Desmobilização
-  // Retorna todos os equipamentos em contratos com data_devolucao (desmobilizados) mas sem checklist de devolução correspondente
   const pendencias = useMemo(() => {
     const devChecklists = new Set(
       checklists.filter(c => c.tipo === "Devolução").map(c => `${c.contrato_id}::${c.equipamento_id}`)
@@ -233,12 +232,10 @@ export const ChecklistsTab = () => {
   };
 
   const handleOpenEdit = (item: ChecklistItem) => {
-    // Extract fotos gerais from itens json
     const rawItens = { ...(item.itens || {}) };
     const fotosGeraisRaw = rawItens["__fotos_gerais"] || getDefaultFotosGerais();
     delete rawItens["__fotos_gerais"];
 
-    // Merge with defaults to ensure all keys exist
     const mergedItens = { ...getDefaultItens(), ...rawItens };
     const mergedFotos = { ...getDefaultFotosGerais(), ...fotosGeraisRaw };
 
@@ -325,7 +322,6 @@ export const ChecklistsTab = () => {
       let uploadPhoto: ((file: File, prefix: string) => Promise<string>) | null = null;
       let gdriveReady = false;
 
-      // Prepare Google Drive upload function if connected and linked to contract
       if (isTokenValid && form.contrato_id && form.contrato_id !== "none") {
         const ct = contratos.find(c => c.id === form.contrato_id);
         if (ct?.gdrive_folder_id) {
@@ -372,7 +368,6 @@ export const ChecklistsTab = () => {
         }
       }
 
-      // Salva as fotos gerais dentro do JSON de itens para evitar a necessidade de criar nova coluna
       payloadItens["__fotos_gerais"] = payloadFotosGerais;
 
       const payload = {
@@ -397,7 +392,6 @@ export const ChecklistsTab = () => {
       setEditingId(null);
       fetchAll();
 
-      // Auto-insert horimetro in medicoes if valid
       if (payload.horimetro > 0 && payload.equipamento_id) {
         try {
           const { data: lastMed } = await supabase.from("medicoes")
@@ -411,7 +405,6 @@ export const ChecklistsTab = () => {
             hInicial = Number(lastMed[0].horimetro_final);
           }
           
-          // Only insert if it progresses from the last known reading
           if (payload.horimetro >= hInicial) {
             const horasTrabalhadas = payload.horimetro - hInicial;
             await supabase.from("medicoes").insert({
@@ -430,7 +423,6 @@ export const ChecklistsTab = () => {
         }
       }
 
-      // Auto PDF sync
       if (isTokenValid && payload.contrato_id && isAfterDec2025(payload.data)) {
         toast({ title: "Google Drive", description: "Enviando laudo PDF..." });
         handleUploadToGDrive(data as ChecklistItem);
@@ -556,17 +548,14 @@ export const ChecklistsTab = () => {
       if (!eq) throw new Error("Equipamento não encontrado.");
       if (!ct) throw new Error("Contrato não encontrado.");
 
-      // 1. Check if contract has gdrive_folder_id mapped
       let folderId = ct.gdrive_folder_id;
       if (!folderId) {
         throw new Error("O dossiê deste contrato ainda não foi inicializado. Crie o dossiê na aba 'Dossiê' primeiro.");
       }
 
-      // 2. Export/Generate PDF
       const doc = await exportChecklistToPDF(item, eq, ct);
       const blob = doc.output("blob");
 
-      // 3. Find or Create "2. Operacional" subfolder under contract folder
       const { gdriveListFiles, gdriveCreateFolder, gdriveUploadFile } = await import("@/lib/gdrive");
       const subfolders = await gdriveListFiles(folderId, accessToken);
       let opFolder = subfolders.find(f => f.name === "2. Operacional" && f.mimeType === "application/vnd.google-apps.folder");
@@ -579,7 +568,6 @@ export const ChecklistsTab = () => {
         opFolderId = newFolder.id;
       }
 
-      // 4. Upload file
       const filename = `Checklist_${item.tipo}_${eq.tag_placa || "Equipamento"}_${item.id.slice(0, 5)}.pdf`;
       const existingFiles = await gdriveListFiles(opFolderId, accessToken);
       if (existingFiles.some(f => f.name === filename)) {
@@ -609,7 +597,6 @@ export const ChecklistsTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Alerta de Pendências de Vistoria de Retorno */}
       {pendencias.length > 0 && (
         <Card className="border-destructive/40 bg-destructive/5 overflow-hidden animate-in fade-in duration-300">
           <CardContent className="p-4 flex items-start gap-3">
@@ -638,7 +625,6 @@ export const ChecklistsTab = () => {
         </Card>
       )}
 
-      {/* Filtros e Cadastro */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -661,7 +647,6 @@ export const ChecklistsTab = () => {
         </div>
       </div>
 
-      {/* Tabela de Solicitações Pendentes (Links) */}
       {pendingRequests.length > 0 && (
         <Card className="glass border-blue-500/20 shadow-sm overflow-hidden mb-6">
           <div className="bg-blue-500/10 px-4 py-3 border-b border-blue-500/10 flex items-center gap-2">
@@ -717,7 +702,6 @@ export const ChecklistsTab = () => {
         </Card>
       )}
 
-      {/* Listagem de Checklists */}
       <Card className="glass border-border/40 shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {loading ? (
@@ -813,7 +797,6 @@ export const ChecklistsTab = () => {
         </CardContent>
       </Card>
 
-      {/* Modal Formulário Checklist */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
@@ -830,31 +813,25 @@ export const ChecklistsTab = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-muted-foreground uppercase">Equipamento</Label>
-                <Select value={form.equipamento_id} onValueChange={val => setForm(p => ({ ...p, equipamento_id: val }))}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {equipamentos.map(eq => (
-                      <SelectItem key={eq.id} value={eq.id}>{eq.tipo} {eq.modelo} ({eq.tag_placa || "Sem Placa"})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={equipamentos.map(eq => ({ value: eq.id, label: `${eq.tipo} ${eq.modelo} (${eq.tag_placa || "Sem Placa"})` }))}
+                  value={form.equipamento_id}
+                  onValueChange={val => setForm(p => ({ ...p, equipamento_id: val }))}
+                  disabled={editingId !== null}
+                />
               </div>
 
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-muted-foreground uppercase">Contrato Vinculado</Label>
-                <Select value={form.contrato_id} onValueChange={val => setForm(p => ({ ...p, contrato_id: val }))}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum Contrato (Venda/Vistoria Avulsa)</SelectItem>
-                    {contratos.filter(c => c.status === "Ativo").map(c => (
-                      <SelectItem key={c.id} value={c.id}>Contrato com {c.empresas?.nome || "Desconhecido"}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={[
+                    { value: "none", label: "Nenhum Contrato (Venda/Vistoria Avulsa)" },
+                    ...contratos.filter(c => c.status === "Ativo").map(c => ({ value: c.id, label: `Contrato com ${c.empresas?.nome || "Desconhecido"}` }))
+                  ]}
+                  value={form.contrato_id}
+                  onValueChange={val => setForm(p => ({ ...p, contrato_id: val }))}
+                  disabled={editingId !== null}
+                />
               </div>
 
               <div className="space-y-1">
@@ -1049,26 +1026,22 @@ export const ChecklistsTab = () => {
           <div className="grid gap-4 py-4">
             <div>
               <Label className="text-xs font-bold text-muted-foreground uppercase">Equipamento *</Label>
-              <Select value={requestForm.equipamento_id} onValueChange={val => setRequestForm(p => ({ ...p, equipamento_id: val }))}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {equipamentos.map(eq => (
-                    <SelectItem key={eq.id} value={eq.id}>{eq.tipo} {eq.modelo} {eq.tag_placa ? `(${eq.tag_placa})` : ""}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={equipamentos.map(eq => ({ value: eq.id, label: `${eq.tipo} ${eq.modelo} ${eq.tag_placa ? `(${eq.tag_placa})` : ""}` }))}
+                value={requestForm.equipamento_id}
+                onValueChange={val => setRequestForm(p => ({ ...p, equipamento_id: val }))}
+              />
             </div>
             <div>
               <Label className="text-xs font-bold text-muted-foreground uppercase">Contrato Vinculado</Label>
-              <Select value={requestForm.contrato_id} onValueChange={val => setRequestForm(p => ({ ...p, contrato_id: val }))}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum / Venda Avulsa</SelectItem>
-                  {contratos.map(ct => (
-                    <SelectItem key={ct.id} value={ct.id}>{ct.empresas?.nome || "Desconhecido"} (Ref: {ct.id.slice(0, 5)})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={[
+                  { value: "none", label: "Nenhum / Venda Avulsa" },
+                  ...contratos.map(ct => ({ value: ct.id, label: `${ct.empresas?.nome || "Desconhecido"} (Ref: ${ct.id.slice(0, 5)})` }))
+                ]}
+                value={requestForm.contrato_id}
+                onValueChange={val => setRequestForm(p => ({ ...p, contrato_id: val }))}
+              />
             </div>
             <div>
               <Label className="text-xs font-bold text-muted-foreground uppercase">Tipo de Vistoria</Label>

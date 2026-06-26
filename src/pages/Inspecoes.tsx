@@ -13,13 +13,8 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Camera, CheckCircle2, AlertCircle, Settings2, Trash2, Pencil, Search, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -427,18 +422,12 @@ const Inspecoes = () => {
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label>Selecione o Equipamento</Label>
-                  <Select value={selectedEquipId} onValueChange={(val) => { setSelectedEquipId(val); setCurrentChecklist({}); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Buscar equipamento..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {equipments.map(eq => (
-                        <SelectItem key={eq.id} value={eq.id}>
-                          {eq.tipo} {eq.modelo} {eq.tag_placa ? `(${eq.tag_placa})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={selectedEquipId}
+                    onValueChange={(val) => { setSelectedEquipId(val); setCurrentChecklist({}); }}
+                    placeholder="Buscar equipamento..."
+                    options={equipments.map(eq => ({ value: eq.id, label: `${eq.tipo} ${eq.modelo} ${eq.tag_placa ? `(${eq.tag_placa})` : ""}` }))}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>Responsável pela inspeção</Label>

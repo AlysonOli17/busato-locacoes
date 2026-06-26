@@ -1589,13 +1589,12 @@ export const FaturamentoContent = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
             <div className="space-y-1 w-full sm:w-auto">
               <Label className="text-[10px] uppercase font-bold text-muted-foreground">Empresa</Label>
-              <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
-                <SelectTrigger className="w-full sm:w-56 bg-background/50">
-                  <SelectValue placeholder="Todas as Empresas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Empresas</SelectItem>
-                  {(() => {
+              <SearchableSelect
+                value={filterEmpresa}
+                onValueChange={setFilterEmpresa}
+                options={[
+                  { value: "all", label: "Todas as Empresas" },
+                  ...(() => {
                     const empresaMap = new Map<string, string>();
                     contratos.forEach(c => { 
                       if (c.empresas?.nome) {
@@ -1609,12 +1608,11 @@ export const FaturamentoContent = () => {
                         empresaMap.set(i.contratos.empresa_id, label); 
                       }
                     });
-                    return Array.from(empresaMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, label]) => (
-                      <SelectItem key={id} value={id}>{label}</SelectItem>
-                    ));
-                  })()}
-                </SelectContent>
-              </Select>
+                    return Array.from(empresaMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, label]) => ({ value: id, label }));
+                  })()
+                ]}
+                className="w-full sm:w-56 bg-background/50"
+              />
             </div>
 
             <div className="space-y-1 w-full sm:w-auto">
