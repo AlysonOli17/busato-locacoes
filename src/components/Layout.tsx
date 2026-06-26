@@ -215,12 +215,12 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
   const filteredGroups = allGroups.map(group => {
     if (group.to) {
       const pathname = group.to.split('?')[0];
-      const hasPermission = role === "admin" || (permissions || []).includes(pathname);
+      const hasPermission = role === "admin" || role === "master" || (permissions || []).includes(pathname);
       if (!hasPermission) return null;
       return group;
     }
     const items = (group.items || []).filter(item => {
-      if (role === "admin") return true;
+      if (role === "admin" || role === "master") return true;
       if (item.adminOnly) return false;
       
       const pathname = item.to.split('?')[0];
@@ -229,7 +229,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
     return { ...group, items };
   }).filter((group): group is NavGroup => {
     if (!group) return false;
-    if (role !== "admin" && group.adminOnly) return false;
+    if (role !== "admin" && role !== "master" && group.adminOnly) return false;
     if (group.to) return true;
     return !!(group.items && group.items.length > 0);
   });
@@ -407,7 +407,7 @@ export const Layout = ({ children, title, subtitle }: LayoutProps) => {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-sidebar-foreground truncate">{profile?.nome}</p>
                 <p className="text-[10px] text-sidebar-foreground/50 truncate uppercase tracking-wider">
-                  {role === "admin" ? "Administrador" : role === "operador" ? "Operador" : role === "visualizador" ? "Visualizador" : role ? (role.charAt(0).toUpperCase() + role.slice(1)) : "Sem Perfil"}
+                  {role === "admin" ? "Administrador" : role === "master" ? "Master" : role === "operador" ? "Operador" : role === "visualizador" ? "Visualizador" : role ? (role.charAt(0).toUpperCase() + role.slice(1)) : "Sem Perfil"}
                 </p>
               </div>
             </div>

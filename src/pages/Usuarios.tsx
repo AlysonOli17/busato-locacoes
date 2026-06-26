@@ -433,7 +433,7 @@ const Usuarios = () => {
                 const rolePerms = rolePermissions.filter(p => p.role === user.role);
                 return (
                   <Card key={user.user_id} className={`group overflow-hidden border-border transition-all hover:shadow-md hover:border-primary/50 cursor-pointer ${isBlocked ? 'opacity-70 grayscale' : ''}`} onClick={() => { setEditUser(user); setEditSheetOpen(true); }}>
-                    <div className={`h-1.5 w-full ${user.role === 'admin' ? 'bg-primary' : isBlocked ? 'bg-destructive' : 'bg-success'}`} />
+                    <div className={`h-1.5 w-full ${(user.role === 'admin' || user.role === 'master') ? 'bg-primary' : isBlocked ? 'bg-destructive' : 'bg-success'}`} />
                     <CardContent className="p-5">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
@@ -673,14 +673,14 @@ const Usuarios = () => {
                   <p className="text-xs text-muted-foreground mb-3">Permissões herdadas do perfil <strong>{roleLabel(editUser.role)}</strong>.</p>
                   <div className="space-y-1">
                     {ALL_ROUTES.map(route => {
-                      const hasRolePerm = editUser.role === 'admin' || rolePermissions.some(p => p.role === editUser.role && p.permission === route.path);
+                      const hasRolePerm = editUser.role === 'admin' || editUser.role === 'master' || rolePermissions.some(p => p.role === editUser.role && p.permission === route.path);
                       if (!hasRolePerm) return null;
                       const actions = getRoleActions(editUser.role || "", route.path);
                       return (
                         <div key={route.path} className="flex items-center justify-between px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
                           <span className="text-sm font-medium">{route.icon} {route.label}</span>
                           <div className="flex gap-1">
-                            {(editUser.role === 'admin' ? ["view", "create", "edit", "delete"] : actions).map(a => (
+                            {((editUser.role === 'admin' || editUser.role === 'master') ? ["view", "create", "edit", "delete"] : actions).map(a => (
                               <span key={a} title={a} className="text-xs text-muted-foreground">{actionLabel(a)}</span>
                             ))}
                           </div>
@@ -698,7 +698,7 @@ const Usuarios = () => {
                   <p className="text-xs text-muted-foreground mb-3">Módulos adicionais apenas para este usuário.</p>
                   <div className="space-y-1">
                     {ALL_ROUTES.map(route => {
-                      const hasRolePerm = editUser.role === 'admin' || rolePermissions.some(p => p.role === editUser.role && p.permission === route.path);
+                      const hasRolePerm = editUser.role === 'admin' || editUser.role === 'master' || rolePermissions.some(p => p.role === editUser.role && p.permission === route.path);
                       const hasUserPerm = userPermissions.some(p => p.user_id === editUser.user_id && p.permission === route.path);
                       if (hasRolePerm) return null; // Already shown above
                       return (
