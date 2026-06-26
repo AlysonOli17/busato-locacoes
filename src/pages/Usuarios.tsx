@@ -349,11 +349,23 @@ const Usuarios = () => {
     setSavingPerms(true);
     try {
       const permsForRole = rolePermissions.filter(p => p.role === role);
-      await callManageUser({
-        action: "update_granular_permissions",
-        role,
-        permissions: permsForRole.map(p => ({ permission: p.permission, actions: p.actions ?? ["view"] })),
-      });
+      
+      // Delete all existing permissions for this role
+      const { error: delErr } = await supabase.from("role_permissions").delete().eq("role", role);
+      if (delErr) throw delErr;
+
+      // Re-insert with granular actions
+      if (permsForRole.length > 0) {
+        const rows = permsForRole.map(p => ({
+          id: crypto.randomUUID(),
+          role,
+          permission: p.permission,
+          actions: p.actions ?? ["view"],
+        }));
+        const { error: insErr } = await supabase.from("role_permissions").insert(rows);
+        if (insErr) throw insErr;
+      }
+
       toast({ title: "Permissões salvas!", description: `Perfil "${roleLabel(role)}" atualizado com sucesso.` });
       fetchPermissions();
     } catch (e: unknown) {
