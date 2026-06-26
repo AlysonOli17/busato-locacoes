@@ -81,17 +81,9 @@ export default function VistoriaPublica() {
     const fetchToken = async () => {
       if (!token) { setStep("invalid"); setLoading(false); return; }
       try {
-        const { data, error } = await supabase
-          .from("checklist_tokens")
-          .select(`
-            *,
-            equipamento:equipamentos(tipo, modelo, tag_placa, numero_serie),
-            contrato:contratos(empresas(nome))
-          `)
-          .eq("token", token)
-          .single();
+        const { data, error } = await supabase.rpc("get_checklist_token", { token_str: token });
 
-        if (error || !data) { setStep("invalid"); setLoading(false); return; }
+        if (error || !data || !data.id) { setStep("invalid"); setLoading(false); return; }
 
         if (data.used) { setStep("done"); setLoading(false); return; }
 
