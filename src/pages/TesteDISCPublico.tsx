@@ -74,6 +74,191 @@ const PERGUNTAS_DISC = [
       { id: "S", texto: "Esperar orientações claras para não errar." },
       { id: "C", texto: "Se isolar para analisar os dados com calma." }
     ]
+  },
+  // 6 perguntas (Rápido) - Base
+  
+  // Intermediário (+6 perguntas = 12 total)
+  {
+    id: 7,
+    pergunta: "Ao tomar uma decisão importante, você se baseia mais em:",
+    opcoes: [
+      { id: "D", texto: "Na minha intuição e experiência para resolver logo." },
+      { id: "I", texto: "No que os outros vão pensar e como isso afeta a equipe." },
+      { id: "S", texto: "Em manter a harmonia e o que já está funcionando." },
+      { id: "C", texto: "Em fatos, números e análises detalhadas." }
+    ]
+  },
+  {
+    id: 8,
+    pergunta: "Quando você precisa delegar uma tarefa, como você faz?",
+    opcoes: [
+      { id: "D", texto: "Delego rápido focando apenas no prazo final." },
+      { id: "I", texto: "Explico conversando bastante para motivar a pessoa." },
+      { id: "S", texto: "Mostro passo a passo com calma para a pessoa aprender." },
+      { id: "C", texto: "Passo um manual detalhado com os padrões de qualidade." }
+    ]
+  },
+  {
+    id: 9,
+    pergunta: "No seu tempo livre, o que você mais gosta de fazer?",
+    opcoes: [
+      { id: "D", texto: "Praticar esportes competitivos ou realizar conquistas pessoais." },
+      { id: "I", texto: "Sair com amigos, ir a festas ou eventos sociais." },
+      { id: "S", texto: "Ficar em casa, ler um livro ou assistir algo em família." },
+      { id: "C", texto: "Aprender algo novo, ler manuais ou focar em um hobby técnico." }
+    ]
+  },
+  {
+    id: 10,
+    pergunta: "Como você lida com as regras de um projeto?",
+    opcoes: [
+      { id: "D", texto: "As regras podem ser quebradas se os resultados forem melhores." },
+      { id: "I", texto: "As regras são guias, mas prefiro flexibilidade." },
+      { id: "S", texto: "Sigo as regras para manter a estabilidade do grupo." },
+      { id: "C", texto: "As regras existem para serem seguidas à risca." }
+    ]
+  },
+  {
+    id: 11,
+    pergunta: "Quando o projeto dá errado, qual é sua primeira reação?",
+    opcoes: [
+      { id: "D", texto: "Assumir o controle e tentar resolver sozinho na hora." },
+      { id: "I", texto: "Reunir a equipe para um brainstorm animado." },
+      { id: "S", texto: "Ficar preocupado, mas seguir orientações dos líderes." },
+      { id: "C", texto: "Investigar a causa raiz do problema e achar o culpado." }
+    ]
+  },
+  {
+    id: 12,
+    pergunta: "Qual palavra melhor te define?",
+    opcoes: [
+      { id: "D", texto: "Ousado." },
+      { id: "I", texto: "Entusiasmado." },
+      { id: "S", texto: "Compreensivo." },
+      { id: "C", texto: "Meticuloso." }
+    ]
+  },
+  
+  // Completo (+12 perguntas = 24 total)
+  {
+    id: 13,
+    pergunta: "Como você gosta de ser reconhecido?",
+    opcoes: [
+      { id: "D", texto: "Pelos resultados que alcancei e metas que bati." },
+      { id: "I", texto: "Elogios em público e aplausos da equipe." },
+      { id: "S", texto: "Com um agradecimento sincero e valorização pessoal." },
+      { id: "C", texto: "Pela excelência e ausência de erros no meu trabalho." }
+    ]
+  },
+  {
+    id: 14,
+    pergunta: "Ao receber uma crítica, como você geralmente reage?",
+    opcoes: [
+      { id: "D", texto: "Posso me defender se achar que a pessoa está errada." },
+      { id: "I", texto: "Levo para o lado pessoal, mas tento disfarçar com humor." },
+      { id: "S", texto: "Fico magoado e demoro um pouco para processar." },
+      { id: "C", texto: "Analiso se a crítica tem embasamento lógico e fatos." }
+    ]
+  },
+  {
+    id: 15,
+    pergunta: "Em reuniões longas, qual é sua postura?",
+    opcoes: [
+      { id: "D", texto: "Fico impaciente e quero ir direto ao ponto." },
+      { id: "I", texto: "Falo bastante, dou ideias e brinco com o pessoal." },
+      { id: "S", texto: "Escuto com atenção e só falo se for solicitado." },
+      { id: "C", texto: "Anoto tudo e questiono os dados apresentados." }
+    ]
+  },
+  {
+    id: 16,
+    pergunta: "Qual seu estilo de planejamento?",
+    opcoes: [
+      { id: "D", texto: "Planejo o mínimo necessário e ajusto no caminho." },
+      { id: "I", texto: "Planejo junto com a equipe conversando sobre as ideias." },
+      { id: "S", texto: "Gosto de planejar de forma estruturada e consistente." },
+      { id: "C", texto: "Faço planos detalhados cobrindo todos os cenários possíveis." }
+    ]
+  },
+  {
+    id: 17,
+    pergunta: "Quando precisa aprender algo novo, você prefere:",
+    opcoes: [
+      { id: "D", texto: "Aprender na prática, testando e errando." },
+      { id: "I", texto: "Aprender com outra pessoa me explicando de forma dinâmica." },
+      { id: "S", texto: "Aprender com paciência, passo a passo." },
+      { id: "C", texto: "Ler todo o material teórico antes de tentar na prática." }
+    ]
+  },
+  {
+    id: 18,
+    pergunta: "O que você mais preza num líder?",
+    opcoes: [
+      { id: "D", texto: "Visão, pulso firme e foco em resultado." },
+      { id: "I", texto: "Carisma, inspiração e boa comunicação." },
+      { id: "S", texto: "Empatia, apoio e paciência." },
+      { id: "C", texto: "Conhecimento técnico, justiça e clareza nas regras." }
+    ]
+  },
+  {
+    id: 19,
+    pergunta: "Como você organiza seu local de trabalho?",
+    opcoes: [
+      { id: "D", texto: "Funcional. O que importa é ter o que preciso à mão." },
+      { id: "I", texto: "Com fotos, lembranças e coisas coloridas." },
+      { id: "S", texto: "Organizado de forma a não mudar muito o layout." },
+      { id: "C", texto: "Extremamente limpo, organizado e categorizado." }
+    ]
+  },
+  {
+    id: 20,
+    pergunta: "Qual é o seu ritmo natural de trabalho?",
+    opcoes: [
+      { id: "D", texto: "Acelerado e focado no próximo objetivo." },
+      { id: "I", texto: "Dinâmico, mas varia muito dependendo do ambiente." },
+      { id: "S", texto: "Constante, em um ritmo seguro e sem pressa." },
+      { id: "C", texto: "Cuidadoso, no tempo necessário para não ter erros." }
+    ]
+  },
+  {
+    id: 21,
+    pergunta: "Como você convence os outros?",
+    opcoes: [
+      { id: "D", texto: "Pela força e assertividade dos meus argumentos." },
+      { id: "I", texto: "Pela empolgação, charme e entusiasmo." },
+      { id: "S", texto: "Mostrando como isso ajudará o grupo todo." },
+      { id: "C", texto: "Através da lógica, fatos e estatísticas." }
+    ]
+  },
+  {
+    id: 22,
+    pergunta: "Qual é o seu maior medo profissional?",
+    opcoes: [
+      { id: "D", texto: "Perder o controle ou falhar." },
+      { id: "I", texto: "Não ser notado, rejeição social." },
+      { id: "S", texto: "Perder a segurança ou passar por mudanças bruscas." },
+      { id: "C", texto: "Errar o trabalho ou não ter os dados corretos." }
+    ]
+  },
+  {
+    id: 23,
+    pergunta: "Na hora do conflito, você busca:",
+    opcoes: [
+      { id: "D", texto: "Ganhar a discussão a qualquer custo." },
+      { id: "I", texto: "Aliviar a tensão e voltar a ser amigo." },
+      { id: "S", texto: "Ceder um pouco para acalmar a situação." },
+      { id: "C", texto: "Achar o ponto onde a lógica falhou." }
+    ]
+  },
+  {
+    id: 24,
+    pergunta: "Você costuma tomar decisões com base em:",
+    opcoes: [
+      { id: "D", texto: "O que vai trazer resultado mais rápido." },
+      { id: "I", texto: "No que parece ser mais inovador e divertido." },
+      { id: "S", texto: "No que é mais seguro para todos os envolvidos." },
+      { id: "C", texto: "No que é correto e tem base sólida de dados." }
+    ]
   }
 ];
 
@@ -113,13 +298,23 @@ export default function TesteDISCPublico() {
     carregarTeste();
   }, [token]);
 
+  const getListaPerguntas = () => {
+    if (!teste || !teste.tipo_teste) return PERGUNTAS_DISC.slice(0, 6); // fallback Rápido
+    
+    if (teste.tipo_teste === 'Rápido') return PERGUNTAS_DISC.slice(0, 6);
+    if (teste.tipo_teste === 'Intermediário') return PERGUNTAS_DISC.slice(0, 12);
+    return PERGUNTAS_DISC; // Completo
+  };
+
+  const perguntasAtivas = getListaPerguntas();
+
   const handleNext = () => {
-    if (!respostas[PERGUNTAS_DISC[step].id]) {
+    if (!respostas[perguntasAtivas[step].id]) {
       toast({ title: "Atenção", description: "Selecione uma resposta para continuar." });
       return;
     }
     
-    if (step < PERGUNTAS_DISC.length - 1) {
+    if (step < perguntasAtivas.length - 1) {
       setStep(step + 1);
     } else {
       finalizarTeste();
@@ -214,7 +409,7 @@ export default function TesteDISCPublico() {
     );
   }
 
-  const perguntaAtual = PERGUNTAS_DISC[step];
+  const perguntaAtual = perguntasAtivas[step];
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center py-12 px-4">
@@ -224,6 +419,7 @@ export default function TesteDISCPublico() {
           <h1 className="text-2xl font-bold">Teste de Perfil Comportamental</h1>
           <p className="text-muted-foreground mt-2">
             Responda o mais sinceramente possível. Não existe resposta certa ou errada.
+            <br/><span className="text-sm opacity-70">Teste: {teste.tipo_teste} ({perguntasAtivas.length} perguntas)</span>
           </p>
         </div>
 
@@ -231,13 +427,13 @@ export default function TesteDISCPublico() {
           <div className="h-1 w-full bg-muted">
             <div 
               className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${((step + 1) / PERGUNTAS_DISC.length) * 100}%` }}
+              style={{ width: `${((step + 1) / perguntasAtivas.length) * 100}%` }}
             />
           </div>
           
           <CardHeader className="bg-muted/10 pb-6 border-b border-border/40">
             <CardDescription className="text-sm font-medium mb-2">
-              Pergunta {step + 1} de {PERGUNTAS_DISC.length}
+              Pergunta {step + 1} de {perguntasAtivas.length}
             </CardDescription>
             <CardTitle className="text-xl leading-relaxed">
               {perguntaAtual.pergunta}
@@ -275,7 +471,7 @@ export default function TesteDISCPublico() {
             >
               {submitting ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Finalizando...</>
-              ) : step === PERGUNTAS_DISC.length - 1 ? (
+              ) : step === perguntasAtivas.length - 1 ? (
                 "Finalizar Teste"
               ) : (
                 "Próxima Pergunta"

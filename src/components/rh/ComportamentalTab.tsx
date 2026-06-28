@@ -23,6 +23,7 @@ export interface TesteComportamental {
   resultado_i: number;
   resultado_s: number;
   resultado_c: number;
+  tipo_teste: string;
   perfil_predominante: string | null;
   criado_em: string;
   funcionarios?: { nome: string };
@@ -38,6 +39,7 @@ export function ComportamentalTab({ funcionarios }: Props) {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFuncionarioId, setSelectedFuncionarioId] = useState<string>("");
+  const [tipoTeste, setTipoTeste] = useState<string>("Rápido");
   const [isGenerating, setIsGenerating] = useState(false);
   
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -78,7 +80,8 @@ export function ComportamentalTab({ funcionarios }: Props) {
       const { data, error } = await supabase
         .from('testes_comportamentais')
         .insert([{
-          funcionario_id: selectedFuncionarioId
+          funcionario_id: selectedFuncionarioId,
+          tipo_teste: tipoTeste
         }])
         .select()
         .single();
@@ -160,6 +163,22 @@ export function ComportamentalTab({ funcionarios }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="pb-4">
+              <Label className="mb-2 block">Tamanho do Teste *</Label>
+              <Select 
+                value={tipoTeste} 
+                onValueChange={setTipoTeste}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rápido">Rápido (6 perguntas)</SelectItem>
+                  <SelectItem value="Intermediário">Intermediário (12 perguntas)</SelectItem>
+                  <SelectItem value="Completo">Completo (24 perguntas)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleGenerateLink} disabled={isGenerating}>
@@ -177,6 +196,7 @@ export function ComportamentalTab({ funcionarios }: Props) {
               <TableRow className="bg-muted/30">
                 <TableHead>Data Criação</TableHead>
                 <TableHead>Funcionário</TableHead>
+                <TableHead>Tamanho</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Perfil Predominante</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -200,6 +220,11 @@ export function ComportamentalTab({ funcionarios }: Props) {
                   <TableRow key={t.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell>{format(new Date(t.criado_em), 'dd/MM/yyyy')}</TableCell>
                     <TableCell className="font-medium">{t.funcionarios?.nome || 'Desconhecido'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-normal bg-background/50">
+                        {t.tipo_teste || 'Rápido'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{getStatusBadge(t.status)}</TableCell>
                     <TableCell>
                       {t.status === 'Concluído' ? (
