@@ -12,6 +12,8 @@ import { Users, Plus, Pencil, Trash2, Search, Target, Grid, Brain, Loader2 } fro
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { NineBoxTab } from "@/components/rh/NineBoxTab";
+import { PDITab } from "@/components/rh/PDITab";
 
 export interface Funcionario {
   id: string;
@@ -263,29 +265,11 @@ export default function RecursosHumanos() {
         </TabsContent>
 
         <TabsContent value="9box">
-          <Card className="glass border-border/40">
-            <CardHeader>
-              <CardTitle>Avaliação 9 Box</CardTitle>
-              <CardDescription>Mapeamento de Desempenho e Potencial (Em breve)</CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Grid className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>Módulo de avaliação 9 Box em desenvolvimento.</p>
-            </CardContent>
-          </Card>
+          <NineBoxTab funcionarios={funcionarios} />
         </TabsContent>
 
         <TabsContent value="pdi">
-          <Card className="glass border-border/40">
-            <CardHeader>
-              <CardTitle>Plano de Desenvolvimento Individual (PDI)</CardTitle>
-              <CardDescription>Gestão de metas e desenvolvimento (Em breve)</CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Target className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>Módulo de PDI em desenvolvimento.</p>
-            </CardContent>
-          </Card>
+          <PDITab funcionarios={funcionarios} />
         </TabsContent>
 
         <TabsContent value="comportamental">
