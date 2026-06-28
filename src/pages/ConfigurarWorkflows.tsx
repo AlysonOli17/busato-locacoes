@@ -21,6 +21,7 @@ export default function ConfigurarWorkflows() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Selection
@@ -37,12 +38,23 @@ export default function ConfigurarWorkflows() {
     nome: "",
     cor: "bg-gray-500",
     requer_aprovacao: false,
+    aprovador_id: "",
     ordem: 1
   });
 
   useEffect(() => {
     fetchWorkflows();
+    fetchUsuarios();
   }, []);
+
+  const fetchUsuarios = async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('id, full_name').order('full_name');
+      if (!error && data) {
+        setUsuarios(data);
+      }
+    } catch (e) {}
+  };
 
   const fetchWorkflows = async () => {
     try {
@@ -121,12 +133,13 @@ export default function ConfigurarWorkflows() {
         nome: etapaForm.nome,
         ordem: etapaForm.ordem || novaOrdem,
         cor: etapaForm.cor,
-        requer_aprovacao: etapaForm.requer_aprovacao
+        requer_aprovacao: etapaForm.requer_aprovacao,
+        aprovador_id: etapaForm.aprovador_id || null
       }]);
       if (error) throw error;
       toast({ title: "Etapa criada!" });
       setIsEtapaModalOpen(false);
-      setEtapaForm({ nome: "", cor: "bg-gray-500", requer_aprovacao: false, ordem: 1 });
+      setEtapaForm({ nome: "", cor: "bg-gray-500", requer_aprovacao: false, aprovador_id: "", ordem: 1 });
       handleSelectWf(selectedWf);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -303,6 +316,22 @@ export default function ConfigurarWorkflows() {
                 />
               </div>
             </div>
+
+            {etapaForm.requer_aprovacao && (
+              <div className="space-y-2">
+                <Label>Quem deve aprovar?</Label>
+                <select 
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={etapaForm.aprovador_id}
+                  onChange={(e) => setEtapaForm({...etapaForm, aprovador_id: e.target.value})}
+                >
+                  <option value="">Qualquer pessoa com acesso</option>
+                  {usuarios.map(u => (
+                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Cor de Destaque</Label>
