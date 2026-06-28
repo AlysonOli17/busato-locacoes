@@ -23,6 +23,7 @@ import ManualPage from "./pages/Manual";
 import NotFound from "./pages/NotFound";
 import VistoriaPublica from "./pages/VistoriaPublica";
 import RecursosHumanos from "./pages/RecursosHumanos";
+import TesteDISCPublico from "./pages/TesteDISCPublico";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ const App = () => (
           <Routes>
             {/* Rota pública sem autenticação */}
             <Route path="/vistoria/:token" element={<VistoriaPublica />} />
+            <Route path="/teste-disc/:token" element={<TesteDISCPublico />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/equipamentos" element={<ProtectedRoute requiredPermission="/equipamentos"><Equipamentos /></ProtectedRoute>} />

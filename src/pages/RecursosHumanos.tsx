@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { NineBoxTab } from "@/components/rh/NineBoxTab";
 import { PDITab } from "@/components/rh/PDITab";
+import { ComportamentalTab } from "@/components/rh/ComportamentalTab";
 
 export interface Funcionario {
   id: string;
@@ -273,16 +274,7 @@ export default function RecursosHumanos() {
         </TabsContent>
 
         <TabsContent value="comportamental">
-          <Card className="glass border-border/40">
-            <CardHeader>
-              <CardTitle>Perfil Comportamental</CardTitle>
-              <CardDescription>Análise DISC, MBTI, Big Five (Em breve)</CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Brain className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>Módulo de Perfil Comportamental em desenvolvimento.</p>
-            </CardContent>
-          </Card>
+          <ComportamentalTab funcionarios={funcionarios} />
         </TabsContent>
       </Tabs>
 
