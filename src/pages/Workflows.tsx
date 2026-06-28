@@ -6,6 +6,7 @@ import { Plus, Settings, GitMerge, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { KanbanBoard } from "@/components/workflows/KanbanBoard";
+import { Layout } from "@/components/Layout";
 
 export default function Workflows() {
   const { toast } = useToast();
@@ -73,19 +74,11 @@ export default function Workflows() {
   };
 
   return (
-    <div className="flex-1 p-6 lg:p-8 pt-6 pb-20 md:pb-8 lg:pb-8 h-screen overflow-y-auto w-full bg-background/50">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <GitMerge className="h-6 w-6 text-primary" /> Central de Workflows
-          </h1>
-          <p className="text-muted-foreground text-sm">Gerencie processos, aprovações e chamados.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/workflows/configurar')}>
-            <Settings className="h-4 w-4 mr-2" /> Configurar Processos
-          </Button>
-        </div>
+    <Layout title="Processos (Workflows)" subtitle="Gerencie processos, aprovações e chamados.">
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" onClick={() => navigate('/workflows/configurar')}>
+          <Settings className="h-4 w-4 mr-2" /> Configurar Processos
+        </Button>
       </div>
 
       <div className="flex-1 flex flex-col h-[calc(100vh-140px)] overflow-hidden bg-background rounded-lg border border-border shadow-sm p-4 gap-6">
@@ -131,6 +124,6 @@ export default function Workflows() {
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }

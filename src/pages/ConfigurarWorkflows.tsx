@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Plus, ArrowLeft, GitMerge, Settings2, Trash2, GripVertical, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Layout } from "@/components/Layout";
 import {
   Dialog,
   DialogContent,
@@ -163,21 +164,17 @@ export default function ConfigurarWorkflows() {
   };
 
   return (
-    <div className="flex-1 p-6 lg:p-8 pt-6 pb-20 md:pb-8 h-screen overflow-y-auto w-full bg-background/50">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/workflows')} className="mb-2 -ml-2 text-muted-foreground">
+    <Layout title="Configurar Processos" subtitle="Crie novos fluxos (Workflows) e defina as etapas de aprovação.">
+      <div className="flex-1 p-6 lg:p-8 pt-6 pb-20 md:pb-8 h-screen overflow-y-auto w-full bg-background/50">
+        <div className="flex justify-between mb-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/workflows')} className="text-muted-foreground">
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para o Kanban
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Settings2 className="h-6 w-6 text-primary" /> Configurar Processos
-          </h1>
-          <p className="text-muted-foreground text-sm">Crie novos fluxos (Workflows) e defina quantas etapas de aprovação quiser.</p>
+          <Button onClick={() => setIsWfModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Novo Processo
+          </Button>
         </div>
-        <Button onClick={() => setIsWfModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Novo Processo
-        </Button>
-      </div>
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         
@@ -357,7 +354,7 @@ export default function ConfigurarWorkflows() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
+    </Layout>
   );
 }

@@ -59,7 +59,7 @@ const ALL_ROUTES = [
   { path: "/apolices", label: "Apólices", icon: "🔒" },
   { path: "/gastos", label: "Gastos", icon: "💳" },
   { path: "/controladoria", label: "Controladoria", icon: "📈" },
-  { path: "/agenda", label: "Agenda & Kanban", icon: "📅" },
+  { path: "/workflows", label: "Processos (Workflows)", icon: "🔄" },
   { path: "/recursos-humanos", label: "Recursos Humanos", icon: "👥" },
 ];
 
