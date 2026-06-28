@@ -32,9 +32,9 @@ interface NavGroup {
 
 const allGroups: NavGroup[] = [
   {
-    label: "Agenda & Kanban",
-    icon: Calendar,
-    to: "/agenda"
+    label: "Processos (Workflows)",
+    icon: GitMerge,
+    to: "/workflows"
   },
   {
     label: "Controladoria",
@@ -116,11 +116,6 @@ const allGroups: NavGroup[] = [
     label: "Recursos Humanos",
     icon: Users,
     to: "/recursos-humanos"
-  },
-  {
-    label: "Processos (Workflows)",
-    icon: GitMerge,
-    to: "/workflows"
   },
   {
     label: "Manual do Sistema",
