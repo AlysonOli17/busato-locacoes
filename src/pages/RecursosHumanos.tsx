@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { Users, Plus, Pencil, Trash2, Search, Target, Grid, Brain, Loader2, TrendingUp } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Search, Target, Grid, Brain, Loader2, TrendingUp, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -16,6 +16,7 @@ import { NineBoxTab } from "@/components/rh/NineBoxTab";
 import { PDITab } from "@/components/rh/PDITab";
 import { ComportamentalTab } from "@/components/rh/ComportamentalTab";
 import { MetasTab } from "@/components/rh/MetasTab";
+import { Avaliacoes180Tab } from "@/components/rh/Avaliacoes180Tab";
 
 export interface Funcionario {
   id: string;
@@ -186,6 +187,9 @@ export default function RecursosHumanos() {
           <TabsTrigger value="metas" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" /> Estratégia e Metas
           </TabsTrigger>
+          <TabsTrigger value="avaliacoes" className="flex items-center gap-2">
+            <ClipboardList className="h-4 w-4" /> Avaliações 180º
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="cadastro" className="space-y-4">
@@ -283,6 +287,10 @@ export default function RecursosHumanos() {
 
         <TabsContent value="metas">
           <MetasTab funcionarios={funcionarios} />
+        </TabsContent>
+        
+        <TabsContent value="avaliacoes">
+          <Avaliacoes180Tab funcionarios={funcionarios} />
         </TabsContent>
       </Tabs>
 
