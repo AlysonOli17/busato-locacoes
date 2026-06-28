@@ -61,10 +61,10 @@ export default function DossieAnalitico() {
 
       // 4. PDIs
       const { data: pdi, error: err4 } = await supabase
-        .from('9box_pdi')
+        .from('pdis')
         .select('*')
         .eq('funcionario_id', id)
-        .order('criado_em', { ascending: false });
+        .order('created_at', { ascending: false });
       if (err4) throw err4;
       setPdis(pdi || []);
 
