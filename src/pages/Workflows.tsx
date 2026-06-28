@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, Settings, GitMerge, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { KanbanBoard } from "@/components/workflows/KanbanBoard";
 
 export default function Workflows() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [activeWorkflow, setActiveWorkflow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,7 @@ export default function Workflows() {
           <p className="text-muted-foreground text-sm">Gerencie processos, aprovações e chamados.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate('/workflows/configurar')}>
             <Settings className="h-4 w-4 mr-2" /> Configurar Processos
           </Button>
         </div>

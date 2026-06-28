@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { generateAprovacoesPdf } from "@/lib/workflowPdfUtils";
 
 interface Props {
   isOpen: boolean;
@@ -130,11 +131,28 @@ export function SolicitacaoModal({ isOpen, onClose, solicitacao, workflowId, eta
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Salvar"}
-          </Button>
+        <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+          <div>
+            {solicitacao && (
+              <Button variant="outline" type="button" onClick={async () => {
+                try {
+                  const doc = await generateAprovacoesPdf(solicitacao.id);
+                  doc.save(`Dossie_Aprovacao_${solicitacao.codigo}.pdf`);
+                } catch(e:any) {
+                  toast({title: "Erro ao gerar PDF", description: e.message, variant: "destructive"});
+                }
+              }}>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir Dossiê
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} disabled={loading}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Salvar"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
