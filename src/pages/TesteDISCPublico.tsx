@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Brain, CheckCircle2 } from "lucide-react";
@@ -270,9 +271,15 @@ export default function TesteDISCPublico() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [teste, setTeste] = useState<any>(null);
+  const [success, setSuccess] = useState(false);
   
   const [step, setStep] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, string>>({});
+  
+  // PDA States
+  const [isPdaStage, setIsPdaStage] = useState(false);
+  const [nivelEnergia, setNivelEnergia] = useState([50]);
+  const [autocontrole, setAutocontrole] = useState([50]);
   
   useEffect(() => {
     const carregarTeste = async () => {
@@ -299,14 +306,18 @@ export default function TesteDISCPublico() {
   }, [token]);
 
   const getListaPerguntas = () => {
-    if (!teste || !teste.tipo_teste) return PERGUNTAS_DISC.slice(0, 6); // fallback Rápido
+    if (!teste || !teste.tipo_teste) return PERGUNTAS_DISC.slice(0, 6);
     
     if (teste.tipo_teste === 'Rápido') return PERGUNTAS_DISC.slice(0, 6);
     if (teste.tipo_teste === 'Intermediário') return PERGUNTAS_DISC.slice(0, 12);
-    return PERGUNTAS_DISC; // Completo
+    return PERGUNTAS_DISC;
   };
 
   const perguntasAtivas = getListaPerguntas();
+
+  const handleOpcaoClick = (perguntaId: number, opcaoId: string) => {
+    setRespostas({ ...respostas, [perguntaId]: opcaoId });
+  };
 
   const handleNext = () => {
     if (!respostas[perguntasAtivas[step].id]) {
@@ -317,53 +328,59 @@ export default function TesteDISCPublico() {
     if (step < perguntasAtivas.length - 1) {
       setStep(step + 1);
     } else {
-      finalizarTeste();
+      setIsPdaStage(true);
     }
-  };
-
-  const calcularResultado = () => {
-    const contagem = { D: 0, I: 0, S: 0, C: 0 };
-    Object.values(respostas).forEach(valor => {
-      contagem[valor as keyof typeof contagem]++;
-    });
-
-    let perfilPredominante = "Equilibrado";
-    let maior = -1;
-    
-    if (contagem.D > maior) { maior = contagem.D; perfilPredominante = "Executor (D)"; }
-    if (contagem.I > maior) { maior = contagem.I; perfilPredominante = "Comunicador (I)"; }
-    if (contagem.S > maior) { maior = contagem.S; perfilPredominante = "Planejador (S)"; }
-    if (contagem.C > maior) { maior = contagem.C; perfilPredominante = "Analista (C)"; }
-
-    return { contagem, perfilPredominante };
   };
 
   const finalizarTeste = async () => {
     try {
       setSubmitting(true);
-      const { contagem, perfilPredominante } = calcularResultado();
+      
+      let counts = { D: 0, I: 0, S: 0, C: 0 };
+      Object.values(respostas).forEach(val => {
+        if (counts[val as keyof typeof counts] !== undefined) {
+          counts[val as keyof typeof counts]++;
+        }
+      });
+      
+      let perfilPredominante = "D";
+      let maxCount = -1;
+      Object.entries(counts).forEach(([key, val]) => {
+        if (val > maxCount) {
+          maxCount = val;
+          perfilPredominante = key;
+        }
+      });
+      
+      const nomes = {
+        D: "Executor (D)",
+        I: "Comunicador (I)",
+        S: "Planejador (S)",
+        C: "Analista (C)"
+      };
 
       const { error } = await supabase
         .from('testes_comportamentais')
         .update({
+          resultado_d: counts.D,
+          resultado_i: counts.I,
+          resultado_s: counts.S,
+          resultado_c: counts.C,
+          perfil_predominante: nomes[perfilPredominante as keyof typeof nomes],
+          nivel_energia: nivelEnergia[0],
+          autocontrole: autocontrole[0],
           status: 'Concluído',
           data_envio: new Date().toISOString(),
-          resultado_d: contagem.D,
-          resultado_i: contagem.I,
-          resultado_s: contagem.S,
-          resultado_c: contagem.C,
-          perfil_predominante: perfilPredominante,
-          respostas: respostas,
           atualizado_em: new Date().toISOString()
         })
-        .eq('token_acesso', token);
+        .eq('id', teste.id);
 
       if (error) throw error;
       
-      setTeste({ ...teste, status: 'Concluído', perfil_predominante: perfilPredominante });
+      setSuccess(true);
       toast({ title: "Teste Finalizado com Sucesso!" });
     } catch (err: any) {
-      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+      toast({ title: "Erro ao finalizar", description: err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -390,7 +407,7 @@ export default function TesteDISCPublico() {
     );
   }
 
-  if (teste.status === 'Concluído') {
+  if (teste.status === 'Concluído' || success) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Card className="max-w-md w-full glass border-border/40 text-center py-12 px-6">
@@ -398,12 +415,8 @@ export default function TesteDISCPublico() {
           <h2 className="text-2xl font-bold mb-2">Teste Concluído!</h2>
           <p className="text-muted-foreground mb-6">
             Obrigado, <strong>{teste.funcionarios?.nome}</strong>. 
-            Suas respostas foram enviadas para o RH da Busato com sucesso.
+            Suas respostas foram enviadas para o RH com sucesso.
           </p>
-          <div className="p-4 bg-primary/10 rounded-lg inline-block border border-primary/20">
-            <p className="text-sm text-primary font-medium">Seu Perfil Predominante:</p>
-            <p className="text-xl font-bold text-primary mt-1">{teste.perfil_predominante}</p>
-          </div>
         </Card>
       </div>
     );
@@ -427,57 +440,90 @@ export default function TesteDISCPublico() {
           <div className="h-1 w-full bg-muted">
             <div 
               className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${((step + 1) / perguntasAtivas.length) * 100}%` }}
+              style={{ width: isPdaStage ? '100%' : `${((step + 1) / perguntasAtivas.length) * 100}%` }}
             />
           </div>
           
-          <CardHeader className="bg-muted/10 pb-6 border-b border-border/40">
-            <CardDescription className="text-sm font-medium mb-2">
-              Pergunta {step + 1} de {perguntasAtivas.length}
-            </CardDescription>
-            <CardTitle className="text-xl leading-relaxed">
-              {perguntaAtual.pergunta}
-            </CardTitle>
-          </CardHeader>
-          
-          <CardContent className="pt-6">
-            <RadioGroup
-              value={respostas[perguntaAtual.id]}
-              onValueChange={(v) => setRespostas({ ...respostas, [perguntaAtual.id]: v })}
-              className="space-y-3"
-            >
-              {perguntaAtual.opcoes.map((opcao, idx) => (
-                <Label 
-                  key={idx}
-                  className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer hover:bg-muted/50 ${
-                    respostas[perguntaAtual.id] === opcao.id 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border/50'
-                  }`}
-                >
-                  <RadioGroupItem value={opcao.id} />
-                  <span className="text-base font-normal leading-tight">{opcao.texto}</span>
-                </Label>
-              ))}
-            </RadioGroup>
-          </CardContent>
-
-          <div className="p-6 bg-muted/10 border-t border-border/40 flex justify-end">
-            <Button 
-              onClick={handleNext} 
-              size="lg" 
-              className="w-full sm:w-auto"
-              disabled={submitting}
-            >
-              {submitting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Finalizando...</>
-              ) : step === perguntasAtivas.length - 1 ? (
-                "Finalizar Teste"
-              ) : (
-                "Próxima Pergunta"
-              )}
-            </Button>
-          </div>
+          {isPdaStage ? (
+            <>
+              <CardHeader className="bg-muted/10 pb-6 border-b border-border/40">
+                <CardDescription className="text-sm font-medium mb-2 text-primary">
+                  Etapa Final
+                </CardDescription>
+                <CardTitle className="text-xl leading-relaxed">
+                  Avaliação Dinâmica de Estado (PDA)
+                </CardTitle>
+                <p className="text-muted-foreground text-sm mt-2">
+                  Use as barras deslizantes para indicar como você se encontra <strong>neste momento da sua vida/trabalho</strong>.
+                </p>
+              </CardHeader>
+              <CardContent className="p-6 md:p-8">
+                <div className="space-y-12">
+                  <div className="space-y-6 bg-background/50 p-6 rounded-xl border border-border/40">
+                    <div className="space-y-2">
+                      <Label className="text-lg font-bold">1. Nível de Energia e Vitalidade</Label>
+                      <p className="text-sm text-muted-foreground">Como está a sua "bateria" física e mental para lidar com as demandas diárias hoje?</p>
+                    </div>
+                    <Slider value={nivelEnergia} onValueChange={setNivelEnergia} max={100} step={1} className="py-4" />
+                    <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+                      <span className={nivelEnergia[0] < 30 ? "text-destructive" : ""}>Esgotado</span>
+                      <span>Normal</span>
+                      <span className={nivelEnergia[0] >= 70 ? "text-success" : ""}>Muito Energizado</span>
+                    </div>
+                  </div>
+                  <div className="space-y-6 bg-background/50 p-6 rounded-xl border border-border/40">
+                    <div className="space-y-2">
+                      <Label className="text-lg font-bold">2. Autocontrole Emocional</Label>
+                      <p className="text-sm text-muted-foreground">Sob forte pressão, como você tem reagido?</p>
+                    </div>
+                    <Slider value={autocontrole} onValueChange={setAutocontrole} max={100} step={1} className="py-4" />
+                    <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+                      <span className={autocontrole[0] < 30 ? "text-destructive" : ""}>Impulsivo</span>
+                      <span>Racionalizo</span>
+                      <span className={autocontrole[0] >= 70 ? "text-success" : ""}>Controle Absoluto</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-8 flex justify-end">
+                  <Button size="lg" className="w-full md:w-auto px-8 shadow-md" onClick={finalizarTeste} disabled={submitting}>
+                    {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Finalizando...</> : "Concluir Avaliação Completa"}
+                  </Button>
+                </div>
+              </CardContent>
+            </>
+          ) : (
+            <>
+              <CardHeader className="bg-muted/10 pb-6 border-b border-border/40">
+                <CardDescription className="text-sm font-medium mb-2">
+                  Pergunta {step + 1} de {perguntasAtivas.length}
+                </CardDescription>
+                <CardTitle className="text-xl leading-relaxed">
+                  {perguntaAtual.pergunta}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 md:p-8">
+                <div className="space-y-3">
+                  {perguntaAtual.opcoes.map((opcao: any) => (
+                    <div
+                      key={opcao.id}
+                      onClick={() => handleOpcaoClick(perguntaAtual.id, opcao.id)}
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 flex items-center gap-3 ${respostas[perguntaAtual.id] === opcao.id ? 'border-primary bg-primary/10 shadow-sm' : 'border-border/60 hover:border-primary/50 hover:bg-muted/30 bg-background'}`}
+                    >
+                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${respostas[perguntaAtual.id] === opcao.id ? 'border-primary' : 'border-muted-foreground/50'}`}>
+                        {respostas[perguntaAtual.id] === opcao.id && <div className="h-2.5 w-2.5 bg-primary rounded-full" />}
+                      </div>
+                      <span className={`text-base ${respostas[perguntaAtual.id] === opcao.id ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{opcao.texto}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-8 flex justify-end">
+                  <Button size="lg" className="w-full md:w-auto px-8 shadow-md" onClick={handleNext}>
+                    {step === perguntasAtivas.length - 1 ? "Ir para Etapa Final" : "Próxima Pergunta"}
+                  </Button>
+                </div>
+              </CardContent>
+            </>
+          )}
         </Card>
       </div>
     </div>

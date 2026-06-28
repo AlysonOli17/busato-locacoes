@@ -25,6 +25,8 @@ export interface TesteComportamental {
   resultado_c: number;
   tipo_teste: string;
   perfil_predominante: string | null;
+  nivel_energia?: number | null;
+  autocontrole?: number | null;
   criado_em: string;
   funcionarios?: { nome: string };
 }
@@ -341,6 +343,66 @@ export function ComportamentalTab({ funcionarios }: Props) {
                   </div>
                 </div>
               </div>
+
+              {/* Análise PDA */}
+              {(testDetails.nivel_energia !== undefined && testDetails.nivel_energia !== null) && (
+                <div className="space-y-6 pt-6 border-t border-border/50">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold">Análise PDA (Estado Dinâmico)</h4>
+                    <Badge variant="outline" className="bg-primary/5 text-primary">Novo</Badge>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {/* Energia */}
+                    <div className="space-y-2 bg-background/50 p-4 rounded-lg border border-border/40">
+                      <div className="flex justify-between items-center text-sm mb-1">
+                        <span className="font-bold">Nível de Energia / Vitalidade</span>
+                        <span className="font-mono font-bold">{testDetails.nivel_energia}%</span>
+                      </div>
+                      <Progress 
+                        value={testDetails.nivel_energia} 
+                        className="h-3"
+                        indicatorClassName={
+                          testDetails.nivel_energia < 30 ? "bg-destructive" :
+                          testDetails.nivel_energia < 70 ? "bg-primary" : "bg-success"
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {testDetails.nivel_energia < 30 ? 
+                          "Atenção: Nível de energia crítico. O colaborador pode estar em sobrecarga ou próximo ao esgotamento (Burnout). Recomenda-se acompanhamento." :
+                         testDetails.nivel_energia < 70 ?
+                          "Energia estável. O colaborador consegue lidar com as demandas atuais de forma equilibrada." :
+                          "Alta vitalidade. O colaborador está muito energizado e pronto para assumir novos desafios e maior carga."
+                        }
+                      </p>
+                    </div>
+
+                    {/* Autocontrole */}
+                    <div className="space-y-2 bg-background/50 p-4 rounded-lg border border-border/40">
+                      <div className="flex justify-between items-center text-sm mb-1">
+                        <span className="font-bold">Autocontrole Emocional</span>
+                        <span className="font-mono font-bold">{testDetails.autocontrole}%</span>
+                      </div>
+                      <Progress 
+                        value={testDetails.autocontrole} 
+                        className="h-3"
+                        indicatorClassName={
+                          testDetails.autocontrole! < 30 ? "bg-destructive" :
+                          testDetails.autocontrole! < 70 ? "bg-primary" : "bg-success"
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {testDetails.autocontrole! < 30 ? 
+                          "Baixo autocontrole. Tende a ser impulsivo e pode perder a calma facilmente sob pressão." :
+                         testDetails.autocontrole! < 70 ?
+                          "Autocontrole moderado. Consegue racionalizar após o impacto inicial do estresse." :
+                          "Alto autocontrole. Mantém a postura e o raciocínio lógico absoluto, mesmo sob forte pressão."
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
