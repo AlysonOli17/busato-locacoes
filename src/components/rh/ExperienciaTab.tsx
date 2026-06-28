@@ -3,10 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Clock, AlertTriangle, CheckCircle2, UserPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Clock, AlertTriangle, CheckCircle2, UserPlus, Loader2 } from "lucide-react";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { Funcionario } from "@/pages/RecursosHumanos";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 interface Props {
   funcionarios: Funcionario[];
@@ -14,6 +20,16 @@ interface Props {
 
 export function ExperienciaTab({ funcionarios }: Props) {
   const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedFunc, setSelectedFunc] = useState<Funcionario | null>(null);
+  
+  const [formData, setFormData] = useState({
+    adaptacao_cultura: "3",
+    velocidade_aprendizado: "3",
+    decisao: "",
+    observacoes: ""
+  });
 
   const getStatusExperiencia = (dataAdmissao: string | null) => {
     if (!dataAdmissao) return null;
@@ -47,10 +63,43 @@ export function ExperienciaTab({ funcionarios }: Props) {
     .sort((a, b) => (b.exp?.dias || 0) - (a.exp?.dias || 0));
 
   const handleAvaliarExperiencia = (funcionario: Funcionario) => {
-    toast({
-      title: "Recurso em Desenvolvimento",
-      description: "A avaliação estruturada de 45/90 dias abrirá um formulário específico para aprovação/reprovação do colaborador.",
-    });
+    setSelectedFunc(funcionario);
+    setFormData({ adaptacao_cultura: "3", velocidade_aprendizado: "3", decisao: "", observacoes: "" });
+    setIsDialogOpen(true);
+  };
+
+  const handleSalvar = async () => {
+    if (!formData.decisao) {
+      toast({ title: "Decisão Obrigatória", description: "Por favor, indique se o colaborador deve ser aprovado, estendido ou desligado.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const { error } = await supabase
+        .from('avaliacoes_desempenho')
+        .insert([{
+          funcionario_id: selectedFunc?.id,
+          tipo: '180_Graus', // Usando o tipo lider para avaliacao de exp
+          status: 'Concluído',
+          observacoes: `[AVALIAÇÃO DE EXPERIÊNCIA - ${selectedFunc?.exp?.dias} dias]\nDecisão: ${formData.decisao}\n\nObservações: ${formData.observacoes}`,
+          respostas_ancoras: {
+            adaptacao_cultura: formData.adaptacao_cultura,
+            velocidade_aprendizado: formData.velocidade_aprendizado,
+            fase_experiencia: selectedFunc?.exp?.dias
+          }
+        }]);
+        
+      if (error) throw error;
+      
+      toast({ title: "Avaliação registrada com sucesso!" });
+      setIsDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -152,6 +201,71 @@ export function ExperienciaTab({ funcionarios }: Props) {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Avaliação de Período de Experiência</DialogTitle>
+            <DialogDescription>
+              {selectedFunc?.nome} está há {selectedFunc?.exp?.dias} dias na empresa.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label>Adaptação à Cultura e Regras da Empresa</Label>
+              <Select value={formData.adaptacao_cultura} onValueChange={(v) => setFormData({...formData, adaptacao_cultura: v})}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Ruim (Resistente às normas)</SelectItem>
+                  <SelectItem value="3">Regular (Adaptando-se aos poucos)</SelectItem>
+                  <SelectItem value="5">Excelente (Total aderência à cultura)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Velocidade de Aprendizado Operacional</Label>
+              <Select value={formData.velocidade_aprendizado} onValueChange={(v) => setFormData({...formData, velocidade_aprendizado: v})}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Abaixo do esperado (Dificuldade de pegar as rotinas)</SelectItem>
+                  <SelectItem value="3">Dentro do esperado (Aprendizado normal)</SelectItem>
+                  <SelectItem value="5">Acima do esperado (Já domina a função rapidamente)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-primary font-bold">Decisão do Gestor *</Label>
+              <Select value={formData.decisao} onValueChange={(v) => setFormData({...formData, decisao: v})}>
+                <SelectTrigger><SelectValue placeholder="Qual será o parecer?" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Aprovar/Efetivar">Aprovar / Efetivar</SelectItem>
+                  <SelectItem value="Estender (Atenção)">Estender Período de Experiência (Atenção)</SelectItem>
+                  <SelectItem value="Desligar (Reprovado)">Desligar (Reprovado na Experiência)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Justificativa / Observações Finais</Label>
+              <Textarea 
+                placeholder="Detalhe o motivo da decisão..." 
+                value={formData.observacoes}
+                onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSalvar} disabled={submitting}>
+              {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...</> : "Registrar Decisão"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
