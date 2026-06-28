@@ -26,6 +26,7 @@ import RecursosHumanos from "./pages/RecursosHumanos";
 import TesteDISCPublico from "./pages/TesteDISCPublico";
 import AutoavaliacaoPublica from "./pages/AutoavaliacaoPublica";
 import DossieAnalitico from "./pages/DossieFuncionario";
+import Workflows from "./pages/Workflows";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/propostas" element={<Navigate to="/contratos" replace />} />
             <Route path="/medicoes" element={<ProtectedRoute requiredPermission="/medicoes"><Medicoes /></ProtectedRoute>} />
             <Route path="/faturamento" element={<Navigate to="/medicoes" replace />} />
+            <Route path="/workflows" element={<ProtectedRoute requiredPermission="/workflows"><Workflows /></ProtectedRoute>} />
             <Route path="/apolices" element={<ProtectedRoute requiredPermission="/apolices"><Apolices /></ProtectedRoute>} />
             <Route path="/gastos" element={<ProtectedRoute requiredPermission="/gastos"><Gastos /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />
