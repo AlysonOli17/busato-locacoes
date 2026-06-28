@@ -42,7 +42,8 @@ export const ProtectedRoute = ({ children, requiredPermission }: Props) => {
       "/apolices",
       "/gastos",
       "/controladoria",
-      "/agenda"
+      "/agenda",
+      "/recursos-humanos"
     ];
     const firstAllowed = allowedRoutes.find(r => 
       r === "/controladoria" 

@@ -60,6 +60,7 @@ const ALL_ROUTES = [
   { path: "/gastos", label: "Gastos", icon: "💳" },
   { path: "/controladoria", label: "Controladoria", icon: "📈" },
   { path: "/agenda", label: "Agenda & Kanban", icon: "📅" },
+  { path: "/recursos-humanos", label: "Recursos Humanos", icon: "👥" },
 ];
 
 const ALL_ACTIONS = [

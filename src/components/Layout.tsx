@@ -112,7 +112,11 @@ const allGroups: NavGroup[] = [
       { to: "/configuracoes?tab=robo", icon: Bot, label: "Alerta Robô", adminOnly: true },
     ]
   },
-
+  {
+    label: "Recursos Humanos",
+    icon: Users,
+    to: "/recursos-humanos"
+  },
   {
     label: "Manual do Sistema",
     icon: BookOpen,
