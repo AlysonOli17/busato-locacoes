@@ -8,15 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { Users, Plus, Pencil, Trash2, Search, Target, Grid, Brain, Loader2, TrendingUp, ClipboardList } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Search, Target, Grid, Brain, Loader2, TrendingUp, ClipboardList, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { NineBoxTab } from "@/components/rh/NineBoxTab";
 import { PDITab } from "@/components/rh/PDITab";
 import { ComportamentalTab } from "@/components/rh/ComportamentalTab";
 import { MetasTab } from "@/components/rh/MetasTab";
 import { Avaliacoes180Tab } from "@/components/rh/Avaliacoes180Tab";
+import { ExperienciaTab } from "@/components/rh/ExperienciaTab";
 
 export interface Funcionario {
   id: string;
@@ -32,6 +34,7 @@ export interface Funcionario {
 
 export default function RecursosHumanos() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -181,6 +184,9 @@ export default function RecursosHumanos() {
           <TabsTrigger value="pdi" className="flex items-center gap-2">
             <Target className="h-4 w-4" /> PDI
           </TabsTrigger>
+          <TabsTrigger value="experiencia" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" /> Experiência
+          </TabsTrigger>
           <TabsTrigger value="comportamental" className="flex items-center gap-2">
             <Brain className="h-4 w-4" /> Comportamental
           </TabsTrigger>
@@ -255,6 +261,9 @@ export default function RecursosHumanos() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => navigate(`/rh/dossie/${f.id}`)}>
+                                <Search className="h-4 w-4 mr-2" /> Dossiê
+                              </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleOpenSheet(f)}>
                                 <Pencil className="h-4 w-4 text-muted-foreground" />
                               </Button>
@@ -279,6 +288,10 @@ export default function RecursosHumanos() {
 
         <TabsContent value="pdi">
           <PDITab funcionarios={funcionarios} />
+        </TabsContent>
+
+        <TabsContent value="experiencia">
+          <ExperienciaTab funcionarios={funcionarios} />
         </TabsContent>
 
         <TabsContent value="comportamental">

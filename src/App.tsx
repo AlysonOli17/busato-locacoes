@@ -25,6 +25,7 @@ import VistoriaPublica from "./pages/VistoriaPublica";
 import RecursosHumanos from "./pages/RecursosHumanos";
 import TesteDISCPublico from "./pages/TesteDISCPublico";
 import AutoavaliacaoPublica from "./pages/AutoavaliacaoPublica";
+import DossieAnalitico from "./pages/DossieFuncionario";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/agenda" element={<ProtectedRoute requiredPermission="/agenda"><Agenda /></ProtectedRoute>} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/recursos-humanos" element={<ProtectedRoute requiredPermission="/recursos-humanos"><RecursosHumanos /></ProtectedRoute>} />
+            <Route path="/rh/dossie/:id" element={<ProtectedRoute requiredPermission="/recursos-humanos"><DossieAnalitico /></ProtectedRoute>} />
             <Route path="/manual" element={<ManualPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
