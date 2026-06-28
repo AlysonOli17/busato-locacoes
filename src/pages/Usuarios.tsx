@@ -259,7 +259,12 @@ const Usuarios = () => {
     }
     setSavingPw(true);
     try {
-      await callManageUser({ action: "update", user_id: editUser.user_id, password: resetPwForm.newPassword });
+      const { error } = await supabase.rpc('admin_update_password', { 
+        target_user_id: editUser.user_id, 
+        new_password: resetPwForm.newPassword 
+      });
+      if (error) throw new Error(error.message);
+      
       toast({ title: "Senha redefinida", description: `A senha de ${editUser.nome} foi atualizada com sucesso.` });
       setResetPwOpen(false);
       setResetPwForm(emptyResetPw);
