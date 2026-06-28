@@ -11,6 +11,7 @@ import { Funcionario } from "@/pages/RecursosHumanos";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 
 export interface TesteComportamental {
   id: string;
@@ -38,6 +39,9 @@ export function ComportamentalTab({ funcionarios }: Props) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFuncionarioId, setSelectedFuncionarioId] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [testDetails, setTestDetails] = useState<TesteComportamental | null>(null);
 
   const fetchTestes = async () => {
     try {
@@ -112,6 +116,11 @@ export function ComportamentalTab({ funcionarios }: Props) {
       return <Badge variant="success" className="font-normal"><CheckCircle2 className="h-3 w-3 mr-1" /> Concluído</Badge>;
     }
     return <Badge variant="secondary" className="font-normal"><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Pendente</Badge>;
+  };
+
+  const openDetails = (teste: TesteComportamental) => {
+    setTestDetails(teste);
+    setDetailsOpen(true);
   };
 
   return (
@@ -208,7 +217,7 @@ export function ComportamentalTab({ funcionarios }: Props) {
                           <Copy className="h-4 w-4 mr-2" /> Copiar Link
                         </Button>
                       ) : (
-                        <Button variant="outline" size="sm" onClick={() => toast({ title: "Em breve", description: "O gráfico completo do DISC será exibido aqui." })}>
+                        <Button variant="outline" size="sm" onClick={() => openDetails(t)}>
                           Ver Detalhes
                         </Button>
                       )}
@@ -220,6 +229,84 @@ export function ComportamentalTab({ funcionarios }: Props) {
           </Table>
         </div>
       </CardContent>
+
+      {/* Modal de Detalhes do DISC */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-[600px] bg-background/95 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Brain className="h-6 w-6 text-primary" />
+              Resultado DISC
+            </DialogTitle>
+            <DialogDescription>
+              Análise comportamental de <strong>{testDetails?.funcionarios?.nome}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          
+          {testDetails && (
+            <div className="py-6 space-y-8">
+              <div className="text-center p-6 bg-primary/10 border border-primary/20 rounded-xl">
+                <p className="text-sm font-medium text-primary uppercase tracking-widest mb-1">Perfil Predominante</p>
+                <h3 className="text-3xl font-black text-primary">{testDetails.perfil_predominante}</h3>
+              </div>
+
+              <div className="space-y-6">
+                <h4 className="font-semibold border-b border-border/50 pb-2">Distribuição dos Fatores</h4>
+                
+                <div className="space-y-4">
+                  {/* D - Dominância */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-bold text-red-500">D - Dominância (Executor)</span>
+                      <span className="font-mono">{testDetails.resultado_d} pts</span>
+                    </div>
+                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-red-500" style={{ width: `${(testDetails.resultado_d / 6) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* I - Influência */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-bold text-yellow-500">I - Influência (Comunicador)</span>
+                      <span className="font-mono">{testDetails.resultado_i} pts</span>
+                    </div>
+                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-yellow-500" style={{ width: `${(testDetails.resultado_i / 6) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* S - Estabilidade */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-bold text-green-500">S - Estabilidade (Planejador)</span>
+                      <span className="font-mono">{testDetails.resultado_s} pts</span>
+                    </div>
+                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500" style={{ width: `${(testDetails.resultado_s / 6) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* C - Conformidade */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-bold text-blue-500">C - Conformidade (Analista)</span>
+                      <span className="font-mono">{testDetails.resultado_c} pts</span>
+                    </div>
+                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500" style={{ width: `${(testDetails.resultado_c / 6) * 100}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setDetailsOpen(false)}>Fechar Relatório</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
