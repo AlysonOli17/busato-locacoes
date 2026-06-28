@@ -158,7 +158,7 @@ export default function DossieAnalitico() {
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => navigate('/rh')}>
+          <Button variant="outline" size="icon" onClick={() => navigate('/recursos-humanos')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
