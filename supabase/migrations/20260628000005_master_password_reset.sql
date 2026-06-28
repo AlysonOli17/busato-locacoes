@@ -22,10 +22,10 @@ BEGIN
   -- Pegar nome de quem esta alterando
   SELECT nome INTO caller_name FROM public.profiles WHERE user_id = auth.uid() LIMIT 1;
 
-  -- Atualizar a senha na tabela oculta do auth (precisa pgcrypto)
+  -- Atualizar a senha
   UPDATE auth.users
   SET 
-    encrypted_password = crypt(new_password, gen_salt('bf')),
+    encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf')),
     updated_at = now()
   WHERE id = target_user_id;
 
