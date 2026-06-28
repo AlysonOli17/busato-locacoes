@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MoreVertical, AlertCircle, Clock, Loader2, MessageCircle } from "lucide-react";
+import { Plus, MoreVertical, AlertCircle, Clock, Loader2, MessageCircle, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SolicitacaoModal } from "./SolicitacaoModal";
@@ -82,8 +82,9 @@ export function KanbanBoard({ workflow }: Props) {
 
     // Verifica se a nova etapa exige aprovação
     if (novaEtapa.requer_aprovacao) {
+      // Abre modal SE requer aprovação E O USUARIO TEM PERMISSAO
       if (novaEtapa.aprovador_id && novaEtapa.aprovador_id !== user?.id) {
-        toast({ title: "Acesso Negado", description: "Você não tem permissão para aprovar nesta etapa.", variant: "destructive" });
+        toast({ title: "Acesso Negado", description: "Apenas o aprovador designado pode assinar esta etapa. Utilize o botão 'Enviar' no card para apenas notificar o aprovador e avançar.", variant: "destructive" });
         return;
       }
       setSelectedSolicitacao(solicitacao);
@@ -117,6 +118,51 @@ export function KanbanBoard({ workflow }: Props) {
       fetchData();
     } catch (err: any) {
       toast({ title: "Erro ao mover", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleAvancarManual = async (e: React.MouseEvent, solicitacao: any, currentEtapa: any) => {
+    e.stopPropagation();
+    const currentIndex = etapas.findIndex(et => et.id === currentEtapa.id);
+    if (currentIndex === -1 || currentIndex === etapas.length - 1) return;
+
+    const nextEtapa = etapas[currentIndex + 1];
+
+    if (nextEtapa.requer_aprovacao) {
+      if (nextEtapa.aprovador_id && nextEtapa.aprovador_id !== user?.id) {
+        try {
+          await supabase.from('solicitacoes').update({ etapa_id: nextEtapa.id }).eq('id', solicitacao.id);
+          await supabase.from('solicitacoes_historico').insert([{
+            solicitacao_id: solicitacao.id,
+            etapa_nova_id: nextEtapa.id,
+            acao: 'Enviado para Aprovação',
+            usuario_id: user?.id,
+            usuario_nome: 'Usuário'
+          }]);
+          toast({ title: "Enviado para aprovação!" });
+          fetchData();
+
+          // Zap
+          const text = encodeURIComponent(`Olá! Existe uma solicitação de "${solicitacao.titulo}" (Prioridade: ${solicitacao.prioridade}) aguardando a sua aprovação no sistema Busato.\nProcesso: ${workflow.nome}`);
+          window.open(`https://wa.me/?text=${text}`, '_blank');
+        } catch (err: any) {
+          toast({ title: "Erro ao mover", description: err.message, variant: "destructive" });
+        }
+        return;
+      }
+      // Se ele MESMO for o aprovador, abre o modal
+      setSelectedSolicitacao(solicitacao);
+      setTargetEtapa(nextEtapa);
+      setIsAprovacaoModalOpen(true);
+    } else {
+      // Etapa livre, apenas move
+      try {
+        await supabase.from('solicitacoes').update({ etapa_id: nextEtapa.id }).eq('id', solicitacao.id);
+        toast({ title: "Avançado com sucesso!" });
+        fetchData();
+      } catch (err: any) {
+        toast({ title: "Erro", description: err.message, variant: "destructive" });
+      }
     }
   };
 
@@ -171,19 +217,20 @@ export function KanbanBoard({ workflow }: Props) {
                   </div>
                   <h4 className="font-medium text-sm leading-tight mb-2 line-clamp-2">{card.titulo}</h4>
                   
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50">
-                    <div className="flex items-center gap-1 truncate max-w-[120px]">
-                      <Clock className="h-3 w-3" />
-                      <span className="truncate">{format(new Date(card.created_at), 'dd/MM')}</span>
-                    </div>
-                    {etapa.requer_aprovacao && (
-                       <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full text-blue-500 bg-blue-500/10 hover:bg-blue-500/20" title="Notificar WhatsApp" onClick={(e) => {
-                         e.stopPropagation();
-                         const text = encodeURIComponent(`Olá! A solicitação #${card.codigo} (${card.titulo}) aguarda sua aprovação na etapa '${etapa.nome}'.`);
-                         window.open(`https://wa.me/?text=${text}`, '_blank');
-                       }}>
-                         <MessageCircle className="h-3 w-3" />
-                       </Button>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                    <span className="text-[10px] text-muted-foreground flex items-center">
+                      <Clock className="h-3 w-3 mr-1" /> {format(new Date(card.created_at), "dd/MM")}
+                    </span>
+
+                    {etapas.findIndex(e => e.id === etapa.id) < etapas.length - 1 && (
+                      <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="h-6 text-[10px] px-2 bg-primary/10 text-primary hover:bg-primary hover:text-white"
+                        onClick={(e) => handleAvancarManual(e, card, etapa)}
+                      >
+                        Enviar p/ Próxima <Send className="h-3 w-3 ml-1" />
+                      </Button>
                     )}
                   </div>
                 </div>
