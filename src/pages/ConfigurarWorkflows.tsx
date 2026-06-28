@@ -354,7 +354,6 @@ export default function ConfigurarWorkflows() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-    </Layout>
+      </Layout>
   );
 }
