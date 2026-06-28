@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function AprovacaoModal({ isOpen, onClose, solicitacao, novaEtapa, onSucc
   const [comentario, setComentario] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { profile, user } = useAuth();
 
   const handleAprovar = async () => {
     try {
@@ -27,7 +29,8 @@ export function AprovacaoModal({ isOpen, onClose, solicitacao, novaEtapa, onSucc
       await supabase.from('solicitacoes_aprovacoes').insert([{
         solicitacao_id: solicitacao.id,
         etapa_id: novaEtapa.id,
-        aprovador_nome: 'Gestor Atual', // TODO: auth.user
+        aprovador_id: user?.id,
+        aprovador_nome: profile?.nome || profile?.full_name || user?.email || 'Usuário',
         status: 'Aprovado',
         comentario
       }]);

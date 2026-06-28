@@ -49,11 +49,16 @@ export default function ConfigurarWorkflows() {
 
   const fetchUsuarios = async () => {
     try {
-      const { data, error } = await supabase.from('profiles').select('id, full_name').order('full_name');
+      const { data, error } = await supabase.from('profiles').select('id, nome').order('nome');
+      if (error) {
+        console.error("Erro ao carregar usuários:", error);
+      }
       if (!error && data) {
         setUsuarios(data);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const fetchWorkflows = async () => {
@@ -327,7 +332,7 @@ export default function ConfigurarWorkflows() {
                 >
                   <option value="">Qualquer pessoa com acesso</option>
                   {usuarios.map(u => (
-                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                    <option key={u.id} value={u.id}>{u.nome}</option>
                   ))}
                 </select>
               </div>

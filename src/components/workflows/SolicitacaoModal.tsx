@@ -9,6 +9,7 @@ import { Loader2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { generateAprovacoesPdf } from "@/lib/workflowPdfUtils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface Props {
 
 export function SolicitacaoModal({ isOpen, onClose, solicitacao, workflowId, etapaInicial, onSaved }: Props) {
   const { toast } = useToast();
+  const { profile, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
@@ -65,7 +67,8 @@ export function SolicitacaoModal({ isOpen, onClose, solicitacao, workflowId, eta
             workflow_id: workflowId,
             etapa_id: etapaInicial.id,
             ...formData,
-            solicitante_nome: 'Gestor Logado' // TODO: Pegar do auth
+            solicitante_id: user?.id,
+            solicitante_nome: profile?.nome || profile?.full_name || user?.email || 'Usuário'
           }]).select().single();
         if (error) throw error;
 
@@ -73,8 +76,9 @@ export function SolicitacaoModal({ isOpen, onClose, solicitacao, workflowId, eta
         await supabase.from('solicitacoes_historico').insert([{
           solicitacao_id: newSol.id,
           etapa_nova_id: etapaInicial.id,
+          usuario_id: user?.id,
           acao: 'Criado',
-          usuario_nome: 'Gestor Logado'
+          usuario_nome: profile?.nome || profile?.full_name || user?.email || 'Usuário'
         }]);
 
         toast({ title: "Solicitação criada!" });

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SolicitacaoModal } from "./SolicitacaoModal";
 import { AprovacaoModal } from "./AprovacaoModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   workflow: any;
@@ -15,6 +16,7 @@ interface Props {
 
 export function KanbanBoard({ workflow }: Props) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [etapas, setEtapas] = useState<any[]>([]);
   const [solicitacoes, setSolicitacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +82,10 @@ export function KanbanBoard({ workflow }: Props) {
 
     // Verifica se a nova etapa exige aprovação
     if (novaEtapa.requer_aprovacao) {
+      if (novaEtapa.aprovador_id && novaEtapa.aprovador_id !== user?.id) {
+        toast({ title: "Acesso Negado", description: "Você não tem permissão para aprovar nesta etapa.", variant: "destructive" });
+        return;
+      }
       setSelectedSolicitacao(solicitacao);
       setTargetEtapa(novaEtapa);
       setIsAprovacaoModalOpen(true);
