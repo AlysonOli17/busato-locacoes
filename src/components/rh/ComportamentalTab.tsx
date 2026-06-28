@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Plus, Copy, Link, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Brain, Plus, Copy, Link, CheckCircle2, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -126,6 +126,18 @@ export function ComportamentalTab({ funcionarios }: Props) {
     setDetailsOpen(true);
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este teste?")) return;
+    try {
+      const { error } = await supabase.from('testes_comportamentais').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: "Teste excluído com sucesso" });
+      fetchTestes();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    }
+  };
+
   return (
     <Card className="glass shadow-sm border-border/40">
       <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4">
@@ -237,15 +249,20 @@ export function ComportamentalTab({ funcionarios }: Props) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {t.status === 'Pendente' ? (
-                        <Button variant="secondary" size="sm" onClick={() => copyToClipboard(t.token_acesso)}>
-                          <Copy className="h-4 w-4 mr-2" /> Copiar Link
+                      <div className="flex justify-end gap-2">
+                        {t.status === 'Pendente' ? (
+                          <Button variant="secondary" size="sm" onClick={() => copyToClipboard(t.token_acesso)}>
+                            <Copy className="h-4 w-4 mr-2" /> Copiar Link
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => openDetails(t)}>
+                            Ver Detalhes
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => openDetails(t)}>
-                          Ver Detalhes
-                        </Button>
-                      )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
