@@ -76,18 +76,8 @@ export default function DossieAnalitico() {
         chartImages.radar = canvas.toDataURL("image/png");
       }
 
-      const discEl = document.getElementById("disc-details-container");
-      if (discEl) {
-        const canvas = await html2canvas(discEl, { scale: 3, backgroundColor: "#ffffff" });
-        chartImages.disc = canvas.toDataURL("image/png");
-      }
-
-      const compEl = document.getElementById("comparativo-container");
-      if (compEl) {
-        const canvas = await html2canvas(compEl, { scale: 3, backgroundColor: "#ffffff" });
-        chartImages.comparativo = canvas.toDataURL("image/png");
-      }
-
+      // We only capture the charts (Radar and LineChart) since they are canvas based.
+      // For DISC and Comparativo, we let the PDF generator draw them natively.
       await exportDossieToPDF(funcionario, avaliacoes, testes, pdis, true, chartImages, insights);
       toast({ title: "Sucesso", description: "Relatório em PDF gerado com sucesso!" });
     } catch (err: any) {

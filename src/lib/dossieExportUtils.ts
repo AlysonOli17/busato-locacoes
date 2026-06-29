@@ -184,23 +184,137 @@ export async function exportDossieToPDF(
     }
   }
 
-  // Visual Components (Comparativo e DISC detalhado)
-  if (chartImages?.comparativo) {
-    if (y > ph - 100) { doc.addPage(); y = 20; }
-    const props = doc.getImageProperties(chartImages.comparativo);
-    const imgW = contentWidth;
-    const imgH = imgW * (props.height / props.width);
-    doc.addImage(chartImages.comparativo, "PNG", margin, y, imgW, imgH);
-    y += imgH + 12;
+  // Detalhamento Comportamental (DISC)
+  const ultimoTeste = testes.length > 0 ? testes[0] : null;
+  if (ultimoTeste) {
+    if (y > ph - 60) { doc.addPage(); y = 20; }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("DETALHAMENTO COMPORTAMENTAL (DISC)", margin, y);
+    y += 5;
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Perfil Predominante: ${ultimoTeste.perfil_predominante || 'N/A'}`, margin, y);
+    y += 8;
+
+    const barWidth = contentWidth;
+    const barHeight = 4;
+    const maxScore = 20; // safe max for visual scaling
+    
+    const drawBar = (label: string, score: number, rgb: [number, number, number]) => {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+      doc.text(label, margin, y);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
+      const scoreText = `${score} pts`;
+      doc.text(scoreText, margin + barWidth - doc.getTextWidth(scoreText), y);
+      
+      y += 2;
+      
+      doc.setFillColor(230, 230, 230);
+      doc.rect(margin, y, barWidth, barHeight, 'F');
+      
+      const fillW = barWidth * (Math.min(score, maxScore) / maxScore);
+      doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+      doc.rect(margin, y, fillW, barHeight, 'F');
+      
+      y += 8;
+    };
+
+    drawBar("D - Dominância (Executor)", ultimoTeste.resultado_d || 0, [239, 68, 68]);
+    drawBar("I - Influência (Comunicador)", ultimoTeste.resultado_i || 0, [234, 179, 8]);
+    drawBar("S - Estabilidade (Planejador)", ultimoTeste.resultado_s || 0, [34, 197, 94]);
+    drawBar("C - Conformidade (Analista)", ultimoTeste.resultado_c || 0, [59, 130, 246]);
+
+    if (ultimoTeste.nivel_energia !== undefined && ultimoTeste.nivel_energia !== null) {
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("Nível de Energia Vital (PDA)", margin, y);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
+      const eText = `${ultimoTeste.nivel_energia}%`;
+      doc.text(eText, margin + barWidth - doc.getTextWidth(eText), y);
+      
+      y += 2;
+      doc.setFillColor(230, 230, 230);
+      doc.rect(margin, y, barWidth, barHeight, 'F');
+      
+      const eFillW = barWidth * (ultimoTeste.nivel_energia / 100);
+      const eColor = ultimoTeste.nivel_energia < 30 ? [239, 68, 68] : ultimoTeste.nivel_energia < 70 ? [59, 130, 246] : [34, 197, 94];
+      doc.setFillColor(eColor[0], eColor[1], eColor[2]);
+      doc.rect(margin, y, eFillW, barHeight, 'F');
+      y += 12;
+    }
+    
+    doc.setTextColor(0, 0, 0);
   }
 
-  if (chartImages?.disc) {
-    if (y > ph - 100) { doc.addPage(); y = 20; }
-    const props = doc.getImageProperties(chartImages.disc);
-    const imgW = contentWidth;
-    const imgH = imgW * (props.height / props.width);
-    doc.addImage(chartImages.disc, "PNG", margin, y, imgW, imgH);
-    y += imgH + 12;
+  // Comparativo de Avaliação
+  const autoAvaliacao = avaliacoes.find(a => a.tipo === 'Autoavaliacao');
+  const liderAvaliacao = avaliacoes.find(a => a.tipo === '180_Graus');
+  if (autoAvaliacao || liderAvaliacao) {
+    if (y > ph - 80) { doc.addPage(); y = 20; }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("COMPARATIVO DE AVALIAÇÃO RECENTE", margin, y);
+    y += 5;
+
+    const compHeaders = [["Competência", "Autoavaliação (1-5)", "Visão do Líder (1-5)", "Gap"]];
+    const compBody = [
+      ["Qualidade Técnica", autoAvaliacao?.nota_tecnica || "—", liderAvaliacao?.nota_tecnica || "—", (autoAvaliacao?.nota_tecnica || 0) - (liderAvaliacao?.nota_tecnica || 0)],
+      ["Pontualidade/Assiduidade", autoAvaliacao?.nota_pontualidade || "—", liderAvaliacao?.nota_pontualidade || "—", (autoAvaliacao?.nota_pontualidade || 0) - (liderAvaliacao?.nota_pontualidade || 0)],
+      ["Trabalho em Equipe", autoAvaliacao?.nota_trabalho_equipe || "—", liderAvaliacao?.nota_trabalho_equipe || "—", (autoAvaliacao?.nota_trabalho_equipe || 0) - (liderAvaliacao?.nota_trabalho_equipe || 0)],
+      ["Proatividade", autoAvaliacao?.nota_proatividade || "—", liderAvaliacao?.nota_proatividade || "—", (autoAvaliacao?.nota_proatividade || 0) - (liderAvaliacao?.nota_proatividade || 0)],
+      ["Cuidado c/ Equipamentos", autoAvaliacao?.nota_cuidado_equipamentos || "—", liderAvaliacao?.nota_cuidado_equipamentos || "—", (autoAvaliacao?.nota_cuidado_equipamentos || 0) - (liderAvaliacao?.nota_cuidado_equipamentos || 0)]
+    ];
+
+    autoTable(doc, {
+      startY: y,
+      head: compHeaders,
+      body: compBody.map(row => {
+         const gap = row[3] as number;
+         const gapStr = gap > 0 ? `+${gap}` : gap.toString();
+         return [row[0], row[1], row[2], gap === 0 ? "0" : gapStr];
+      }),
+      margin: { left: margin, right: margin },
+      styles: { font: "helvetica", fontSize: 9, textColor: [0, 0, 0], lineColor: [220, 220, 220], lineWidth: 0.1, halign: 'center' },
+      columnStyles: { 0: { halign: 'left' } },
+      headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
+      theme: "grid"
+    });
+    
+    y = (doc as any).lastAutoTable.finalY + 8;
+    
+    // Comentários
+    const commentsData = [
+      ["Comentários da Autoavaliação:", "Comentários do Líder (180º):"],
+      [autoAvaliacao?.observacoes || "Nenhuma observação.", liderAvaliacao?.observacoes || "Nenhuma observação."]
+    ];
+    
+    autoTable(doc, {
+      startY: y,
+      body: commentsData,
+      margin: { left: margin, right: margin },
+      styles: { font: "helvetica", fontSize: 9, textColor: [100, 100, 100], cellPadding: 4, lineColor: [220, 220, 220], lineWidth: 0.1 },
+      columnStyles: { 0: { cellWidth: contentWidth / 2 }, 1: { cellWidth: contentWidth / 2 } },
+      didParseCell: function(data) {
+        if (data.row.index === 0) {
+           data.cell.styles.fontStyle = 'bold';
+           data.cell.styles.textColor = [0, 0, 0];
+           data.cell.styles.fillColor = [250, 250, 250];
+        }
+      },
+      theme: "plain"
+    });
+    
+    y = (doc as any).lastAutoTable.finalY + 12;
   }
 
   // Insights Cruzados
