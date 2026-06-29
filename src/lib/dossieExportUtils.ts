@@ -39,6 +39,7 @@ export async function exportDossieToPDF(
   const margin = 20;
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
+  const contentWidth = pw - 2 * margin;
   
   let y = 20;
 
