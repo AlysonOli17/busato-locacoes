@@ -61,16 +61,28 @@ export function FitCulturalTab({ funcionarios }: Props) {
       if (error) throw error;
       setAvaliacoes(data || []);
 
-      // Group by funcionario_id
+      // Group by funcionario_id AND month/year to separate cycles
       const groups: any = {};
       (data || []).forEach(av => {
-        if (!groups[av.funcionario_id]) {
-          groups[av.funcionario_id] = { auto: null, lider: null, funcionario: av.funcionarios };
+        const monthYear = av.criado_em.substring(0, 7);
+        const cycleKey = `${av.funcionario_id}_${monthYear}`;
+
+        if (!groups[cycleKey]) {
+          groups[cycleKey] = { 
+            cycleKey,
+            funcionario_id: av.funcionario_id,
+            monthYear,
+            auto: null, 
+            lider: null, 
+            funcionario: av.funcionarios 
+          };
         }
-        if (av.tipo === 'Autoavaliacao') groups[av.funcionario_id].auto = av;
-        if (av.tipo === '180_Graus') groups[av.funcionario_id].lider = av;
+        if (av.tipo === 'Autoavaliacao') groups[cycleKey].auto = av;
+        if (av.tipo === '180_Graus') groups[cycleKey].lider = av;
       });
-      setGrouped(groups);
+      // Sort groups by monthYear descending
+      const sortedGroups = Object.values(groups).sort((a: any, b: any) => b.monthYear.localeCompare(a.monthYear));
+      setGrouped(sortedGroups);
     } catch (err: any) {
       toast({ title: "Erro ao carregar", description: err.message, variant: "destructive" });
     } finally {
@@ -142,10 +154,12 @@ export function FitCulturalTab({ funcionarios }: Props) {
     }
   };
 
-  const openCalibracao = (funcionarioId: string) => {
-    const data = grouped[funcionarioId];
+  const openCalibracao = (cycleKey: string) => {
+    const data = (grouped as any[]).find(g => g.cycleKey === cycleKey);
+    if (!data) return;
     setCalibracaoData({
-      funcionario_id: funcionarioId,
+      cycleKey,
+      funcionario_id: data.funcionario_id,
       auto: data.auto,
       lider: data.lider,
       notas_calibradas: data.lider?.respostas_ancoras?.calibracao || {},
@@ -241,11 +255,13 @@ export function FitCulturalTab({ funcionarios }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Object.keys(grouped).map(id => {
-              const g = grouped[id];
+            {(grouped as any[]).map(g => {
               return (
-                <TableRow key={id}>
-                  <TableCell className="font-medium">{g.funcionario?.nome}</TableCell>
+                <TableRow key={g.cycleKey}>
+                  <TableCell className="font-medium">
+                    {g.funcionario?.nome} 
+                    <Badge variant="secondary" className="ml-2 text-xs opacity-70">{g.monthYear}</Badge>
+                  </TableCell>
                   <TableCell>
                     {g.auto ? (
                       g.auto.status === 'Concluído' ? <CheckCircle2 className="h-5 w-5 text-success" /> : 
@@ -254,13 +270,13 @@ export function FitCulturalTab({ funcionarios }: Props) {
                   </TableCell>
                   <TableCell>
                     {g.lider ? <CheckCircle2 className="h-5 w-5 text-success" /> : 
-                     (g.auto?.status === 'Concluído' ? <Button variant="secondary" size="sm" onClick={() => openManagerDialog(id)}>Avaliar</Button> : '-')}
+                     (g.auto?.status === 'Concluído' ? <Button variant="secondary" size="sm" onClick={() => openManagerDialog(g.funcionario_id)}>Avaliar</Button> : '-')}
                   </TableCell>
                   <TableCell>{getWorkflowStatus(g)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       {g.auto?.status === 'Concluído' && g.lider && (
-                        <Button variant="outline" size="sm" onClick={() => openCalibracao(id)}>
+                        <Button variant="outline" size="sm" onClick={() => openCalibracao(g.cycleKey)}>
                           <Scale className="h-4 w-4 mr-2" /> 3. Calibrar
                         </Button>
                       )}
