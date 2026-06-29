@@ -17,7 +17,7 @@ import { NineBoxTab } from "@/components/rh/NineBoxTab";
 import { PDITab } from "@/components/rh/PDITab";
 import { ComportamentalTab } from "@/components/rh/ComportamentalTab";
 import { MetasTab } from "@/components/rh/MetasTab";
-import { Avaliacoes180Tab } from "@/components/rh/Avaliacoes180Tab";
+import { FitCulturalTab } from "@/components/rh/FitCulturalTab";
 import { ExperienciaTab } from "@/components/rh/ExperienciaTab";
 
 export interface Funcionario {
@@ -303,7 +303,7 @@ export default function RecursosHumanos() {
         </TabsContent>
         
         <TabsContent value="avaliacoes">
-          <Avaliacoes180Tab funcionarios={funcionarios} />
+          <FitCulturalTab funcionarios={funcionarios} />
         </TabsContent>
       </Tabs>
 

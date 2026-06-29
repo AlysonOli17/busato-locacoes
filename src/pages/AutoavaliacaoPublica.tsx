@@ -18,14 +18,21 @@ export default function AutoavaliacaoPublica() {
   const [success, setSuccess] = useState(false);
   const [avaliacao, setAvaliacao] = useState<any>(null);
   
-  const [notas, setNotas] = useState({
-    nota_tecnica: 0,
-    nota_pontualidade: 0,
-    nota_trabalho_equipe: 0,
-    nota_proatividade: 0,
-    nota_cuidado_equipamentos: 0
-  });
+  const [notas, setNotas] = useState<Record<string, number>>({});
   const [observacoes, setObservacoes] = useState("");
+
+  const fitCulturalQuestions = [
+    { id: "q1", title: "Preocupação com a empresa como um todo", desc: "Pratica senso de dono, se preocupa com a performance de outros setores, coopera com pares." },
+    { id: "q2", title: "Postura voltada ao desenvolvimento da equipe", desc: "Estimula o crescimento da equipe, realiza feedbacks." },
+    { id: "q3", title: "Proporciona um ambiente de trabalho saudável", desc: "Pratica um diálogo aberto, transparente e respeitador." },
+    { id: "q4", title: "Proporciona um ambiente de trabalho inclusivo", desc: "Sem discriminação de qualquer natureza." },
+    { id: "q5", title: "Possui atitudes/práticas voltadas à saúde, segurança e meio ambiente", desc: "Demonstra no dia a dia a preocupação com estes temas." },
+    { id: "q6", title: "Utiliza de forma racional os recursos da empresa", desc: "Tem preocupação com desperdícios de qualquer natureza." },
+    { id: "q7", title: "Atua com princípios éticos", desc: "Não compactua com corrupção ou uso indevido de recursos da empresa." },
+    { id: "q8", title: "Atua de forma alinhada com os 3 C's da empresa", desc: "Disciplina com horário, demandas, valores e compromissos assumidos." },
+    { id: "q9", title: "Desenvolvimento pessoal/profissional", desc: "Realiza cursos, seminários e especializações." },
+    { id: "q10", title: "Busca do desenvolvimento do negócio de forma sustentável", desc: "Atitudes voltadas ao bem estar geral incluindo sociedade e parceiros." }
+  ];
 
   useEffect(() => {
     carregarAvaliacao();
@@ -73,21 +80,27 @@ export default function AutoavaliacaoPublica() {
 
   const handleSalvar = async () => {
     // Validar se todas as notas foram preenchidas > 0
-    if (Object.values(notas).some(n => n === 0)) {
+    if (fitCulturalQuestions.some(q => !notas[q.id] || notas[q.id] === 0)) {
       toast({ title: "Preencha todas as estrelas", description: "Por favor, avalie todas as competências de 1 a 5.", variant: "destructive" });
       return;
     }
 
     try {
       setSubmitting(true);
+      
+      // Compute an average or just a fake number for the required DB columns if they are NOT NULL.
+      // But usually they are nullable. 
+      const avg = Math.round(Object.values(notas).reduce((a, b) => a + b, 0) / 10);
+      
       const { error } = await supabase
         .from('avaliacoes_desempenho')
         .update({
-          nota_tecnica: notas.nota_tecnica,
-          nota_pontualidade: notas.nota_pontualidade,
-          nota_trabalho_equipe: notas.nota_trabalho_equipe,
-          nota_proatividade: notas.nota_proatividade,
-          nota_cuidado_equipamentos: notas.nota_cuidado_equipamentos,
+          nota_tecnica: avg,
+          nota_pontualidade: avg,
+          nota_trabalho_equipe: avg,
+          nota_proatividade: avg,
+          nota_cuidado_equipamentos: avg,
+          respostas_ancoras: notas as any,
           observacoes: observacoes,
           status: 'Concluído',
           atualizado_em: new Date().toISOString()
@@ -155,54 +168,27 @@ export default function AutoavaliacaoPublica() {
 
         <Card className="glass border-border/40 shadow-xl overflow-hidden">
           <CardHeader className="bg-muted/10 pb-6 border-b border-border/40">
-            <CardTitle className="text-xl">Como você avalia o seu desempenho nas seguintes áreas?</CardTitle>
+            <CardTitle className="text-xl">Questionário de Fit Cultural</CardTitle>
             <CardDescription>
-              Seja sincero. Dê uma nota de 1 a 5 estrelas para cada critério.
+              Seja sincero. Dê uma nota de 1 (Muito abaixo) a 5 (Muito acima do esperado) para cada critério.
             </CardDescription>
           </CardHeader>
           
           <CardContent className="p-6 md:p-8 space-y-8">
             
             <div className="space-y-4">
-              <div className="bg-background/50 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <Label className="text-base font-semibold">Qualidade Técnica do Trabalho</Label>
-                  <p className="text-xs text-muted-foreground">Domínio técnico, qualidade das entregas, menos retrabalho.</p>
+              {fitCulturalQuestions.map(q => (
+                <div key={q.id} className="bg-background/50 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <Label className="text-base font-semibold">{q.title}</Label>
+                    <p className="text-xs text-muted-foreground">{q.desc}</p>
+                  </div>
+                  <StarRating 
+                    value={notas[q.id] || 0} 
+                    onChange={(v) => setNotas({...notas, [q.id]: v})} 
+                  />
                 </div>
-                <StarRating value={notas.nota_tecnica} onChange={(v) => setNotas({...notas, nota_tecnica: v})} />
-              </div>
-
-              <div className="bg-background/50 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <Label className="text-base font-semibold">Pontualidade e Assiduidade</Label>
-                  <p className="text-xs text-muted-foreground">Cumprimento de horários, prazos e poucas faltas.</p>
-                </div>
-                <StarRating value={notas.nota_pontualidade} onChange={(v) => setNotas({...notas, nota_pontualidade: v})} />
-              </div>
-
-              <div className="bg-background/50 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <Label className="text-base font-semibold">Trabalho em Equipe e Relacionamento</Label>
-                  <p className="text-xs text-muted-foreground">Como se relaciona com colegas, gestores e clientes.</p>
-                </div>
-                <StarRating value={notas.nota_trabalho_equipe} onChange={(v) => setNotas({...notas, nota_trabalho_equipe: v})} />
-              </div>
-
-              <div className="bg-background/50 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <Label className="text-base font-semibold">Proatividade e Resolução de Problemas</Label>
-                  <p className="text-xs text-muted-foreground">Iniciativa para resolver pepinos sem precisar ser mandado.</p>
-                </div>
-                <StarRating value={notas.nota_proatividade} onChange={(v) => setNotas({...notas, nota_proatividade: v})} />
-              </div>
-
-              <div className="bg-background/50 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <Label className="text-base font-semibold">Cuidado com Equipamentos/Ferramentas</Label>
-                  <p className="text-xs text-muted-foreground">Zelo pela frota, ferramentas e recursos da empresa.</p>
-                </div>
-                <StarRating value={notas.nota_cuidado_equipamentos} onChange={(v) => setNotas({...notas, nota_cuidado_equipamentos: v})} />
-              </div>
+              ))}
             </div>
 
             <div className="pt-4 border-t border-border/40">
