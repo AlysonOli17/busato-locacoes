@@ -27,7 +27,26 @@ export default function DossieAnalitico() {
     if (!funcionario) return;
     try {
       setExportingPDF(true);
-      await exportDossieToPDF(funcionario, avaliacoes, testes, pdis);
+
+      const html2canvasModule = await import("html2canvas");
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+
+      let evolucaoImg: string | undefined;
+      let radarImg: string | undefined;
+
+      const evolucaoEl = document.getElementById("evolucao-chart-container");
+      if (evolucaoEl) {
+        const canvas = await html2canvas(evolucaoEl, { scale: 2, backgroundColor: "#ffffff" });
+        evolucaoImg = canvas.toDataURL("image/png");
+      }
+
+      const radarEl = document.getElementById("radar-chart-container");
+      if (radarEl) {
+        const canvas = await html2canvas(radarEl, { scale: 2, backgroundColor: "#ffffff" });
+        radarImg = canvas.toDataURL("image/png");
+      }
+
+      await exportDossieToPDF(funcionario, avaliacoes, testes, pdis, true, { evolucao: evolucaoImg, radar: radarImg }, insights);
       toast({ title: "Sucesso", description: "Relatório em PDF gerado com sucesso!" });
     } catch (err: any) {
       toast({ title: "Erro ao exportar", description: err.message, variant: "destructive" });
@@ -225,7 +244,7 @@ export default function DossieAnalitico() {
             </CardTitle>
             <CardDescription>Média das avaliações ao longo do tempo (1 a 5 estrelas)</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px]" id="evolucao-chart-container">
             {dadosEvolucao.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={dadosEvolucao} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -253,7 +272,7 @@ export default function DossieAnalitico() {
             </CardTitle>
             <CardDescription>Último mapeamento ({ultimoTeste ? format(new Date(ultimoTeste.criado_em), 'dd/MM/yyyy') : 'N/A'})</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent id="radar-chart-container" className="bg-background">
             {ultimoTeste ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
                 <div className="h-[200px]">

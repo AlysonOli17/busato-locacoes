@@ -18,7 +18,15 @@ async function loadLogo(): Promise<string | null> {
   }
 }
 
-export async function exportDossieToPDF(funcionario: any, avaliacoes: any[], testes: any[], pdis: any[], download: boolean = true) {
+export async function exportDossieToPDF(
+  funcionario: any, 
+  avaliacoes: any[], 
+  testes: any[], 
+  pdis: any[], 
+  download: boolean = true,
+  chartImages?: { evolucao?: string, radar?: string },
+  insights?: any[]
+) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
 
@@ -132,6 +140,57 @@ export async function exportDossieToPDF(funcionario: any, avaliacoes: any[], tes
       margin: { left: margin, right: margin },
       styles: { font: "helvetica", fontSize: 9, textColor: [0, 0, 0], lineColor: [220, 220, 220], lineWidth: 0.1 },
       headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
+      theme: "grid"
+    });
+    
+    y = (doc as any).lastAutoTable.finalY + 12;
+  }
+
+  // Gráficos (Evolução e Radar)
+  if (chartImages?.evolucao || chartImages?.radar) {
+    if (y > ph - 100) { doc.addPage(); y = 20; }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("GRÁFICOS DE ANÁLISE", margin, y);
+    y += 10;
+
+    const availableWidth = contentWidth;
+    let currentX = margin;
+
+    if (chartImages.evolucao && chartImages.radar) {
+      // Draw both side by side
+      const imgW = (availableWidth - 5) / 2;
+      doc.addImage(chartImages.evolucao, "PNG", currentX, y, imgW, imgW * 0.6);
+      doc.addImage(chartImages.radar, "PNG", currentX + imgW + 5, y, imgW, imgW * 0.6);
+      y += (imgW * 0.6) + 12;
+    } else if (chartImages.evolucao) {
+      const imgW = availableWidth * 0.8;
+      doc.addImage(chartImages.evolucao, "PNG", currentX + (availableWidth - imgW)/2, y, imgW, imgW * 0.5);
+      y += (imgW * 0.5) + 12;
+    } else if (chartImages.radar) {
+      const imgW = availableWidth * 0.8;
+      doc.addImage(chartImages.radar, "PNG", currentX + (availableWidth - imgW)/2, y, imgW, imgW * 0.5);
+      y += (imgW * 0.5) + 12;
+    }
+  }
+
+  // Insights Cruzados
+  if (insights && insights.length > 0) {
+    if (y > ph - 40) { doc.addPage(); y = 20; }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("INSIGHTS CRUZADOS (PEOPLE ANALYTICS IA)", margin, y);
+    y += 5;
+
+    const insightBody = insights.map(i => [i.texto]);
+    
+    autoTable(doc, {
+      startY: y,
+      body: insightBody,
+      margin: { left: margin, right: margin },
+      styles: { font: "helvetica", fontSize: 9, textColor: [0, 0, 0], lineColor: [220, 220, 220], lineWidth: 0.1 },
       theme: "grid"
     });
     
