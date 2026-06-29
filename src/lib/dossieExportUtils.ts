@@ -24,7 +24,7 @@ export async function exportDossieToPDF(
   testes: any[], 
   pdis: any[], 
   download: boolean = true,
-  chartImages?: { evolucao?: string, radar?: string },
+  chartImages?: { evolucao?: string, radar?: string, disc?: string, comparativo?: string },
   insights?: any[]
 ) {
   const { default: jsPDF } = await import("jspdf");
@@ -174,6 +174,22 @@ export async function exportDossieToPDF(
       doc.addImage(chartImages.radar, "PNG", currentX + (availableWidth - imgW)/2, y, imgW, imgW * 0.5);
       y += (imgW * 0.5) + 12;
     }
+  }
+
+  // Visual Components (Comparativo e DISC detalhado)
+  if (chartImages?.comparativo) {
+    if (y > ph - 100) { doc.addPage(); y = 20; }
+    const imgW = contentWidth;
+    // Calculate aspect ratio roughly (since we don't know the exact height, we assume it's a wide rectangle, maybe 0.7 ratio)
+    doc.addImage(chartImages.comparativo, "PNG", margin, y, imgW, imgW * 0.7);
+    y += (imgW * 0.7) + 12;
+  }
+
+  if (chartImages?.disc) {
+    if (y > ph - 100) { doc.addPage(); y = 20; }
+    const imgW = contentWidth;
+    doc.addImage(chartImages.disc, "PNG", margin, y, imgW, imgW * 0.7);
+    y += (imgW * 0.7) + 12;
   }
 
   // Insights Cruzados

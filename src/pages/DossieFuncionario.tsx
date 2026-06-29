@@ -4,12 +4,43 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Brain, TrendingUp, Target, AlertTriangle, Lightbulb, User, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, Target, AlertTriangle, Lightbulb, User, Download, Loader2, Star, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { exportDossieToPDF } from "@/lib/dossieExportUtils";
+
+const StarRating = ({ value, readonly = false }: { value: number, readonly?: boolean }) => {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star 
+          key={star} 
+          className={`h-5 w-5 ${star <= value ? 'fill-primary text-primary' : 'text-muted-foreground opacity-30'}`}
+        />
+      ))}
+    </div>
+  );
+};
+
+const CompareRow = ({ label, valAuto, valLider }: { label: string, valAuto?: number | null, valLider?: number | null }) => {
+  const diff = (valAuto || 0) - (valLider || 0);
+  let diffColor = "text-muted-foreground";
+  if (diff > 1) diffColor = "text-destructive font-bold";
+  else if (diff < -1) diffColor = "text-success font-bold";
+  
+  return (
+    <div className="grid grid-cols-12 gap-4 items-center py-2 border-b border-border/40 text-sm">
+      <div className="col-span-4 font-medium">{label}</div>
+      <div className="col-span-3 flex justify-center"><StarRating value={valAuto || 0} readonly /></div>
+      <div className="col-span-3 flex justify-center"><StarRating value={valLider || 0} readonly /></div>
+      <div className="col-span-2 text-right">
+        <span className={diffColor}>{diff > 0 ? `+${diff}` : diff}</span>
+      </div>
+    </div>
+  );
+};
 
 export default function DossieAnalitico() {
   const { id } = useParams<{ id: string }>();
@@ -31,13 +62,12 @@ export default function DossieAnalitico() {
       const html2canvasModule = await import("html2canvas");
       const html2canvas = html2canvasModule.default || html2canvasModule;
 
-      let evolucaoImg: string | undefined;
-      let radarImg: string | undefined;
+      const chartImages: any = { evolucao: "", radar: "", disc: "", comparativo: "" };
 
       const evolucaoEl = document.getElementById("evolucao-chart-container");
       if (evolucaoEl) {
         const canvas = await html2canvas(evolucaoEl, { scale: 2, backgroundColor: "#ffffff" });
-        evolucaoImg = canvas.toDataURL("image/png");
+        chartImages.evolucao = canvas.toDataURL("image/png");
       }
 
       const radarEl = document.getElementById("radar-chart-container");
@@ -46,7 +76,19 @@ export default function DossieAnalitico() {
         radarImg = canvas.toDataURL("image/png");
       }
 
-      await exportDossieToPDF(funcionario, avaliacoes, testes, pdis, true, { evolucao: evolucaoImg, radar: radarImg }, insights);
+      const discEl = document.getElementById("disc-details-container");
+      if (discEl) {
+        const canvas = await html2canvas(discEl, { scale: 2, backgroundColor: "#ffffff" });
+        chartImages.disc = canvas.toDataURL("image/png");
+      }
+
+      const compEl = document.getElementById("comparativo-container");
+      if (compEl) {
+        const canvas = await html2canvas(compEl, { scale: 2, backgroundColor: "#ffffff" });
+        chartImages.comparativo = canvas.toDataURL("image/png");
+      }
+
+      await exportDossieToPDF(funcionario, avaliacoes, testes, pdis, true, chartImages, insights);
       toast({ title: "Sucesso", description: "Relatório em PDF gerado com sucesso!" });
     } catch (err: any) {
       toast({ title: "Erro ao exportar", description: err.message, variant: "destructive" });
@@ -187,6 +229,9 @@ export default function DossieAnalitico() {
   };
 
   const insights = gerarInsights();
+  
+  const autoAvaliacao = avaliacoes.find(a => a.tipo === 'Autoavaliacao');
+  const liderAvaliacao = avaliacoes.find(a => a.tipo === '180_Graus');
 
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -301,6 +346,129 @@ export default function DossieAnalitico() {
           </CardContent>
         </Card>
       </div>
+
+      {/* COMPARATIVO DE AVALIAÇÃO (VISUAL PARA O PDF) */}
+      {(autoAvaliacao || liderAvaliacao) && (
+        <Card className="glass border-border/40" id="comparativo-container">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-indigo-500" /> Comparativo de Avaliação Recente
+            </CardTitle>
+            <CardDescription>Autoavaliação vs Visão do Líder</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-12 gap-4 pb-2 border-b-2 border-border font-bold text-sm text-center">
+              <div className="col-span-4 text-left text-muted-foreground">Competência</div>
+              <div className="col-span-3 text-blue-500">Autoavaliação</div>
+              <div className="col-span-3 text-purple-500">Visão do Líder</div>
+              <div className="col-span-2 text-right text-muted-foreground">Gap</div>
+            </div>
+            <div className="space-y-1 mt-4">
+              <CompareRow label="Qualidade Técnica" valAuto={autoAvaliacao?.nota_tecnica} valLider={liderAvaliacao?.nota_tecnica} />
+              <CompareRow label="Pontualidade/Assiduidade" valAuto={autoAvaliacao?.nota_pontualidade} valLider={liderAvaliacao?.nota_pontualidade} />
+              <CompareRow label="Trabalho em Equipe" valAuto={autoAvaliacao?.nota_trabalho_equipe} valLider={liderAvaliacao?.nota_trabalho_equipe} />
+              <CompareRow label="Proatividade" valAuto={autoAvaliacao?.nota_proatividade} valLider={liderAvaliacao?.nota_proatividade} />
+              <CompareRow label="Cuidado c/ Equipamentos" valAuto={autoAvaliacao?.nota_cuidado_equipamentos} valLider={liderAvaliacao?.nota_cuidado_equipamentos} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 mt-6">
+              <div className="bg-blue-500/5 p-4 rounded-lg border border-blue-500/20">
+                <h4 className="font-semibold text-blue-500 mb-2 text-sm flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" /> Comentários da Autoavaliação
+                </h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {autoAvaliacao?.observacoes || "Nenhuma observação."}
+                </p>
+              </div>
+              <div className="bg-purple-500/5 p-4 rounded-lg border border-purple-500/20">
+                <h4 className="font-semibold text-purple-500 mb-2 text-sm flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" /> Comentários do Líder (180º)
+                </h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {liderAvaliacao?.observacoes || "Nenhuma observação."}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* DETALHAMENTO DISC (VISUAL PARA O PDF) */}
+      {ultimoTeste && (
+        <Card className="glass border-border/40" id="disc-details-container">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Brain className="h-5 w-5 text-purple-500" /> Detalhamento Comportamental (DISC)
+            </CardTitle>
+            <CardDescription>Perfil Predominante: {ultimoTeste.perfil_predominante}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* D - Dominância */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-bold text-red-500">D - Dominância (Executor)</span>
+                  <span className="font-mono">{ultimoTeste.resultado_d || 0} pts</span>
+                </div>
+                <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-red-500" style={{ width: `${((ultimoTeste.resultado_d || 0) / 6) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* I - Influência */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-bold text-yellow-500">I - Influência (Comunicador)</span>
+                  <span className="font-mono">{ultimoTeste.resultado_i || 0} pts</span>
+                </div>
+                <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-yellow-500" style={{ width: `${((ultimoTeste.resultado_i || 0) / 6) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* S - Estabilidade */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-bold text-green-500">S - Estabilidade (Planejador)</span>
+                  <span className="font-mono">{ultimoTeste.resultado_s || 0} pts</span>
+                </div>
+                <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500" style={{ width: `${((ultimoTeste.resultado_s || 0) / 6) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* C - Conformidade */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-bold text-blue-500">C - Conformidade (Analista)</span>
+                  <span className="font-mono">{ultimoTeste.resultado_c || 0} pts</span>
+                </div>
+                <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500" style={{ width: `${((ultimoTeste.resultado_c || 0) / 6) * 100}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {ultimoTeste.nivel_energia !== undefined && ultimoTeste.nivel_energia !== null && (
+              <div className="mt-8 pt-6 border-t border-border/40">
+                <div className="flex justify-between items-center text-sm mb-2">
+                  <span className="font-bold">Nível de Energia / Vitalidade (PDA)</span>
+                  <span className="font-mono font-bold">{ultimoTeste.nivel_energia}%</span>
+                </div>
+                <Progress 
+                  value={ultimoTeste.nivel_energia} 
+                  className="h-3"
+                  indicatorClassName={
+                    ultimoTeste.nivel_energia < 30 ? "bg-destructive" :
+                    ultimoTeste.nivel_energia < 70 ? "bg-primary" : "bg-success"
+                  }
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       </div>
     </div>
   );
