@@ -131,6 +131,10 @@ export default function ConfigurarWorkflows() {
 
   const handleCreateEtapa = async () => {
     if (!etapaForm.nome || !selectedWf) return;
+    if (etapaForm.requer_aprovacao && !etapaForm.aprovador_id) {
+      toast({ title: "Erro", description: "Você deve selecionar quem é o aprovador desta etapa.", variant: "destructive" });
+      return;
+    }
     try {
       const novaOrdem = etapas.length > 0 ? Math.max(...etapas.map(e => e.ordem)) + 1 : 1;
       
@@ -324,10 +328,10 @@ export default function ConfigurarWorkflows() {
                 <Label>Quem deve aprovar?</Label>
                 <select 
                   className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={etapaForm.aprovador_id}
+                  value={etapaForm.aprovador_id || ""}
                   onChange={(e) => setEtapaForm({...etapaForm, aprovador_id: e.target.value})}
                 >
-                  <option value="">Qualquer pessoa com acesso</option>
+                  <option value="" disabled>Selecione o aprovador responsável...</option>
                   {usuarios.map(u => (
                     <option key={u.id} value={u.id}>{u.nome}</option>
                   ))}
