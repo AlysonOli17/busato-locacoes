@@ -176,6 +176,24 @@ export function FitCulturalTab({ funcionarios }: Props) {
     }
   };
 
+  const handleDelete = async (autoId: string | null, liderId: string | null) => {
+    if (!confirm("Tem certeza que deseja excluir este ciclo de avaliação? O funcionário precisará refazer o processo.")) return;
+    try {
+      if (autoId) {
+        const { error } = await supabase.from('avaliacoes_desempenho').delete().eq('id', autoId);
+        if (error) throw error;
+      }
+      if (liderId) {
+        const { error } = await supabase.from('avaliacoes_desempenho').delete().eq('id', liderId);
+        if (error) throw error;
+      }
+      toast({ title: "Avaliação excluída com sucesso!" });
+      fetchAvaliacoes();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    }
+  };
+
   const StarRating = ({ value, onChange }: { value: number, onChange: (val: number) => void }) => {
     return (
       <div className="flex gap-1">
@@ -240,11 +258,24 @@ export function FitCulturalTab({ funcionarios }: Props) {
                   </TableCell>
                   <TableCell>{getWorkflowStatus(g)}</TableCell>
                   <TableCell className="text-right">
-                    {g.auto?.status === 'Concluído' && g.lider && (
-                      <Button variant="outline" size="sm" onClick={() => openCalibracao(id)}>
-                        <Scale className="h-4 w-4 mr-2" /> 3. Calibrar
-                      </Button>
-                    )}
+                    <div className="flex justify-end gap-2">
+                      {g.auto?.status === 'Concluído' && g.lider && (
+                        <Button variant="outline" size="sm" onClick={() => openCalibracao(id)}>
+                          <Scale className="h-4 w-4 mr-2" /> 3. Calibrar
+                        </Button>
+                      )}
+                      {(g.auto || g.lider) && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20"
+                          onClick={() => handleDelete(g.auto?.id || null, g.lider?.id || null)}
+                          title="Excluir Avaliação"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
