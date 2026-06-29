@@ -160,36 +160,47 @@ export async function exportDossieToPDF(
     let currentX = margin;
 
     if (chartImages.evolucao && chartImages.radar) {
-      // Draw both side by side
+      const propsEvo = doc.getImageProperties(chartImages.evolucao);
+      const propsRad = doc.getImageProperties(chartImages.radar);
       const imgW = (availableWidth - 5) / 2;
-      doc.addImage(chartImages.evolucao, "PNG", currentX, y, imgW, imgW * 0.6);
-      doc.addImage(chartImages.radar, "PNG", currentX + imgW + 5, y, imgW, imgW * 0.6);
-      y += (imgW * 0.6) + 12;
+      const hEvo = imgW * (propsEvo.height / propsEvo.width);
+      const hRad = imgW * (propsRad.height / propsRad.width);
+      
+      doc.addImage(chartImages.evolucao, "PNG", currentX, y, imgW, hEvo);
+      doc.addImage(chartImages.radar, "PNG", currentX + imgW + 5, y, imgW, hRad);
+      y += Math.max(hEvo, hRad) + 12;
     } else if (chartImages.evolucao) {
+      const propsEvo = doc.getImageProperties(chartImages.evolucao);
       const imgW = availableWidth * 0.8;
-      doc.addImage(chartImages.evolucao, "PNG", currentX + (availableWidth - imgW)/2, y, imgW, imgW * 0.5);
-      y += (imgW * 0.5) + 12;
+      const hEvo = imgW * (propsEvo.height / propsEvo.width);
+      doc.addImage(chartImages.evolucao, "PNG", currentX + (availableWidth - imgW)/2, y, imgW, hEvo);
+      y += hEvo + 12;
     } else if (chartImages.radar) {
+      const propsRad = doc.getImageProperties(chartImages.radar);
       const imgW = availableWidth * 0.8;
-      doc.addImage(chartImages.radar, "PNG", currentX + (availableWidth - imgW)/2, y, imgW, imgW * 0.5);
-      y += (imgW * 0.5) + 12;
+      const hRad = imgW * (propsRad.height / propsRad.width);
+      doc.addImage(chartImages.radar, "PNG", currentX + (availableWidth - imgW)/2, y, imgW, hRad);
+      y += hRad + 12;
     }
   }
 
   // Visual Components (Comparativo e DISC detalhado)
   if (chartImages?.comparativo) {
     if (y > ph - 100) { doc.addPage(); y = 20; }
+    const props = doc.getImageProperties(chartImages.comparativo);
     const imgW = contentWidth;
-    // Calculate aspect ratio roughly (since we don't know the exact height, we assume it's a wide rectangle, maybe 0.7 ratio)
-    doc.addImage(chartImages.comparativo, "PNG", margin, y, imgW, imgW * 0.7);
-    y += (imgW * 0.7) + 12;
+    const imgH = imgW * (props.height / props.width);
+    doc.addImage(chartImages.comparativo, "PNG", margin, y, imgW, imgH);
+    y += imgH + 12;
   }
 
   if (chartImages?.disc) {
     if (y > ph - 100) { doc.addPage(); y = 20; }
+    const props = doc.getImageProperties(chartImages.disc);
     const imgW = contentWidth;
-    doc.addImage(chartImages.disc, "PNG", margin, y, imgW, imgW * 0.7);
-    y += (imgW * 0.7) + 12;
+    const imgH = imgW * (props.height / props.width);
+    doc.addImage(chartImages.disc, "PNG", margin, y, imgW, imgH);
+    y += imgH + 12;
   }
 
   // Insights Cruzados

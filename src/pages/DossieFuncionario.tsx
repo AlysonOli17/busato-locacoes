@@ -66,25 +66,25 @@ export default function DossieAnalitico() {
 
       const evolucaoEl = document.getElementById("evolucao-chart-container");
       if (evolucaoEl) {
-        const canvas = await html2canvas(evolucaoEl, { scale: 2, backgroundColor: "#ffffff" });
+        const canvas = await html2canvas(evolucaoEl, { scale: 3, backgroundColor: "#ffffff" });
         chartImages.evolucao = canvas.toDataURL("image/png");
       }
 
       const radarEl = document.getElementById("radar-chart-container");
       if (radarEl) {
-        const canvas = await html2canvas(radarEl, { scale: 2, backgroundColor: "#ffffff" });
+        const canvas = await html2canvas(radarEl, { scale: 3, backgroundColor: "#ffffff" });
         chartImages.radar = canvas.toDataURL("image/png");
       }
 
       const discEl = document.getElementById("disc-details-container");
       if (discEl) {
-        const canvas = await html2canvas(discEl, { scale: 2, backgroundColor: "#ffffff" });
+        const canvas = await html2canvas(discEl, { scale: 3, backgroundColor: "#ffffff" });
         chartImages.disc = canvas.toDataURL("image/png");
       }
 
       const compEl = document.getElementById("comparativo-container");
       if (compEl) {
-        const canvas = await html2canvas(compEl, { scale: 2, backgroundColor: "#ffffff" });
+        const canvas = await html2canvas(compEl, { scale: 3, backgroundColor: "#ffffff" });
         chartImages.comparativo = canvas.toDataURL("image/png");
       }
 
@@ -234,7 +234,7 @@ export default function DossieAnalitico() {
   const liderAvaliacao = avaliacoes.find(a => a.tipo === '180_Graus');
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" onClick={() => navigate('/recursos-humanos')}>
