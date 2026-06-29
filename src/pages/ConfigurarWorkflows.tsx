@@ -178,7 +178,7 @@ export default function ConfigurarWorkflows() {
             <Plus className="h-4 w-4 mr-2" /> Novo Processo
           </Button>
         </div>
-        </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         
@@ -358,6 +358,7 @@ export default function ConfigurarWorkflows() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </Layout>
+      </div>
+    </Layout>
   );
 }
