@@ -73,7 +73,7 @@ export default function DossieAnalitico() {
       const radarEl = document.getElementById("radar-chart-container");
       if (radarEl) {
         const canvas = await html2canvas(radarEl, { scale: 2, backgroundColor: "#ffffff" });
-        radarImg = canvas.toDataURL("image/png");
+        chartImages.radar = canvas.toDataURL("image/png");
       }
 
       const discEl = document.getElementById("disc-details-container");
