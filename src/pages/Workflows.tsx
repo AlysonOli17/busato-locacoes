@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Settings, GitMerge, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { KanbanBoard } from "@/components/workflows/KanbanBoard";
+import { ExecutiveWorkflowsTable } from "@/components/workflows/ExecutiveWorkflowsTable";
 import { Layout } from "@/components/Layout";
 
 export default function Workflows() {
@@ -115,10 +115,10 @@ export default function Workflows() {
               ))}
             </div>
 
-            {/* Kanban Board Container */}
+            {/* Executive Table Container */}
             {activeWorkflow && (
-              <div className="flex-1 overflow-hidden min-h-0">
-                <KanbanBoard workflow={activeWorkflow} />
+              <div className="flex-1 overflow-hidden min-h-0 bg-white rounded-lg shadow-sm border border-border">
+                <ExecutiveWorkflowsTable workflow={activeWorkflow} />
               </div>
             )}
           </div>
