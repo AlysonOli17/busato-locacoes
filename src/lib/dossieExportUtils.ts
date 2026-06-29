@@ -253,6 +253,9 @@ export async function exportDossieToPDF(
     }
     
     doc.setTextColor(0, 0, 0);
+
+    // NOVO: Renderizar a Análise Qualitativa Detalhada Premium
+    y = renderDiscPremium(doc, y, margin, contentWidth, ph, ultimoTeste);
   }
 
   // Comparativo de Avaliação
