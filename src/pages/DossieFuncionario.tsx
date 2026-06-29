@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Brain, TrendingUp, Target, AlertTriangle, Lightbulb, User } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, Target, AlertTriangle, Lightbulb, User, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -20,6 +20,53 @@ export default function DossieAnalitico() {
   const [testes, setTestes] = useState<any[]>([]);
   const [pdis, setPdis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exportingPDF, setExportingPDF] = useState(false);
+
+  const handleExportPDF = async () => {
+    try {
+      setExportingPDF(true);
+      const { jsPDF } = await import("jspdf");
+      const html2canvasModule = await import("html2canvas");
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+
+      const element = document.getElementById("dossie-pdf-container");
+      if (!element) throw new Error("Container do dossiê não encontrado.");
+
+      const canvas = await html2canvas(element as HTMLElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(`Dossie_${funcionario.nome.replace(/\s+/g, "_")}.pdf`);
+      toast({ title: "Sucesso", description: "Relatório em PDF gerado com sucesso!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao exportar", description: err.message, variant: "destructive" });
+    } finally {
+      setExportingPDF(false);
+    }
+  };
 
   useEffect(() => {
     if (id) carregarDossie();
@@ -168,9 +215,16 @@ export default function DossieAnalitico() {
             <p className="text-muted-foreground">{funcionario.cargo} • {funcionario.setor}</p>
           </div>
         </div>
-        <Badge variant={funcionario.status === 'Ativo' ? 'success' : 'secondary'}>{funcionario.status}</Badge>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={handleExportPDF} disabled={exportingPDF}>
+            {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Gerar PDF (Diretoria)
+          </Button>
+          <Badge variant={funcionario.status === 'Ativo' ? 'success' : 'secondary'}>{funcionario.status}</Badge>
+        </div>
       </div>
 
+      <div id="dossie-pdf-container" className="space-y-6 bg-background p-4 rounded-xl">
       {/* INSIGHTS */}
       <Card className="glass border-primary/20 shadow-lg">
         <CardHeader className="bg-primary/5 pb-4">
@@ -260,7 +314,7 @@ export default function DossieAnalitico() {
           </CardContent>
         </Card>
       </div>
-
+      </div>
     </div>
   );
 }
