@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { exportDossieToPDF } from "@/lib/dossieExportUtils";
 
 export default function DossieAnalitico() {
   const { id } = useParams<{ id: string }>();
@@ -23,43 +24,10 @@ export default function DossieAnalitico() {
   const [exportingPDF, setExportingPDF] = useState(false);
 
   const handleExportPDF = async () => {
+    if (!funcionario) return;
     try {
       setExportingPDF(true);
-      const { jsPDF } = await import("jspdf");
-      const html2canvasModule = await import("html2canvas");
-      const html2canvas = html2canvasModule.default || html2canvasModule;
-
-      const element = document.getElementById("dossie-pdf-container");
-      if (!element) throw new Error("Container do dossiê não encontrado.");
-
-      const canvas = await html2canvas(element as HTMLElement, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      let heightLeft = pdfHeight;
-      let position = 0;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-      
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
-      }
-      
-      pdf.save(`Dossie_${funcionario.nome.replace(/\s+/g, "_")}.pdf`);
+      await exportDossieToPDF(funcionario, avaliacoes, testes, pdis);
       toast({ title: "Sucesso", description: "Relatório em PDF gerado com sucesso!" });
     } catch (err: any) {
       toast({ title: "Erro ao exportar", description: err.message, variant: "destructive" });
