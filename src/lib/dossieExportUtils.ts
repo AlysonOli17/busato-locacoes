@@ -1,3 +1,5 @@
+import { fitCulturalQuestions } from "@/components/rh/FitCulturalTab";
+
 let logoCache: string | null = null;
 async function loadLogo(): Promise<string | null> {
   if (logoCache) return logoCache;
@@ -270,13 +272,17 @@ export async function exportDossieToPDF(
     y += 5;
 
     const compHeaders = [["Competência", "Autoavaliação (1-5)", "Visão do Líder (1-5)", "Gap"]];
-    const compBody = [
-      ["Qualidade Técnica", autoAvaliacao?.nota_tecnica || "—", liderAvaliacao?.nota_tecnica || "—", (autoAvaliacao?.nota_tecnica || 0) - (liderAvaliacao?.nota_tecnica || 0)],
-      ["Pontualidade/Assiduidade", autoAvaliacao?.nota_pontualidade || "—", liderAvaliacao?.nota_pontualidade || "—", (autoAvaliacao?.nota_pontualidade || 0) - (liderAvaliacao?.nota_pontualidade || 0)],
-      ["Trabalho em Equipe", autoAvaliacao?.nota_trabalho_equipe || "—", liderAvaliacao?.nota_trabalho_equipe || "—", (autoAvaliacao?.nota_trabalho_equipe || 0) - (liderAvaliacao?.nota_trabalho_equipe || 0)],
-      ["Proatividade", autoAvaliacao?.nota_proatividade || "—", liderAvaliacao?.nota_proatividade || "—", (autoAvaliacao?.nota_proatividade || 0) - (liderAvaliacao?.nota_proatividade || 0)],
-      ["Cuidado c/ Equipamentos", autoAvaliacao?.nota_cuidado_equipamentos || "—", liderAvaliacao?.nota_cuidado_equipamentos || "—", (autoAvaliacao?.nota_cuidado_equipamentos || 0) - (liderAvaliacao?.nota_cuidado_equipamentos || 0)]
-    ];
+    const compBody = fitCulturalQuestions.map(q => {
+      const auto = autoAvaliacao?.respostas_ancoras?.[q.id] || 0;
+      const lider = liderAvaliacao?.respostas_ancoras?.[q.id] || 0;
+      const gap = (auto > 0 && lider > 0) ? auto - lider : "-";
+      return [
+        q.title,
+        auto > 0 ? auto : "-",
+        lider > 0 ? lider : "-",
+        gap
+      ];
+    });
 
     autoTable(doc, {
       startY: y,

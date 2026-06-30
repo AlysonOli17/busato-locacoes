@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { exportDossieToPDF } from "@/lib/dossieExportUtils";
+import { fitCulturalQuestions } from "@/components/rh/FitCulturalTab";
 
 const StarRating = ({ value, readonly = false }: { value: number, readonly?: boolean }) => {
   return (
@@ -354,11 +355,14 @@ export default function DossieAnalitico() {
               <div className="col-span-2 text-right text-muted-foreground">Gap</div>
             </div>
             <div className="space-y-1 mt-4">
-              <CompareRow label="Qualidade Técnica" valAuto={autoAvaliacao?.nota_tecnica} valLider={liderAvaliacao?.nota_tecnica} />
-              <CompareRow label="Pontualidade/Assiduidade" valAuto={autoAvaliacao?.nota_pontualidade} valLider={liderAvaliacao?.nota_pontualidade} />
-              <CompareRow label="Trabalho em Equipe" valAuto={autoAvaliacao?.nota_trabalho_equipe} valLider={liderAvaliacao?.nota_trabalho_equipe} />
-              <CompareRow label="Proatividade" valAuto={autoAvaliacao?.nota_proatividade} valLider={liderAvaliacao?.nota_proatividade} />
-              <CompareRow label="Cuidado c/ Equipamentos" valAuto={autoAvaliacao?.nota_cuidado_equipamentos} valLider={liderAvaliacao?.nota_cuidado_equipamentos} />
+              {fitCulturalQuestions.map(q => (
+                <CompareRow 
+                  key={q.id}
+                  label={q.title} 
+                  valAuto={autoAvaliacao?.respostas_ancoras?.[q.id]} 
+                  valLider={liderAvaliacao?.respostas_ancoras?.[q.id]} 
+                />
+              ))}
             </div>
 
             <div className="grid grid-cols-2 gap-6 mt-6">
