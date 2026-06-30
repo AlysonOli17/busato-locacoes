@@ -34,7 +34,7 @@ export function FitCulturalTab({ funcionarios }: Props) {
   const { toast } = useToast();
   const [avaliacoes, setAvaliacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [grouped, setGrouped] = useState<any>({});
+  const [grouped, setGrouped] = useState<any[]>([]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
