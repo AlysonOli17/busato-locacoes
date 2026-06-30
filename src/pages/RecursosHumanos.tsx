@@ -163,12 +163,12 @@ export default function RecursosHumanos() {
     <div className="flex-1 p-6 lg:p-8 pt-6 pb-20 md:pb-8 lg:pb-8 h-screen overflow-y-auto w-full bg-background/50">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => navigate('/')} className="shrink-0 hidden md:flex">
+          <Button variant="outline" size="icon" onClick={() => navigate('/equipamentos')} className="shrink-0 hidden md:flex">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => navigate('/')} className="h-8 w-8 md:hidden">
+              <Button variant="outline" size="icon" onClick={() => navigate('/equipamentos')} className="h-8 w-8 md:hidden">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <Users className="h-6 w-6 text-primary" />
