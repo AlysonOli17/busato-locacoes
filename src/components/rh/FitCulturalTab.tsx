@@ -223,10 +223,12 @@ export function FitCulturalTab({ funcionarios }: Props) {
   };
 
   const getWorkflowStatus = (data: any) => {
+    const autoConcluida = data.auto?.status === 'Concluído' || (data.auto?.respostas_ancoras && Object.keys(data.auto.respostas_ancoras).length > 0);
+    
     if (data.lider?.respostas_ancoras?.validado) return <Badge variant="success">Validado</Badge>;
     if (data.lider?.respostas_ancoras?.calibracao) return <Badge variant="default" className="bg-purple-500">Calibrado</Badge>;
     if (data.lider) return <Badge variant="secondary">Avaliado (Gestor)</Badge>;
-    if (data.auto?.status === 'Concluído') return <Badge variant="outline">Autoavaliação Concluída</Badge>;
+    if (autoConcluida) return <Badge variant="outline">Autoavaliação Concluída</Badge>;
     if (data.auto) return <Badge variant="secondary" className="opacity-50">Aguardando Funcionário</Badge>;
     return <Badge variant="outline" className="opacity-30">Não Iniciado</Badge>;
   };
@@ -256,6 +258,7 @@ export function FitCulturalTab({ funcionarios }: Props) {
           </TableHeader>
           <TableBody>
             {(grouped as any[]).map(g => {
+              const autoConcluida = g.auto?.status === 'Concluído' || (g.auto?.respostas_ancoras && Object.keys(g.auto.respostas_ancoras).length > 0);
               return (
                 <TableRow key={g.cycleKey}>
                   <TableCell className="font-medium">
@@ -264,18 +267,18 @@ export function FitCulturalTab({ funcionarios }: Props) {
                   </TableCell>
                   <TableCell>
                     {g.auto ? (
-                      g.auto.status === 'Concluído' ? <CheckCircle2 className="h-5 w-5 text-success" /> : 
+                      autoConcluida ? <CheckCircle2 className="h-5 w-5 text-success" /> : 
                       <Button variant="ghost" size="sm" onClick={() => copyToClipboard(g.auto.token_acesso)}>Copiar Link</Button>
                     ) : '-'}
                   </TableCell>
                   <TableCell>
                     {g.lider ? <CheckCircle2 className="h-5 w-5 text-success" /> : 
-                     (g.auto?.status === 'Concluído' ? <Button variant="secondary" size="sm" onClick={() => openManagerDialog(g.funcionario_id)}>Avaliar</Button> : '-')}
+                     (autoConcluida ? <Button variant="secondary" size="sm" onClick={() => openManagerDialog(g.funcionario_id)}>Avaliar</Button> : '-')}
                   </TableCell>
                   <TableCell>{getWorkflowStatus(g)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {g.auto?.status === 'Concluído' && g.lider && (
+                      {autoConcluida && g.lider && (
                         <Button variant="outline" size="sm" onClick={() => openCalibracao(g.cycleKey)}>
                           <Scale className="h-4 w-4 mr-2" /> 3. Calibrar
                         </Button>

@@ -62,7 +62,7 @@ export default function AutoavaliacaoPublica() {
         return;
       }
       
-      if (data.status === 'Concluído') {
+      if (data.status === 'Concluído' || (data.respostas_ancoras && Object.keys(data.respostas_ancoras).length > 0)) {
         setSuccess(true);
         setLoading(false);
         return;
@@ -102,7 +102,6 @@ export default function AutoavaliacaoPublica() {
           nota_cuidado_equipamentos: avg,
           respostas_ancoras: notas as any,
           observacoes: observacoes,
-          status: 'Concluído',
           atualizado_em: new Date().toISOString()
         })
         .eq('id', avaliacao.id);
