@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { Users, Plus, Pencil, Trash2, Search, Target, Grid, Brain, Loader2, TrendingUp, ClipboardList, Clock } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Search, Target, Grid, Brain, Loader2, TrendingUp, ClipboardList, Clock, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -162,14 +162,22 @@ export default function RecursosHumanos() {
   return (
     <div className="flex-1 p-6 lg:p-8 pt-6 pb-20 md:pb-8 lg:pb-8 h-screen overflow-y-auto w-full bg-background/50">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" />
-            Recursos Humanos
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Gestão de Equipe, DHO e Avaliações de Desempenho
-          </p>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => navigate('/')} className="shrink-0 hidden md:flex">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => navigate('/')} className="h-8 w-8 md:hidden">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <Users className="h-6 w-6 text-primary" />
+              Recursos Humanos
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Gestão de Equipe, DHO e Avaliações de Desempenho
+            </p>
+          </div>
         </div>
       </div>
 
