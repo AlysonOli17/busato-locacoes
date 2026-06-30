@@ -14,28 +14,30 @@ import { fitCulturalQuestions } from "@/components/rh/FitCulturalTab";
 
 const StarRating = ({ value, readonly = false }: { value: number, readonly?: boolean }) => {
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
         <Star 
           key={star} 
-          className={`h-5 w-5 ${star <= value ? 'fill-primary text-primary' : 'text-muted-foreground opacity-30'}`}
+          className={`h-4 w-4 ${star <= value ? 'fill-primary text-primary' : 'text-muted-foreground opacity-30'}`}
         />
       ))}
     </div>
   );
 };
 
-const CompareRow = ({ label, valAuto, valLider }: { label: string, valAuto?: number | null, valLider?: number | null }) => {
-  const diff = (valAuto || 0) - (valLider || 0);
+const CompareRow = ({ label, valAuto, valLider, valCalibrado }: { label: string, valAuto?: number | null, valLider?: number | null, valCalibrado?: number | null }) => {
+  const reference = valCalibrado || valLider || 0;
+  const diff = (valAuto || 0) - reference;
   let diffColor = "text-muted-foreground";
   if (diff > 1) diffColor = "text-destructive font-bold";
   else if (diff < -1) diffColor = "text-success font-bold";
   
   return (
-    <div className="grid grid-cols-12 gap-4 items-center py-2 border-b border-border/40 text-sm">
-      <div className="col-span-4 font-medium">{label}</div>
-      <div className="col-span-3 flex justify-center"><StarRating value={valAuto || 0} readonly /></div>
-      <div className="col-span-3 flex justify-center"><StarRating value={valLider || 0} readonly /></div>
+    <div className="grid grid-cols-12 gap-2 items-center py-2 border-b border-border/40 text-sm">
+      <div className="col-span-4 font-medium text-xs leading-tight">{label}</div>
+      <div className="col-span-2 flex justify-center"><StarRating value={valAuto || 0} readonly /></div>
+      <div className="col-span-2 flex justify-center"><StarRating value={valLider || 0} readonly /></div>
+      <div className="col-span-2 flex justify-center">{valCalibrado ? <StarRating value={valCalibrado} readonly /> : <span className="text-muted-foreground">-</span>}</div>
       <div className="col-span-2 text-right">
         <span className={diffColor}>{diff > 0 ? `+${diff}` : diff}</span>
       </div>
@@ -348,10 +350,11 @@ export default function DossieAnalitico() {
             <CardDescription>Autoavaliação vs Visão do Líder</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-12 gap-4 pb-2 border-b-2 border-border font-bold text-sm text-center">
+            <div className="grid grid-cols-12 gap-2 pb-2 border-b-2 border-border font-bold text-sm text-center">
               <div className="col-span-4 text-left text-muted-foreground">Competência</div>
-              <div className="col-span-3 text-blue-500">Autoavaliação</div>
-              <div className="col-span-3 text-purple-500">Visão do Líder</div>
+              <div className="col-span-2 text-blue-500">Auto</div>
+              <div className="col-span-2 text-purple-500">Gestor</div>
+              <div className="col-span-2 text-green-600">Calibrado</div>
               <div className="col-span-2 text-right text-muted-foreground">Gap</div>
             </div>
             <div className="space-y-1 mt-4">
@@ -361,6 +364,7 @@ export default function DossieAnalitico() {
                   label={q.title} 
                   valAuto={autoAvaliacao?.respostas_ancoras?.[q.id]} 
                   valLider={liderAvaliacao?.respostas_ancoras?.[q.id]} 
+                  valCalibrado={liderAvaliacao?.respostas_ancoras?.calibracao?.[q.id]}
                 />
               ))}
             </div>

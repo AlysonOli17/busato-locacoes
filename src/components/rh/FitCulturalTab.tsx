@@ -237,7 +237,7 @@ export function FitCulturalTab({ funcionarios }: Props) {
     <Card className="glass shadow-sm border-border/40">
       <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4">
         <div>
-          <CardTitle className="text-lg">Workflow de Fit Cultural (4 Etapas)</CardTitle>
+          <CardTitle className="text-lg">Fit Cultural</CardTitle>
           <CardDescription>Autoavaliação, Gestor, Calibração e Validação</CardDescription>
         </div>
         <Button onClick={() => setIsDialogOpen(true)} className="shrink-0">

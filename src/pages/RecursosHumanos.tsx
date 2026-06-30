@@ -194,7 +194,7 @@ export default function RecursosHumanos() {
             <TrendingUp className="h-4 w-4" /> Estratégia e Metas
           </TabsTrigger>
           <TabsTrigger value="avaliacoes" className="flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" /> Avaliações 180º
+            <ClipboardList className="h-4 w-4" /> Fit Cultural
           </TabsTrigger>
         </TabsList>
 
