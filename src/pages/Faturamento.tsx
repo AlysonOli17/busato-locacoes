@@ -1772,19 +1772,7 @@ export const FaturamentoContent = () => {
                         <div className="flex flex-col items-start gap-0.5">
                           <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
                           <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
-                            {displayStatus === "Pendente" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                title="Enviar para Aprovação"
-                                onClick={() => setSolicitarAprovacaoDialog({ isOpen: true, faturaId: item.id, responsavelId: "" })}
-                              >
-                                <Send className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-
-                            {displayStatus === "Aguardando Aprovação" && (
+                            {(displayStatus === "Pendente" || displayStatus === "Aguardando Aprovação") && (
                               <Button
                                 variant="ghost"
                                 size="icon"
