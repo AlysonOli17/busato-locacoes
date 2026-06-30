@@ -108,14 +108,18 @@ export default function DossieAnalitico() {
       setFuncionario(func);
 
       // 2. Avaliações (Evolução)
-      const { data: aval, error: err2 } = await supabase
+      const { data: avalRaw, error: err2 } = await supabase
         .from('avaliacoes_desempenho')
         .select('*')
         .eq('funcionario_id', id)
-        .eq('status', 'Concluído')
         .order('criado_em', { ascending: true });
       if (err2) throw err2;
-      setAvaliacoes(aval || []);
+      
+      const aval = (avalRaw || []).filter(a => 
+        a.status === 'Concluído' || (a.respostas_ancoras && Object.keys(a.respostas_ancoras).length > 0)
+      );
+      
+      setAvaliacoes(aval);
 
       // 3. Testes Comportamentais (DISC/PDA)
       const { data: tst, error: err3 } = await supabase
