@@ -153,7 +153,7 @@ export const RelatoriosGerenciaisTab = ({
     const gastosManutencao = gastosFiltrados.filter(g => tiposManutencao.includes(g.tipo));
     const custoManutencao = gastosManutencao.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    const gastosMobilizacao = gastosFiltrados.filter(g => tiposMobilizacao.includes(g.tipo) && g.status === "Custo Assumido");
+    const gastosMobilizacao = gastosFiltrados.filter(g => tiposMobilizacao.includes(g.tipo));
     const custoMobilizacao = gastosMobilizacao.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
     const gastosFixo = gastosFiltrados.filter(g => tiposFixos.includes(g.tipo));
@@ -242,8 +242,7 @@ export const RelatoriosGerenciaisTab = ({
       }
 
       const eqGastos = gastosFiltrados.filter(g => g.equipamento_id === eq.id);
-      const gastosDespesa = eqGastos.filter(g => !(g.tipo === "Mobilização" || g.tipo === "Desmobilização") || g.status === "Custo Assumido");
-      const despesa = gastosDespesa.reduce((sum, g) => sum + Number(g.valor || 0), 0);
+      const despesa = eqGastos.reduce((sum, g) => sum + Number(g.valor || 0), 0);
       const margem = receita - despesa;
       const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
 
