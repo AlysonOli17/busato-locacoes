@@ -107,8 +107,9 @@ export const RelatoriosGerenciaisTab = ({
     });
 
     return gastos.filter(g => {
-      // Se for cobrado do cliente, não é custo nosso
-      if (g.classificacao === "A Cobrar do Cliente") return false;
+      // Se for cobrado do cliente, não é custo nosso (tratar nulos como 'A Cobrar' conforme o resto do app)
+      const classificacaoStr = g.classificacao || "A Cobrar do Cliente";
+      if (classificacaoStr === "A Cobrar do Cliente") return false;
 
       if (!g.data) return false;
       if (dataInicio && g.data < dataInicio) return false;
