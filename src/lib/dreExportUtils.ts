@@ -1,6 +1,3 @@
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
-
 let logoCache: string | null = null;
 const loadLogo = async (): Promise<string | null> => {
   if (logoCache) return logoCache;
@@ -36,6 +33,9 @@ interface DreExportData {
 }
 
 export const generateDrePdf = async (data: DreExportData) => {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+
   const doc = new jsPDF("p", "pt", "a4");
   const margin = 40;
   let currentY = margin;
@@ -88,7 +88,7 @@ export const generateDrePdf = async (data: DreExportData) => {
     [{ content: "EBITDA REAL DA EMPRESA", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, { content: `R$ ${fmt(r.resultadoEbitda)}`, styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: r.resultadoEbitda >= 0 ? [40, 167, 69] : [220, 53, 69] } }, { content: `${r.margemEbitda.toFixed(1)}%`, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]
   ];
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: currentY,
     head: [["Categoria", "Valor", "Margem"]],
     body: dreTableBody,
@@ -124,7 +124,7 @@ export const generateDrePdf = async (data: DreExportData) => {
     ["Atrasado 60+ dias (Crítico)", `R$ ${fmt(al.atrasado60Plus)}`]
   ];
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: currentY,
     head: [["Status", "Valor"]],
     body: agingBody,
@@ -158,7 +158,7 @@ export const generateDrePdf = async (data: DreExportData) => {
     ];
   });
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: currentY,
     head: [["Equipamento", "Tag/Placa", "Receita (R$)", "Custo Oper. (R$)", "Margem (R$)", "Rentabilidade"]],
     body: rentabilidadeBody,

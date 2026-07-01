@@ -490,7 +490,7 @@ export const RelatoriosGerenciaisTab = ({
               })}
             >
               <FileText className="h-4 w-4" />
-              Exportar PDF Executivo
+              Exportar PDF
             </Button>
           </div>
         </CardContent>
