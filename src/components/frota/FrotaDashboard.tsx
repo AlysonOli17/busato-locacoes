@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Truck, Wrench, AlertTriangle, FileCheck, ShieldAlert, CheckCircle2, TrendingUp, Activity } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
 
 const dataDisponibilidade = [
   { name: "Seg", disp: 95 },
@@ -13,13 +14,64 @@ const dataDisponibilidade = [
   { name: "Dom", disp: 100 },
 ];
 
-const dataFrotaStatus = [
-  { name: "Operando", value: 45, color: "#10b981" }, // emerald-500
-  { name: "Manutenção", value: 8, color: "#f59e0b" }, // amber-500
-  { name: "Pátio", value: 12, color: "#64748b" }, // slate-500
-];
-
 export const FrotaDashboard = () => {
+  const [stats, setStats] = useState({
+    operando: 0,
+    manutencao: 0,
+    patio: 0,
+    total: 0,
+    docsVencendo: 0,
+    docsTotal: 0
+  });
+
+  const [documentosAlertas, setDocumentosAlertas] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      // Busca equipamentos e agrupa por status (Locado, Manutenção, etc)
+      const { data: equipData } = await supabase.from("equipamentos").select("status");
+      
+      let op = 0; let man = 0; let pat = 0; let tot = 0;
+      if (equipData) {
+        tot = equipData.length;
+        equipData.forEach(eq => {
+          if (eq.status === 'Locado' || eq.status === 'Ativo') op++;
+          else if (eq.status === 'Manutenção') man++;
+          else pat++;
+        });
+      }
+
+      // Busca documentos
+      const { data: docsData } = await supabase.from("documentos_legais").select("*, equipamentos(tag_placa, modelo)");
+      let docsVenc = 0;
+      let alertas = [];
+      const hoje = new Date();
+      const em30Dias = new Date();
+      em30Dias.setDate(hoje.getDate() + 30);
+
+      if (docsData) {
+        docsData.forEach(doc => {
+          const v = new Date(doc.vencimento);
+          if (v <= em30Dias) {
+            docsVenc++;
+            alertas.push(doc);
+          }
+        });
+      }
+
+      setDocumentosAlertas(alertas);
+      setStats({ operando: op, manutencao: man, patio: pat, total: tot, docsVencendo: docsVenc, docsTotal: docsData?.length || 0 });
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const dataFrotaStatus = [
+    { name: "Operando", value: stats.operando, color: "#10b981" },
+    { name: "Manutenção", value: stats.manutencao, color: "#f59e0b" },
+    { name: "Pátio", value: stats.patio, color: "#64748b" },
+  ];
+
   return (
     <div className="space-y-6">
       {/* KPIs Principais */}
@@ -30,10 +82,9 @@ export const FrotaDashboard = () => {
             <Truck className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">45</div>
+            <div className="text-2xl font-bold">{stats.operando}</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center">
-              <TrendingUp className="h-3 w-3 mr-1 text-emerald-500" />
-              <span className="text-emerald-500 font-medium">+2</span> desde o último mês
+              <span className="font-medium">Total de frota ativa/locada</span>
             </p>
           </CardContent>
         </Card>
@@ -44,10 +95,9 @@ export const FrotaDashboard = () => {
             <Wrench className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
+            <div className="text-2xl font-bold">{stats.manutencao}</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center">
-              <Activity className="h-3 w-3 mr-1 text-amber-500" />
-              3 preventivas, 5 corretivas
+              <span className="font-medium">Equipamentos parados</span>
             </p>
           </CardContent>
         </Card>
@@ -58,9 +108,9 @@ export const FrotaDashboard = () => {
             <AlertTriangle className="h-4 w-4 text-rose-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{stats.docsVencendo}</div>
             <p className="text-xs text-muted-foreground mt-1 text-rose-500 font-medium">
-              Ação imediata requerida
+              Documentos a vencer em 30 dias
             </p>
           </CardContent>
         </Card>
@@ -71,9 +121,9 @@ export const FrotaDashboard = () => {
             <FileCheck className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">92%</div>
+            <div className="text-2xl font-bold">{stats.docsTotal > 0 ? Math.round(((stats.docsTotal - stats.docsVencendo)/stats.docsTotal)*100) : 100}%</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center">
-              <span className="text-blue-500 font-medium mr-1">5</span> veículos com IPVA a vencer
+              <span className="text-blue-500 font-medium mr-1">{stats.docsVencendo}</span> documentos vencem em breve
             </p>
           </CardContent>
         </Card>
@@ -131,7 +181,7 @@ export const FrotaDashboard = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-2xl font-bold">65</span>
+                  <span className="text-2xl font-bold">{stats.total}</span>
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</span>
                 </div>
               </div>
@@ -150,38 +200,24 @@ export const FrotaDashboard = () => {
             <CardHeader className="bg-rose-50/50 pb-2 border-b border-rose-100 rounded-t-xl">
               <CardTitle className="text-sm font-bold text-rose-700 flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4" />
-                Radar de Atenção
+                Radar de Atenção (Vencimentos)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-border/50">
-                <div className="p-3 flex items-start gap-3 hover:bg-muted/50 transition-colors">
-                  <div className="mt-0.5 bg-rose-100 p-1 rounded">
-                    <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                {documentosAlertas.length === 0 ? (
+                  <div className="p-4 text-sm text-center text-muted-foreground">Nenhum alerta crítico no momento.</div>
+                ) : documentosAlertas.slice(0, 3).map((alerta: any) => (
+                  <div key={alerta.id} className="p-3 flex items-start gap-3 hover:bg-muted/50 transition-colors">
+                    <div className="mt-0.5 bg-rose-100 p-1 rounded">
+                      <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{alerta.tipo} Vencendo</p>
+                      <p className="text-xs text-muted-foreground">{alerta.equipamentos?.modelo} - Vence em: {new Date(alerta.vencimento).toLocaleDateString('pt-BR')}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">Seguro Vencendo</p>
-                    <p className="text-xs text-muted-foreground">Placa ABC-1234 vence amanhã.</p>
-                  </div>
-                </div>
-                <div className="p-3 flex items-start gap-3 hover:bg-muted/50 transition-colors">
-                  <div className="mt-0.5 bg-amber-100 p-1 rounded">
-                    <Wrench className="h-3.5 w-3.5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Revisão Atrasada</p>
-                    <p className="text-xs text-muted-foreground">Escavadeira CAT-01 (10.500 hrs).</p>
-                  </div>
-                </div>
-                <div className="p-3 flex items-start gap-3 hover:bg-muted/50 transition-colors">
-                  <div className="mt-0.5 bg-emerald-100 p-1 rounded">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">OS Concluída</p>
-                    <p className="text-xs text-muted-foreground">Caminhão Munck liberado hoje.</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>

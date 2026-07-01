@@ -5,22 +5,101 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Search, FileCheck, AlertTriangle, ShieldCheck, FileText, Download, CalendarDays } from "lucide-react";
+import { Plus, Search, FileCheck, AlertTriangle, ShieldCheck, FileText, Download, CalendarDays, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { CurrencyInput } from "@/components/CurrencyInput";
+
+interface Equipamento {
+  id: string;
+  tipo: string;
+  modelo: string;
+  tag_placa: string | null;
+}
+
+interface Documento {
+  id: string;
+  equipamento_id: string;
+  tipo: string;
+  numero: string;
+  vencimento: string;
+  valor: number;
+  status: string;
+  equipamentos?: Equipamento;
+}
+
+const emptyForm = { equipamento_id: "", tipo: "IPVA", numero: "", vencimento: "", valor: "" };
 
 export const GestaoDocumentos = () => {
-  const [documentos, setDocumentos] = useState<any[]>([]);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [editing, setEditing] = useState<Documento | null>(null);
+  const { toast } = useToast();
+
+  const fetchData = async () => {
+    const [docsRes, equipRes] = await Promise.all([
+      supabase.from("documentos_legais").select("*, equipamentos(id, tipo, modelo, tag_placa)").order("vencimento", { ascending: true }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa").order("modelo")
+    ]);
+
+    if (docsRes.data) setDocumentos(docsRes.data);
+    if (equipRes.data) setEquipamentos(equipRes.data);
+  };
 
   useEffect(() => {
-    // Mock data for demonstration
-    setDocumentos([
-      { id: 1, equipamento: "Caminhão Munck (ABC-1234)", tipo: "Licenciamento", numero: "9988776655", vencimento: "2026-10-15", valor: 145.90, status: "Ativo" },
-      { id: 2, equipamento: "Caminhão Pipa (XYZ-9999)", tipo: "IPVA", numero: "-", vencimento: "2026-07-05", valor: 2300.00, status: "Atenção" },
-      { id: 4, equipamento: "Trator Valtra", tipo: "ANTT", numero: "REG-987654", vencimento: "2027-02-10", valor: 400.00, status: "Ativo" }
-    ]);
+    fetchData();
   }, []);
+
+  const handleSave = async () => {
+    if (!form.equipamento_id || !form.numero || !form.vencimento) {
+      toast({ title: "Erro", description: "Preencha os campos obrigatórios.", variant: "destructive" });
+      return;
+    }
+
+    const payload = {
+      equipamento_id: form.equipamento_id,
+      tipo: form.tipo,
+      numero: form.numero,
+      vencimento: form.vencimento,
+      valor: form.valor ? parseFloat(form.valor as any) : 0,
+      // Status is automatically calculated or set to Ativo by default in DB, we'll let it just use Ativo for now or calculate it
+    };
+
+    if (editing) {
+      const { error } = await supabase.from("documentos_legais").update(payload).eq("id", editing.id);
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("documentos_legais").insert({ ...payload, id: crypto.randomUUID() });
+      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    }
+
+    setDialogOpen(false);
+    fetchData();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir?")) return;
+    const { error } = await supabase.from("documentos_legais").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchData();
+  };
+
+  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
+  const openEdit = (doc: Documento) => {
+    setEditing(doc);
+    setForm({
+      equipamento_id: doc.equipamento_id,
+      tipo: doc.tipo,
+      numero: doc.numero,
+      vencimento: doc.vencimento,
+      valor: doc.valor.toString()
+    });
+    setDialogOpen(true);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -50,61 +129,60 @@ export const GestaoDocumentos = () => {
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" /> Novo Documento
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Registrar Documento</DialogTitle>
+              <DialogTitle>{editing ? "Editar Documento" : "Registrar Documento"}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label>Equipamento</Label>
-                <Select>
+                <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Caminhão Munck (ABC-1234)</SelectItem>
-                    <SelectItem value="2">Escavadeira CAT-01</SelectItem>
+                    {equipamentos.map((eq) => (
+                      <SelectItem key={eq.id} value={eq.id}>
+                        {eq.modelo} {eq.tag_placa ? `(${eq.tag_placa})` : ""}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Tipo de Documento</Label>
-                  <Select defaultValue="ipva">
+                  <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ipva">IPVA</SelectItem>
-                      <SelectItem value="licenciamento">Licenciamento</SelectItem>
-                      <SelectItem value="antt">ANTT</SelectItem>
-                      <SelectItem value="outros">Outros</SelectItem>
+                      <SelectItem value="IPVA">IPVA</SelectItem>
+                      <SelectItem value="Licenciamento">Licenciamento</SelectItem>
+                      <SelectItem value="ANTT">ANTT</SelectItem>
+                      <SelectItem value="Outros">Outros</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label>Número/Registro</Label>
-                  <Input placeholder="Ex: 9988776655" />
+                  <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="Ex: 9988776655" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Data de Vencimento</Label>
-                  <Input type="date" />
+                  <Input type="date" value={form.vencimento} onChange={(e) => setForm({ ...form, vencimento: e.target.value })} />
                 </div>
                 <div className="grid gap-2">
                   <Label>Valor (R$)</Label>
-                  <Input type="number" placeholder="0,00" />
+                  <CurrencyInput value={Number(form.valor) || 0} onValueChange={(v) => setForm({ ...form, valor: String(v) })} />
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Anexo (PDF/Imagem)</Label>
-                <Input type="file" />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogOpen(false)} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar Documento</Button>
+              <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar Documento</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -126,7 +204,9 @@ export const GestaoDocumentos = () => {
           <TableBody>
             {documentos.map((doc) => (
               <TableRow key={doc.id} className="hover:bg-muted/50 transition-colors">
-                <TableCell className="font-semibold">{doc.equipamento}</TableCell>
+                <TableCell className="font-semibold">
+                  {doc.equipamentos?.modelo} {doc.equipamentos?.tag_placa ? `(${doc.equipamentos.tag_placa})` : ""}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2 font-medium">
                     {getTipoIcon(doc.tipo)}
@@ -137,17 +217,22 @@ export const GestaoDocumentos = () => {
                 <TableCell>
                   <div className="flex items-center text-sm font-medium">
                     <CalendarDays className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
-                    {new Date(doc.vencimento).toLocaleDateString('pt-BR')}
+                    {new Date(doc.vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                   </div>
                 </TableCell>
                 <TableCell className="text-right font-mono font-medium">
-                  {doc.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {Number(doc.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
                 <TableCell className="text-center">{getStatusBadge(doc.status)}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
-                    <Download className="h-4 w-4" />
-                  </Button>
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(doc)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(doc.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

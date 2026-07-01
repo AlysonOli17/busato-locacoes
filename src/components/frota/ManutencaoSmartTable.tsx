@@ -35,9 +35,9 @@ interface Gasto {
   fatura?: FaturaRef | null;
 }
 
-const tiposGasto = ["Manuten├º├úo", "Combust├¡vel", "Pe├ºas", "Transporte", "Mobiliza├º├úo", "Desmobiliza├º├úo", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
+const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
 const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente", "Custo Assumido"];
-const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manuten├º├úo", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0] };
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0] };
 
 export const ManutencaoSmartTable = () => {
   const [items, setItems] = useState<Gasto[]>([]);
@@ -175,11 +175,11 @@ export const ManutencaoSmartTable = () => {
   };
 
   const tipoColor = (t: string) => {
-    if (t === "Manuten├º├úo") return "bg-primary/10 text-primary border-0";
-    if (t === "Combust├¡vel") return "bg-warning/10 text-warning border-0";
-    if (t === "Pe├ºas") return "bg-accent/10 text-accent border-0";
-    if (t === "Mobiliza├º├úo") return "bg-success/10 text-success border-0";
-    if (t === "Desmobiliza├º├úo") return "bg-destructive/10 text-destructive border-0";
+    if (t === "Manutenção") return "bg-primary/10 text-primary border-0";
+    if (t === "Combustível") return "bg-warning/10 text-warning border-0";
+    if (t === "Peças") return "bg-accent/10 text-accent border-0";
+    if (t === "Mobilização") return "bg-success/10 text-success border-0";
+    if (t === "Desmobilização") return "bg-destructive/10 text-destructive border-0";
     return "bg-muted text-muted-foreground";
   };
 
