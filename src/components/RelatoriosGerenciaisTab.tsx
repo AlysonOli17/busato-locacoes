@@ -107,9 +107,13 @@ export const RelatoriosGerenciaisTab = ({
     });
 
     return gastos.filter(g => {
-      // Se for cobrado do cliente, não é custo nosso (tratar nulos como 'A Cobrar' conforme o resto do app)
-      const classificacaoStr = g.classificacao || "A Cobrar do Cliente";
-      if (classificacaoStr === "A Cobrar do Cliente") return false;
+      // Gastos antigos (sem classificaÃ§Ã£o) recebem um fallback inteligente:
+      // Se for MobilizaÃ§Ã£o, normalmente Ã© repassado ao cliente. Caso contrÃ¡rio, Ã© custo da mÃ¡quina.
+      const isMob = g.tipo === "MobilizaÃ§Ã£o" || g.tipo === "DesmobilizaÃ§Ã£o";
+      const classif = g.classificacao || (isMob ? "A Cobrar do Cliente" : "Custo Assumido");
+      
+      // Remove se for repassado
+      if (classif === "A Cobrar do Cliente") return false;
 
       if (!g.data) return false;
       if (dataInicio && g.data < dataInicio) return false;
@@ -324,7 +328,7 @@ export const RelatoriosGerenciaisTab = ({
     return result;
   }, [faturasFiltradas]);
 
-  // 5. Histórico Mensal para Gráfico DRE
+  // 5. HistÃ³rico Mensal para GrÃ¡fico DRE
   const chartData = useMemo(() => {
     const map: Record<string, { mes: string; Receita: number; Custos: number }> = {};
     
@@ -378,7 +382,7 @@ export const RelatoriosGerenciaisTab = ({
       .map(([, val]) => val);
   }, [faturasFiltradas, gastosFiltrados, dreStats]);
 
-  // Função para exportação em Excel (XLSX)
+  // FunÃ§Ã£o para exportaÃ§Ã£o em Excel (XLSX)
   const handleExportExcel = (tipo: "rentabilidade" | "dre" | "aging") => {
     let data: any[] = [];
     let filename = "";
@@ -389,9 +393,9 @@ export const RelatoriosGerenciaisTab = ({
         "Placa/Tag": eq.tag,
         "Receita Bruta (R$)": Number(eq.receita.toFixed(2)),
         "Despesas Operacionais (R$)": Number(eq.despesa.toFixed(2)),
-        "Margem Líquida (R$)": Number(eq.margem.toFixed(2)),
+        "Margem LÃ­quida (R$)": Number(eq.margem.toFixed(2)),
         "Margem (%)": Number(eq.margemPct.toFixed(1)) / 100,
-        "Lucratividade": eq.margemPct >= 30 ? "Alta" : eq.margemPct > 0 ? "Apertada" : eq.despesa === 0 && eq.receita === 0 ? "Inativo" : "Prejuízo",
+        "Lucratividade": eq.margemPct >= 30 ? "Alta" : eq.margemPct > 0 ? "Apertada" : eq.despesa === 0 && eq.receita === 0 ? "Inativo" : "PrejuÃ­zo",
         "Status": eq.status
       }));
       filename = "Rentabilidade_Equipamentos.xlsx";
@@ -399,20 +403,20 @@ export const RelatoriosGerenciaisTab = ({
       const r = dreStats;
       data = [
         { "Categoria": "Receita Bruta", "Valor (R$)": Number(r.receitaBruta.toFixed(2)), "% da Receita": 1 },
-        { "Categoria": "Custos de Manutenção", "Valor (R$)": Number(r.custoManutencao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoManutencao / r.receitaBruta).toFixed(4)) : 0 },
-        { "Categoria": "Custos de Mobilização", "Valor (R$)": Number(r.custoMobilizacao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoMobilizacao / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Custos de ManutenÃ§Ã£o", "Valor (R$)": Number(r.custoManutencao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoManutencao / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Custos de MobilizaÃ§Ã£o", "Valor (R$)": Number(r.custoMobilizacao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoMobilizacao / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Encargos Fixos", "Valor (R$)": Number(r.custoFixo.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoFixo / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Outros Custos Diretos", "Valor (R$)": Number(r.custoOutros.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoOutros / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Total Custos Operacionais", "Valor (R$)": Number(r.totalCustos.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.totalCustos / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Lucro Bruto (Gross Profit)", "Valor (R$)": Number(r.lucroBruto.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.lucroBruto / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Despesas Administrativas (Fixas)", "Valor (R$)": Number(r.totalDespesasAdmin.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.totalDespesasAdmin / r.receitaBruta).toFixed(4)) : 0 },
-        { "Categoria": "EBITDA (Resultado Líquido)", "Valor (R$)": Number(r.resultadoEbitda.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.resultadoEbitda / r.receitaBruta).toFixed(4)) : 0 }
+        { "Categoria": "EBITDA (Resultado LÃ­quido)", "Valor (R$)": Number(r.resultadoEbitda.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.resultadoEbitda / r.receitaBruta).toFixed(4)) : 0 }
       ];
       filename = "DRE_Completo_EBITDA.xlsx";
     } else if (tipo === "aging") {
       data = agingList.list.map(f => ({
         "Nota Fiscal": f.numeroNota,
-        "Período": f.periodo,
+        "PerÃ­odo": f.periodo,
         "Cliente": f.cliente,
         "Valor (R$)": Number(f.valor.toFixed(2)),
         "Vencimento": f.vencimento,
@@ -424,7 +428,7 @@ export const RelatoriosGerenciaisTab = ({
 
     const ws = XLSX.utils.json_to_sheet(data);
     
-    // Configurações básicas de coluna para melhor leitura no Excel
+    // ConfiguraÃ§Ãµes bÃ¡sicas de coluna para melhor leitura no Excel
     if (tipo === "rentabilidade") {
       ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
     } else if (tipo === "dre") {
@@ -434,7 +438,7 @@ export const RelatoriosGerenciaisTab = ({
     }
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+    XLSX.utils.book_append_sheet(wb, ws, "RelatÃ³rio");
     XLSX.writeFile(wb, filename);
   };
 
@@ -444,7 +448,7 @@ export const RelatoriosGerenciaisTab = ({
       <Card className="glass shadow-sm border border-border/40">
         <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-muted-foreground uppercase">Data Início</Label>
+            <Label className="text-xs font-bold text-muted-foreground uppercase">Data InÃ­cio</Label>
             <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-background/50" />
           </div>
           <div className="space-y-1.5">
@@ -499,7 +503,7 @@ export const RelatoriosGerenciaisTab = ({
         </CardContent>
       </Card>
 
-      {/* DRE KPIs e Gráfico */}
+      {/* DRE KPIs e GrÃ¡fico */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Painel do DRE */}
         <Card className="glass shadow-sm border border-border/40 lg:col-span-1">
@@ -513,7 +517,7 @@ export const RelatoriosGerenciaisTab = ({
                 <FileDown className="h-4 w-4" />
               </Button>
             </div>
-            <CardDescription>Resumo de receitas e despesas no período</CardDescription>
+            <CardDescription>Resumo de receitas e despesas no perÃ­odo</CardDescription>
           </CardHeader>
           <CardContent className="pt-4 space-y-4">
             <div 
@@ -526,16 +530,16 @@ export const RelatoriosGerenciaisTab = ({
             <div className="space-y-0.5 py-1 border-b border-border/5">
               <div 
                 className="flex justify-between items-center text-xs text-muted-foreground py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
-                onClick={() => setDreDetailModal({ isOpen: true, type: "custoManutencao", title: "Custos de Manutenção" })}
+                onClick={() => setDreDetailModal({ isOpen: true, type: "custoManutencao", title: "Custos de ManutenÃ§Ã£o" })}
               >
-                <span>Custos de Manutenção</span>
+                <span>Custos de ManutenÃ§Ã£o</span>
                 <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoManutencao)}</span>
               </div>
               <div 
                 className="flex justify-between items-center text-xs text-muted-foreground py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
-                onClick={() => setDreDetailModal({ isOpen: true, type: "custoMobilizacao", title: "Mobilização / Desmobilização" })}
+                onClick={() => setDreDetailModal({ isOpen: true, type: "custoMobilizacao", title: "MobilizaÃ§Ã£o / DesmobilizaÃ§Ã£o" })}
               >
-                <span>Mobilização / Desmobilização</span>
+                <span>MobilizaÃ§Ã£o / DesmobilizaÃ§Ã£o</span>
                 <span className="font-semibold text-foreground">R$ {fmt(dreStats.custoMobilizacao)}</span>
               </div>
               <div 
@@ -592,19 +596,19 @@ export const RelatoriosGerenciaisTab = ({
           </CardContent>
         </Card>
 
-        {/* Gráfico Mensal */}
+        {/* GrÃ¡fico Mensal */}
         <Card className="glass shadow-sm border border-border/40 lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Evolução Mensal (Receitas vs Custos)
+              EvoluÃ§Ã£o Mensal (Receitas vs Custos)
             </CardTitle>
-            <CardDescription>Fluxo financeiro mês a mês consolidado</CardDescription>
+            <CardDescription>Fluxo financeiro mÃªs a mÃªs consolidado</CardDescription>
           </CardHeader>
           <CardContent className="h-[280px] pb-4">
             {chartData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                Sem histórico de dados financeiros no período filtrado.
+                Sem histÃ³rico de dados financeiros no perÃ­odo filtrado.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -640,7 +644,7 @@ export const RelatoriosGerenciaisTab = ({
         </Card>
       </div>
 
-      {/* Relatório de Rentabilidade por Equipamento */}
+      {/* RelatÃ³rio de Rentabilidade por Equipamento */}
       <Card className="glass shadow-sm border border-border/40">
         <CardHeader className="pb-3 border-b border-border/10 flex flex-row items-center justify-between">
           <div>
@@ -648,7 +652,7 @@ export const RelatoriosGerenciaisTab = ({
               <TrendingUp className="h-4 w-4 text-primary" />
               Rentabilidade por Equipamento
             </CardTitle>
-            <CardDescription>Relação de receita líquida e eficiência financeira por ativo</CardDescription>
+            <CardDescription>RelaÃ§Ã£o de receita lÃ­quida e eficiÃªncia financeira por ativo</CardDescription>
           </div>
           <Button size="sm" variant="outline" className="h-8 gap-2 bg-background/50" onClick={() => handleExportExcel("rentabilidade")}>
             <FileDown className="h-3.5 w-3.5" />
@@ -664,7 +668,7 @@ export const RelatoriosGerenciaisTab = ({
                   <TableHead className="text-xs font-bold uppercase tracking-wider">Placa/Tag</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Receita Bruta</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Despesas Operacionais</TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Margem Líquida</TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Margem LÃ­quida</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Margem (%)</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-center">Lucratividade</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-center">Status</TableHead>
@@ -705,13 +709,13 @@ export const RelatoriosGerenciaisTab = ({
                           ) : eq.despesa === 0 && eq.receita === 0 ? (
                             <Badge variant="outline" className="text-slate-500 border-0 text-[10px]">Inativo</Badge>
                           ) : (
-                            <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-0 text-[10px]">Prejuízo</Badge>
+                            <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-0 text-[10px]">PrejuÃ­zo</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className={`text-[9px] font-bold uppercase py-0.5 px-2 border-0 text-white ${
                             eq.status === "Ativo" || eq.status === "Locado" ? "bg-success" :
-                            eq.status === "Manutenção" ? "bg-warning" : "bg-muted-foreground"
+                            eq.status === "ManutenÃ§Ã£o" ? "bg-warning" : "bg-muted-foreground"
                           }`}>
                             {eq.status}
                           </Badge>
@@ -726,7 +730,7 @@ export const RelatoriosGerenciaisTab = ({
         </CardContent>
       </Card>
 
-      {/* Relatório de Contas a Receber (Aging List) */}
+      {/* RelatÃ³rio de Contas a Receber (Aging List) */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Painel do Aging List (Categorias) */}
         <Card className="glass shadow-sm border border-border/40 lg:col-span-1">
@@ -735,7 +739,7 @@ export const RelatoriosGerenciaisTab = ({
               <Clock className="h-4 w-4 text-primary" />
               Aging de Contas a Receber
             </CardTitle>
-            <CardDescription>Consolidado de faturas pendentes de liquidação</CardDescription>
+            <CardDescription>Consolidado de faturas pendentes de liquidaÃ§Ã£o</CardDescription>
           </CardHeader>
           <CardContent className="pt-4 space-y-4">
             <div className="space-y-1">
@@ -749,21 +753,21 @@ export const RelatoriosGerenciaisTab = ({
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Atrasado 1 a 30 dias</span>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-black text-warning">R$ {fmt(agingList.atrasado1_30)}</span>
-                <Badge variant="outline" className="bg-warning/5 text-warning border-warning/20 text-[9px] font-bold">Cobrança N1</Badge>
+                <Badge variant="outline" className="bg-warning/5 text-warning border-warning/20 text-[9px] font-bold">CobranÃ§a N1</Badge>
               </div>
             </div>
             <div className="space-y-1 pt-2 border-t border-border/5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Atrasado 31 a 60 dias</span>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-black text-orange-500">R$ {fmt(agingList.atrasado31_60)}</span>
-                <Badge variant="outline" className="bg-orange-500/5 text-orange-500 border-orange-500/20 text-[9px] font-bold">Cobrança N2</Badge>
+                <Badge variant="outline" className="bg-orange-500/5 text-orange-500 border-orange-500/20 text-[9px] font-bold">CobranÃ§a N2</Badge>
               </div>
             </div>
             <div className="space-y-1 pt-2 border-t border-border/5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Atrasado 60+ dias</span>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-black text-destructive">R$ {fmt(agingList.atrasado60Plus)}</span>
-                <Badge variant="outline" className="bg-destructive/5 text-destructive border-destructive/20 text-[9px] font-bold">Cobrança Crítica</Badge>
+                <Badge variant="outline" className="bg-destructive/5 text-destructive border-destructive/20 text-[9px] font-bold">CobranÃ§a CrÃ­tica</Badge>
               </div>
             </div>
           </CardContent>
@@ -790,7 +794,7 @@ export const RelatoriosGerenciaisTab = ({
                 <TableHeader className="bg-muted/30 sticky top-0 z-10">
                   <TableRow>
                     <TableHead className="text-xs font-bold uppercase tracking-wider">Nota Fiscal</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider">Período</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider">PerÃ­odo</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider">Cliente</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Valor</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider">Vencimento</TableHead>
@@ -802,7 +806,7 @@ export const RelatoriosGerenciaisTab = ({
                   {agingList.list.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-24 text-center text-xs text-muted-foreground">
-                        Nenhuma fatura em aberto encontrada no período filtrado.
+                        Nenhuma fatura em aberto encontrada no perÃ­odo filtrado.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -844,7 +848,7 @@ export const RelatoriosGerenciaisTab = ({
           <DialogHeader>
             <DialogTitle>Detalhamento: {dreDetailModal.title}</DialogTitle>
             <DialogDescription>
-              Lista de itens que compõem este indicador no período selecionado.
+              Lista de itens que compÃµem este indicador no perÃ­odo selecionado.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
@@ -853,7 +857,7 @@ export const RelatoriosGerenciaisTab = ({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nota Fiscal</TableHead>
-                    <TableHead>Período</TableHead>
+                    <TableHead>PerÃ­odo</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
@@ -881,7 +885,7 @@ export const RelatoriosGerenciaisTab = ({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Data</TableHead>
-                    <TableHead>Descrição</TableHead>
+                    <TableHead>DescriÃ§Ã£o</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Equipamento</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -906,7 +910,7 @@ export const RelatoriosGerenciaisTab = ({
                             <TableCell>{g.data ? new Date(g.data + "T00:00:00").toLocaleDateString("pt-BR") : (g.data_vencimento ? new Date(g.data_vencimento + "T00:00:00").toLocaleDateString("pt-BR") : "")}</TableCell>
                             <TableCell className="font-medium max-w-[200px] truncate" title={g.descricao}>{g.descricao}</TableCell>
                             <TableCell><Badge variant="outline">{g.tipo || g.tipo_despesa || "Geral"}</Badge></TableCell>
-                            <TableCell>{g.equipamento_id ? (equipamentos.find(eq => eq.id === g.equipamento_id)?.tag_placa || "Geral") : (dreDetailModal.type === "despesasAdmin" ? "Escritório" : "-")}</TableCell>
+                            <TableCell>{g.equipamento_id ? (equipamentos.find(eq => eq.id === g.equipamento_id)?.tag_placa || "Geral") : (dreDetailModal.type === "despesasAdmin" ? "EscritÃ³rio" : "-")}</TableCell>
                             <TableCell className="text-right font-bold text-destructive">R$ {fmt(g.valor)}</TableCell>
                           </TableRow>
                         ))}
@@ -935,7 +939,7 @@ export const RelatoriosGerenciaisTab = ({
                 <DialogHeader>
                   <DialogTitle>Rentabilidade: {eqData.tipo} {eqData.modelo} ({eqData.tag})</DialogTitle>
                   <DialogDescription>
-                    Detalhamento de faturas atribuídas e gastos lançados neste equipamento no período.
+                    Detalhamento de faturas atribuÃ­das e gastos lanÃ§ados neste equipamento no perÃ­odo.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -953,17 +957,17 @@ export const RelatoriosGerenciaisTab = ({
                 <div className="space-y-6 mt-4">
                   <div>
                     <h3 className="font-bold text-sm mb-2 flex items-center gap-2 text-success">
-                      <TrendingUp className="h-4 w-4" /> Composição das Receitas (Medições)
+                      <TrendingUp className="h-4 w-4" /> ComposiÃ§Ã£o das Receitas (MediÃ§Ãµes)
                     </h3>
                     <div className="border border-border/40 rounded-md">
                       <Table>
                         <TableHeader className="bg-muted/30">
                           <TableRow>
-                            <TableHead>Mês/Período</TableHead>
+                            <TableHead>MÃªs/PerÃ­odo</TableHead>
                             <TableHead>Nota</TableHead>
                             <TableHead>Cliente</TableHead>
                             <TableHead className="text-right">Valor Original</TableHead>
-                            <TableHead className="text-right">Valor Atribuído</TableHead>
+                            <TableHead className="text-right">Valor AtribuÃ­do</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -986,14 +990,14 @@ export const RelatoriosGerenciaisTab = ({
 
                   <div>
                     <h3 className="font-bold text-sm mb-2 flex items-center gap-2 text-destructive">
-                      <TrendingDown className="h-4 w-4" /> Composição das Despesas (O.S / Custos)
+                      <TrendingDown className="h-4 w-4" /> ComposiÃ§Ã£o das Despesas (O.S / Custos)
                     </h3>
                     <div className="border border-border/40 rounded-md">
                       <Table>
                         <TableHeader className="bg-muted/30">
                           <TableRow>
                             <TableHead>Data</TableHead>
-                            <TableHead>Descrição</TableHead>
+                            <TableHead>DescriÃ§Ã£o</TableHead>
                             <TableHead>Tipo</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                           </TableRow>
@@ -1023,3 +1027,4 @@ export const RelatoriosGerenciaisTab = ({
     </div>
   );
 };
+
