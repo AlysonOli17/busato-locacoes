@@ -1,22 +1,4 @@
-let logoCache: string | null = null;
-const loadLogo = async (): Promise<string | null> => {
-  if (logoCache) return logoCache;
-  try {
-    const resp = await fetch("/images/logo-busato-horizontal.png");
-    const blob = await resp.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        logoCache = reader.result as string;
-        resolve(logoCache);
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-};
+import { addLetterhead } from "./exportUtils";
 
 const fmt = (v: any) => {
   const val = Number(v);
@@ -36,44 +18,23 @@ export const generateDrePdf = async (data: DreExportData) => {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
 
-  const doc = new jsPDF("p", "pt", "a4");
-  const margin = 40;
-  let currentY = margin;
+  const doc = new jsPDF({ orientation: "portrait" });
+  let currentY = await addLetterhead(doc, "RELATÓRIO GERENCIAL E DRE (EBITDA)");
+  const margin = 14;
 
-  const logoData = await loadLogo();
-
-  // Função auxiliar para desenhar o cabeçalho em todas as páginas se necessário
-  const drawHeader = (title: string) => {
-    if (logoData) {
-      doc.addImage(logoData, "PNG", margin, currentY, 120, 40);
-    }
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text(title, margin + 140, currentY + 15);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    
-    const periodoStr = `Período: ${data.dataInicio ? new Date(data.dataInicio + "T00:00:00").toLocaleDateString("pt-BR") : "Início"} a ${data.dataFim ? new Date(data.dataFim + "T00:00:00").toLocaleDateString("pt-BR") : "Hoje"}`;
-    const emissaoStr = `Emissão: ${new Date().toLocaleString("pt-BR")}`;
-    
-    doc.text(periodoStr, margin + 140, currentY + 30);
-    doc.text(emissaoStr, margin + 140, currentY + 42);
-    
-    currentY += 60;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, currentY, doc.internal.pageSize.width - margin, currentY);
-    currentY += 20;
-  };
-
-  drawHeader("RELATÓRIO GERENCIAL E DRE (EBITDA)");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(140, 140, 140);
+  const periodoStr = `Período Analisado: ${data.dataInicio ? new Date(data.dataInicio + "T00:00:00").toLocaleDateString("pt-BR") : "Início"} a ${data.dataFim ? new Date(data.dataFim + "T00:00:00").toLocaleDateString("pt-BR") : "Hoje"}`;
+  doc.text(periodoStr, margin, currentY);
+  currentY += 8;
 
   // 1. DRE Operacional
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(10);
+  doc.setTextColor(60, 60, 60);
   doc.text("1. Demonstrativo de Resultados (DRE)", margin, currentY);
-  currentY += 10;
+  currentY += 4;
 
   const r = data.dreStats;
   const dreTableBody = [
@@ -93,28 +54,31 @@ export const generateDrePdf = async (data: DreExportData) => {
     head: [["Categoria", "Valor", "Margem"]],
     body: dreTableBody,
     theme: 'striped',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 8 },
+    bodyStyles: { fontSize: 8 },
     columnStyles: {
-      0: { cellWidth: 300 },
-      1: { cellWidth: 100, halign: 'right' },
-      2: { cellWidth: 80, halign: 'right' }
+      0: { cellWidth: 100 },
+      1: { cellWidth: 40, halign: 'right' },
+      2: { cellWidth: 30, halign: 'right' }
     },
     margin: { left: margin, right: margin }
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 30;
+  currentY = (doc as any).lastAutoTable.finalY + 10;
 
   // 2. AGING LIST (Resumo)
-  if (currentY > doc.internal.pageSize.height - 100) {
+  if (currentY > doc.internal.pageSize.height - 50) {
     doc.addPage();
-    currentY = margin;
-    drawHeader("AGING LIST - CONTAS A RECEBER");
-  } else {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("2. Resumo de Contas a Receber (Aging List)", margin, currentY);
-    currentY += 10;
+    currentY = await addLetterhead(doc, "RELATÓRIO GERENCIAL E DRE (EBITDA)");
+    doc.text(periodoStr, margin, currentY);
+    currentY += 8;
   }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(60, 60, 60);
+  doc.text("2. Resumo de Contas a Receber (Aging List)", margin, currentY);
+  currentY += 4;
 
   const al = data.agingList;
   const agingBody = [
@@ -129,23 +93,26 @@ export const generateDrePdf = async (data: DreExportData) => {
     head: [["Status", "Valor"]],
     body: agingBody,
     theme: 'grid',
-    headStyles: { fillColor: [52, 73, 94], textColor: 255 },
+    headStyles: { fillColor: [52, 73, 94], textColor: 255, fontSize: 8 },
+    bodyStyles: { fontSize: 8 },
     columnStyles: {
-      0: { cellWidth: 300 },
-      1: { cellWidth: 180, halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 110 },
+      1: { cellWidth: 60, halign: 'right', fontStyle: 'bold' }
     },
     margin: { left: margin, right: margin }
   });
 
   // 3. RENTABILIDADE POR EQUIPAMENTO
   doc.addPage();
-  currentY = margin;
-  drawHeader("RENTABILIDADE DE EQUIPAMENTOS");
+  currentY = await addLetterhead(doc, "RENTABILIDADE DE EQUIPAMENTOS");
+  doc.text(periodoStr, margin, currentY);
+  currentY += 8;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(10);
+  doc.setTextColor(60, 60, 60);
   doc.text("3. Faturamento e Custos por Equipamento", margin, currentY);
-  currentY += 10;
+  currentY += 4;
 
   const rentabilidadeBody = data.rentabilidadeEquipamentos.map(eq => {
     return [
@@ -163,31 +130,30 @@ export const generateDrePdf = async (data: DreExportData) => {
     head: [["Equipamento", "Tag/Placa", "Receita (R$)", "Custo Oper. (R$)", "Margem (R$)", "Rentabilidade"]],
     body: rentabilidadeBody,
     theme: 'striped',
-    headStyles: { fillColor: [44, 62, 80], textColor: 255 },
+    headStyles: { fillColor: [44, 62, 80], textColor: 255, fontSize: 8 },
+    bodyStyles: { fontSize: 7 },
     columnStyles: {
       2: { halign: 'right' },
       3: { halign: 'right', textColor: [220, 53, 69] },
       4: { halign: 'right', fontStyle: 'bold' },
       5: { halign: 'right', fontStyle: 'bold' }
     },
-    styles: { fontSize: 8 },
     margin: { left: margin, right: margin },
     didParseCell: function(data: any) {
       if (data.section === 'body' && data.column.index === 4) {
-        // Pinta de verde se positivo, vermelho se negativo
         const rawText = data.cell.raw;
         if (rawText.includes("-")) {
-          data.cell.styles.textColor = [220, 53, 69]; // Vermelho
+          data.cell.styles.textColor = [220, 53, 69];
         } else {
-          data.cell.styles.textColor = [40, 167, 69]; // Verde
+          data.cell.styles.textColor = [40, 167, 69];
         }
       }
       if (data.section === 'body' && data.column.index === 5) {
          const rawVal = parseFloat(data.cell.raw.replace('%', ''));
          if (rawVal < 0) {
-           data.cell.styles.textColor = [220, 53, 69]; // Vermelho
+           data.cell.styles.textColor = [220, 53, 69];
          } else if (rawVal >= 30) {
-           data.cell.styles.textColor = [40, 167, 69]; // Verde
+           data.cell.styles.textColor = [40, 167, 69];
          }
       }
     }
