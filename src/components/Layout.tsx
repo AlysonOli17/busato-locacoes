@@ -41,6 +41,7 @@ const allGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { to: "/controladoria?tab=visao-geral", icon: BarChart3, label: "Visão Geral & B.I." },
+      { to: "/controladoria?tab=dre", icon: DollarSign, label: "DRE & Lançamentos" },
       { to: "/controladoria?tab=relatorios", icon: PieChart, label: "Relatórios Gerenciais" }
     ]
   },

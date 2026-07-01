@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
 import { RelatoriosGerenciaisTab } from "@/components/RelatoriosGerenciaisTab";
+import { DreTab } from "@/components/DreTab";
 
 interface Empresa {
   id: string;
@@ -77,6 +78,7 @@ const Controladoria = () => {
   const [sinistros, setSinistros] = useState<any[]>([]);
   const [faturamentoGastos, setFaturamentoGastos] = useState<any[]>([]);
   const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
+  const [despesasAdministrativas, setDespesasAdministrativas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -94,7 +96,8 @@ const Controladoria = () => {
         aditivosRes,
         aditivosEqRes,
         sinistrosRes,
-        fatGastosRes
+        fatGastosRes,
+        despAdminRes
       ] = await Promise.all([
         supabase.from("empresas").select("*").order("nome"),
         supabase.from("contratos").select("*").order("created_at", { ascending: false }),
@@ -108,7 +111,8 @@ const Controladoria = () => {
         supabase.from("contratos_aditivos").select("*"),
         supabase.from("aditivos_equipamentos").select("*"),
         supabase.from("sinistros").select("*"),
-        supabase.from("faturamento_gastos").select("*")
+        supabase.from("faturamento_gastos").select("*"),
+        supabase.from("despesas_administrativas").select("*")
       ]);
       
       if (empRes.data) setEmpresas(empRes.data as Empresa[]);
@@ -122,6 +126,7 @@ const Controladoria = () => {
       if (sinistrosRes.data) setSinistros(sinistrosRes.data);
       if (fatGastosRes.data) setFaturamentoGastos(fatGastosRes.data);
       if (ceRes.data) setContratosEquipamentos(ceRes.data);
+      if (despAdminRes.data) setDespesasAdministrativas(despAdminRes.data);
 
       if (empRes.data && eqRes.data && ctRes.data) {
         const empMap = new Map(empRes.data.map((e: any) => [e.id, e]));
@@ -159,7 +164,7 @@ const Controladoria = () => {
   }, []);
 
   return (
-    <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : "Cockpit executivo e indicadores de performance"}>
+    <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : activeTab === "dre" ? "Demonstrativo de Resultados e Lançamentos" : "Cockpit executivo e indicadores de performance"}>
       <div className="space-y-6">
         {!loading && (
           activeTab === "relatorios" ? (
@@ -172,7 +177,10 @@ const Controladoria = () => {
               medicoes={medicoes}
               contratosEquipamentos={contratosEquipamentos}
               faturamentoGastos={faturamentoGastos}
+              despesasAdministrativas={despesasAdministrativas}
             />
+          ) : activeTab === "dre" ? (
+            <DreTab />
           ) : (
             <VisaoGeralTab
               empresas={empresas}

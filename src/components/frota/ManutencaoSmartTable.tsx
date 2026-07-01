@@ -37,7 +37,7 @@ interface Gasto {
 
 const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
 const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente", "Custo Assumido"];
-const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0] };
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0], recorrencia: "Única", parcelas: 12 };
 
 export const ManutencaoSmartTable = () => {
   const [items, setItems] = useState<Gasto[]>([]);
@@ -141,7 +141,7 @@ export const ManutencaoSmartTable = () => {
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (item: Gasto) => {
     setEditing(item);
-    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, classificacao: item.classificacao || "A Cobrar do Cliente", valor: item.valor, data: item.data });
+    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, classificacao: item.classificacao || "A Cobrar do Cliente", valor: item.valor, data: item.data, recorrencia: "Única", parcelas: 1 });
     setDialogOpen(true);
   };
 
@@ -150,17 +150,34 @@ export const ManutencaoSmartTable = () => {
       toast({ title: "Campos obrigat├│rios", description: "Equipamento e Descri├º├úo s├úo obrigat├│rios.", variant: "destructive" });
       return;
     }
-    const { classificacao, ...basePayload } = form;
+    const { classificacao, recorrencia, parcelas, ...basePayload } = form as any;
     const payload = { ...basePayload, valor: Number(form.valor), status: classificacao };
     if (editing) {
       const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Custo atualizado com sucesso" });
     } else {
-      const payloadWithId = { ...payload, id: crypto.randomUUID() };
-      const { error } = await supabase.from("gastos").insert([payloadWithId]);
-      if (error) { toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Custo cadastrado com sucesso" });
+      if (recorrencia === "Mensal" && parcelas > 1) {
+        const payloads = [];
+        const baseDate = new Date(payload.data + "T00:00:00");
+        for (let i = 0; i < parcelas; i++) {
+          const nextDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+          payloads.push({
+            ...payload,
+            id: crypto.randomUUID(),
+            descricao: `${payload.descricao} (Parcela ${i + 1}/${parcelas})`,
+            data: nextDate.toISOString().split("T")[0]
+          });
+        }
+        const { error } = await supabase.from("gastos").insert(payloads);
+        if (error) { toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" }); return; }
+        toast({ title: "Custos recorrentes cadastrados com sucesso" });
+      } else {
+        const payloadWithId = { ...payload, id: crypto.randomUUID() };
+        const { error } = await supabase.from("gastos").insert([payloadWithId]);
+        if (error) { toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" }); return; }
+        toast({ title: "Custo cadastrado com sucesso" });
+      }
     }
     setDialogOpen(false);
     setEditing(null);
@@ -363,7 +380,7 @@ export const ManutencaoSmartTable = () => {
                 <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label>Tipo</Label>
                 <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
@@ -372,8 +389,26 @@ export const ManutencaoSmartTable = () => {
                 </Select>
               </div>
               <div><Label>Valor (R$)</Label><CurrencyInput value={form.valor} onValueChange={(v) => setForm({ ...form, valor: v })} /></div>
-              <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
+              <div><Label>Data Inicial</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
+              {!editing && (
+                <div>
+                  <Label>Recorrência</Label>
+                  <Select value={(form as any).recorrencia} onValueChange={(v) => setForm({ ...form, recorrencia: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Única">Única</SelectItem>
+                      <SelectItem value="Mensal">Mensal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
+            {!editing && (form as any).recorrencia === "Mensal" && (
+              <div className="grid md:w-1/4">
+                <Label>Meses (Parcelas)</Label>
+                <Input type="number" min="2" max="60" value={(form as any).parcelas} onChange={(e) => setForm({ ...form, parcelas: parseInt(e.target.value) || 12 })} />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

@@ -43,6 +43,8 @@ export const FrotaDashboard = () => {
 
       // Busca documentos
       const { data: docsData } = await supabase.from("documentos_legais").select("*, equipamentos(tag_placa, modelo)");
+      const { data: gastosData } = await supabase.from("gastos").select("*, equipamentos(modelo)");
+
       let docsVenc = 0;
       let alertas = [];
       const hoje = new Date();
@@ -52,9 +54,26 @@ export const FrotaDashboard = () => {
       if (docsData) {
         docsData.forEach(doc => {
           const v = new Date(doc.vencimento);
-          if (v <= em30Dias) {
+          if (v <= em30Dias && v >= hoje) {
             docsVenc++;
             alertas.push(doc);
+          }
+        });
+      }
+
+      if (gastosData) {
+        gastosData.forEach(gasto => {
+          const match = gasto.descricao.match(/\(Parcela (\d+)\/(\d+)\)/);
+          if (match && match[1] === match[2]) {
+            const v = new Date(gasto.data + "T00:00:00");
+            if (v <= em30Dias && v >= hoje) {
+              alertas.push({
+                id: gasto.id,
+                tipo: "Renovar Custo: " + gasto.descricao,
+                equipamentos: { modelo: gasto.equipamentos?.modelo || "Diversos" },
+                vencimento: gasto.data
+              });
+            }
           }
         });
       }

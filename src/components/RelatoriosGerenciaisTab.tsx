@@ -31,6 +31,7 @@ interface RelatoriosGerenciaisTabProps {
   sinistros?: Array<any>;
   faturamentoGastos?: Array<any>;
   contratosEquipamentos?: Array<any>;
+  despesasAdministrativas?: Array<any>;
 }
 
 export const RelatoriosGerenciaisTab = ({
@@ -41,7 +42,8 @@ export const RelatoriosGerenciaisTab = ({
   gastos,
   medicoes,
   contratosEquipamentos = [],
-  faturamentoGastos = []
+  faturamentoGastos = [],
+  despesasAdministrativas = []
 }: RelatoriosGerenciaisTabProps) => {
   // Filtros
   const [dataInicio, setDataInicio] = useState(() => {
@@ -55,7 +57,7 @@ export const RelatoriosGerenciaisTab = ({
   const [faturamentoEquipamentosList, setFaturamentoEquipamentosList] = useState<any[]>([]);
 
   // Modais de detalhamento
-  const [dreDetailModal, setDreDetailModal] = useState<{ isOpen: boolean; type: "receitaBruta" | "custoManutencao" | "custoMobilizacao" | "custoFixo" | "custoOutros" | null; title: string; }>({ isOpen: false, type: null, title: "" });
+  const [dreDetailModal, setDreDetailModal] = useState<{ isOpen: boolean; type: "receitaBruta" | "custoManutencao" | "custoMobilizacao" | "custoFixo" | "custoOutros" | "despesasAdmin" | null; title: string; }>({ isOpen: false, type: null, title: "" });
   const [rentabilidadeDetailModal, setRentabilidadeDetailModal] = useState<{ isOpen: boolean; equipId: string | null; }>({ isOpen: false, equipId: null });
 
   useEffect(() => {
@@ -156,8 +158,20 @@ export const RelatoriosGerenciaisTab = ({
     const gastosOutros = gastosFiltrados.filter(g => !tiposManutencao.includes(g.tipo) && !tiposMobilizacao.includes(g.tipo) && !tiposFixos.includes(g.tipo));
     const custoOutros = gastosOutros.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    const totalCustos = custoManutencao + custoMobilizacao + custoFixo + custoOutros;
-    const resultadoEbitda = receitaBruta - totalCustos;
+    const totalCustosDiretos = custoManutencao + custoMobilizacao + custoFixo + custoOutros;
+    const lucroBruto = receitaBruta - totalCustosDiretos;
+
+    // Controladoria (Despesas Administrativas)
+    const despesasAdminFiltradas = despesasAdministrativas.filter(d => {
+      if (!d.data_vencimento) return false;
+      if (dataInicio && d.data_vencimento < dataInicio) return false;
+      if (dataFim && d.data_vencimento > dataFim) return false;
+      return true;
+    });
+    const totalDespesasAdmin = despesasAdminFiltradas.reduce((sum, d) => sum + Number(d.valor || 0), 0);
+
+    const totalCustosGerais = totalCustosDiretos + totalDespesasAdmin;
+    const resultadoEbitda = receitaBruta - totalCustosGerais;
     const margemEbitda = receitaBruta > 0 ? (resultadoEbitda / receitaBruta) * 100 : 0;
 
     return {
@@ -166,11 +180,13 @@ export const RelatoriosGerenciaisTab = ({
       custoMobilizacao, gastosMobilizacao,
       custoFixo, gastosFixo,
       custoOutros, gastosOutros,
-      totalCustos,
+      totalCustos: totalCustosDiretos,
+      totalDespesasAdmin, despesasAdminFiltradas,
+      lucroBruto,
       resultadoEbitda,
       margemEbitda
     };
-  }, [faturasFiltradas, gastosFiltrados]);
+  }, [faturasFiltradas, gastosFiltrados, despesasAdministrativas, dataInicio, dataFim]);
 
   // 3. Rentabilidade por Equipamento
   const rentabilidadeEquipamentos = useMemo(() => {
@@ -338,10 +354,25 @@ export const RelatoriosGerenciaisTab = ({
       map[key].Custos += Number(g.valor || 0);
     });
 
+    // Adiciona Despesas Administrativas
+    dreStats.despesasAdminFiltradas.forEach(d => {
+      if (!d.data_vencimento) return;
+      const key = d.data_vencimento.slice(0, 7);
+      if (!map[key]) {
+        const date = new Date(d.data_vencimento + "T00:00:00");
+        map[key] = {
+          mes: date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+          Receita: 0,
+          Custos: 0
+        };
+      }
+      map[key].Custos += Number(d.valor || 0);
+    });
+
     return Object.entries(map)
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, val]) => val);
-  }, [faturasFiltradas, gastosFiltrados]);
+  }, [faturasFiltradas, gastosFiltrados, dreStats]);
 
   // Função para exportação em Excel (XLSX)
   const handleExportExcel = (tipo: "rentabilidade" | "dre" | "aging") => {
@@ -367,11 +398,13 @@ export const RelatoriosGerenciaisTab = ({
         { "Categoria": "Custos de Manutenção", "Valor (R$)": Number(r.custoManutencao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoManutencao / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Custos de Mobilização", "Valor (R$)": Number(r.custoMobilizacao.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoMobilizacao / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Encargos Fixos", "Valor (R$)": Number(r.custoFixo.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoFixo / r.receitaBruta).toFixed(4)) : 0 },
-        { "Categoria": "Outros Custos", "Valor (R$)": Number(r.custoOutros.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoOutros / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Outros Custos Diretos", "Valor (R$)": Number(r.custoOutros.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.custoOutros / r.receitaBruta).toFixed(4)) : 0 },
         { "Categoria": "Total Custos Operacionais", "Valor (R$)": Number(r.totalCustos.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.totalCustos / r.receitaBruta).toFixed(4)) : 0 },
-        { "Categoria": "Resultado Operacional (EBITDA)", "Valor (R$)": Number(r.resultadoEbitda.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.resultadoEbitda / r.receitaBruta).toFixed(4)) : 0 }
+        { "Categoria": "Lucro Bruto (Gross Profit)", "Valor (R$)": Number(r.lucroBruto.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.lucroBruto / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "Despesas Administrativas (Fixas)", "Valor (R$)": Number(r.totalDespesasAdmin.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.totalDespesasAdmin / r.receitaBruta).toFixed(4)) : 0 },
+        { "Categoria": "EBITDA (Resultado Líquido)", "Valor (R$)": Number(r.resultadoEbitda.toFixed(2)), "% da Receita": r.receitaBruta > 0 ? Number((r.resultadoEbitda / r.receitaBruta).toFixed(4)) : 0 }
       ];
-      filename = "DRE_Operacional.xlsx";
+      filename = "DRE_Completo_EBITDA.xlsx";
     } else if (tipo === "aging") {
       data = agingList.list.map(f => ({
         "Nota Fiscal": f.numeroNota,
@@ -453,7 +486,7 @@ export const RelatoriosGerenciaisTab = ({
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-primary" />
-                DRE Operacional Simplificado
+                DRE Completo (Full EBITDA)
               </CardTitle>
               <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleExportExcel("dre")}>
                 <FileDown className="h-4 w-4" />
@@ -500,18 +533,36 @@ export const RelatoriosGerenciaisTab = ({
               </div>
             </div>
             <div className="flex justify-between items-center py-1 px-2 -mx-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase">Total Custos</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase">Total Custos Operacionais</span>
               <span className="text-xs font-bold text-destructive">R$ {fmt(dreStats.totalCustos)}</span>
             </div>
+
+            <div className="flex justify-between items-center py-2 border-b border-border/5 bg-accent/5 px-2 -mx-2 rounded">
+              <span className="text-xs font-bold text-accent uppercase">Lucro Bruto (Gross Profit)</span>
+              <span className={`text-sm font-black ${dreStats.lucroBruto >= 0 ? "text-success" : "text-destructive"}`}>
+                R$ {fmt(dreStats.lucroBruto)}
+              </span>
+            </div>
+
+            <div className="space-y-0.5 py-1 border-b border-border/5">
+              <div 
+                className="flex justify-between items-center text-xs text-muted-foreground py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
+                onClick={() => setDreDetailModal({ isOpen: true, type: "despesasAdmin", title: "Despesas Administrativas (Controladoria)" })}
+              >
+                <span>Despesas Fixas (Controladoria)</span>
+                <span className="font-semibold text-foreground">R$ {fmt(dreStats.totalDespesasAdmin)}</span>
+              </div>
+            </div>
+
             <div className="p-4 bg-muted/30 rounded-xl space-y-2 border border-border/40">
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-muted-foreground uppercase">EBITDA da Operação</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">EBITDA Real da Empresa</span>
                 <span className={`text-sm font-black ${dreStats.resultadoEbitda >= 0 ? "text-success" : "text-destructive"}`}>
                   R$ {fmt(dreStats.resultadoEbitda)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground">Margem Operacional</span>
+                <span className="text-muted-foreground">Margem EBITDA</span>
                 <Badge className={`font-bold border-0 text-white ${dreStats.resultadoEbitda >= 0 ? "bg-success" : "bg-destructive"}`}>
                   {dreStats.margemEbitda.toFixed(1)}%
                 </Badge>
@@ -823,6 +874,7 @@ export const RelatoriosGerenciaisTab = ({
                     if (dreDetailModal.type === "custoMobilizacao") { list = dreStats.gastosMobilizacao; total = dreStats.custoMobilizacao; }
                     if (dreDetailModal.type === "custoFixo") { list = dreStats.gastosFixo; total = dreStats.custoFixo; }
                     if (dreDetailModal.type === "custoOutros") { list = dreStats.gastosOutros; total = dreStats.custoOutros; }
+                    if (dreDetailModal.type === "despesasAdmin") { list = dreStats.despesasAdminFiltradas; total = dreStats.totalDespesasAdmin; }
                     
                     if (list.length === 0) return <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Sem registros</TableCell></TableRow>;
                     
@@ -830,10 +882,10 @@ export const RelatoriosGerenciaisTab = ({
                       <>
                         {list.map(g => (
                           <TableRow key={g.id}>
-                            <TableCell>{g.data ? new Date(g.data + "T00:00:00").toLocaleDateString("pt-BR") : ""}</TableCell>
+                            <TableCell>{g.data ? new Date(g.data + "T00:00:00").toLocaleDateString("pt-BR") : (g.data_vencimento ? new Date(g.data_vencimento + "T00:00:00").toLocaleDateString("pt-BR") : "")}</TableCell>
                             <TableCell className="font-medium max-w-[200px] truncate" title={g.descricao}>{g.descricao}</TableCell>
-                            <TableCell><Badge variant="outline">{g.tipo}</Badge></TableCell>
-                            <TableCell>{equipamentos.find(eq => eq.id === g.equipamento_id)?.tag_placa || "Geral"}</TableCell>
+                            <TableCell><Badge variant="outline">{g.tipo || g.tipo_despesa || "Geral"}</Badge></TableCell>
+                            <TableCell>{g.equipamento_id ? (equipamentos.find(eq => eq.id === g.equipamento_id)?.tag_placa || "Geral") : (dreDetailModal.type === "despesasAdmin" ? "Escritório" : "-")}</TableCell>
                             <TableCell className="text-right font-bold text-destructive">R$ {fmt(g.valor)}</TableCell>
                           </TableRow>
                         ))}
