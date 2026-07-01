@@ -107,12 +107,12 @@ export const RelatoriosGerenciaisTab = ({
     });
 
     return gastos.filter(g => {
-      // Gastos antigos (sem classificação) recebem um fallback inteligente:
-      // Se for Mobilização, normalmente é repassado ao cliente. Caso contrário, é custo da máquina.
-      const isMob = g.tipo === "Mobilização" || g.tipo === "Desmobilização";
-      const classif = g.classificacao || (isMob ? "A Cobrar do Cliente" : "Custo Assumido");
-      
-      // Remove se for repassado
+      // Regras de classificação:
+      // - "A Cobrar do Cliente": Cliente paga = NAO é custo meu = remove do DRE
+      // - "Custo Assumido" / "Custo Interno": Meu custo = inclui no DRE
+      // - "A Reembolsar ao Cliente": Cliente pagou mas eu devia pagar = é meu custo = inclui no DRE
+      // Gastos sem classificação: por precaução são tratados como custo meu
+      const classif = g.classificacao || "";
       if (classif === "A Cobrar do Cliente") return false;
 
       if (!g.data) return false;
