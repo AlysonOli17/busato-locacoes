@@ -57,11 +57,11 @@ const getDaysDifference = (dateStr1: string, dateStr2: string) => {
 const Medicoes = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(() => {
-    return new URLSearchParams(window.location.search).get("tab") || "medicoes";
+    return new URLSearchParams(window.location.search).get("tab") || "faturamento";
   });
 
   useEffect(() => {
-    const tab = new URLSearchParams(location.search).get("tab") || "medicoes";
+    const tab = new URLSearchParams(location.search).get("tab") || "faturamento";
     setActiveTab(tab);
   }, [location.search]);
 

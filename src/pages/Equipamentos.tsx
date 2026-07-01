@@ -5,7 +5,7 @@ import { ComodatosTab } from "@/components/ComodatosTab";
 import { Layout } from "@/components/Layout";
 import { FrotaDashboard } from "@/components/frota/FrotaDashboard";
 import { ManutencaoSmartTable } from "@/components/frota/ManutencaoSmartTable";
-import { ControleUsoFrota } from "@/components/frota/ControleUsoFrota";
+import ControleUsoFrota from "@/components/frota/ControleUsoFrota";
 import { GestaoDocumentos } from "@/components/frota/GestaoDocumentos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle, Wrench, Activity, Tractor, Box, LayoutGrid, List, ClipboardCheck, Handshake, PenTool, Gauge, FileBadge } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle, Wrench, Activity, Tractor, Box, LayoutGrid, List, ClipboardCheck, Handshake, PenTool, Gauge, FileBadge, MapPin, User, Calendar, DollarSign, Info, Tag, Hash, Settings, Power, Check } from "lucide-react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,9 +36,11 @@ interface Equipment {
   status: string;
   ano: number | null;
   valor_bem: number | null;
+  local?: string | null;
+  cliente_atual_id?: string | null;
 }
 
-const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo", ano: "", valor_bem: "" };
+const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo", ano: "", valor_bem: "", local: "", cliente_atual_id: "" };
 
 type StatusFilter = "todos" | "assegurados" | "nao-assegurados" | "locados" | "disponiveis";
 
@@ -48,6 +50,7 @@ const EquipamentosLista = () => {
   const [editing, setEditing] = useState<Equipment | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
@@ -60,18 +63,20 @@ const EquipamentosLista = () => {
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
-    const [eqRes, apolicesRes, apolicesEqRes, contratosRes, ceRes, aditivosRes, aeRes] = await Promise.all([
+    const [eqRes, apolicesRes, apolicesEqRes, contratosRes, ceRes, aditivosRes, aeRes, empresasRes] = await Promise.all([
       supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
       supabase.from("apolices").select("id, status"),
       supabase.from("apolices_equipamentos").select("equipamento_id, apolice_id"),
       supabase.from("contratos").select("id, status"),
       supabase.from("contratos_equipamentos").select("equipamento_id, contrato_id, data_devolucao"),
       supabase.from("contratos_aditivos").select("id, contrato_id, numero"),
-      supabase.from("aditivos_equipamentos").select("equipamento_id, data_devolucao, aditivo_id")
+      supabase.from("aditivos_equipamentos").select("equipamento_id, data_devolucao, aditivo_id"),
+      supabase.from("empresas").select("id, nome").order("nome")
     ]);
 
     if (eqRes.error) { toast({ title: "Erro", description: eqRes.error.message, variant: "destructive" }); return; }
     setItems(eqRes.data || []);
+    if (empresasRes.data) setEmpresas(empresasRes.data);
 
     const vigentesSet = new Set((apolicesRes.data || []).filter((a: any) => a.status === "Vigente").map((a: any) => a.id));
     const insured = new Set<string>();
@@ -194,6 +199,8 @@ const EquipamentosLista = () => {
       status: item.status,
       ano: item.ano?.toString() || "",
       valor_bem: item.valor_bem?.toString() || "",
+      local: item.local || "",
+      cliente_atual_id: item.cliente_atual_id || "",
     });
     setDialogOpen(true);
   };
@@ -204,7 +211,6 @@ const EquipamentosLista = () => {
       return;
     }
 
-    // Verificar duplicatas por numero_serie ou tag_placa
     if (form.numero_serie) {
       const existing = items.find(i => i.numero_serie?.toLowerCase() === form.numero_serie.toLowerCase() && i.id !== editing?.id);
       if (existing) {
@@ -227,8 +233,10 @@ const EquipamentosLista = () => {
       tag_placa: form.tag_placa || null,
       observacoes: form.observacoes || null,
       status: form.status,
-      ano: form.ano ? parseInt(form.ano) : null,
-      valor_bem: form.valor_bem ? parseFloat(form.valor_bem) : null,
+      ano: form.ano ? parseInt(form.ano as any) : null,
+      valor_bem: form.valor_bem ? parseFloat(form.valor_bem as any) : null,
+      local: form.local || null,
+      cliente_atual_id: (form.status === "Locado" && form.cliente_atual_id) ? form.cliente_atual_id : null,
     };
     if (editing) {
       const { error } = await supabase.from("equipamentos").update(payload).eq("id", editing.id);
@@ -482,39 +490,117 @@ const EquipamentosLista = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Editar Equipamento" : "Novo Equipamento"}</DialogTitle>
+        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-background">
+          <DialogHeader className="px-6 py-4 bg-muted/30 border-b">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Truck className="h-5 w-5 text-primary" />
+              {editing ? "Editar Equipamento" : "Novo Equipamento"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Tipo</Label><Input value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} placeholder="Ex: Escavadeira" /></div>
-              <div><Label>Tag / Placa</Label><Input value={form.tag_placa} onChange={(e) => setForm({ ...form, tag_placa: e.target.value })} /></div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Modelo</Label><Input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} placeholder="Ex: CAT 320" /></div>
-              <div><Label>Nº Série</Label><Input value={form.numero_serie} onChange={(e) => setForm({ ...form, numero_serie: e.target.value })} /></div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div><Label>Ano</Label><Input type="number" value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} placeholder="Ex: 2023" /></div>
-              <div><Label>Valor do Bem (R$)</Label><CurrencyInput value={Number(form.valor_bem) || 0} onValueChange={(v) => setForm({ ...form, valor_bem: String(v) })} /></div>
-              <div>
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Manutenção">Manutenção</SelectItem>
-                    <SelectItem value="Inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
+          <div className="p-6 max-h-[70vh] overflow-y-auto space-y-8">
+            
+            {/* Seção 1: Identificação */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Identificação do Ativo</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Tipo de Equipamento</Label>
+                  <Input value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} placeholder="Ex: Escavadeira, Caminhão..." className="bg-background shadow-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Modelo</Label>
+                  <Input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} placeholder="Ex: CAT 320" className="bg-background shadow-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Placa / Tag de Frota</Label>
+                  <Input value={form.tag_placa} onChange={(e) => setForm({ ...form, tag_placa: e.target.value })} placeholder="XYZ-1234 ou TAG-001" className="bg-background shadow-sm uppercase" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Número de Série / Chassi</Label>
+                  <Input value={form.numero_serie} onChange={(e) => setForm({ ...form, numero_serie: e.target.value })} placeholder="NS ou Chassi do veículo" className="bg-background shadow-sm" />
+                </div>
               </div>
             </div>
-            <div><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} /></div>
+
+            {/* Seção 2: Financeiro e Vida Útil */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Financeiro e Vida Útil</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Ano de Fabricação</Label>
+                  <Input type="number" value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} placeholder="Ex: 2023" className="bg-background shadow-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Valor Estimado do Bem (R$)</Label>
+                  <CurrencyInput value={Number(form.valor_bem) || 0} onValueChange={(v) => setForm({ ...form, valor_bem: String(v) })} />
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 3: Status, Localização e Cliente */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Status e Localização</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Status de Operação</Label>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                    <SelectTrigger className="bg-background shadow-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ativo">🟢 Ativo (Pátio)</SelectItem>
+                      <SelectItem value="Locado">🔵 Locado (Em Obra)</SelectItem>
+                      <SelectItem value="Manutenção">🟠 Em Manutenção</SelectItem>
+                      <SelectItem value="Inativo">🔴 Inativo / Baixado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground/80">Localização Atual</Label>
+                  <Input value={form.local} onChange={(e) => setForm({ ...form, local: e.target.value })} placeholder="Ex: Pátio Central, Obra XPTO..." className="bg-background shadow-sm" />
+                </div>
+                <div className={cn("space-y-2 transition-all duration-300", form.status === "Locado" ? "opacity-100" : "opacity-50 pointer-events-none")}>
+                  <Label className="text-foreground/80">Cliente (Locatário)</Label>
+                  <Select value={form.cliente_atual_id} onValueChange={(v) => setForm({ ...form, cliente_atual_id: v })}>
+                    <SelectTrigger className="bg-background shadow-sm">
+                      <SelectValue placeholder="Selecione o cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {empresas.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.status !== "Locado" && <p className="text-[10px] text-muted-foreground mt-1">Disponível apenas quando Status = Locado.</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 4: Observações */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Detalhes Adicionais</h3>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground/80">Observações Técnicas</Label>
+                <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} placeholder="Descreva particularidades técnicas, cor, restrições de uso, etc." className="bg-background shadow-sm resize-none" />
+              </div>
+            </div>
+
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
+          <DialogFooter className="px-6 py-4 bg-muted/30 border-t sm:justify-end">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="bg-background">Cancelar</Button>
+            <Button onClick={handleSave} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm px-8">
+              <Check className="w-4 h-4 mr-2" /> Salvar Equipamento
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,176 +1,386 @@
-import React, { useState, useEffect } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useMemo } from "react";
+import { getEquipLabel, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Filter, AlertCircle, Wrench, CheckCircle2, Clock, CalendarDays } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { CurrencyInput } from "@/components/CurrencyInput";
+import { Wrench, Plus, Pencil, Trash2, Search, FileDown, ArrowUpDown, ChevronDown, Check, Download, AlertTriangle, Filter, Building2, DollarSign } from "lucide-react";
+import { SortableTableHead } from "@/components/SortableTableHead";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface Equipamento { id: string; tipo: string; modelo: string; tag_placa: string | null; numero_serie: string | null; }
+interface FaturaRef {
+  faturamento_id: string;
+  numero_sequencial: number;
+  numero_nota: string | null;
+  status: string;
+  periodo: string;
+}
+interface Gasto {
+  id: string;
+  equipamento_id: string;
+  descricao: string;
+  tipo: string;
+  classificacao: string;
+  valor: number;
+  data: string;
+  equipamentos: Equipamento;
+  fatura?: FaturaRef | null;
+}
+
+const tiposGasto = ["Manuten├º├úo", "Combust├¡vel", "Pe├ºas", "Transporte", "Mobiliza├º├úo", "Desmobiliza├º├úo", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
+const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente", "Custo Assumido"];
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manuten├º├úo", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0] };
 
 export const ManutencaoSmartTable = () => {
-  const [ordens, setOrdens] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [items, setItems] = useState<Gasto[]>([]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Gasto | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [filterTag, setFilterTag] = useState("Todos");
+  const [periodoInicio, setPeriodoInicio] = useState("");
+  const [periodoFim, setPeriodoFim] = useState("");
+  const { toast } = useToast();
+  const [sortCol, setSortCol] = useState("data");
+  const [sortAsc, setSortAsc] = useState(false);
+  const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
-  useEffect(() => {
-    // Mock data based on the plan
-    setOrdens([
-      { id: 1, equipamento: "Caminhão Munck (ABC-1234)", tipo: "Manutenção Preventiva", descricao: "Troca de óleo e filtros", status: "Agendada", data_agendada: "2026-07-05", oficina: "Oficina Interna", urgencia: "Baixa" },
-      { id: 2, equipamento: "Escavadeira CAT-01", tipo: "Manutenção Corretiva", descricao: "Vazamento cilindro hidráulico", status: "Em Execução", data_agendada: "2026-06-29", oficina: "Torno Mecânico", urgencia: "Alta" },
-      { id: 3, equipamento: "Trator Valtra", tipo: "Logística / Mobilização", descricao: "Frete para Obra XPTO", status: "Agendada", data_agendada: "2026-06-25", oficina: "Transportadora Express", urgencia: "Alta" },
-      { id: 4, equipamento: "Caminhão Pipa (XYZ-9999)", tipo: "Abastecimento", descricao: "200 Litros Diesel S10", status: "Concluída", data_agendada: "2026-06-20", data_conclusao: "2026-06-22", oficina: "Posto Ipiranga", urgencia: "Baixa" }
+  const fetchData = async () => {
+    const [gastosRes, equipRes, fatGastosRes, fatRes] = await Promise.all([
+      supabase.from("gastos").select("*").order("data", { ascending: false }),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
+      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id"),
+      supabase.from("faturamento").select("id, numero_sequencial, numero_nota, status, periodo")
     ]);
-    setLoading(false);
-  }, []);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Agendada": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><CalendarDays className="w-3 h-3 mr-1" /> Agendada</Badge>;
-      case "Em Execução": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200"><Wrench className="w-3 h-3 mr-1" /> Em Execução</Badge>;
-      case "Atrasada": return <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200"><AlertCircle className="w-3 h-3 mr-1" /> Atrasada</Badge>;
-      case "Concluída": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Concluída</Badge>;
-      default: return <Badge>{status}</Badge>;
+    const fatMap = new Map<string, FaturaRef>();
+    if (fatGastosRes.data && fatRes.data) {
+      const faturamentoMap = new Map(fatRes.data.map(f => [f.id, f]));
+      for (const fg of fatGastosRes.data as any[]) {
+        const fat = faturamentoMap.get(fg.faturamento_id) as any;
+        if (fat) {
+          fatMap.set(fg.gasto_id, {
+            faturamento_id: fg.faturamento_id,
+            numero_sequencial: fat.numero_sequencial,
+            numero_nota: fat.numero_nota || null,
+            status: fat.status,
+            periodo: fat.periodo,
+          });
+        }
+      }
     }
+
+    if (equipRes.data) setEquipamentos(equipRes.data);
+
+    if (gastosRes.data && equipRes.data) {
+      const equipMap = new Map(equipRes.data.map((e: any) => [e.id, e]));
+      const mapped = gastosRes.data.map((g: any) => ({
+        ...g,
+        classificacao: g.status || "A Cobrar do Cliente",
+        equipamentos: equipMap.get(g.equipamento_id) || null,
+        fatura: fatMap.get(g.id) || null,
+      }));
+      setItems(mapped as unknown as Gasto[]);
+    }
+    setLoading(false);
   };
 
-  const getUrgenciaBadge = (urgencia: string) => {
-    switch (urgencia) {
-      case "Crítica": return <Badge variant="destructive" className="text-[10px]">Crítica</Badge>;
-      case "Alta": return <Badge className="bg-amber-500 text-[10px]">Alta</Badge>;
-      case "Baixa": return <Badge variant="secondary" className="text-[10px]">Baixa</Badge>;
-      default: return <Badge variant="outline">{urgencia}</Badge>;
+  useEffect(() => { fetchData(); }, []);
+
+  const uniqueTags = Array.from(new Set(items.map(i => i.equipamentos?.tag_placa).filter(Boolean))) as string[];
+
+  const filtered = items.filter((i) => {
+    if (filterTag !== "Todos" && i.equipamentos?.tag_placa !== filterTag) return false;
+    if (periodoInicio && i.data < periodoInicio) return false;
+    if (periodoFim && i.data > periodoFim) return false;
+    return i.equipamentos?.modelo?.toLowerCase().includes(search.toLowerCase()) || i.descricao.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "equipamento": cmp = `${a.equipamentos?.tipo || ""} ${a.equipamentos?.modelo || ""}`.localeCompare(`${b.equipamentos?.tipo || ""} ${b.equipamentos?.modelo || ""}`); break;
+        case "tag": cmp = (a.equipamentos?.tag_placa || "").localeCompare(b.equipamentos?.tag_placa || ""); break;
+        case "descricao": cmp = (a.descricao || "").localeCompare(b.descricao || ""); break;
+        case "tipo": cmp = (a.tipo || "").localeCompare(b.tipo || ""); break;
+        case "classificacao": cmp = (a.classificacao || "").localeCompare(b.classificacao || ""); break;
+        case "valor": cmp = Number(a.valor) - Number(b.valor); break;
+        case "data": cmp = (a.data || "").localeCompare(b.data || ""); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortAsc]);
+
+  const fmt = (v: number) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+  // Summary calcs - separate mobiliza├º├úo as revenue only if not internal cost
+  const mobTypes = ["Mobiliza├º├úo", "Desmobiliza├º├úo"];
+  const isReceitaMob = (i: Gasto) => mobTypes.includes(i.tipo) && i.classificacao !== "Custo Assumido";
+  const gastosSemMob = filtered.filter(i => !isReceitaMob(i));
+  const gastosMob = filtered.filter(i => isReceitaMob(i));
+  const totalGastos = gastosSemMob.reduce((acc, i) => acc + Number(i.valor), 0);
+  const totalMobilizacao = gastosMob.reduce((acc, i) => acc + Number(i.valor), 0);
+  const deduzidos = gastosSemMob.filter(i => i.fatura);
+  const totalDeduzido = deduzidos.reduce((acc, i) => acc + Number(i.valor), 0);
+  const naoDeduzidos = gastosSemMob.filter(i => !i.fatura);
+  const totalNaoDeduzido = naoDeduzidos.reduce((acc, i) => acc + Number(i.valor), 0);
+  const mobDeduzidos = gastosMob.filter(i => i.fatura);
+  const mobNaoDeduzidos = gastosMob.filter(i => !i.fatura);
+
+  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
+  const openEdit = (item: Gasto) => {
+    setEditing(item);
+    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, classificacao: item.classificacao || "A Cobrar do Cliente", valor: item.valor, data: item.data });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.equipamento_id || !form.descricao) {
+      toast({ title: "Campos obrigat├│rios", description: "Equipamento e Descri├º├úo s├úo obrigat├│rios.", variant: "destructive" });
+      return;
     }
+    const { classificacao, ...basePayload } = form;
+    const payload = { ...basePayload, valor: Number(form.valor), status: classificacao };
+    if (editing) {
+      const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);
+      if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Custo atualizado com sucesso" });
+    } else {
+      const payloadWithId = { ...payload, id: crypto.randomUUID() };
+      const { error } = await supabase.from("gastos").insert([payloadWithId]);
+      if (error) { toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Custo cadastrado com sucesso" });
+    }
+    setDialogOpen(false);
+    setEditing(null);
+    setForm(emptyForm);
+    fetchData();
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("gastos").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    fetchData();
+  };
+
+  const tipoColor = (t: string) => {
+    if (t === "Manuten├º├úo") return "bg-primary/10 text-primary border-0";
+    if (t === "Combust├¡vel") return "bg-warning/10 text-warning border-0";
+    if (t === "Pe├ºas") return "bg-accent/10 text-accent border-0";
+    if (t === "Mobiliza├º├úo") return "bg-success/10 text-success border-0";
+    if (t === "Desmobiliza├º├úo") return "bg-destructive/10 text-destructive border-0";
+    return "bg-muted text-muted-foreground";
+  };
+
+  const faturaStatusColor = (status: string) => {
+    if (status === "Pago") return "bg-success text-success-foreground";
+    if (status === "Em Atraso") return "bg-destructive text-destructive-foreground";
+    return "bg-warning/15 text-warning border-0";
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between gap-4">
-        <div className="flex flex-1 items-center gap-2 max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar OS ou equipamento..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+    <div className="space-y-6">
+      <div className="space-y-6">
+
+        {/* KPIs Consolidados */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+          <Card className="border-accent/20 shadow-sm bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Despesas Operacionais</p>
+                <p className="text-2xl font-bold mt-1 text-foreground">
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    filtered.filter(i => !["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"].includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
+                  )}
+                </p>
+              </div>
+              <Wrench className="h-8 w-8 text-muted-foreground/30" />
+            </CardContent>
+          </Card>
+          <Card className="border-accent/20 shadow-sm bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Encargos Fixos</p>
+                <p className="text-2xl font-bold mt-1 text-foreground">
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    filtered.filter(i => ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"].includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
+                  )}
+                </p>
+              </div>
+              <Building2 className="h-8 w-8 text-muted-foreground/30" />
+            </CardContent>
+          </Card>
+          <Card className="border-accent/40 shadow-sm bg-accent/5 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-accent uppercase">Custo Total no Período</p>
+                <p className="text-2xl font-black mt-1 text-accent">
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    filtered.reduce((acc, curr) => acc + curr.valor, 0)
+                  )}
+                </p>
+              </div>
+              <DollarSign className="h-8 w-8 text-accent/30" />
+            </CardContent>
+          </Card>
+        </div>
+        {/* Action Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card/60 backdrop-blur-md p-5 rounded-2xl border border-border/60 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar custos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background" />
+            </div>
+            <SearchableSelect
+              value={filterTag}
+              onValueChange={setFilterTag}
+              placeholder="Filtrar por Tag"
+              searchPlaceholder="Pesquisar tag..."
+              className="w-full sm:w-48 bg-background"
+              options={[
+                { value: "Todos", label: "Todas as Tags" },
+                ...uniqueTags.map((tag) => ({ value: tag, label: tag })),
+              ]}
+            />
+            <div className="flex items-center gap-2">
+              <Input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} className="w-32 bg-background" />
+              <span className="text-muted-foreground text-sm">até</span>
+              <Input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} className="w-32 bg-background" />
+              {(periodoInicio || periodoFim) && (
+                <Button variant="ghost" size="sm" onClick={() => { setPeriodoInicio(""); setPeriodoFim(""); }}>Limpar</Button>
+              )}
+            </div>
           </div>
-          <Button variant="outline" size="icon"><Filter className="h-4 w-4" /></Button>
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+            <div className="flex gap-2"></div>
+            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
+              <Plus className="h-4 w-4 mr-2" /> Novo
+            </Button>
+          </div>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Nova OS
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle>Abrir Ordem de Serviço</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>Equipamento</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="Selecione o equipamento que receberá manutenção" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Caminhão Munck (ABC-1234)</SelectItem>
-                    <SelectItem value="2">Escavadeira CAT-01</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Tipo de Custo / Serviço</Label>
-                  <Select defaultValue="preventiva">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="preventiva">Manutenção Preventiva</SelectItem>
-                      <SelectItem value="corretiva">Manutenção Corretiva</SelectItem>
-                      <SelectItem value="mobilizacao">Logística / Mobilização</SelectItem>
-                      <SelectItem value="combustivel">Abastecimento / Combustível</SelectItem>
-                      <SelectItem value="outros">Outros Custos</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Data Agendada</Label>
-                  <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Oficina / Prestador</Label>
-                  <Input placeholder="Nome da oficina" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Urgência</Label>
-                  <Select defaultValue="baixa">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="baixa">Baixa</SelectItem>
-                      <SelectItem value="alta">Alta</SelectItem>
-                      <SelectItem value="critica">Crítica (Máquina Parada)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Descrição do Problema / Serviço</Label>
-                <Textarea placeholder="Descreva os sintomas ou os serviços que precisam ser executados..." rows={3} />
-              </div>
+        <div className="flex flex-col gap-2">
+          {sorted.length > 0 && (
+            <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="w-1/3">Descrição / Equipamento</div>
+              <div className="w-1/6 text-center">Tipo</div>
+              <div className="w-1/6 text-center">Data / Fatura</div>
+              <div className="w-1/6 text-right">Valor</div>
+              <div className="w-[80px]"></div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogOpen(false)} className="bg-accent text-accent-foreground hover:bg-accent/90">Gerar OS</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          )}
+          
+          {sorted.map((item) => {
+            return (
+              <div key={item.id} className="group bg-card/60 backdrop-blur-sm hover:bg-card border border-border/60 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all relative shadow-sm hover:shadow-md">
+                
+                <div className="flex-1 min-w-0 md:w-1/3">
+                  <h3 className="font-bold text-sm text-foreground truncate">{item.descricao}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground truncate">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</span>
+                    <Badge variant="outline" className="text-[9px] bg-background/50 px-1 py-0">{item.equipamentos?.tag_placa || "S/ PLACA"}</Badge>
+                  </div>
+                </div>
+
+                <div className="md:w-1/6 flex flex-col md:items-center gap-1.5">
+                   <Badge className={cn("text-[10px]", tipoColor(item.tipo))}>{item.tipo}</Badge>
+                   <Badge className={cn("text-[9px] px-1 py-0", 
+                     item.classificacao === "Custo Assumido" ? "bg-muted text-muted-foreground border-0" :
+                     item.classificacao === "A Reembolsar ao Cliente" ? "bg-destructive/10 text-destructive border-0" : 
+                     "bg-success/10 text-success border-0"
+                   )}>
+                      {item.classificacao === "Custo Assumido" ? "Custo Interno" : item.classificacao === "A Reembolsar ao Cliente" ? "Reembolsar" : "Cobrar"}
+                   </Badge>
+                </div>
+
+                <div className="md:w-1/6 flex flex-col md:items-center gap-1.5">
+                   <span className="text-xs font-medium">{new Date(item.data + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+                   {item.fatura ? (
+                     <Badge className={cn("text-[9px] px-1.5 py-0 border-0", faturaStatusColor(item.fatura.status))}>
+                       Fat. #{item.fatura.numero_nota || item.fatura.numero_sequencial}
+                     </Badge>
+                   ) : (
+                     <span className="text-[10px] text-muted-foreground">S/ Fatura</span>
+                   )}
+                </div>
+
+                <div className="md:w-1/6 flex flex-col md:items-end">
+                   <span className="font-bold text-base text-foreground whitespace-nowrap">R$ {fmt(item.valor)}</span>
+                </div>
+
+                <div className="absolute top-2 right-2 md:static md:w-[80px] flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => openEdit(item)}>
+                     <Pencil className="h-4 w-4" />
+                   </Button>
+                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                </div>
+              </div>
+            );
+          })}
+
+          {!loading && sorted.length === 0 && (
+            <div className="col-span-full py-12 text-center text-muted-foreground glass-panel rounded-xl">
+              <DollarSign className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-lg font-medium">Nenhum custo encontrado</p>
+              <p className="text-sm opacity-70">Tente ajustar seus filtros ou busca.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="bg-card border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead className="w-[80px]">OS</TableHead>
-              <TableHead>Equipamento</TableHead>
-              <TableHead>Tipo / Descrição</TableHead>
-              <TableHead>Oficina</TableHead>
-              <TableHead>Agendamento</TableHead>
-              <TableHead>Urgência</TableHead>
-              <TableHead className="text-right">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ordens.map((os) => (
-              <TableRow key={os.id} className="hover:bg-muted/50 transition-colors">
-                <TableCell className="font-medium text-muted-foreground">#{os.id.toString().padStart(4, '0')}</TableCell>
-                <TableCell className="font-semibold">{os.equipamento}</TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium text-sm">{os.tipo}</span>
-                    <span className="text-xs text-muted-foreground truncate max-w-[200px]">{os.descricao}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">{os.oficina}</TableCell>
-                <TableCell>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Clock className="w-3.5 h-3.5 mr-1" />
-                    {os.data_agendada}
-                  </div>
-                </TableCell>
-                <TableCell>{getUrgenciaBadge(os.urgencia)}</TableCell>
-                <TableCell className="text-right">{getStatusBadge(os.status)}</TableCell>
-              </TableRow>
-            ))}
-            {ordens.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                  Nenhuma ordem de serviço encontrada.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-accent" />{editing ? "Editar Custo" : "Novo Custo"}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label>Equipamento</Label>
+              <SearchableSelect
+                value={form.equipamento_id}
+                onValueChange={(v) => setForm({ ...form, equipamento_id: v })}
+                placeholder="Selecione o equipamento"
+                searchPlaceholder="Pesquisar equipamento..."
+                options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
+              />
+            </div>
+            <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
+            <div>
+              <Label>Classificação</Label>
+              <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <Label>Tipo</Label>
+                <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{tiposGasto.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Valor (R$)</Label><CurrencyInput value={form.valor} onValueChange={(v) => setForm({ ...form, valor: v })} /></div>
+              <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
