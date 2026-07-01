@@ -9,13 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp, DollarSign, Calendar, FileDown, ArrowUpRight, ArrowDownRight,
-  TrendingDown, Percent, BarChart3, AlertCircle, Clock
+  TrendingDown, Percent, BarChart3, AlertCircle, Clock, FileText
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import * as XLSX from "xlsx";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend
 } from "recharts";
+import { generateDrePdf } from "@/lib/dreExportUtils";
 
 interface RelatoriosGerenciaisTabProps {
   empresas: Array<any>;
@@ -438,7 +439,7 @@ export const RelatoriosGerenciaisTab = ({
     <div className="space-y-6">
       {/* Barra de Filtros */}
       <Card className="glass shadow-sm border border-border/40">
-        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-muted-foreground uppercase">Data Início</Label>
             <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-background/50" />
@@ -474,6 +475,23 @@ export const RelatoriosGerenciaisTab = ({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="flex w-full items-end justify-end">
+            <Button 
+              variant="default" 
+              className="w-full gap-2 bg-primary/90 hover:bg-primary text-primary-foreground shadow-sm font-semibold"
+              onClick={() => generateDrePdf({
+                dataInicio,
+                dataFim,
+                dreStats,
+                rentabilidadeEquipamentos,
+                agingList
+              })}
+            >
+              <FileText className="h-4 w-4" />
+              Exportar PDF Executivo
+            </Button>
           </div>
         </CardContent>
       </Card>
