@@ -257,7 +257,7 @@ export const RelatoriosGerenciaisTab = ({
         margemPct,
         status: eq.status,
         faturasReceita,
-        gastosDespesa
+        gastosDespesa: eqGastos
       };
     }).sort((a, b) => b.margem - a.margem);
   }, [equipamentos, faturasFiltradas, gastosFiltrados, contratos, faturamentoEquipamentosList]);
