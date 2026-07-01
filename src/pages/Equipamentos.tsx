@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ChecklistsTab } from "@/components/ChecklistsTab";
 import { ComodatosTab } from "@/components/ComodatosTab";
 import { Layout } from "@/components/Layout";
+import { FrotaDashboard } from "@/components/frota/FrotaDashboard";
+import { ManutencaoSmartTable } from "@/components/frota/ManutencaoSmartTable";
+import { ControleUsoFrota } from "@/components/frota/ControleUsoFrota";
+import { GestaoDocumentos } from "@/components/frota/GestaoDocumentos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle, Wrench, Activity, Tractor, Box, LayoutGrid, List } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Plus, Search, Pencil, Trash2, ShieldCheck, ShieldOff, Truck, ParkingSquare, FileText, FileSpreadsheet, AlertCircle, Wrench, Activity, Tractor, Box, LayoutGrid, List, ClipboardCheck, Handshake, PenTool, Gauge, FileBadge } from "lucide-react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { supabase } from "@/integrations/supabase/client";
@@ -519,12 +524,13 @@ const EquipamentosLista = () => {
 
 const Equipamentos = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(() => {
-    return new URLSearchParams(window.location.search).get("tab") || "cadastro";
+    return new URLSearchParams(window.location.search).get("tab") || "dashboard";
   });
 
   useEffect(() => {
-    const tab = new URLSearchParams(location.search).get("tab") || "cadastro";
+    const tab = new URLSearchParams(location.search).get("tab") || "dashboard";
     setActiveTab(tab);
   }, [location.search]);
 
@@ -534,6 +540,14 @@ const Equipamentos = () => {
         return "Inspeções e laudos de entrega e devolução";
       case "comodatos":
         return "Gerenciamento de contratos de comodato";
+      case "manutencao":
+        return "Gestão de despesas, ordens de serviço e mobilização";
+      case "uso":
+        return "Lançamento e controle de quilometragem e horímetro";
+      case "documentos":
+        return "Controle de vencimentos de IPVA, Licenciamento e ANTT";
+      case "dashboard":
+        return "Dashboard de controle, manutenção e gestão de ativos da empresa";
       default:
         return "Gestão e controle de frota";
     }
@@ -541,9 +555,73 @@ const Equipamentos = () => {
 
   return (
     <Layout title="Equipamentos" subtitle={getSubtitle()}>
-      {activeTab === "checklist" && <ChecklistsTab />}
-      {activeTab === "comodatos" && <ComodatosTab />}
-      {activeTab === "cadastro" && <EquipamentosLista />}
+      <div className="flex-1 p-6 lg:p-8 pt-6 pb-20 md:pb-8 lg:pb-8 h-screen overflow-y-auto w-full bg-slate-50/50">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Truck className="h-6 w-6 text-primary" />
+              Gestão de Frota e Equipamentos
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {getSubtitle()}
+            </p>
+          </div>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={(val) => navigate(`/equipamentos?tab=${val}`)} className="w-full">
+          <TabsList className="mb-4 bg-card border border-border/40 w-full justify-start h-auto p-1 flex-wrap">
+            <TabsTrigger value="dashboard" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <LayoutGrid className="h-4 w-4" /> Cockpit (Geral)
+            </TabsTrigger>
+            <TabsTrigger value="cadastro" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <List className="h-4 w-4" /> Inventário de Frota
+            </TabsTrigger>
+            <TabsTrigger value="manutencao" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <PenTool className="h-4 w-4" /> Oficina & Custos
+            </TabsTrigger>
+            <TabsTrigger value="uso" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <Gauge className="h-4 w-4" /> Uso (KM/Hor)
+            </TabsTrigger>
+            <TabsTrigger value="documentos" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <FileBadge className="h-4 w-4" /> Documentos Legais
+            </TabsTrigger>
+            <TabsTrigger value="checklist" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <ClipboardCheck className="h-4 w-4" /> Checklists
+            </TabsTrigger>
+            <TabsTrigger value="comodatos" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <Handshake className="h-4 w-4" /> Comodatos
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard" className="m-0 mt-6 border-none p-0 outline-none">
+            <FrotaDashboard />
+          </TabsContent>
+
+          <TabsContent value="cadastro" className="m-0 mt-6 border-none p-0 outline-none">
+            <EquipamentosLista />
+          </TabsContent>
+
+          <TabsContent value="manutencao" className="m-0 mt-6 border-none p-0 outline-none">
+            <ManutencaoSmartTable />
+          </TabsContent>
+
+          <TabsContent value="uso" className="m-0 mt-6 border-none p-0 outline-none">
+            <ControleUsoFrota />
+          </TabsContent>
+
+          <TabsContent value="documentos" className="m-0 mt-6 border-none p-0 outline-none">
+            <GestaoDocumentos />
+          </TabsContent>
+
+          <TabsContent value="checklist" className="m-0 mt-6 border-none p-0 outline-none">
+            <ChecklistsTab />
+          </TabsContent>
+
+          <TabsContent value="comodatos" className="m-0 mt-6 border-none p-0 outline-none">
+            <ComodatosTab />
+          </TabsContent>
+        </Tabs>
+      </div>
     </Layout>
   );
 };

@@ -12,7 +12,6 @@ import Contratos from "./pages/Contratos";
 import Medicoes from "./pages/Medicoes";
 import Faturamento from "./pages/Faturamento";
 import Apolices from "./pages/Apolices";
-import Gastos from "./pages/Gastos";
 import Usuarios from "./pages/Usuarios";
 import Controladoria from "./pages/Controladoria";
 import Agregados from "./pages/Agregados";
@@ -60,7 +59,6 @@ const App = () => (
             <Route path="/workflows" element={<ProtectedRoute requiredPermission="/workflows"><Workflows /></ProtectedRoute>} />
             <Route path="/workflows/configurar" element={<ProtectedRoute requiredPermission="/workflows"><ConfigurarWorkflows /></ProtectedRoute>} />
             <Route path="/apolices" element={<ProtectedRoute requiredPermission="/apolices"><Apolices /></ProtectedRoute>} />
-            <Route path="/gastos" element={<ProtectedRoute requiredPermission="/gastos"><Gastos /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />
             <Route path="/controladoria" element={<ProtectedRoute requiredPermission="/controladoria"><Controladoria /></ProtectedRoute>} />
             <Route path="/acompanhamento" element={<Navigate to="/controladoria" replace />} />
