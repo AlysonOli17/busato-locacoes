@@ -1097,7 +1097,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                         <div className="flex flex-col items-start gap-0.5">
                           <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0.5">Ações Proposta</span>
                           <div className="flex gap-0.5 border border-border rounded-md px-1 py-0.5 bg-muted/30">
-                            {role === "admin" && item.status === "Aguardando Aprovação" && (
+                            {(role === "admin" || role === "master") && item.status === "Aguardando Aprovação" && (
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-success hover:text-success" onClick={() => handleApprove(item)} title="Aprovar proposta">
                                 <CheckCircle className="h-3.5 w-3.5" />
                               </Button>
@@ -1167,7 +1167,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                                     <Mail className="h-3.5 w-3.5" />
                                   </Button>
 
-                                  {role === "admin" && (
+                                  {(role === "admin" || role === "master") && (
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
                                         <Button
@@ -1318,7 +1318,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
                   placeholder="Selecione a empresa"
                 />
               </div>
-              {role === "admin" ? (
+              {(role === "admin" || role === "master") ? (
               <div>
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
