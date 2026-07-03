@@ -273,6 +273,8 @@ export const FaturamentoTab = () => {
     return faturas.filter(f => {
       if (f.status === "Pendente" || f.status === "Aguardando Aprovação") return false;
 
+      if (f.status === "Cancelado" && !showCanceladas && filterStatus !== "Cancelado") return false;
+
       if (filterStatus !== "all") {
         const status = getDisplayStatus(f);
         if (filterStatus !== status) return false;
@@ -283,7 +285,7 @@ export const FaturamentoTab = () => {
       }
       return true;
     });
-  }, [faturas, filterEmpresa, filterStatus, contratos]);
+  }, [faturas, filterEmpresa, filterStatus, contratos, showCanceladas]);
 
   const sortedFaturas = useMemo(() => {
     return [...filteredFaturas].sort((a, b) => {
@@ -432,33 +434,31 @@ export const FaturamentoTab = () => {
     }
   };
 
-  const handleCancelFatura = async (id: string, reason: string) => {
+  const handleCancelFatura = async (id: string, reason: string, cDate?: string) => {
     try {
-      const faturaToCancel = faturas.find(f => f.id === id);
-      if (!faturaToCancel) return;
-
-      const dateStr = new Date().toLocaleDateString("pt-BR");
-      const cancelNote = `[Cancelada em ${dateStr}. Motivo: ${reason || "Não informado"}]`;
-      const updatedObs = faturaToCancel.observacoes 
-        ? `${faturaToCancel.observacoes}\n${cancelNote}`
-        : cancelNote;
-
+      const dateToUse = cDate || new Date().toISOString().slice(0, 10);
       const { error } = await supabase
         .from("faturamento")
-        .delete()
+        .update({ status: "Cancelado", cancelamento_justificativa: reason, cancelamento_data: dateToUse })
         .eq("id", id);
-
+      
       if (error) throw error;
 
+      await Promise.all([
+        supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", id),
+        supabase.from("faturamento_gastos").delete().eq("faturamento_id", id),
+      ]);
+
       toast({
-        title: "Fatura Excluída",
-        description: "A fatura foi permanentemente removida do sistema.",
+        title: "Fatura Cancelada",
+        description: "A fatura foi cancelada e os vínculos de medição foram liberados.",
         variant: "default",
       });
       setCancelDialogOpen(false);
       setCancelId(null);
       setCancelReason("");
-      fetchData();
+      try { setCancelDate(new Date().toISOString().slice(0, 10)); } catch {}
+      fetchData(true);
     } catch (err: any) {
       toast({
         title: "Erro ao cancelar fatura",
