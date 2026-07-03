@@ -161,6 +161,8 @@ export const FaturamentoTab = () => {
   const [editForm, setEditForm] = useState({ status: "", numero_nota: "", conta_bancaria_id: "", emissao: "", valor_total: 0, observacoes: "" });
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelDate, setCancelDate] = useState(new Date().toISOString().slice(0, 10));
+  const [showCanceladas, setShowCanceladas] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [payId, setPayId] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -1117,7 +1119,11 @@ export const FaturamentoTab = () => {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => setImportDialogOpen(true)} variant="outline" size="sm" className="bg-background/50 backdrop-blur-sm border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 shrink-0">
+        <div className="flex items-center space-x-2 mr-4">
+            <Checkbox id="show-canceladas-tab" checked={showCanceladas} onCheckedChange={(checked) => setShowCanceladas(!!checked)} />
+            <label htmlFor="show-canceladas-tab" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Mostrar canceladas</label>
+          </div>
+          <Button onClick={() => setImportDialogOpen(true)} variant="outline" size="sm" className="bg-background/50 backdrop-blur-sm border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 shrink-0">
           <FileSpreadsheet className="h-4 w-4 mr-1" /> Importar Histórico
         </Button>
         <Button variant="outline" size="sm" onClick={exportRelatorioFinanceiro} className="shrink-0">
@@ -1301,7 +1307,7 @@ export const FaturamentoTab = () => {
                     <CheckCircle2 className="h-4 w-4" />
                   </Button>
                 )}
-                {((f.status !== "Aprovado" && f.status !== "Pago") || role === "admin") && (
+                {((f.status !== "Aprovado" && f.status !== "Pago") || role === "admin" || role === "master") && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1387,33 +1393,48 @@ export const FaturamentoTab = () => {
 
       {/* Cancel Fatura Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <XCircle className="h-5 w-5" />
               Cancelar Fatura
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            <strong className="text-destructive">A fatura será permanentemente excluída do sistema</strong> e não constará em nenhum relatório ou cálculo. Esta ação não pode ser desfeita. Por favor, insira o motivo do cancelamento/exclusão (opcional):
-          </p>
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p><strong className="text-destructive">Aviso importante:</strong></p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>A fatura ficará registrada como "Cancelada".</li>
+              <li>Não entrará em cálculos de totais nem KPIs.</li>
+              <li>As medições e gastos atrelados a esta fatura serão <strong>liberados</strong> para faturamento futuro.</li>
+            </ul>
+          </div>
           <div className="space-y-4 py-2">
             <div>
-              <Label>Motivo do Cancelamento</Label>
+              <Label>Data do Cancelamento <span className="text-destructive">*</span></Label>
+              <Input
+                type="date"
+                value={cancelDate}
+                onChange={e => setCancelDate(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label>Justificativa do Cancelamento <span className="text-destructive">*</span></Label>
               <Textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Descreva o motivo do cancelamento (ex: correção de horas, alteração de valores...)"
-                rows={4}
+                placeholder="Descreva obrigatoriamente o motivo do cancelamento..."
+                rows={3}
+                required
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setCancelDialogOpen(false); setCancelId(null); }}>Cancelar</Button>
             <Button
-              onClick={() => cancelId && handleCancelFatura(cancelId, cancelReason)}
+              onClick={() => cancelId && handleCancelFatura(cancelId, cancelReason, cancelDate)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={!cancelReason.trim()}
+              disabled={!cancelReason.trim() || !cancelDate}
             >
               Confirmar Cancelamento
             </Button>
