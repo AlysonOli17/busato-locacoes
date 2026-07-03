@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, Send, UploadCloud, Loader2 } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, TrendingDown, FileDown, FileSpreadsheet, Settings2, Hash, Landmark, ShieldCheck, Truck, Eye, Mail, Send, UploadCloud, Loader2, XCircle } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { calcularHorasInterpoladas, parseLocalDate, cn, getVencimento as getVencimentoGlobal, getDisplayStatus as getDisplayStatusGlobal } from "@/lib/utils";
@@ -191,6 +191,13 @@ export const FaturamentoContent = () => {
   const [formMedicaoFim, setFormMedicaoFim] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showCanceladas, setShowCanceladas] = useState(false);
+  const [cancelDialog, setCancelDialog] = useState<{
+    isOpen: boolean;
+    fatura: Fatura | null;
+    justificativa: string;
+    dataCancelamento: string;
+  }>({ isOpen: false, fatura: null, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] });
   const [loadingMedicoes, setLoadingMedicoes] = useState(false);
   const [equipForms, setEquipForms] = useState<EquipFormItem[]>([]);
   const [gastosEquip, setGastosEquip] = useState<GastoItem[]>([]);
@@ -961,6 +968,8 @@ export const FaturamentoContent = () => {
     // Status filter
     const status = getDisplayStatus(i);
     if (filterStatus !== "all" && status !== filterStatus) return false;
+    // Ocultar canceladas por padrão
+    if (!showCanceladas && status === "Cancelado") return false;
     return true;
   });
 
@@ -1528,7 +1537,39 @@ export const FaturamentoContent = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleCancelarFatura = async () => {
+    if (!cancelDialog.fatura) return;
+    if (!cancelDialog.justificativa.trim()) {
+      toast({ title: "Atenção", description: "Informe a justificativa do cancelamento.", variant: "destructive" });
+      return;
+    }
+    if (!cancelDialog.dataCancelamento) {
+      toast({ title: "Atenção", description: "Informe a data do cancelamento.", variant: "destructive" });
+      return;
+    }
+    const faturaId = cancelDialog.fatura.id;
+    try {
+      const { error } = await supabase.from("faturamento").update({
+        status: "Cancelado",
+        cancelamento_justificativa: cancelDialog.justificativa.trim(),
+        cancelamento_data: cancelDialog.dataCancelamento,
+      } as any).eq("id", faturaId);
+      if (error) throw error;
+
+      await Promise.all([
+        supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", faturaId),
+        supabase.from("faturamento_gastos").delete().eq("faturamento_id", faturaId),
+      ]);
+
+      toast({ title: "Fatura cancelada", description: `Fatura #${cancelDialog.fatura.numero_sequencial} cancelada. As medições estão liberadas para novo faturamento.` });
+      setCancelDialog({ isOpen: false, fatura: null, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message || "Erro ao cancelar fatura.", variant: "destructive" });
+    }
+  };
+
+    const handleDelete = async (id: string) => {
     const { error } = await supabase.from("faturamento").delete().eq("id", id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
@@ -1760,7 +1801,7 @@ export const FaturamentoContent = () => {
                             <Badge className={
                               displayStatus === "Aprovado" ? "bg-success text-success-foreground" :
                               displayStatus === "Pago" ? "bg-success text-success-foreground" :
-                              displayStatus === "Cancelado" ? "bg-muted text-muted-foreground" :
+                              displayStatus === "Cancelado" ? "bg-orange-100 text-orange-700 border border-orange-300 dark:bg-orange-950/20 dark:text-orange-300" :
                               "bg-warning text-warning-foreground"
                             }>
                               {displayStatus}
@@ -1833,7 +1874,19 @@ export const FaturamentoContent = () => {
                               <Mail className="h-3.5 w-3.5" />
                             </Button>
 
-                            {displayStatus !== "Aprovado" && displayStatus !== "Pago" && (
+                            {(role === "admin" || role === "master") && displayStatus !== "Cancelado" && displayStatus !== "Pago" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                                title="Cancelar Fatura"
+                                onClick={() => setCancelDialog({ isOpen: true, fatura: item, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] })}
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+
+                            {displayStatus !== "Aprovado" && displayStatus !== "Pago" && displayStatus !== "Cancelado" && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
@@ -1872,7 +1925,55 @@ export const FaturamentoContent = () => {
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Dialog de Cancelamento de Fatura */}
+      <Dialog open={cancelDialog.isOpen} onOpenChange={(open) => { if (!open) setCancelDialog({ isOpen: false, fatura: null, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] }); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+              <XCircle className="h-5 w-5" />
+              Cancelar Fatura #{cancelDialog.fatura?.numero_sequencial}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 text-sm text-orange-800 dark:text-orange-200">
+              A fatura será marcada como <strong>Cancelada</strong> e mantida no histórico.
+              As medições vinculadas serão liberadas para novo faturamento.
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cancel-data" className="text-sm font-medium">Data do Cancelamento <span className="text-destructive">*</span></Label>
+              <Input
+                id="cancel-data"
+                type="date"
+                value={cancelDialog.dataCancelamento}
+                onChange={(e) => setCancelDialog(d => ({ ...d, dataCancelamento: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cancel-justificativa" className="text-sm font-medium">Justificativa <span className="text-destructive">*</span></Label>
+              <Textarea
+                id="cancel-justificativa"
+                placeholder="Descreva o motivo do cancelamento..."
+                value={cancelDialog.justificativa}
+                onChange={(e) => setCancelDialog(d => ({ ...d, justificativa: e.target.value }))}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialog({ isOpen: false, fatura: null, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] })}>
+              Voltar
+            </Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={handleCancelarFatura}
+            >
+              Confirmar Cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2248,6 +2349,16 @@ export const FaturamentoContent = () => {
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="show-canceladas"
+                  checked={showCanceladas}
+                  onCheckedChange={(v) => setShowCanceladas(Boolean(v))}
+                />
+                <label htmlFor="show-canceladas" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap select-none">
+                  Mostrar canceladas
+                </label>
               </div>
               <div>
                 <Label>Conta para Pagamento</Label>
