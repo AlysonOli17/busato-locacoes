@@ -172,6 +172,7 @@ const recalcHours = (ef: EquipFormItem, medInicio?: string, medFim?: string) => 
 };
 
 export const FaturamentoContent = () => {
+  const { role } = useAuth();
   const [items, setItems] = useState<Fatura[]>([]);
   const [contratos, setContratos] = useState<ContratoRef[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
