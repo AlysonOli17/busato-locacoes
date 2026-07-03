@@ -436,22 +436,67 @@ export const FaturamentoTab = () => {
 
   const handleCancelFatura = async (id: string, reason: string, cDate?: string) => {
     try {
+      const faturaToCancel = faturas.find(f => f.id === id);
+      if (!faturaToCancel) return;
+
       const dateToUse = cDate || new Date().toISOString().slice(0, 10);
-      const { error } = await supabase
+
+      // 1. Fetch current items
+      const [feRes, fgRes] = await Promise.all([
+        supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", id),
+        supabase.from("faturamento_gastos").select("*").eq("faturamento_id", id),
+      ]);
+
+      if (feRes.error) throw feRes.error;
+      if (fgRes.error) throw fgRes.error;
+
+      // 2. Clone the faturamento row for a new measurement
+      const { id: oldId, created_at, ...faturaData } = faturaToCancel as any;
+      const { data: newFatura, error: insertError } = await supabase.from("faturamento").insert([{
+        ...faturaData,
+        status: "Aprovado",
+        numero_nota: null,
+        emissao: null,
+        data_aprovacao: null,
+        cancelamento_justificativa: null,
+        cancelamento_data: null,
+        // Also clear observacoes related to cancellation if needed, but keeping it is fine or clear it
+        observacoes: (faturaData.observacoes || "").replace(/\\[Cancelada.*?\\]/g, "").trim()
+      }]).select("id").single();
+
+      if (insertError) throw insertError;
+      const newId = newFatura.id;
+
+      // 3. Clone equipments and gastos to the new measurement
+      if (feRes.data && feRes.data.length > 0) {
+        const newFe = feRes.data.map((fe: any) => {
+          const { id: feId, created_at: feCreatedAt, ...rest } = fe;
+          return { ...rest, faturamento_id: newId };
+        });
+        const { error: feErr } = await supabase.from("faturamento_equipamentos").insert(newFe);
+        if (feErr) throw feErr;
+      }
+
+      if (fgRes.data && fgRes.data.length > 0) {
+        const newFg = fgRes.data.map((fg: any) => {
+          const { id: fgId, created_at: fgCreatedAt, ...rest } = fg;
+          return { ...rest, faturamento_id: newId };
+        });
+        const { error: fgErr } = await supabase.from("faturamento_gastos").insert(newFg);
+        if (fgErr) throw fgErr;
+      }
+
+      // 4. Mark old as cancelled
+      const { error: updateError } = await supabase
         .from("faturamento")
         .update({ status: "Cancelado", cancelamento_justificativa: reason, cancelamento_data: dateToUse })
         .eq("id", id);
       
-      if (error) throw error;
-
-      await Promise.all([
-        supabase.from("faturamento_equipamentos").delete().eq("faturamento_id", id),
-        supabase.from("faturamento_gastos").delete().eq("faturamento_id", id),
-      ]);
+      if (updateError) throw updateError;
 
       toast({
         title: "Fatura Cancelada",
-        description: "A fatura foi cancelada e os vínculos de medição foram liberados.",
+        description: "A fatura foi cancelada e a medição foi disponibilizada novamente em Emitir Medição.",
         variant: "default",
       });
       setCancelDialogOpen(false);
