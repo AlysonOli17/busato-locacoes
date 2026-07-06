@@ -433,7 +433,7 @@ export const RelatoriosGerenciaisTab = ({
     if (tipo === "rentabilidade") {
       ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
     } else if (tipo === "dre") {
-      ws['!cols'] = [{ wch: 40 }, { wch: 20 }, { wch: 15 }];
+          ws['!cols'] = [{ wch: 40 }, { wch: 20 }, { wch: 15 }];
     } else if (tipo === "aging") {
       ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
     }
@@ -441,6 +441,81 @@ export const RelatoriosGerenciaisTab = ({
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Relatório");
     XLSX.writeFile(wb, filename);
+  };
+
+  // Função para exportação em PDF (usada para o DRE)
+  const handleExportPDF = async (tipo: "dre") => {
+    if (tipo !== "dre") return;
+    
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const r = dreStats;
+
+      // Add Header
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("DRE Completo (Full EBITDA)", 14, 20);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Período analisado: ${dataInicio ? new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR") : "Início"} até ${dataFim ? new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR") : "Hoje"}`, 14, 26);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}`, 14, 31);
+
+      // Add Table
+      const tableData = [
+        ["RECEITA BRUTA", `R$ ${fmt(r.receitaBruta)}`, "100.0%"],
+        ["Custos de Manutenção", `R$ ${fmt(r.custoManutencao)}`, `${r.receitaBruta > 0 ? ((r.custoManutencao / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`],
+        ["Mobilização / Desmobilização", `R$ ${fmt(r.custoMobilizacao)}`, `${r.receitaBruta > 0 ? ((r.custoMobilizacao / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`],
+        ["Encargos Fixos", `R$ ${fmt(r.custoFixo)}`, `${r.receitaBruta > 0 ? ((r.custoFixo / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`],
+        ["Outros Gastos Diretos", `R$ ${fmt(r.custoOutros)}`, `${r.receitaBruta > 0 ? ((r.custoOutros / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`],
+        ["TOTAL CUSTOS OPERACIONAIS", `R$ ${fmt(r.totalCustos)}`, `${r.receitaBruta > 0 ? ((r.totalCustos / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`],
+        ["LUCRO BRUTO (GROSS PROFIT)", `R$ ${fmt(r.lucroBruto)}`, `${r.receitaBruta > 0 ? ((r.lucroBruto / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`],
+        ["Despesas Administrativas (Fixas)", `R$ ${fmt(r.totalDespesasAdmin)}`, `${r.receitaBruta > 0 ? ((r.totalDespesasAdmin / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`],
+        ["EBITDA (RESULTADO LÍQUIDO)", `R$ ${fmt(r.resultadoEbitda)}`, `${r.receitaBruta > 0 ? ((r.resultadoEbitda / r.receitaBruta) * 100).toFixed(1) : "0.0"}%`]
+      ];
+
+      autoTable(doc, {
+        startY: 38,
+        head: [["Categoria", "Valor", "% da Receita"]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 100 },
+          1: { cellWidth: 40, halign: 'right' },
+          2: { cellWidth: 40, halign: 'right' },
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body') {
+            if (data.row.index === 0) { // Receita Bruta
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [241, 245, 249];
+            } else if (data.row.index === 5) { // Total Custos
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.textColor = [220, 38, 38]; 
+            } else if (data.row.index === 6) { // Lucro Bruto
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.textColor = [16, 185, 129]; 
+            } else if (data.row.index === 8) { // EBITDA
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [240, 253, 244];
+              if (r.resultadoEbitda >= 0) {
+                data.cell.styles.textColor = [16, 185, 129]; 
+              } else {
+                data.cell.styles.textColor = [220, 38, 38];
+              }
+            }
+          }
+        }
+      });
+
+      doc.save(`DRE_Completo_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (error) {
+      console.error("Erro ao gerar PDF do DRE:", error);
+    }
   };
 
   return (
@@ -514,7 +589,7 @@ export const RelatoriosGerenciaisTab = ({
                 <DollarSign className="h-4 w-4 text-primary" />
                 DRE Completo (Full EBITDA)
               </CardTitle>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleExportExcel("dre")}>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleExportPDF("dre")}>
                 <FileDown className="h-4 w-4" />
               </Button>
             </div>
