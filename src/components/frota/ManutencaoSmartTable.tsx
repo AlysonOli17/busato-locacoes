@@ -35,9 +35,9 @@ interface Gasto {
   fatura?: FaturaRef | null;
 }
 
-const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Mobilização", "Desmobilização", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
+const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
 const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente", "Custo Assumido"];
-const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "A Cobrar do Cliente", valor: 0, data: new Date().toISOString().split("T")[0], recorrencia: "Única", parcelas: 12 };
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "Custo Assumido", valor: 0, data: new Date().toISOString().split("T")[0], recorrencia: "Única", parcelas: 12 };
 
 export const ManutencaoSmartTable = () => {
   const [items, setItems] = useState<Gasto[]>([]);

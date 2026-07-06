@@ -216,10 +216,6 @@ export const FaturamentoContent = () => {
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
 
-  // Mobilização/Desmobilização alert
-  interface MobEvent { equipamento_id: string; tipo: string; modelo: string; tag_placa: string | null; evento: "Mobilização" | "Desmobilização"; data: string; }
-  const [mobAlerts, setMobAlerts] = useState<MobEvent[]>([]);
-  const [mobDialogOpen, setMobDialogOpen] = useState(false);
   const [solicitarAprovacaoDialog, setSolicitarAprovacaoDialog] = useState<{ isOpen: boolean; faturaId: string | null; responsavelId: string }>({ isOpen: false, faturaId: null, responsavelId: "" });
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [aprovarDialog, setAprovarDialog] = useState<{ isOpen: boolean; faturaId: string | null; emissaoDate: string }>({
@@ -227,8 +223,6 @@ export const FaturamentoContent = () => {
     faturaId: null,
     emissaoDate: new Date().toISOString().slice(0, 10)
   });
-  const [mobValues, setMobValues] = useState<Record<string, number>>({});
-  const [creatingMob, setCreatingMob] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const fetchData = async () => {
@@ -604,136 +598,10 @@ export const FaturamentoContent = () => {
     setSelectedGastos(new Set());
     setTotalGastos(0);
 
-    // Detect Mobilização/Desmobilização events
-    const mobEvents: MobEvent[] = [];
-    for (const ef of newEquipForms) {
-      const hasMobGasto = existingGastos.some(g => g.equipamento_id === ef.equipamento_id && g.tipo === "Mobilização");
-      const hasDesmobGasto = existingGastos.some(g => g.equipamento_id === ef.equipamento_id && g.tipo === "Desmobilização");
-
-      if (ef.data_entrega && ef.data_entrega >= inicio && ef.data_entrega <= fim && !hasMobGasto) {
-        mobEvents.push({ equipamento_id: ef.equipamento_id, tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa, evento: "Mobilização", data: ef.data_entrega });
-      }
-      if (ef.data_devolucao && ef.data_devolucao >= inicio && ef.data_devolucao <= fim && !hasDesmobGasto) {
-        mobEvents.push({ equipamento_id: ef.equipamento_id, tipo: ef.tipo, modelo: ef.modelo, tag_placa: ef.tag_placa, evento: "Desmobilização", data: ef.data_devolucao });
-      }
-    }
-
-    if (mobEvents.length > 0) {
-      setMobAlerts(mobEvents);
-      const defaultValues: Record<string, number> = {};
-      mobEvents.forEach((e, i) => { defaultValues[`${e.equipamento_id}_${e.evento}`] = 0; });
-      setMobValues(defaultValues);
-      setMobDialogOpen(true);
-    } else {
-      setMobAlerts([]);
-    }
-
     setLoadingMedicoes(false);
   }, [contratos, editing]);
 
-  // Create mobilização/desmobilização gastos
-  const handleCreateMobGastos = async () => {
-    setCreatingMob(true);
-    const toCreate = mobAlerts.filter(e => {
-      const key = `${e.equipamento_id}_${e.evento}`;
-      return (mobValues[key] || 0) > 0;
-    });
-    if (toCreate.length === 0) {
-      toast({ title: "Nenhum valor informado", description: "Informe o valor para pelo menos um item.", variant: "destructive" });
-      setCreatingMob(false);
-      return;
-    }
 
-    // Check if any of the rows already exist in the database
-    const { data: existing } = await supabase.from("gastos")
-      .select("equipamento_id, tipo, data")
-      .in("equipamento_id", toCreate.map(e => e.equipamento_id))
-      .in("tipo", ["Mobilização", "Desmobilização"]);
-
-    const rows = toCreate.filter(e => {
-      const alreadyExists = (existing || []).some(g => 
-        g.equipamento_id === e.equipamento_id && 
-        g.tipo === e.evento && 
-        g.data === e.data
-      );
-      return !alreadyExists;
-    }).map(e => ({
-      id: crypto.randomUUID(),
-      equipamento_id: e.equipamento_id,
-      descricao: `${e.evento} — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
-      tipo: e.evento,
-      valor: mobValues[`${e.equipamento_id}_${e.evento}`],
-      data: e.data,
-      classificacao: "Cobrado do Cliente",
-    }));
-
-    if (rows.length === 0) {
-      toast({ title: "Já cadastrado", description: "Esses custos de mobilização/desmobilização já foram registrados anteriormente." });
-      setMobDialogOpen(false);
-      setCreatingMob(false);
-      return;
-    }
-
-    const { data, error } = await supabase.from("gastos").insert(rows).select();
-    if (error) {
-      toast({ title: "Erro ao criar custos", description: error.message, variant: "destructive" });
-    } else if (data) {
-      const newGastos = [...gastosEquip, ...(data as GastoItem[])];
-      setGastosEquip(newGastos);
-      const newSelected = new Set(selectedGastos);
-      data.forEach(g => newSelected.add(g.id));
-      setSelectedGastos(newSelected);
-      toast({ title: "Custos criados", description: `${data.length} custo(s) de mobilização/desmobilização adicionado(s) e selecionado(s).` });
-    }
-    setMobDialogOpen(false);
-    setCreatingMob(false);
-  };
-
-  // Insert zero-value gastos to mark as "não cobrado" and prevent future popups
-  const handleNaoCobrarMob = async () => {
-    setCreatingMob(true);
-
-    // Check if any of the rows already exist in the database
-    const { data: existing } = await supabase.from("gastos")
-      .select("equipamento_id, tipo, data")
-      .in("equipamento_id", mobAlerts.map(e => e.equipamento_id))
-      .in("tipo", ["Mobilização", "Desmobilização"]);
-
-    const rows = mobAlerts.filter(e => {
-      const alreadyExists = (existing || []).some(g => 
-        g.equipamento_id === e.equipamento_id && 
-        g.tipo === e.evento && 
-        g.data === e.data
-      );
-      return !alreadyExists;
-    }).map(e => ({
-      id: crypto.randomUUID(),
-      equipamento_id: e.equipamento_id,
-      descricao: `${e.evento} (não cobrado) — ${e.tipo} ${e.modelo}${e.tag_placa ? ` (${e.tag_placa})` : ""}`,
-      tipo: e.evento,
-      valor: 0,
-      data: e.data,
-      classificacao: "Não Cobrado",
-    }));
-
-    if (rows.length === 0) {
-      toast({ title: "Já registrado", description: "A não cobrança de mobilização/desmobilização já havia sido registrada." });
-      setMobDialogOpen(false);
-      setCreatingMob(false);
-      return;
-    }
-
-    const { data, error } = await supabase.from("gastos").insert(rows).select();
-    if (error) {
-      toast({ title: "Erro ao registrar", description: error.message, variant: "destructive" });
-    } else if (data) {
-      const newGastos = [...gastosEquip, ...(data as GastoItem[])];
-      setGastosEquip(newGastos);
-      toast({ title: "Registrado", description: "Mobilização/desmobilização marcada como não cobrada." });
-    }
-    setMobDialogOpen(false);
-    setCreatingMob(false);
-  };
 
   // Toggle gasto selection
   const toggleGasto = (gastoId: string) => {
@@ -2458,59 +2326,7 @@ export const FaturamentoContent = () => {
         contratos={contratos}
       />
 
-      {/* Mobilização/Desmobilização Alert Dialog */}
-      <Dialog open={mobDialogOpen} onOpenChange={setMobDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-warning" />
-              Mobilização / Desmobilização Detectada
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              Os seguintes equipamentos foram mobilizados ou desmobilizados dentro do período de medição. Informe o valor para incluir como custo adicional.
-            </p>
-            {mobAlerts.map((e) => {
-              const key = `${e.equipamento_id}_${e.evento}`;
-              return (
-                <div key={key} className="p-3 rounded-lg border space-y-2 bg-warning/5 border-warning/30">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{e.tipo} {e.modelo} {e.tag_placa ? `(${e.tag_placa})` : ""}</span>
-                    <Badge className={e.evento === "Mobilização" ? "bg-success/15 text-success border-0" : "bg-destructive/15 text-destructive border-0"}>
-                      {e.evento}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Data: {parseLocalDate(e.data).toLocaleDateString("pt-BR")}
-                  </p>
-                  <div>
-                    <Label className="text-xs">Valor (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0,00"
-                      value={mobValues[key] || ""}
-                      onChange={(ev) => setMobValues(prev => ({ ...prev, [key]: Number(ev.target.value) }))}
-                      className="h-8"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setMobDialogOpen(false)}>Ignorar</Button>
-            <Button variant="secondary" onClick={handleNaoCobrarMob} disabled={creatingMob}>
-              Não Cobrar
-            </Button>
-            <Button onClick={handleCreateMobGastos} disabled={creatingMob} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              {creatingMob ? "Criando..." : "Incluir Custos"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
             {/* Custom Fatura Approval Dialog */}
       <Dialog open={solicitarAprovacaoDialog.isOpen} onOpenChange={(open) => !open && setSolicitarAprovacaoDialog(prev => ({ ...prev, isOpen: false }))}>

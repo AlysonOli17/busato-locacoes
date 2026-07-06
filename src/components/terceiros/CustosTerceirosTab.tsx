@@ -20,7 +20,7 @@ interface Custo {
   tipo: string; classificacao: string; observacoes: string | null; equipment: Equipamento;
 }
 
-const tiposGasto = ["Manutenção", "Frete", "Combustível", "Mobilização", "Desmobilização", "Outros"];
+const tiposGasto = ["Manutenção", "Frete", "Combustível", "Outros"];
 const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente"];
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
