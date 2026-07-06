@@ -660,6 +660,7 @@ export const FaturamentoContent = () => {
       tipo: e.evento,
       valor: mobValues[`${e.equipamento_id}_${e.evento}`],
       data: e.data,
+      classificacao: "Cobrado do Cliente",
     }));
 
     if (rows.length === 0) {
@@ -708,6 +709,7 @@ export const FaturamentoContent = () => {
       tipo: e.evento,
       valor: 0,
       data: e.data,
+      classificacao: "Não Cobrado",
     }));
 
     if (rows.length === 0) {
