@@ -108,12 +108,17 @@ export const RelatoriosGerenciaisTab = ({
 
     return gastos.filter(g => {
       // Regras de classificação:
-      // - "A Cobrar do Cliente": Cliente paga = NAO é custo meu = remove do DRE
-      // - "Custo Assumido" / "Custo Interno": Meu custo = inclui no DRE
-      // - "A Reembolsar ao Cliente": Cliente pagou mas eu devia pagar = é meu custo = inclui no DRE
-      // Gastos sem classificação: por precaução são tratados como custo meu
+      // - "A Cobrar do Cliente" / "Cobrado do Cliente": cliente paga = NOT meu custo = remove
+      // - "Não Cobrado": registro histórico sem cobrança = NOT meu custo = remove
+      // - "Custo Assumido" / "Custo Interno": empresa pagou = inclui
+      // - "A Reembolsar ao Cliente": empresa pagou mas cobra cliente = inclui
+      // - sem classificação: tratado como custo da empresa por precaução = inclui
       const classif = g.classificacao || "";
-      if (classif === "A Cobrar do Cliente") return false;
+      if (
+        classif === "A Cobrar do Cliente" ||
+        classif === "Cobrado do Cliente" ||
+        classif === "Não Cobrado"
+      ) return false;
 
       if (!g.data) return false;
       if (dataInicio && g.data < dataInicio) return false;
