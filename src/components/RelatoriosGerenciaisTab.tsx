@@ -158,17 +158,19 @@ export const RelatoriosGerenciaisTab = ({
     const gastosManutencao = gastosFiltrados.filter(g => tiposManutencao.includes(g.tipo));
     const custoManutencao = gastosManutencao.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    // Mobilização/Desmobilização: só entra como custo se for "Custo Assumido" (empresa pagou do bolso)
-    // "Cobrado do Cliente" e "Não Cobrado" são apenas registros históricos — não são custo da empresa
+    // Mobilização/Desmobilização: NÃO entra como custo apenas se for "Cobrado do Cliente" ou "Não Cobrado"
+    // Custo Assumido, A Reembolsar ao Cliente e sem classificação = custo real da empresa
     const gastosMobilizacao = gastosFiltrados.filter(g =>
-      tiposMobilizacao.includes(g.tipo) && g.classificacao === "Custo Assumido"
+      tiposMobilizacao.includes(g.tipo) &&
+      g.classificacao !== "Cobrado do Cliente" &&
+      g.classificacao !== "Não Cobrado"
     );
     const custoMobilizacao = gastosMobilizacao.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
     const gastosFixo = gastosFiltrados.filter(g => tiposFixos.includes(g.tipo));
     const custoFixo = gastosFixo.reduce((sum, g) => sum + Number(g.valor || 0), 0);
 
-    // Outros: exclui qualquer gasto de mobilização que seja reembolso/histórico (não custo da empresa)
+    // Outros: exclui qualquer gasto marcado como "Cobrado do Cliente" ou "Não Cobrado"
     const gastosOutros = gastosFiltrados.filter(g =>
       !tiposManutencao.includes(g.tipo) &&
       !tiposMobilizacao.includes(g.tipo) &&
