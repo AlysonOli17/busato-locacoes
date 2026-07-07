@@ -751,8 +751,7 @@ export const FaturamentoContent = () => {
       setFormMedicaoFim("");
       setFormContaBancariaId("");
       setFormEmpresaFaturamentoId("");
-      setMobDialogOpen(false);
-      setMobAlerts([]);
+
       localStorage.removeItem("faturamento_draft");
     }
   }, [dialogOpen]);
