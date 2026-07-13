@@ -451,9 +451,15 @@ export const FaturamentoTab = () => {
       if (fgRes.error) throw fgRes.error;
 
       // 2. Clone the faturamento row for a new measurement
-      const { id: oldId, created_at, ...faturaData } = faturaToCancel as any;
+      const faturaClone = { ...faturaToCancel } as Record<string, any>;
+      
+      // Remove campos que são gerados automaticamente pelo banco ou que devem ser únicos
+      delete faturaClone.id;
+      delete faturaClone.created_at;
+      delete faturaClone.numero_sequencial;
+
       const { data: newFatura, error: insertError } = await supabase.from("faturamento").insert([{
-        ...faturaData,
+        ...faturaClone,
         status: "Aprovado",
         numero_nota: null,
         emissao: null,
@@ -461,7 +467,7 @@ export const FaturamentoTab = () => {
         cancelamento_justificativa: null,
         cancelamento_data: null,
         // Also clear observacoes related to cancellation if needed, but keeping it is fine or clear it
-        observacoes: (faturaData.observacoes || "").replace(/\\[Cancelada.*?\\]/g, "").trim()
+        observacoes: (faturaClone.observacoes || "").replace(/\[Cancelada.*?\]/g, "").trim()
       }]).select("id").single();
 
       if (insertError) throw insertError;
