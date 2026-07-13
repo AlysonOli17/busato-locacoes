@@ -1330,7 +1330,7 @@ export const FaturamentoTab = () => {
                 >
                   <Mail className="h-4 w-4" />
                 </Button>
-                {(f.status !== "Aprovado" && f.status !== "Pago") && (
+                {(f.status !== "Pago" && f.status !== "Cancelado") && (
                   <Button
                     variant="ghost"
                     size="icon"
