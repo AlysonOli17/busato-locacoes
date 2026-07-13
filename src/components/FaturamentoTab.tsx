@@ -458,8 +458,11 @@ export const FaturamentoTab = () => {
       delete faturaClone.created_at;
       delete faturaClone.numero_sequencial;
 
+      const newId = crypto.randomUUID();
+
       const { data: newFatura, error: insertError } = await supabase.from("faturamento").insert([{
         ...faturaClone,
+        id: newId,
         status: "Aprovado",
         numero_nota: null,
         emissao: null,
@@ -471,13 +474,12 @@ export const FaturamentoTab = () => {
       }]).select("id").single();
 
       if (insertError) throw insertError;
-      const newId = newFatura.id;
 
       // 3. Clone equipments and gastos to the new measurement
       if (feRes.data && feRes.data.length > 0) {
         const newFe = feRes.data.map((fe: any) => {
           const { id: feId, created_at: feCreatedAt, ...rest } = fe;
-          return { ...rest, faturamento_id: newId };
+          return { ...rest, id: crypto.randomUUID(), faturamento_id: newId };
         });
         const { error: feErr } = await supabase.from("faturamento_equipamentos").insert(newFe);
         if (feErr) throw feErr;
@@ -486,7 +488,7 @@ export const FaturamentoTab = () => {
       if (fgRes.data && fgRes.data.length > 0) {
         const newFg = fgRes.data.map((fg: any) => {
           const { id: fgId, created_at: fgCreatedAt, ...rest } = fg;
-          return { ...rest, faturamento_id: newId };
+          return { ...rest, id: crypto.randomUUID(), faturamento_id: newId };
         });
         const { error: fgErr } = await supabase.from("faturamento_gastos").insert(newFg);
         if (fgErr) throw fgErr;
