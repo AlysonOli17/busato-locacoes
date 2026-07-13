@@ -1330,7 +1330,7 @@ export const FaturamentoTab = () => {
                 >
                   <Mail className="h-4 w-4" />
                 </Button>
-                {(!f.numero_nota && f.status !== "Aprovado" && f.status !== "Pago") && (
+                {(f.status !== "Aprovado" && f.status !== "Pago") && (
                   <Button
                     variant="ghost"
                     size="icon"
