@@ -376,6 +376,7 @@ export function PendenteMedicaoView() {
 
         const competencias = new Set([monthKey(period.inicio), monthKey(period.fim)]);
         const faturado = faturasContrato.some(f => {
+          if (f.status === "Cancelado") return false;
           const periodoKey = parsePeriodoKey(f.periodo);
           if (f.periodo_medicao_inicio && f.periodo_medicao_fim) {
             return f.periodo_medicao_inicio <= period.fim && f.periodo_medicao_fim >= period.inicio;

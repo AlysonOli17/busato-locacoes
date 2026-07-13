@@ -441,58 +441,6 @@ export const FaturamentoTab = () => {
 
       const dateToUse = cDate || new Date().toISOString().slice(0, 10);
 
-      // 1. Fetch current items
-      const [feRes, fgRes] = await Promise.all([
-        supabase.from("faturamento_equipamentos").select("*").eq("faturamento_id", id),
-        supabase.from("faturamento_gastos").select("*").eq("faturamento_id", id),
-      ]);
-
-      if (feRes.error) throw feRes.error;
-      if (fgRes.error) throw fgRes.error;
-
-      // 2. Clone the faturamento row for a new measurement
-      const faturaClone = { ...faturaToCancel } as Record<string, any>;
-      
-      // Remove campos que são gerados automaticamente pelo banco ou que devem ser únicos
-      delete faturaClone.id;
-      delete faturaClone.created_at;
-      delete faturaClone.numero_sequencial;
-
-      const newId = crypto.randomUUID();
-
-      const { data: newFatura, error: insertError } = await supabase.from("faturamento").insert([{
-        ...faturaClone,
-        id: newId,
-        status: "Aprovado",
-        numero_nota: null,
-        emissao: null,
-        data_aprovacao: null,
-        cancelamento_justificativa: null,
-        cancelamento_data: null,
-        // Also clear observacoes related to cancellation if needed, but keeping it is fine or clear it
-        observacoes: (faturaClone.observacoes || "").replace(/\[Cancelada.*?\]/g, "").trim()
-      }]).select("id").single();
-
-      if (insertError) throw insertError;
-
-      // 3. Clone equipments and gastos to the new measurement
-      if (feRes.data && feRes.data.length > 0) {
-        const newFe = feRes.data.map((fe: any) => {
-          const { id: feId, created_at: feCreatedAt, ...rest } = fe;
-          return { ...rest, id: crypto.randomUUID(), faturamento_id: newId };
-        });
-        const { error: feErr } = await supabase.from("faturamento_equipamentos").insert(newFe);
-        if (feErr) throw feErr;
-      }
-
-      if (fgRes.data && fgRes.data.length > 0) {
-        const newFg = fgRes.data.map((fg: any) => {
-          const { id: fgId, created_at: fgCreatedAt, ...rest } = fg;
-          return { ...rest, id: crypto.randomUUID(), faturamento_id: newId };
-        });
-        const { error: fgErr } = await supabase.from("faturamento_gastos").insert(newFg);
-        if (fgErr) throw fgErr;
-      }
 
       // 4. Mark old as cancelled
       const { error: updateError } = await supabase
@@ -504,7 +452,7 @@ export const FaturamentoTab = () => {
 
       toast({
         title: "Fatura Cancelada",
-        description: "A fatura foi cancelada e a medição foi disponibilizada novamente em Emitir Medição.",
+        description: "A fatura foi cancelada e o período foi destravado para edição em Medições.",
         variant: "default",
       });
       setCancelDialogOpen(false);
