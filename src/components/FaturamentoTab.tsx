@@ -351,12 +351,13 @@ export const FaturamentoTab = () => {
   const openEdit = (fatura: Fatura) => {
     setEditingFatura(fatura);
     setEditForm({
-      status: fatura.status,
+      status: fatura.status || "Pendente",
       numero_nota: fatura.numero_nota || "",
       conta_bancaria_id: fatura.conta_bancaria_id || "",
       emissao: fatura.emissao || "",
       valor_total: Number(fatura.valor_total) || 0,
       observacoes: (fatura as any).observacoes || "",
+      empresa_faturamento_id: fatura.empresa_faturamento_id || "",
     });
     setEditDialog(true);
   };
@@ -374,6 +375,7 @@ export const FaturamentoTab = () => {
       emissao: editForm.emissao || null,
       valor_total: Number(editForm.valor_total),
       observacoes: editForm.observacoes || null,
+      empresa_faturamento_id: editForm.empresa_faturamento_id || null,
     }).eq("id", editingFatura.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Fatura atualizada" });
@@ -1403,6 +1405,19 @@ export const FaturamentoTab = () => {
             <div>
               <Label>Nº da Nota Fiscal</Label>
               <Input value={editForm.numero_nota} onChange={e => setEditForm(p => ({ ...p, numero_nota: e.target.value }))} placeholder="Ex: NF-001234" />
+            </div>
+            <div>
+              <Label>Faturar Para (empresa diferente do contrato)</Label>
+              <SearchableSelect
+                value={editForm.empresa_faturamento_id}
+                onValueChange={v => setEditForm(p => ({ ...p, empresa_faturamento_id: v }))}
+                placeholder="Mesma empresa do contrato"
+                searchPlaceholder="Pesquisar empresa..."
+                options={[
+                  { value: "", label: "Mesma empresa do contrato" },
+                  ...empresas.map(e => ({ value: e.id, label: `${e.nome}${e.obra ? ` (Obra: ${e.obra})` : ""} - ${e.cnpj}` })),
+                ]}
+              />
             </div>
             <div>
               <Label>Conta Bancária</Label>
