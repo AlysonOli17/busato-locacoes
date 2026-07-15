@@ -147,7 +147,7 @@ export default function ControleUsoFrota() {
   const fetchData = async (force = false) => {
     if (force) clearCache();
     const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes, fatRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
-      supabase.from("medicoes").select("*").order("data", { ascending: false }),
+      supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(10000),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id"),
       supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id, data_entrega, data_devolucao"),
@@ -168,7 +168,12 @@ export default function ControleUsoFrota() {
       const contractMedicaoTypes = new Map<string, "horas" | "diarias">();
       const aditivoToContract = new Map<string, string>();
       
-      contractsRes.data.forEach((c: any) => {
+      const sortedContracts = [...contractsRes.data].sort((a, b) => {
+        if (a.status === "Ativo" && b.status !== "Ativo") return 1;
+        if (a.status !== "Ativo" && b.status === "Ativo") return -1;
+        return 0;
+      });
+      sortedContracts.forEach((c: any) => {
         const tipo = (c.tipo_medicao || "horas") as "horas" | "diarias";
         contractMedicaoTypes.set(c.id, tipo);
         if (c.equipamento_id) {
@@ -177,7 +182,14 @@ export default function ControleUsoFrota() {
       });
 
       if (ceRes.data) {
-        ceRes.data.forEach((ce: any) => {
+        const sortedCe = [...ceRes.data].sort((a, b) => {
+           if (!a.data_devolucao && b.data_devolucao) return 1;
+           if (a.data_devolucao && !b.data_devolucao) return -1;
+           const dA = a.data_entrega ? new Date(a.data_entrega).getTime() : 0;
+           const dB = b.data_entrega ? new Date(b.data_entrega).getTime() : 0;
+           return dA - dB;
+        });
+        sortedCe.forEach((ce: any) => {
           const tipo = contractMedicaoTypes.get(ce.contrato_id);
           if (tipo) {
             map.set(ce.equipamento_id, tipo);
@@ -192,7 +204,14 @@ export default function ControleUsoFrota() {
       }
 
       if (aeRes.data) {
-        aeRes.data.forEach((ae: any) => {
+        const sortedAe = [...aeRes.data].sort((a, b) => {
+           if (!a.data_devolucao && b.data_devolucao) return 1;
+           if (a.data_devolucao && !b.data_devolucao) return -1;
+           const dA = a.data_entrega ? new Date(a.data_entrega).getTime() : 0;
+           const dB = b.data_entrega ? new Date(b.data_entrega).getTime() : 0;
+           return dA - dB;
+        });
+        sortedAe.forEach((ae: any) => {
           const contratoId = aditivoToContract.get(ae.aditivo_id);
           if (contratoId) {
             const tipo = contractMedicaoTypes.get(contratoId);
