@@ -57,7 +57,7 @@ const COST_COLORS = [
   "hsl(199, 89%, 48%)", // cyan
 ];
 
-const CostChart = ({ gastosFiltered, fmt, fmtShort }: { gastosFiltered: any[]; fmt: (v: any) => string; fmtShort: (v: any) => string }) => {
+const CostChart = ({ gastosFiltered, fmt, fmtShort, onClick }: { gastosFiltered: any[]; fmt: (v: any) => string; fmtShort: (v: any) => string; onClick?: () => void }) => {
   const data = useMemo(() => {
     const map: Record<string, number> = {};
     gastosFiltered.forEach(g => { const t = g.tipo || "Outros"; map[t] = (map[t] || 0) + Number(g.valor); });
@@ -67,7 +67,10 @@ const CostChart = ({ gastosFiltered, fmt, fmtShort }: { gastosFiltered: any[]; f
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <Card className="overflow-hidden shadow-sm border-border/50">
+    <Card 
+      onClick={onClick} 
+      className={`overflow-hidden shadow-sm border-border/50 ${onClick ? "cursor-pointer hover:border-primary/50 transition-colors hover:shadow-md" : ""}`}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground/80">
@@ -175,7 +178,7 @@ export const VisaoGeralTab = ({
   });
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().slice(0, 10));
   const [filtroEquipamento, setFiltroEquipamento] = useState("all");
-  const [activeModal, setActiveModal] = useState<"clientes" | "maquinas" | "seguros" | "vencimentos" | "confiabilidade" | null>(null);
+  const [activeModal, setActiveModal] = useState<"clientes" | "maquinas" | "seguros" | "vencimentos" | "confiabilidade" | "evolucao" | "custos" | null>(null);
   const [faturamentoEquipamentosList, setFaturamentoEquipamentosList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -898,7 +901,10 @@ export const VisaoGeralTab = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* Evolução Mensal — ComposedChart com tooltip rico */}
-          <Card className="overflow-hidden shadow-sm border-border/50">
+          <Card 
+            onClick={() => setActiveModal("evolucao")}
+            className="overflow-hidden shadow-sm border-border/50 cursor-pointer hover:border-primary/50 transition-colors hover:shadow-md"
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -981,7 +987,12 @@ export const VisaoGeralTab = ({
           </Card>
 
           {/* Centro de Custos Operacionais */}
-          <CostChart gastosFiltered={gastosFiltered} fmt={fmt} fmtShort={fmtShort} />
+          <CostChart 
+            gastosFiltered={gastosFiltered} 
+            fmt={fmt} 
+            fmtShort={fmtShort} 
+            onClick={() => setActiveModal("custos")}
+          />
         </div>
 
         {/* 4. Painel de Alertas e Riscos */}
@@ -1813,6 +1824,98 @@ export const VisaoGeralTab = ({
                     </TableRow>
                   );
                 })}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 9. Evolução Mensal Modal */}
+      <Dialog open={activeModal === "evolucao"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <TrendingUp className="h-5 w-5 text-emerald-500" />
+              Detalhamento de Evolução Mensal
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+                <TableRow>
+                  <TableHead className="bg-background">Mês</TableHead>
+                  <TableHead className="bg-background text-right">Receitas</TableHead>
+                  <TableHead className="bg-background text-right">C. Operacionais</TableHead>
+                  <TableHead className="bg-background text-right">Custos Fixos</TableHead>
+                  <TableHead className="bg-background text-right">Resultado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mensalFinanceiroData.map((d, idx) => (
+                  <TableRow key={idx} className="hover:bg-muted/30">
+                    <TableCell className="font-bold">{d.mes}</TableCell>
+                    <TableCell className="text-right text-emerald-600 font-semibold">R$ {fmt(d.Receitas)}</TableCell>
+                    <TableCell className="text-right text-amber-500 font-semibold">R$ {fmt(d["Custos Operacionais"])}</TableCell>
+                    <TableCell className="text-right text-rose-500 font-semibold">R$ {fmt(d["Custos Fixos"])}</TableCell>
+                    <TableCell className={`text-right font-black ${d.Resultado >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                      R$ {fmt(d.Resultado)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {mensalFinanceiroData.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Nenhum dado financeiro no período selecionado.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 10. Centro de Custos Modal */}
+      <Dialog open={activeModal === "custos"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <PieChartIcon className="h-5 w-5 text-primary" />
+              Detalhamento: Centro de Custos Operacionais
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+                <TableRow>
+                  <TableHead className="bg-background">Categoria</TableHead>
+                  <TableHead className="bg-background text-right">Valor Total</TableHead>
+                  <TableHead className="bg-background text-right">%</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(() => {
+                  const map: Record<string, number> = {};
+                  gastosFiltered.forEach(g => { const t = g.tipo || "Outros"; map[t] = (map[t] || 0) + Number(g.valor); });
+                  const allData = Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+                  const total = allData.reduce((s, d) => s + d.value, 0);
+
+                  if (allData.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Nenhum gasto registrado no período selecionado.</TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return allData.map((d, idx) => (
+                    <TableRow key={idx} className="hover:bg-muted/30">
+                      <TableCell className="font-bold text-foreground/80">{d.name}</TableCell>
+                      <TableCell className="text-right text-rose-500 font-semibold">R$ {fmt(d.value)}</TableCell>
+                      <TableCell className="text-right font-bold text-muted-foreground">
+                        {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
+                      </TableCell>
+                    </TableRow>
+                  ));
+                })()}
               </TableBody>
             </Table>
           </div>
