@@ -340,10 +340,10 @@ export const VisaoGeralTab = ({
   // Filtered faturas & gastos by date
   const faturasFiltered = useMemo(() => {
     return faturas.filter(f => {
-      // Ignora faturas que não devem compor o relatório de faturamento consolidado
-      if (f.status === "Cancelado" || f.status === "Pendente" || f.status === "Aguardando Aprovação") return false;
+      // Ignora faturas que não devem compor o relatório
+      if (f.status === "Cancelado" || f.status === "Aguardando Aprovação") return false;
       
-      const emissao = f.emissao;
+      const emissao = f.emissao || f.data_aprovacao || f.created_at || "";
       if (dataInicio && emissao < dataInicio) return false;
       if (dataFim && emissao > dataFim) return false;
       return true;
@@ -389,8 +389,29 @@ export const VisaoGeralTab = ({
       const eqFaturas = faturas.filter(f => f.status !== "Cancelado" && f.contrato_id && contratos.find(c => c.id === f.contrato_id && c.equipamento_id === eq.id));
       const eqGastos = gastos.filter(g => g.equipamento_id === eq.id);
       
-      const receita = eqFaturas.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
-      const despesa = eqGastos.reduce((s, g) => s + Number(g.valor), 0);
+      const receita = eqFaturas.reduce((s, f) => s + Number(f.valor_total), 0);
+      let despesa = eqGastos.reduce((s, g) => s + Number(g.valor), 0);
+      
+      // Adicionando custo de seguro rateado
+      let seguroMensalEq = 0;
+      (apolices || []).forEach(ap => {
+        if (ap.status !== "Vigente") return;
+        const eqIds = (apolicesEquipamentos || []).filter(ae => ae.apolice_id === ap.id).map(ae => ae.equipamento_id);
+        if (eqIds.includes(eq.id)) {
+          let vMes = 0;
+          if (ap.tem_parcelamento && ap.numero_parcelas > 0) {
+            vMes = ap.valor / ap.numero_parcelas;
+          } else {
+            const inicio = new Date(ap.vigencia_inicio);
+            const fim = new Date(ap.vigencia_fim);
+            const meses = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+            vMes = ap.valor / meses;
+          }
+          seguroMensalEq += (vMes / eqIds.length);
+        }
+      });
+      despesa += seguroMensalEq;
+
       const margem = receita - despesa;
       const percentual = receita > 0 ? (margem / receita) * 100 : 0;
       
@@ -405,9 +426,9 @@ export const VisaoGeralTab = ({
         status: eq.status
       };
     }).sort((a, b) => b.percentual - a.percentual);
-  }, [equipamentos, faturas, gastos, contratos]);
+  }, [equipamentos, faturas, gastos, contratos, apolices, apolicesEquipamentos]);
 
-  const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s: number, f: any) => s + Number(f.valor_total), 0);
+  const totalFaturado = faturasFiltered.reduce((s: number, f: any) => s + Number(f.valor_total), 0);
   const totalGastos = gastosFiltered.reduce((s: number, g: any) => s + Number(g.valor), 0);
   const margemGeral = totalFaturado > 0 ? ((totalFaturado - totalGastos) / totalFaturado) * 100 : 0;
 
@@ -424,7 +445,11 @@ export const VisaoGeralTab = ({
       const monthKey = d.toISOString().slice(0, 7);
       
       const receitasMes = faturas
-        .filter(f => f && f.status !== "Cancelado" && f.emissao && typeof f.emissao === "string" && f.emissao.slice(0, 7) === monthKey)
+        .filter(f => {
+          if (!f || f.status === "Cancelado") return false;
+          const dt = f.emissao || f.data_aprovacao || (f as any).created_at || "";
+          return typeof dt === "string" && dt.slice(0, 7) === monthKey;
+        })
         .reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
         
       const tiposFixos = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Depreciação", "Impostos e Taxas (IPVA)"];
