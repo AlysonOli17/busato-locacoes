@@ -266,7 +266,25 @@ export const RelatoriosGerenciaisTab = ({
 
       const eqGastos = gastosFiltrados.filter(g => g.equipamento_id === eq.id);
       const gastosDespesa = eqGastos;
-      const despesa = gastosDespesa.reduce((sum, g) => sum + Number(g.valor || 0), 0);
+      let seguroMensalEq = 0;
+      (apolices || []).forEach(ap => {
+        if (ap.status !== "Vigente") return;
+        const eqIds = (apolicesEquipamentos || []).filter(ae => ae.apolice_id === ap.id).map(ae => ae.equipamento_id);
+        if (eqIds.includes(eq.id)) {
+          let vMes = 0;
+          if (ap.tem_parcelamento && ap.numero_parcelas > 0) {
+            vMes = ap.valor / ap.numero_parcelas;
+          } else {
+            const inicio = new Date(ap.vigencia_inicio);
+            const fim = new Date(ap.vigencia_fim);
+            const meses = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+            vMes = ap.valor / meses;
+          }
+          seguroMensalEq += (vMes / eqIds.length);
+        }
+      });
+
+      const despesa = gastosDespesa.reduce((sum, g) => sum + Number(g.valor || 0), 0) + seguroMensalEq;
       const margem = receita - despesa;
       const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
 
@@ -277,6 +295,7 @@ export const RelatoriosGerenciaisTab = ({
         tag: eq.tag_placa || "Sem Placa",
         receita,
         despesa,
+        seguroRateado: seguroMensalEq,
         margem,
         margemPct,
         status: eq.status,
@@ -284,7 +303,7 @@ export const RelatoriosGerenciaisTab = ({
         gastosDespesa
       };
     }).sort((a, b) => b.margem - a.margem);
-  }, [equipamentos, faturasFiltradas, gastosFiltrados, contratos, faturamentoEquipamentosList]);
+  }, [equipamentos, faturasFiltradas, gastosFiltrados, contratos, faturamentoEquipamentosList, apolices, apolicesEquipamentos]);
 
   // 4. Aging List (Contas a Receber por Vencer e Atrasados)
   const agingList = useMemo(() => {

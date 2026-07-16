@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/chart";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
-  AreaChart, Area, ComposedChart, Cell,
+  AreaChart, Area, ComposedChart, Cell, Line,
   PieChart, Pie, Legend
 } from "recharts";
 
@@ -67,110 +67,71 @@ const CostChart = ({ gastosFiltered, fmt, fmtShort }: { gastosFiltered: any[]; f
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <Card className="overflow-hidden border-none shadow-md bg-gradient-to-br from-card to-muted/20">
-      <CardHeader className="pb-4">
+    <Card className="overflow-hidden shadow-sm border-border/50">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground/80">
-            <PieChartIcon className="h-5 w-5 text-primary" />
+          <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground/80">
+            <PieChartIcon className="h-4 w-4 text-primary" />
             Centro de Custos Operacionais
           </CardTitle>
+          <span className="text-[11px] font-bold bg-muted px-2 py-1 rounded-md text-foreground/80">Total: R$ {fmtShort(total)}</span>
         </div>
-        <CardDescription>Detalhamento de gastos operacionais internos</CardDescription>
       </CardHeader>
-      <CardContent className="h-[280px] px-6 pb-6 flex items-center">
+      <CardContent className="h-[280px] px-2 pb-2">
         {data.length === 0 ? (
           <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground opacity-70">
             <PieChartIcon className="h-10 w-10 mb-2 opacity-20" />
             <p className="text-sm font-medium">Nenhum gasto registrado no período.</p>
           </div>
         ) : (
-          <div className="flex w-full h-full gap-8 items-center">
-            {/* Donut Chart */}
-            <div className="relative w-[50%] h-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Tooltip
-                    content={({ active, payload }: any) => {
-                      if (!active || !payload?.length) return null;
-                      const item = payload[0];
-                      const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
-                      return (
-                        <div className="bg-background/95 backdrop-blur-sm border border-border/50 rounded-lg shadow-xl p-3 min-w-[160px] animate-in fade-in zoom-in-95 duration-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.payload.fill }} />
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{item.name}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between gap-4">
-                              <span className="text-xs font-medium text-foreground/70">Valor:</span>
-                              <span className="text-sm font-black text-foreground">R$ {fmt(item.value)}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                              <span className="text-xs font-medium text-foreground/70">Representa:</span>
-                              <span className="text-xs font-bold text-foreground">{pct}%</span>
-                            </div>
-                          </div>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.4} />
+              <XAxis type="number" hide />
+              <YAxis 
+                type="category" 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fill: "hsl(var(--foreground))", fontWeight: 600 }} 
+                width={100}
+              />
+              <Tooltip
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                content={({ active, payload }: any) => {
+                  if (!active || !payload?.length) return null;
+                  const item = payload[0].payload;
+                  const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
+                  return (
+                    <div className="bg-background/95 backdrop-blur-sm border border-border/50 rounded-xl shadow-xl p-3 min-w-[180px]">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{item.name}</p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-xs font-medium text-foreground/70">Valor:</span>
+                          <span className="text-sm font-black text-foreground">R$ {fmt(item.value)}</span>
                         </div>
-                      );
-                    }}
-                  />
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="65%"
-                    outerRadius="90%"
-                    paddingAngle={4}
-                    stroke="none"
-                    dataKey="value"
-                    nameKey="name"
-                    animationBegin={0}
-                    animationDuration={800}
-                    animationEasing="ease-out"
-                  >
-                    {data.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COST_COLORS[index % COST_COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              
-              {/* Center Total Label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</span>
-                <span className="text-xl font-black text-foreground mt-0.5 tracking-tight">
-                  {fmtShort(total)}
-                </span>
-              </div>
-            </div>
-
-            {/* Custom Interactive Legend */}
-            <div className="w-[50%] h-full flex flex-col justify-center gap-1.5 overflow-y-auto scrollbar-none pr-1">
-              {data.map((item, idx) => {
-                const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
-                return (
-                  <div key={item.name} className="flex items-center justify-between group py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-2.5 h-2.5 rounded-full shadow-sm shrink-0" 
-                        style={{ backgroundColor: COST_COLORS[idx % COST_COLORS.length] }} 
-                      />
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-foreground/80 group-hover:text-foreground transition-colors truncate max-w-[100px]" title={item.name}>{item.name}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground">{pct}% do custo</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-xs font-medium text-foreground/70">Representa:</span>
+                          <span className="text-xs font-bold text-primary">{pct}%</span>
+                        </div>
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-foreground whitespace-nowrap pl-2">R$ {fmtShort(item.value)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  );
+                }}
+              />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COST_COLORS[index % COST_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         )}
       </CardContent>
     </Card>
   );
 };
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface VisaoGeralTabProps {
@@ -344,7 +305,7 @@ export const VisaoGeralTab = ({
 
   // 4. Finanças & Custos
   const gastosStats = useMemo(() => {
-    const tiposFixos = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"];
+    const tiposFixos = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Depreciação", "Impostos e Taxas (IPVA)"];
     const tiposMob = ["Mobilização", "Desmobilização"];
 
     const semMob = gastos.filter(g => !tiposMob.includes(g.tipo));
@@ -463,15 +424,24 @@ export const VisaoGeralTab = ({
         .filter(f => f && f.status !== "Cancelado" && f.emissao && typeof f.emissao === "string" && f.emissao.slice(0, 7) === monthKey)
         .reduce((sum, f) => sum + Number(f.valor_total || 0), 0);
         
-      const custosMes = gastos
-        .filter(g => g && g.data && typeof g.data === "string" && g.data.slice(0, 7) === monthKey)
-        .reduce((sum, g) => sum + Number(g.valor || 0), 0);
+      const tiposFixos = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Depreciação", "Impostos e Taxas (IPVA)"];
+      let custosFixosMes = 0;
+      let custosVarMes = 0;
+      gastos.forEach(g => {
+        if (g && g.data && typeof g.data === "string" && g.data.slice(0, 7) === monthKey) {
+          if (tiposFixos.includes(g.tipo)) custosFixosMes += Number(g.valor || 0);
+          else custosVarMes += Number(g.valor || 0);
+        }
+      });
+      
+      custosFixosMes += (apolicesStats?.totalMensal || 0);
         
       result.push({
         mes: label,
         "Receitas": receitasMes,
-        "Custos": custosMes,
-        "Resultado": receitasMes - custosMes
+        "Custos Operacionais": custosVarMes,
+        "Custos Fixos": custosFixosMes,
+        "Resultado": receitasMes - custosVarMes - custosFixosMes
       });
     }
     return result;
@@ -635,6 +605,32 @@ export const VisaoGeralTab = ({
   }, [faturamentoEquipamentosList, faturas, activeContratoIds]);
 
   const todosEquipamentos = useMemo(() => {
+    // Calcular custo de seguro rateado por equipamento
+    const custoSeguroPorEquipamento = new Map<string, number>();
+    const vigentes = (apolices || []).filter(a => a.status === "Vigente");
+    vigentes.forEach(ap => {
+      let valorMensal = 0;
+      if (ap.tem_parcelamento && ap.numero_parcelas > 0) {
+        valorMensal = ap.valor / ap.numero_parcelas;
+      } else {
+        const inicio = new Date(ap.vigencia_inicio);
+        const fim = new Date(ap.vigencia_fim);
+        const meses = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+        valorMensal = ap.valor / meses;
+      }
+      
+      const equipIds = (apolicesEquipamentos || [])
+        .filter(ae => ae.apolice_id === ap.id)
+        .map(ae => ae.equipamento_id);
+        
+      if (equipIds.length > 0) {
+        const valorPorEquipamento = valorMensal / equipIds.length;
+        equipIds.forEach(id => {
+          custoSeguroPorEquipamento.set(id, (custoSeguroPorEquipamento.get(id) || 0) + valorPorEquipamento);
+        });
+      }
+    });
+
     return equipamentos.map(eq => {
       const receita = faturamentoPorEquipamento.get(eq.id) || 0;
       const eqGastos = gastos.filter(g => {
@@ -658,7 +654,10 @@ export const VisaoGeralTab = ({
         });
         return !belongsToConcluded;
       });
-      const despesa = eqGastos.reduce((s, g) => s + Number(g.valor), 0);
+      
+      let despesa = eqGastos.reduce((s, g) => s + Number(g.valor), 0);
+      despesa += custoSeguroPorEquipamento.get(eq.id) || 0;
+      
       const margem = receita - despesa;
       const percentual = receita > 0 ? (margem / receita) * 100 : 0;
       
@@ -673,7 +672,7 @@ export const VisaoGeralTab = ({
         status: eq.status
       };
     }).sort((a, b) => b.margem - a.margem);
-  }, [equipamentos, faturamentoPorEquipamento, gastos, activeContratoIds, faturamentoGastos, faturas, contratos, contratosEquipamentos]);
+  }, [equipamentos, faturamentoPorEquipamento, gastos, activeContratoIds, faturamentoGastos, faturas, contratos, contratosEquipamentos, apolices, apolicesEquipamentos]);
 
   const topEquipamentos = useMemo(() => {
     return todosEquipamentos.slice(0, 5);
@@ -742,92 +741,72 @@ export const VisaoGeralTab = ({
 
   return (
     <div className="space-y-8">
-      <div className="space-y-8 animate-in fade-in duration-300">
+      {/* 1. Global Filters */}
+      <Card className="border-border/50 bg-muted/10 shadow-sm">
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Período Início</span>
+              <input type="date" className="flex h-9 w-[150px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Período Fim</span>
+              <input type="date" className="flex h-9 w-[150px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+            </div>
+          </div>
+          <div className="text-sm font-medium text-muted-foreground bg-background px-4 py-2 rounded-lg border shadow-sm flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-500" /> Cockpit Executivo
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Premium BI KPI Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card className="hover:shadow-md transition-all border-l-4 border-l-primary">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start gap-2">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate" title="Yield Operacional / Máq">Yield Operacional / Máq</p>
-                  <h3 className="text-lg font-black text-foreground mt-1 truncate">
-                    R$ {fmt(totalFaturado / Math.max(1, frotaStats.emLocacao))}
-                  </h3>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight line-clamp-2" title={`Faturamento total dividido por ${frotaStats.emLocacao} locados`}>
-                    Faturamento total dividido por {frotaStats.emLocacao} locados
-                  </p>
-                </div>
-                <div className="h-8 w-8 shrink-0 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+      <div className="space-y-8 animate-in fade-in duration-300">
+        {/* 2. Tríade Principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Card 1: Faturamento e Yield */}
+          <Card className="hover:shadow-lg transition-all border-none bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden cursor-pointer hover:ring-2 ring-primary/50" onClick={() => setActiveModal("faturamento_detalhes")}>
+            <div className="absolute -top-4 -right-4 p-4 opacity-10 pointer-events-none"><DollarSign className="w-32 h-32 text-primary" /></div>
+            <CardContent className="p-6 relative z-10">
+              <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Faturamento Total (Período)</p>
+              <h3 className="text-3xl font-black text-foreground mb-4">R$ {fmt(totalFaturado)}</h3>
+              <div className="inline-flex items-center gap-3 bg-background/60 rounded-xl p-3 border border-primary/20 backdrop-blur-sm">
+                <div className="h-8 w-8 shrink-0 bg-primary/20 rounded-lg flex items-center justify-center text-primary">
                   <Activity className="h-4 w-4" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-all border-l-4 border-l-success">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start gap-2">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate" title="Resultado da Operação">Resultado da Operação</p>
-                  <h3 className="text-lg font-black text-success mt-1 truncate">
-                    R$ {fmtShort(totalFaturado - totalGastos)}
-                  </h3>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 truncate">
-                    Margem EBITDA: <span className="font-bold text-success">{margemGeral.toFixed(1)}%</span>
-                  </p>
-                </div>
-                <div className="h-8 w-8 shrink-0 bg-success/10 rounded-lg flex items-center justify-center text-success">
-                  <DollarSign className="h-4 w-4" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Yield Operacional / Máq</span>
+                  <span className="text-sm font-black text-foreground">R$ {fmt(totalFaturado / Math.max(1, frotaStats.emLocacao))}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-all border-l-4 border-l-warning">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start gap-2">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate" title="Inadimplência / Atrasos">Inadimplência / Atrasos</p>
-                  <h3 className="text-lg font-black text-warning mt-1 truncate">
-                    R$ {fmtShort(inadimplenciaStats.valor)}
-                  </h3>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight line-clamp-2" title={`${inadimplenciaStats.quantidade} fatura(s) — ${inadimplenciaStats.percentual.toFixed(1)}% do faturado`}>
-                    {inadimplenciaStats.quantidade} fatura(s) — <span className="font-bold text-warning">{inadimplenciaStats.percentual.toFixed(1)}%</span> do faturado
-                  </p>
+          {/* Card 2: Resultado da Operação */}
+          <Card className={`hover:shadow-lg transition-all border-none relative overflow-hidden cursor-pointer hover:ring-2 ${margemGeral >= 0 ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 ring-emerald-500/50' : 'bg-gradient-to-br from-rose-500/10 to-rose-500/5 ring-rose-500/50'}`} onClick={() => setActiveModal("ebitda_detalhes")}>
+            <div className="absolute -top-4 -right-4 p-4 opacity-10 pointer-events-none">{margemGeral >= 0 ? <TrendingUp className="w-32 h-32 text-emerald-500" /> : <TrendingDown className="w-32 h-32 text-rose-500" />}</div>
+            <CardContent className="p-6 relative z-10">
+              <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${margemGeral >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>Resultado (EBITDA)</p>
+              <h3 className="text-3xl font-black text-foreground mb-4">R$ {fmt(totalFaturado - totalGastos)}</h3>
+              <div className={`inline-flex items-center gap-3 bg-background/60 rounded-xl p-3 border backdrop-blur-sm ${margemGeral >= 0 ? 'border-emerald-500/20' : 'border-rose-500/20'}`}>
+                <div className={`h-8 w-8 shrink-0 rounded-lg flex items-center justify-center ${margemGeral >= 0 ? 'bg-emerald-500/20 text-emerald-600' : 'bg-rose-500/20 text-rose-600'}`}>
+                  <Target className="h-4 w-4" />
                 </div>
-                <div className="h-8 w-8 shrink-0 bg-warning/10 rounded-lg flex items-center justify-center text-warning">
-                  <AlertTriangle className="h-4 w-4" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-all border-l-4 border-l-info cursor-pointer select-none" onClick={() => setActiveModal("confiabilidade")}>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start gap-2">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate" title="Confiabilidade Contratual">Confiabilidade Contratual</p>
-                  <h3 className="text-lg font-black text-info mt-1 truncate">
-                    {overallReliability.toFixed(1)}%
-                  </h3>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 truncate" title="Faturas Pagas vs Emitido">
-                    Faturas Pagas vs Emitido
-                  </p>
-                </div>
-                <div className="h-8 w-8 shrink-0 bg-info/10 rounded-lg flex items-center justify-center text-info">
-                  <Shield className="h-4 w-4" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Margem Operacional</span>
+                  <span className={`text-sm font-black ${margemGeral >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{margemGeral.toFixed(1)}%</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* KPI 5: Ocupação da Frota — Donut Gauge */}
-          <Card className="hover:shadow-md transition-all border-l-4 border-l-accent relative overflow-hidden">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="relative shrink-0" style={{ width: 64, height: 64 }}>
-                  <svg width="64" height="64" viewBox="0 0 88 88">
+          {/* Card 3: Ocupação da Frota */}
+          <Card className="hover:shadow-lg transition-all border-none bg-gradient-to-br from-accent/10 to-accent/5 relative overflow-hidden cursor-pointer hover:ring-2 ring-accent-foreground/50" onClick={() => setActiveModal("frota_detalhes")}>
+            <div className="absolute -top-4 -right-4 p-4 opacity-10 pointer-events-none"><Truck className="w-32 h-32 text-accent-foreground" /></div>
+            <CardContent className="p-6 relative z-10 flex flex-col justify-center h-full">
+              <div className="flex items-center justify-between gap-4">
+                <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
+                  <svg width="88" height="88" viewBox="0 0 88 88">
                     <circle cx="44" cy="44" r="36" fill="transparent" stroke="hsl(var(--muted))" strokeWidth="12" />
                     <circle
                       cx="44"
@@ -840,7 +819,6 @@ export const VisaoGeralTab = ({
                       strokeLinecap="round"
                       transform="rotate(-90 44 44)"
                     />
-                    {/* Manutenção arc — orange, offset after locado */}
                     {frotaStats.emManutencaoOuSinistro > 0 && (
                       <circle
                         cx="44" cy="44" r="36" fill="none"
@@ -853,36 +831,30 @@ export const VisaoGeralTab = ({
                       />
                     )}
                   </svg>
-                  {/* Center label */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xl font-black text-foreground leading-none">{taxaUtilizacao}%</span>
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5">Locado</span>
+                    <span className="text-2xl font-black text-foreground leading-none">{taxaUtilizacao}%</span>
                   </div>
                 </div>
 
-                {/* Breakdown */}
-                <div className="flex-1 space-y-2 min-w-0">
-                  <p className="text-xs font-black text-muted-foreground uppercase tracking-wider">Ocupação da Frota</p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
+                <div className="flex-1 space-y-3 min-w-0">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ocupação da Frota</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs bg-background/50 px-2 py-1 rounded-md">
                       <span className="flex items-center gap-1.5 font-semibold">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0"/>
-                        Locado
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0"/>Locado
                       </span>
                       <span className="font-black text-emerald-600">{frotaStats.emLocacao} <span className="font-normal text-muted-foreground">/ {frotaStats.total}</span></span>
                     </div>
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-xs bg-background/50 px-2 py-1 rounded-md">
                       <span className="flex items-center gap-1.5 font-semibold text-muted-foreground">
-                        <span className="h-2 w-2 rounded-full bg-muted-foreground shrink-0"/>
-                        No Pátio
+                        <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground shrink-0"/>No Pátio
                       </span>
                       <span className="font-bold text-muted-foreground">{frotaStats.disponiveis}</span>
                     </div>
                     {frotaStats.emManutencaoOuSinistro > 0 && (
-                      <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center justify-between text-xs bg-background/50 px-2 py-1 rounded-md">
                         <span className="flex items-center gap-1.5 font-semibold text-warning">
-                          <span className="h-2 w-2 rounded-full bg-warning shrink-0"/>
-                          Manutenção
+                          <span className="h-2.5 w-2.5 rounded-full bg-warning shrink-0"/>Oficina
                         </span>
                         <span className="font-bold text-warning">{frotaStats.emManutencaoOuSinistro}</span>
                       </div>
@@ -894,26 +866,26 @@ export const VisaoGeralTab = ({
           </Card>
         </div>
 
-        {/* Charts & Projections Section */}
+        {/* 3. Análise Visual (Gráficos Principais) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* Evolução Mensal — ComposedChart com tooltip rico */}
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden shadow-sm border-border/50">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                   Evolução Mensal: Receitas vs Custos
                 </CardTitle>
-                <div className="flex items-center gap-3 text-[10px] font-semibold">
-                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500"/> Receitas</span>
-                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500"/> Custos</span>
-                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/30"/> Resultado</span>
-                </div>
               </div>
-              <CardDescription>Últimos 6 meses — passe o mouse sobre o gráfico para ver os valores</CardDescription>
+              <div className="flex items-center gap-4 text-[10px] font-semibold flex-wrap mt-1">
+                <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500"/> Receitas</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500"/> Custos Operacionais</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-rose-500"/> Custos Fixos</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/30"/> Resultado</span>
+              </div>
             </CardHeader>
-            <CardContent className="h-[300px] px-2 pb-2">
+            <CardContent className="h-[280px] px-2 pb-2">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={mensalFinanceiroData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                   <defs>
@@ -921,7 +893,11 @@ export const VisaoGeralTab = ({
                       <stop offset="0%" stopColor="#10b981" stopOpacity={0.35}/>
                       <stop offset="100%" stopColor="#10b981" stopOpacity={0.02}/>
                     </linearGradient>
-                    <linearGradient id="gradCustos" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gradCustosVar" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.02}/>
+                    </linearGradient>
+                    <linearGradient id="gradCustosFixos" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3}/>
                       <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02}/>
                     </linearGradient>
@@ -939,10 +915,11 @@ export const VisaoGeralTab = ({
                     content={({ active, payload, label }: any) => {
                       if (!active || !payload?.length) return null;
                       const rec = payload.find((p: any) => p.dataKey === "Receitas")?.value || 0;
-                      const cus = payload.find((p: any) => p.dataKey === "Custos")?.value || 0;
-                      const res = rec - cus;
+                      const cVar = payload.find((p: any) => p.dataKey === "Custos Operacionais")?.value || 0;
+                      const cFix = payload.find((p: any) => p.dataKey === "Custos Fixos")?.value || 0;
+                      const res = rec - cVar - cFix;
                       return (
-                        <div className="bg-background border border-border rounded-xl shadow-xl p-3 min-w-[200px]">
+                        <div className="bg-background/95 backdrop-blur-sm border border-border/50 rounded-xl shadow-xl p-3 min-w-[200px]">
                           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between gap-4">
@@ -950,131 +927,134 @@ export const VisaoGeralTab = ({
                               <span className="text-xs font-black text-emerald-600">R$ {Number(rec).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                              <span className="flex items-center gap-1.5 text-xs text-red-500 font-semibold"><span className="h-2 w-2 rounded-full bg-red-500"/>Custos</span>
-                              <span className="text-xs font-black text-red-500">R$ {Number(cus).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                              <span className="flex items-center gap-1.5 text-xs text-amber-500 font-semibold"><span className="h-2 w-2 rounded-full bg-amber-500"/>C. Operacionais</span>
+                              <span className="text-xs font-black text-amber-500">R$ {Number(cVar).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="flex items-center gap-1.5 text-xs text-rose-500 font-semibold"><span className="h-2 w-2 rounded-full bg-rose-500"/>Custos Fixos</span>
+                              <span className="text-xs font-black text-rose-500">R$ {Number(cFix).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="border-t border-border pt-1.5 flex items-center justify-between gap-4">
                               <span className="text-xs font-bold text-foreground">Resultado</span>
-                              <span className={`text-xs font-black ${res >= 0 ? "text-emerald-600" : "text-red-500"}`}>R$ {Number(res).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                              <span className={`text-xs font-black ${res >= 0 ? "text-emerald-600" : "text-rose-500"}`}>R$ {Number(res).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                             </div>
                           </div>
                         </div>
                       );
                     }}
                   />
-                  <Bar dataKey="Resultado" fill="hsl(var(--primary))" opacity={0.18} radius={[3, 3, 0, 0]} barSize={28} />
-                  <Area type="monotone" dataKey="Receitas" stroke="#10b981" strokeWidth={2.5} fill="url(#gradReceitas)" dot={false} activeDot={{ r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }} />
-                  <Area type="monotone" dataKey="Custos" stroke="#ef4444" strokeWidth={2.5} fill="url(#gradCustos)" dot={false} activeDot={{ r: 5, fill: "#ef4444", stroke: "#fff", strokeWidth: 2 }} />
+                  <Bar dataKey="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} barSize={14} />
+                  <Bar dataKey="Custos Operacionais" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={14} />
+                  <Bar dataKey="Custos Fixos" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={14} />
+                  <Line type="monotone" dataKey="Resultado" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4, fill: "hsl(var(--primary))", stroke: "#background", strokeWidth: 2 }} activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "#background", strokeWidth: 2 }} />
                 </ComposedChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Previsão de Receita Forecast */}
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-primary" /> Cashflow Forecast
-                </CardTitle>
-                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">Próximos 5 meses</span>
-              </div>
-              <CardDescription>Projeção baseada em contratos ativos — passe o mouse para ver valores</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[300px] px-2 pb-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={forecastData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradForecast" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.6} />
-                  <XAxis
-                    dataKey="mes"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
-                  />
-                  <YAxis hide />
-                  <Tooltip
-                    cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1, strokeDasharray: "4 4" }}
-                    content={({ active, payload, label }: any) => {
-                      if (!active || !payload?.length) return null;
-                      const val = payload[0]?.value || 0;
-                      return (
-                        <div className="bg-background border border-border rounded-xl shadow-xl p-3 min-w-[180px]">
-                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
-                          <div className="flex items-center justify-between gap-4">
-                            <span className="flex items-center gap-1.5 text-xs text-primary font-semibold"><span className="h-2 w-2 rounded-full bg-primary"/>Projeção</span>
-                            <span className="text-sm font-black text-primary">R$ {Number(val).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="valor"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    fill="url(#gradForecast)"
-                    dot={{ r: 4, fill: "hsl(var(--primary))", stroke: "#fff", strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "#fff", strokeWidth: 2 }}
-                  />
-                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
           {/* Centro de Custos Operacionais */}
           <CostChart gastosFiltered={gastosFiltered} fmt={fmt} fmtShort={fmtShort} />
+        </div>
 
-          {/* Status Operacional da Frota */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" />
-                Status Operacional da Frota
-              </CardTitle>
-              <CardDescription>Distribuição física dos {frotaStats.total} equipamentos</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary inline-block"></span>Em Locação Ativa</span>
-                  <span className="font-bold text-muted-foreground">{frotaStats.emLocacao} un. ({Math.round(frotaStats.emLocacao / Math.max(1, frotaStats.total) * 100)}%)</span>
-                </div>
-                <Progress value={(frotaStats.emLocacao / Math.max(1, frotaStats.total)) * 100} className="h-2" />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-success inline-block"></span>Disponível para Pátio</span>
-                  <span className="font-bold text-muted-foreground">{frotaStats.disponiveis} un. ({Math.round(frotaStats.disponiveis / Math.max(1, frotaStats.total) * 100)}%)</span>
-                </div>
-                <Progress value={(frotaStats.disponiveis / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-success/10" style={{ transform: "translateZ(0)" }} />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="font-semibold flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-warning inline-block"></span>Manutenção / Sinistros</span>
-                  <span className="font-bold text-muted-foreground">{frotaStats.emManutencaoOuSinistro} un. ({Math.round(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total) * 100)}%)</span>
-                </div>
-                <Progress value={(frotaStats.emManutencaoOuSinistro / Math.max(1, frotaStats.total)) * 100} className="h-2 bg-warning/10" />
-              </div>
+        {/* 4. Painel de Alertas e Riscos */}
+        <div className="pt-2">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-foreground/80">
+            <AlertTriangle className="w-5 h-5 text-warning"/> Painel de Alertas e Projeções
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div className="space-y-4 flex flex-col justify-between">
+              {/* Inadimplência */}
+              <Card className="hover:shadow-md transition-all border-l-4 border-l-warning">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">Inadimplência / Atrasos</p>
+                      <h3 className="text-xl font-black text-warning mt-1 truncate">
+                        R$ {fmtShort(inadimplenciaStats.valor)}
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight line-clamp-2">
+                        {inadimplenciaStats.quantidade} fatura(s) — <span className="font-bold text-warning">{inadimplenciaStats.percentual.toFixed(1)}%</span> do faturado
+                      </p>
+                    </div>
+                    <div className="h-10 w-10 shrink-0 bg-warning/10 rounded-full flex items-center justify-center text-warning">
+                      <AlertTriangle className="h-5 w-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="pt-4 border-t space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Média de Contratos Ativos:</span>
-                  <span className="font-bold text-foreground">{contratosStats.ativos} contratos</span>
+              {/* Confiabilidade */}
+              <Card className="hover:shadow-md transition-all border-l-4 border-l-info cursor-pointer select-none" onClick={() => setActiveModal("confiabilidade")}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">Confiabilidade Contratual</p>
+                      <h3 className="text-xl font-black text-info mt-1 truncate">
+                        {overallReliability.toFixed(1)}%
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                        Faturas Pagas vs Emitido
+                      </p>
+                    </div>
+                    <div className="h-10 w-10 shrink-0 bg-info/10 rounded-full flex items-center justify-center text-info">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Previsão de Receita Forecast (Col Span 2) */}
+            <Card className="overflow-hidden lg:col-span-2 shadow-sm border-border/50 flex flex-col">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-primary" /> Cashflow Forecast
+                  </CardTitle>
+                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">Próximos 5 meses</span>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Total Custo Fixo de Apólices/Mês:</span>
-                  <span className="font-bold text-foreground">R$ {fmt(apolicesStats.totalMensal)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <CardDescription>Projeção baseada em contratos ativos — passe o mouse para ver valores</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 px-2 pb-2 min-h-[160px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={forecastData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.6} />
+                    <XAxis
+                      dataKey="mes"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
+                    />
+                    <YAxis hide />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                      content={({ active, payload, label }: any) => {
+                        if (!active || !payload?.length) return null;
+                        const val = payload[0]?.value || 0;
+                        return (
+                          <div className="bg-background/95 backdrop-blur-sm border border-border/50 rounded-xl shadow-xl p-3 min-w-[180px]">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="flex items-center gap-1.5 text-xs text-primary font-semibold"><span className="h-2 w-2 rounded-full bg-primary"/>Projeção</span>
+                              <span className="text-sm font-black text-primary">R$ {Number(val).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar
+                      dataKey="valor"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                      barSize={32}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+          </div>
         </div>
 
         {/* Rankings and Controls Row */}
@@ -1645,6 +1625,166 @@ export const VisaoGeralTab = ({
                     <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">Nenhum faturamento registrado.</TableCell>
                   </TableRow>
                 )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* 6. Faturamento Detalhes Modal */}
+      <Dialog open={activeModal === "faturamento_detalhes"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <DollarSign className="h-5 w-5" />
+              Detalhamento de Faturamento no Período
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+                <TableRow>
+                  <TableHead className="bg-background">Fatura</TableHead>
+                  <TableHead className="bg-background">Cliente / Contrato</TableHead>
+                  <TableHead className="bg-background">Emissão</TableHead>
+                  <TableHead className="bg-background">Status</TableHead>
+                  <TableHead className="text-right bg-background">Valor Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {faturasFiltered.map((fatura, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-mono text-xs">{fatura.numero_fatura || `FAT-${fatura.id?.substring(0,6)}`}</TableCell>
+                    <TableCell className="font-semibold">{fatura.contratos?.empresas?.nome || "Não informado"}</TableCell>
+                    <TableCell>{parseLocalDate(fatura.data_emissao).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={
+                        fatura.status === "Pago" ? "border-success/20 text-success bg-success/10" : 
+                        fatura.status === "Atrasado" ? "border-destructive/20 text-destructive bg-destructive/10" : 
+                        "border-warning/20 text-warning bg-warning/10"
+                      }>
+                        {fatura.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-black text-primary">
+                      R$ {Number(fatura.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {faturasFiltered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Nenhuma fatura no período selecionado.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 7. EBITDA Detalhes Modal */}
+      <Dialog open={activeModal === "ebitda_detalhes"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Target className="h-5 w-5" />
+              Demonstrativo de Resultado (EBITDA)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 overflow-y-auto flex-1 pr-1 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                <p className="text-xs font-bold text-emerald-600 uppercase">Receita Bruta</p>
+                <h3 className="text-2xl font-black text-emerald-600 mt-1">R$ {fmt(totalFaturado)}</h3>
+              </div>
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                <p className="text-xs font-bold text-rose-600 uppercase">Custos e Despesas</p>
+                <h3 className="text-2xl font-black text-rose-600 mt-1">R$ {fmt(totalGastos)}</h3>
+              </div>
+              <div className={`border rounded-xl p-4 ${margemGeral >= 0 ? 'bg-primary/10 border-primary/20' : 'bg-destructive/10 border-destructive/20'}`}>
+                <p className={`text-xs font-bold uppercase ${margemGeral >= 0 ? 'text-primary' : 'text-destructive'}`}>EBITDA Acumulado</p>
+                <h3 className={`text-2xl font-black mt-1 ${margemGeral >= 0 ? 'text-primary' : 'text-destructive'}`}>R$ {fmt(totalFaturado - totalGastos)}</h3>
+              </div>
+            </div>
+
+            <div className="border rounded-xl overflow-hidden">
+              <Table>
+                <TableHeader className="bg-muted/50 rounded-t-lg">
+                  <TableRow>
+                    <TableHead className="font-bold">Categoria</TableHead>
+                    <TableHead className="font-bold">Tipo</TableHead>
+                    <TableHead className="text-right font-bold">Valor Consolidado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow className="bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors">
+                    <TableCell className="font-bold text-emerald-600">Faturamento Operacional</TableCell>
+                    <TableCell className="text-emerald-600">Receitas</TableCell>
+                    <TableCell className="text-right font-black text-emerald-600">R$ {fmt(totalFaturado)}</TableCell>
+                  </TableRow>
+                  {Object.entries(
+                    gastosFiltered.reduce((acc, g) => {
+                      const t = g.tipo || "Outros";
+                      acc[t] = (acc[t] || 0) + Number(g.valor);
+                      return acc;
+                    }, {} as Record<string, number>)
+                  ).sort((a, b) => b[1] - a[1]).map(([tipo, valor], idx) => (
+                    <TableRow key={idx} className="hover:bg-rose-500/5 transition-colors">
+                      <TableCell className="font-semibold text-foreground/80">{tipo}</TableCell>
+                      <TableCell className="text-muted-foreground">{tipo === "Custo Fixo" ? "Fixo" : "Variável"}</TableCell>
+                      <TableCell className="text-right font-bold text-rose-500">- R$ {fmt(valor as number)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {gastosFiltered.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Nenhum custo registrado no período.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 8. Frota Detalhes Modal */}
+      <Dialog open={activeModal === "frota_detalhes"} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Truck className="h-5 w-5 text-accent-foreground" />
+              Detalhamento de Ocupação da Frota
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 overflow-y-auto flex-1 pr-1">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+                <TableRow>
+                  <TableHead className="bg-background">Equipamento</TableHead>
+                  <TableHead className="bg-background">Placa / Tag</TableHead>
+                  <TableHead className="bg-background">Categoria</TableHead>
+                  <TableHead className="bg-background">Status Atual</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {equipamentos.map((eq, idx) => {
+                  let statusClass = "border-muted text-muted-foreground bg-muted/10";
+                  if (eq.status === "Em Locação") statusClass = "border-emerald-500/20 text-emerald-600 bg-emerald-500/10";
+                  else if (eq.status === "Disponível") statusClass = "border-foreground/20 text-foreground/80 bg-background";
+                  else if (eq.status === "Em Manutenção" || eq.status === "Sinistro") statusClass = "border-warning/20 text-warning bg-warning/10";
+                  
+                  return (
+                    <TableRow key={idx}>
+                      <TableCell className="font-bold">{eq.modelo}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{eq.tag_placa || "Sem placa"}</TableCell>
+                      <TableCell className="text-muted-foreground">{eq.tipo}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={statusClass}>
+                          {eq.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

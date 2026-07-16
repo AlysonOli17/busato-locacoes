@@ -638,7 +638,8 @@ const Apolices = () => {
               <div className="w-[40px]"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></div>
               <div className="flex-1 min-w-0">Seguradora / Equipamentos</div>
               <div className="w-[180px]">Vigência</div>
-              <div className="w-[120px] text-right">Valor</div>
+              <div className="w-[150px] text-right">Valor e Parcelas</div>
+              <div className="w-[130px] text-right text-primary">Custo p/ Equip.</div>
               <div className="w-[160px] text-center">Detalhes</div>
               <div className="w-[100px] text-center">Status</div>
               <div className="w-[100px] text-right">Ações</div>
@@ -712,10 +713,19 @@ const Apolices = () => {
                   </div>
                 </div>
 
-                <div className="md:w-[120px] md:text-right flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                <div className="md:w-[150px] md:text-right flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
                   <span className="font-semibold text-sm text-foreground">R$ {fmt(item.valor)}</span>
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
                     {item.tem_parcelamento ? `${item.numero_parcelas}x R$ ${fmt(valorParcela)}` : "À vista"}
+                  </span>
+                </div>
+
+                <div className="md:w-[130px] md:text-right flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  <span className="font-bold text-sm text-primary">
+                    R$ {item.apolices_equipamentos && item.apolices_equipamentos.length > 0 ? fmt(valorParcela / item.apolices_equipamentos.length) : "0,00"}
+                  </span>
+                  <span className="text-[10px] text-primary/70 uppercase tracking-wide mt-0.5">
+                    / mês p/ equip.
                   </span>
                 </div>
 

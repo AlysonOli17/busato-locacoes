@@ -35,9 +35,10 @@ interface Gasto {
   fatura?: FaturaRef | null;
 }
 
-const tiposGasto = ["Manutenção", "Combustível", "Peças", "Transporte", "Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Outros"];
+const tiposFixo = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Depreciação", "Impostos e Taxas (IPVA)"];
+const tiposOperacional = ["Manutenção Preventiva", "Manutenção Corretiva", "Manutenção", "Peças", "Combustível", "Transporte / Frete", "Transporte", "Lavagem e Limpeza", "Mobilização", "Desmobilização", "Outros"];
 const classificacoes = ["A Cobrar do Cliente", "A Reembolsar ao Cliente", "Custo Assumido"];
-const emptyForm = { equipamento_id: "", descricao: "", tipo: "Manutenção", classificacao: "Custo Assumido", valor: 0, data: new Date().toISOString().split("T")[0], recorrencia: "Única", parcelas: 12 };
+const emptyForm = { equipamento_id: "", descricao: "", tipo: "", classificacao: "Custo Assumido", valor: 0, data: new Date().toISOString().split("T")[0], recorrencia: "Única", parcelas: 12, natureza_custo: "Operacional" as "Operacional" | "Fixo" };
 
 export const ManutencaoSmartTable = () => {
   const [items, setItems] = useState<Gasto[]>([]);
@@ -138,10 +139,15 @@ export const ManutencaoSmartTable = () => {
   const mobDeduzidos = gastosMob.filter(i => i.fatura);
   const mobNaoDeduzidos = gastosMob.filter(i => !i.fatura);
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
+  const openNew = (natureza: "Operacional" | "Fixo" = "Operacional") => { 
+    setEditing(null); 
+    setForm({ ...emptyForm, natureza_custo: natureza, tipo: natureza === "Fixo" ? "Seguro Patrimonial" : "Manutenção Preventiva" }); 
+    setDialogOpen(true); 
+  };
   const openEdit = (item: Gasto) => {
     setEditing(item);
-    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, classificacao: item.classificacao || "A Cobrar do Cliente", valor: item.valor, data: item.data, recorrencia: "Única", parcelas: 1 });
+    const natureza = tiposFixo.includes(item.tipo) ? "Fixo" : "Operacional";
+    setForm({ equipamento_id: item.equipamento_id, descricao: item.descricao, tipo: item.tipo, classificacao: item.classificacao || "A Cobrar do Cliente", valor: item.valor, data: item.data, recorrencia: "Única", parcelas: 1, natureza_custo: natureza });
     setDialogOpen(true);
   };
 
@@ -150,7 +156,7 @@ export const ManutencaoSmartTable = () => {
       toast({ title: "Campos obrigat├│rios", description: "Equipamento e Descri├º├úo s├úo obrigat├│rios.", variant: "destructive" });
       return;
     }
-    const { classificacao, recorrencia, parcelas, ...basePayload } = form as any;
+    const { classificacao, recorrencia, parcelas, natureza_custo, ...basePayload } = form as any;
     const payload = { ...basePayload, valor: Number(form.valor), status: classificacao };
     if (editing) {
       const { error } = await supabase.from("gastos").update(payload).eq("id", editing.id);
@@ -210,15 +216,14 @@ export const ManutencaoSmartTable = () => {
     <div className="space-y-6">
       <div className="space-y-6">
 
-        {/* KPIs Consolidados */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
           <Card className="border-accent/20 shadow-sm bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Despesas Operacionais</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Custos Operacionais</p>
                 <p className="text-2xl font-bold mt-1 text-foreground">
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                    filtered.filter(i => !["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"].includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
+                    filtered.filter(i => !tiposFixo.includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
                   )}
                 </p>
               </div>
@@ -228,10 +233,10 @@ export const ManutencaoSmartTable = () => {
           <Card className="border-accent/20 shadow-sm bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Encargos Fixos</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Custos Fixos (Encargos)</p>
                 <p className="text-2xl font-bold mt-1 text-foreground">
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                    filtered.filter(i => ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos"].includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
+                    filtered.filter(i => tiposFixo.includes(i.tipo)).reduce((acc, curr) => acc + curr.valor, 0)
                   )}
                 </p>
               </div>
@@ -280,9 +285,11 @@ export const ManutencaoSmartTable = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
-            <div className="flex gap-2"></div>
-            <Button onClick={openNew} className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm">
-              <Plus className="h-4 w-4 mr-2" /> Novo
+            <Button onClick={() => openNew("Operacional")} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
+              <Plus className="h-4 w-4 mr-2" /> Custo Operacional
+            </Button>
+            <Button onClick={() => openNew("Fixo")} className="bg-muted text-muted-foreground hover:bg-muted/90 shadow-sm border border-border">
+              <Plus className="h-4 w-4 mr-2" /> Custo Fixo
             </Button>
           </div>
         </div>
@@ -362,32 +369,54 @@ export const ManutencaoSmartTable = () => {
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-accent" />{editing ? "Editar Custo" : "Novo Custo"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div>
-              <Label>Equipamento</Label>
-              <SearchableSelect
-                value={form.equipamento_id}
-                onValueChange={(v) => setForm({ ...form, equipamento_id: v })}
-                placeholder="Selecione o equipamento"
-                searchPlaceholder="Pesquisar equipamento..."
-                options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
-              />
-            </div>
-            <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
-            <div>
-              <Label>Classificação</Label>
-              <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Button 
+                  type="button" 
+                  variant={form.natureza_custo === "Operacional" ? "default" : "outline"} 
+                  onClick={() => setForm({ ...form, natureza_custo: "Operacional", tipo: "Manutenção Preventiva" })}
+                >
+                  <Wrench className="h-4 w-4 mr-2" /> Custo Operacional
+                </Button>
+                <Button 
+                  type="button" 
+                  variant={form.natureza_custo === "Fixo" ? "default" : "outline"} 
+                  onClick={() => setForm({ ...form, natureza_custo: "Fixo", tipo: "Seguro Patrimonial" })}
+                >
+                  <Building2 className="h-4 w-4 mr-2" /> Custo Fixo
+                </Button>
+              </div>
+
               <div>
-                <Label>Tipo</Label>
-                <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                <Label>Equipamento</Label>
+                <SearchableSelect
+                  value={form.equipamento_id}
+                  onValueChange={(v) => setForm({ ...form, equipamento_id: v })}
+                  placeholder="Selecione o equipamento"
+                  searchPlaceholder="Pesquisar equipamento..."
+                  options={equipamentos.map((e) => ({ value: e.id, label: getEquipLabel(e) }))}
+                />
+              </div>
+              <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
+              <div>
+                <Label>Classificação</Label>
+                <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{tiposGasto.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Tipo</Label>
+                  <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {form.natureza_custo === "Operacional" ? 
+                        tiposOperacional.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>) : 
+                        tiposFixo.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)
+                      }
+                    </SelectContent>
+                  </Select>
+                </div>
               <div><Label>Valor (R$)</Label><CurrencyInput value={form.valor} onValueChange={(v) => setForm({ ...form, valor: v })} /></div>
               <div><Label>Data Inicial</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
               {!editing && (

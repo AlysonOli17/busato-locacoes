@@ -16,7 +16,9 @@ export const DreTab = () => {
   const [despesas, setDespesas] = useState<any[]>([]);
   const [centros, setCentros] = useState<any[]>([]);
   const [receitaTotal, setReceitaTotal] = useState(0);
-  const [custosFrota, setCustosFrota] = useState(0);
+  const [custosOperacionais, setCustosOperacionais] = useState(0);
+  const [custosFixos, setCustosFixos] = useState(0);
+  const [mesReferencia, setMesReferencia] = useState(() => new Date().toISOString().slice(0, 7));
   
   const [dialogDespesaOpen, setDialogDespesaOpen] = useState(false);
   const [dialogCentroOpen, setDialogCentroOpen] = useState(false);
@@ -34,11 +36,16 @@ export const DreTab = () => {
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [despRes, centrosRes, fatRes, gastosRes] = await Promise.all([
-      supabase.from("despesas_administrativas").select("*, centro_custos(*)").order("data_vencimento", { ascending: false }),
+    // Filtros de data baseados no mesReferencia (YYYY-MM)
+    const startDate = `${mesReferencia}-01`;
+    const endDate = new Date(Number(mesReferencia.split("-")[0]), Number(mesReferencia.split("-")[1]), 0).toISOString().slice(0, 10);
+
+    const [despRes, centrosRes, fatRes, gastosRes, apolicesRes] = await Promise.all([
+      supabase.from("despesas_administrativas").select("*, centro_custos(*)").gte("data_vencimento", startDate).lte("data_vencimento", endDate).order("data_vencimento", { ascending: false }),
       supabase.from("centro_custos").select("*").order("nome"),
-      supabase.from("faturamento").select("valor_total").eq("status", "Emitida"),
-      supabase.from("gastos").select("valor")
+      supabase.from("faturamento").select("valor_total").eq("status", "Emitida").gte("emissao", startDate).lte("emissao", endDate),
+      supabase.from("gastos").select("valor, tipo, data").gte("data", startDate).lte("data", endDate),
+      supabase.from("apolices").select("*").eq("status", "Vigente")
     ]);
 
     if (despRes.data) setDespesas(despRes.data);
@@ -50,17 +57,55 @@ export const DreTab = () => {
     }
     
     if (gastosRes.data) {
-      const cf = gastosRes.data.reduce((acc, curr) => acc + Number(curr.valor), 0);
-      setCustosFrota(cf);
+      const tiposFixo = ["Seguro Patrimonial", "Rastreadores / Telecom", "Parcelas e Financiamentos", "Depreciação", "Impostos e Taxas (IPVA)"];
+      let fixos = 0;
+      let operacionais = 0;
+      gastosRes.data.forEach((g: any) => {
+        if (tiposFixo.includes(g.tipo)) fixos += Number(g.valor);
+        else operacionais += Number(g.valor);
+      });
+      
+      let totalSegurosMensal = 0;
+      if (apolicesRes.data) {
+        apolicesRes.data.forEach((i: any) => {
+          if (i.tem_parcelamento && i.numero_parcelas > 0) {
+            totalSegurosMensal += i.valor / i.numero_parcelas;
+          } else {
+            const inicio = new Date(i.vigencia_inicio);
+            const fim = new Date(i.vigencia_fim);
+            const meses = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+            totalSegurosMensal += i.valor / meses;
+          }
+        });
+      }
+      
+      setCustosFixos(fixos + totalSegurosMensal);
+      setCustosOperacionais(operacionais);
     }
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [mesReferencia]);
 
-  const totalDespesas = despesas.reduce((acc, d) => acc + Number(d.valor), 0);
-  const resultadoLiquido = receitaTotal - custosFrota - totalDespesas;
+  let percentualImpostos = 0;
+  let totalDespesas = 0;
+  let totalFinanceiro = 0;
+
+  despesas.forEach(d => {
+    if (d.categoria === "Deduções e Impostos") percentualImpostos += Number(d.valor);
+    else if (d.categoria === "Resultado Financeiro") totalFinanceiro += Number(d.valor);
+    else totalDespesas += Number(d.valor);
+  });
+  
+  // DRE Calculations
+  const receitaBruta = receitaTotal;
+  const deducoes = (receitaBruta * percentualImpostos) / 100;
+  const receitaLiquida = receitaBruta - deducoes;
+  const lucroBruto = receitaLiquida - custosOperacionais;
+  const ebitda = lucroBruto - custosFixos - totalDespesas;
+  const resultadoFinanceiro = totalFinanceiro;
+  const lucroLiquido = ebitda - resultadoFinanceiro;
 
   const handleDeleteCentro = async (id: string) => {
     const { error } = await supabase.from("centro_custos").delete().eq("id", id);
@@ -161,8 +206,18 @@ export const DreTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-4 mb-4">
-        <Dialog open={dialogDespesaOpen} onOpenChange={(open) => {
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-2 bg-muted/30 p-1.5 rounded-lg border shadow-sm">
+          <Label className="whitespace-nowrap px-2 font-medium">Mês de Referência da DRE:</Label>
+          <Input 
+            type="month" 
+            className="w-40 bg-background" 
+            value={mesReferencia} 
+            onChange={(e) => setMesReferencia(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-4">
+          <Dialog open={dialogDespesaOpen} onOpenChange={(open) => {
           if (!open) {
             setFormDespesa({ centro_custos_id: "", descricao: "", categoria: "Administrativo", valor: "0", data_vencimento: "", status: "Pendente" });
             setEditDespesaId(null);
@@ -192,13 +247,28 @@ export const DreTab = () => {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Descrição da Despesa</Label>
-                <Input placeholder="Ex: Conta de Luz Filial Matriz" value={formDespesa.descricao} onChange={e => setFormDespesa({...formDespesa, descricao: e.target.value})} />
+                <Label>Descrição</Label>
+                <Input placeholder="Ex: Simples Nacional, Conta de Luz..." value={formDespesa.descricao} onChange={e => setFormDespesa({...formDespesa, descricao: e.target.value})} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Categoria (Classificação DRE)</Label>
+                <Select value={formDespesa.categoria} onValueChange={(v) => setFormDespesa({...formDespesa, categoria: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Administrativo">Despesa Administrativa</SelectItem>
+                    <SelectItem value="Deduções e Impostos">Deduções e Impostos</SelectItem>
+                    <SelectItem value="Resultado Financeiro">Resultado Financeiro</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Valor (R$)</Label>
-                  <CurrencyInput value={Number(formDespesa.valor) || 0} onValueChange={(v) => setFormDespesa({...formDespesa, valor: String(v)})} />
+                  <Label>{formDespesa.categoria === "Deduções e Impostos" ? "Alíquota (%)" : "Valor (R$)"}</Label>
+                  {formDespesa.categoria === "Deduções e Impostos" ? (
+                    <Input type="number" step="0.01" value={formDespesa.valor} onChange={(e) => setFormDespesa({...formDespesa, valor: e.target.value})} placeholder="Ex: 5" />
+                  ) : (
+                    <CurrencyInput value={Number(formDespesa.valor) || 0} onValueChange={(v) => setFormDespesa({...formDespesa, valor: String(v)})} />
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label>Vencimento</Label>
@@ -311,24 +381,79 @@ export const DreTab = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Receita Bruta (Locação)</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold text-blue-600">{receitaTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</div></CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-amber-500">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Custos (Manutenção Frota)</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold text-amber-600">-{custosFrota.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</div></CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-rose-500">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Despesas Administrativas</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold text-rose-600">-{totalDespesas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</div></CardContent>
-        </Card>
-        <Card className={`border-l-4 ${resultadoLiquido >= 0 ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">EBITDA / Resultado Líquido</CardTitle></CardHeader>
-          <CardContent><div className={`text-2xl font-bold ${resultadoLiquido >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{resultadoLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</div></CardContent>
+      <div className="grid grid-cols-1 gap-4">
+        <Card className="border-border/60 shadow-sm overflow-hidden">
+          <CardHeader className="bg-muted/30 border-b pb-4">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              Demonstrativo de Resultado do Exercício (DRE)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="w-2/3">Descrição</TableHead>
+                  <TableHead className="text-right">Valor (R$)</TableHead>
+                  <TableHead className="text-right">%</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow className="font-bold text-blue-600 bg-blue-50/50 hover:bg-blue-50/50">
+                  <TableCell>1. Receita Operacional Bruta</TableCell>
+                  <TableCell className="text-right">{receitaBruta.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">100%</TableCell>
+                </TableRow>
+                <TableRow className="text-muted-foreground text-sm hover:bg-muted/5">
+                  <TableCell className="pl-8">(-) Deduções e Impostos {percentualImpostos > 0 ? `(${percentualImpostos}%)` : ''}</TableCell>
+                  <TableCell className="text-right text-rose-500">-{deducoes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">{receitaBruta > 0 ? ((deducoes/receitaBruta)*100).toFixed(1) : 0}%</TableCell>
+                </TableRow>
+                <TableRow className="font-bold bg-muted/20 hover:bg-muted/20">
+                  <TableCell>2. Receita Operacional Líquida</TableCell>
+                  <TableCell className="text-right">{receitaLiquida.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">100%</TableCell>
+                </TableRow>
+                <TableRow className="text-muted-foreground text-sm hover:bg-muted/5">
+                  <TableCell className="pl-8">(-) Custos Diretos / Variáveis (Operação Frota)</TableCell>
+                  <TableCell className="text-right text-amber-600">-{custosOperacionais.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">{receitaBruta > 0 ? ((custosOperacionais/receitaBruta)*100).toFixed(1) : 0}%</TableCell>
+                </TableRow>
+                <TableRow className="font-bold bg-muted/20 hover:bg-muted/20">
+                  <TableCell>3. Lucro Bruto (Margem de Contribuição)</TableCell>
+                  <TableCell className="text-right">{lucroBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">{receitaBruta > 0 ? ((lucroBruto/receitaBruta)*100).toFixed(1) : 0}%</TableCell>
+                </TableRow>
+                <TableRow className="text-muted-foreground text-sm hover:bg-muted/5">
+                  <TableCell className="pl-8">(-) Custos Fixos (Encargos Frota)</TableCell>
+                  <TableCell className="text-right text-rose-500">-{custosFixos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">{receitaBruta > 0 ? ((custosFixos/receitaBruta)*100).toFixed(1) : 0}%</TableCell>
+                </TableRow>
+                <TableRow className="text-muted-foreground text-sm hover:bg-muted/5">
+                  <TableCell className="pl-8">(-) Despesas Administrativas (Lançamentos)</TableCell>
+                  <TableCell className="text-right text-rose-500">-{totalDespesas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">{receitaBruta > 0 ? ((totalDespesas/receitaBruta)*100).toFixed(1) : 0}%</TableCell>
+                </TableRow>
+                <TableRow className="font-bold bg-muted/20 hover:bg-muted/20">
+                  <TableCell>4. EBITDA (Resultado Operacional)</TableCell>
+                  <TableCell className="text-right">{ebitda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">{receitaBruta > 0 ? ((ebitda/receitaBruta)*100).toFixed(1) : 0}%</TableCell>
+                </TableRow>
+                <TableRow className="text-muted-foreground text-sm hover:bg-muted/5">
+                  <TableCell className="pl-8">(-) Resultado Financeiro</TableCell>
+                  <TableCell className="text-right text-rose-500">-{resultadoFinanceiro.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">0%</TableCell>
+                </TableRow>
+                <TableRow className={`font-black text-lg ${lucroLiquido >= 0 ? 'text-emerald-600 bg-emerald-50/50 hover:bg-emerald-50/50' : 'text-rose-600 bg-rose-50/50 hover:bg-rose-50/50'}`}>
+                  <TableCell>5. Lucro Líquido</TableCell>
+                  <TableCell className="text-right">{lucroLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL'})}</TableCell>
+                  <TableCell className="text-right">{receitaBruta > 0 ? ((lucroLiquido/receitaBruta)*100).toFixed(1) : 0}%</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
         </Card>
       </div>
 
@@ -354,7 +479,12 @@ export const DreTab = () => {
                   <TableCell className="font-medium">{d.centro_custos?.codigo}</TableCell>
                   <TableCell>{d.descricao}</TableCell>
                   <TableCell><Badge variant="outline">{d.categoria}</Badge></TableCell>
-                  <TableCell className="text-right text-rose-600 font-mono font-medium">-{Number(d.valor).toLocaleString('pt-BR', {style: 'currency', currency:'BRL'})}</TableCell>
+                  <TableCell className={`text-right font-mono font-medium ${d.categoria === 'Deduções e Impostos' ? 'text-amber-600' : 'text-rose-600'}`}>
+                    {d.categoria === 'Deduções e Impostos' 
+                      ? `${Number(d.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}%` 
+                      : `-${Number(d.valor).toLocaleString('pt-BR', {style: 'currency', currency:'BRL'})}`
+                    }
+                  </TableCell>
                   <TableCell className="text-center">
                     <Badge className={`cursor-pointer transition-colors ${d.status === 'Pago' ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800' : 'bg-amber-100 hover:bg-amber-200 text-amber-800'}`} onClick={() => handleToggleStatus(d.id, d.status)}>
                       {d.status}
