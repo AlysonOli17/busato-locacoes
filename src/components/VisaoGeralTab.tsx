@@ -340,6 +340,9 @@ export const VisaoGeralTab = ({
   // Filtered faturas & gastos by date
   const faturasFiltered = useMemo(() => {
     return faturas.filter(f => {
+      // Ignora faturas que não devem compor o relatório de faturamento consolidado
+      if (f.status === "Cancelado" || f.status === "Pendente" || f.status === "Aguardando Aprovação") return false;
+      
       const emissao = f.emissao;
       if (dataInicio && emissao < dataInicio) return false;
       if (dataFim && emissao > dataFim) return false;
