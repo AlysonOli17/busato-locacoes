@@ -42,6 +42,8 @@ export const RelatoriosGerenciaisTab = ({
   equipamentos,
   gastos,
   medicoes,
+  apolices = [],
+  apolicesEquipamentos = [],
   contratosEquipamentos = [],
   faturamentoGastos = [],
   despesasAdministrativas = []
