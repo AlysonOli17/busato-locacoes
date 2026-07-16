@@ -140,24 +140,99 @@ export const exportContractDocument = async (
   isModeloPreview: boolean = false
 ) => {
   const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  const { supabase } = await import("@/integrations/supabase/client");
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const margin = 20;
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - margin * 2;
+  const brandBlue: [number, number, number] = [41, 128, 185];
+  const darkGray: [number, number, number] = [30, 30, 30];
+  
   let y = await addLetterhead(doc, isModeloPreview ? "Modelo de Contrato - Preview" : "Contrato de Locação");
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(50, 50, 50);
+  
+  const checkPageBreak = (neededHeight: number) => {
+    if (y + neededHeight > 280) {
+      doc.addPage();
+      y = 20;
+    }
+  };
+
+  const printParagraph = (text: string, isTitle = false, spacing = 5, alignment: "left" | "justify" | "center" = "justify") => {
+    doc.setFont("helvetica", isTitle ? "bold" : "normal");
+    doc.setFontSize(isTitle ? 10 : 9.5);
+    doc.setTextColor(...(isTitle ? darkGray : [60, 60, 60]));
+    
+    const lines = doc.splitTextToSize(text, contentWidth);
+    const needed = lines.length * 4.5 + spacing;
+    checkPageBreak(needed);
+    
+    if (alignment === "justify" && !isTitle) {
+      doc.text(text, margin, y, { align: "justify", maxWidth: contentWidth });
+    } else if (alignment === "center") {
+      doc.text(text, pageWidth / 2, y, { align: "center" });
+    } else {
+      doc.text(lines, margin, y);
+    }
+    y += lines.length * 4.5 + spacing;
+  };
 
   if (!isModeloPreview && contrato && contrato.empresas) {
     const emp = contrato.empresas;
-    const headerText = `CONTRATANTE: ${emp.razao_social || emp.nome}, CNPJ: ${emp.cnpj || "—"}\nEndereço: ${emp.endereco_logradouro || "—"}, ${emp.endereco_numero || "—"} - ${emp.endereco_cidade || "—"}/${emp.endereco_uf || "—"}\n\nCONTRATADA: BUSATO LOCAÇÕES E SERVIÇOS LTDA, CNPJ: 54.167.719/0001-40`;
+    const qualifLocadora = `De um lado, como Locadora,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA, empresa estabelecida Av. Coronel Manoel Nunes, 145, Planalto de Carapina, Serra/ES, CEP 29.162-715, inscrita no CNPJ sob o nº 54.167.719/0001-40, neste ato denominada simplesmente Locadora.`;
     
-    const splitHeader = doc.splitTextToSize(headerText, contentWidth);
-    doc.text(splitHeader, margin, y);
-    y += splitHeader.length * 5 + 10;
+    const qualifLocataria = `De outro lado, como Locatária,\n${emp.razao_social || emp.nome}, empresa estabelecida à ${emp.endereco_logradouro || "—"}, nº ${emp.endereco_numero || "—"}${emp.endereco_complemento ? ` - ${emp.endereco_complemento}` : ""}, ${emp.endereco_bairro || "—"}, ${emp.endereco_cidade || "—"} - ${emp.endereco_uf || "—"}, inscrita no CNPJ sob o nº ${emp.cnpj || "—"}, neste ato denominada simplesmente Locatária.`;
+    
+    printParagraph(qualifLocadora, false, 8, "left");
+    printParagraph(qualifLocataria, false, 8, "left");
+
+    printParagraph(`Resolvem celebrar o presente Contrato de Locação de Veículo / Equipamento, doravante denominado “Contrato”, mediante as seguintes cláusulas e condições:`, false, 8);
+
+    // Buscar os equipamentos do contrato
+    const { data: equipamentosData } = await supabase
+      .from("contratos_equipamentos")
+      .select("*, equipamentos(tipo, tag_placa, modelo, numero_serie)")
+      .eq("contrato_id", contrato.id);
+      
+    const eqsAtivos = (equipamentosData || []).filter((ae: any) => !ae.data_devolucao);
+
+    if (eqsAtivos.length > 0) {
+      const tableHeaders = [["ITEM", "TIPO", "PLACA", "MODELO", "SÉRIE", "VALOR", "MÍNIMO", "ENTREGA"]];
+      const tableBody = eqsAtivos.map((ae: any, idx: number) => {
+        const eq = ae.equipamentos;
+        return [
+          (idx + 1).toString().padStart(2, '0'),
+          eq?.tipo || "—",
+          eq?.tag_placa || "—",
+          eq?.modelo || "—",
+          eq?.numero_serie || "—",
+          `R$ ${Number(ae.valor_hora || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+          ae.horas_contratadas > 0 ? `${ae.horas_contratadas}h` : "—",
+          ae.data_entrega ? new Date(ae.data_entrega + "T00:00:00").toLocaleDateString("pt-BR") : "—"
+        ];
+      });
+
+      checkPageBreak(tableBody.length * 8 + 15);
+
+      autoTable(doc, {
+        startY: y,
+        head: tableHeaders,
+        body: tableBody,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3, textColor: darkGray, halign: "center", valign: "middle" },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        theme: "striped",
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
   } else if (isModeloPreview) {
     doc.text("Este é um documento de visualização do modelo padrão de cláusulas.", margin, y);
     y += 15;
