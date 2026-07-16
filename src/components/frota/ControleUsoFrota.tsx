@@ -147,7 +147,7 @@ export default function ControleUsoFrota() {
   const fetchData = async (force = false) => {
     if (force) clearCache();
     const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes, fatRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
-      supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(10000),
+      supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(50000),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id"),
       supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id, data_entrega, data_devolucao"),

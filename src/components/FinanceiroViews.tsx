@@ -102,7 +102,7 @@ function useFinanceiroData() {
       supabase.from("empresas").select("id, nome, cnpj, obra").order("nome"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
       supabase.from("contratos_equipamentos").select("*"),
-      supabase.from("medicoes").select("*").order("data", { ascending: false }),
+      supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(50000),
       supabase.from("contratos_aditivos").select("*"),
       supabase.from("aditivos_equipamentos").select("*")
     ]));

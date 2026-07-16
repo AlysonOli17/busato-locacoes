@@ -46,7 +46,7 @@ export const MedicoesTerceirosTab = () => {
 
   const fetchData = async () => {
     const [medRes, eqRes] = await Promise.all([
-      supabase.from("medicoes_terceiros").select("*").order("data", { ascending: false }),
+      supabase.from("medicoes_terceiros").select("*").order("data", { ascending: false }).limit(50000),
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
     if (medRes.error) {

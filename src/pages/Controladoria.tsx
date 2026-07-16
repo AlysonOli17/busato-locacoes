@@ -105,7 +105,7 @@ const Controladoria = () => {
         supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
         supabase.from("equipamentos").select("*").order("tipo"),
         supabase.from("gastos").select("*").order("data", { ascending: false }),
-        supabase.from("medicoes").select("*").order("data", { ascending: false }),
+        supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(50000),
         supabase.from("apolices").select("*"),
         supabase.from("apolices_equipamentos").select("*"),
         supabase.from("contratos_aditivos").select("*"),
