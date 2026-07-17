@@ -140,12 +140,12 @@ interface EquipFormItem {
 
 // Recalculate hours helper
 const recalcHours = (ef: EquipFormItem, medInicio?: string, medFim?: string) => {
-  ef.horas_contratadas = ef.horas_contratadas_original;
-  ef.hora_minima = ef.hora_minima_original;
+  ef.horas_contratadas = Math.max(0, ef.horas_contratadas_original - ef.horas_indisponiveis);
+  ef.hora_minima = Math.max(0, ef.hora_minima_original - ef.horas_indisponiveis);
 
   const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
   // horas_medidas já são as horas REAIS trabalhadas (líquidas).
-  // horas_indisponiveis são lançadas separadamente apenas para histórico — não descontar aqui.
+  // horas_indisponiveis agora são descontadas das contratadas e do mínimo.
   const horasMedidasCalculo = ef.horas_medidas;
 
   if (isProporcional) {
@@ -156,17 +156,19 @@ const recalcHours = (ef: EquipFormItem, medInicio?: string, medFim?: string) => 
       const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
       const baseMinimo = ef.hora_minima_original > 0 ? ef.hora_minima_original : ef.horas_contratadas_original;
       const propMinimo = Number(((baseMinimo / 30) * diasProp).toFixed(1));
-      const minimumAjustado = propMinimo; // sem desconto de indisponíveis — medidas já são líquidas
+      const minimumAjustado = Math.max(0, Number((propMinimo - ef.horas_indisponiveis).toFixed(1)));
+      ef.hora_minima = minimumAjustado;
       const horasEfetivas = Math.max(minimumAjustado, horasMedidasCalculo);
       ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
       ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
     } else {
+      ef.hora_minima = 0;
       ef.horas_normais = Number(Math.min(horasMedidasCalculo, ef.horas_contratadas).toFixed(1));
       ef.horas_excedentes = Number(Math.max(0, horasMedidasCalculo - ef.horas_contratadas).toFixed(1));
     }
   } else {
-    const applyMinima = ef.hora_minima > 0;
-    const minimumAjustado = ef.hora_minima_original; // sem desconto de indisponíveis — medidas já são líquidas
+    const applyMinima = ef.hora_minima_original > 0;
+    const minimumAjustado = Math.max(0, Number((ef.hora_minima_original - ef.horas_indisponiveis).toFixed(1)));
     const horasEfetivas = applyMinima && horasMedidasCalculo < minimumAjustado ? minimumAjustado : horasMedidasCalculo;
     ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
     ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
@@ -532,12 +534,12 @@ export const FaturamentoContent = () => {
 
     // Calculate hours for each equipment
     newEquipForms.forEach(ef => {
-      ef.horas_contratadas = ef.horas_contratadas_original;
-      ef.hora_minima = ef.hora_minima_original;
+      ef.horas_contratadas = Math.max(0, ef.horas_contratadas_original - ef.horas_indisponiveis);
+      ef.hora_minima = Math.max(0, ef.hora_minima_original - ef.horas_indisponiveis);
 
       const isProporcional = ef.primeiro_mes || ef.proporcional_devolucao;
       // horas_medidas já são as horas REAIS trabalhadas (líquidas).
-      // horas_indisponiveis são lançadas separadamente apenas para histórico — não descontar aqui.
+      // horas_indisponiveis agora são descontadas das contratadas e do mínimo.
       const horasMedidasCalculo = ef.horas_medidas;
 
       if (isProporcional) {
@@ -548,17 +550,19 @@ export const FaturamentoContent = () => {
           const diasProp = Math.max(1, Math.round((parseLocalDate(fimEf).getTime() - parseLocalDate(inicioEf).getTime()) / 86400000) + 1);
           const baseMinimo = ef.hora_minima_original > 0 ? ef.hora_minima_original : ef.horas_contratadas_original;
           const propMinimo = Number(((baseMinimo / 30) * diasProp).toFixed(1));
-          const minimumAjustado = propMinimo; // sem desconto de indisponíveis — medidas já são líquidas
+          const minimumAjustado = Math.max(0, Number((propMinimo - ef.horas_indisponiveis).toFixed(1)));
+          ef.hora_minima = minimumAjustado;
           const horasEfetivas = Math.max(minimumAjustado, horasMedidasCalculo);
           ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
           ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
         } else {
+          ef.hora_minima = 0;
           ef.horas_normais = Number(Math.min(horasMedidasCalculo, ef.horas_contratadas).toFixed(1));
           ef.horas_excedentes = Number(Math.max(0, horasMedidasCalculo - ef.horas_contratadas).toFixed(1));
         }
       } else {
-        const applyMinima = ef.hora_minima > 0;
-        const minimumAjustado = ef.hora_minima_original; // sem desconto de indisponíveis — medidas já são líquidas
+        const applyMinima = ef.hora_minima_original > 0;
+        const minimumAjustado = Math.max(0, Number((ef.hora_minima_original - ef.horas_indisponiveis).toFixed(1)));
         const horasEfetivas = applyMinima && horasMedidasCalculo < minimumAjustado ? minimumAjustado : horasMedidasCalculo;
         ef.horas_normais = Number(Math.min(horasEfetivas, ef.horas_contratadas).toFixed(1));
         ef.horas_excedentes = Number(Math.max(0, horasEfetivas - ef.horas_contratadas).toFixed(1));
