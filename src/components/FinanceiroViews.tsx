@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllMedicoes } from "@/lib/supabaseUtils";
 import { getVencimento as getVencimentoGlobal, getDisplayStatus as getDisplayStatusGlobal } from "@/lib/utils";
 import { withCache, clearCache } from "@/lib/cache";
 import { useToast } from "@/hooks/use-toast";
@@ -102,7 +103,7 @@ function useFinanceiroData() {
       supabase.from("empresas").select("id, nome, cnpj, obra").order("nome"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
       supabase.from("contratos_equipamentos").select("*"),
-      supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(50000),
+      fetchAllMedicoes(),
       supabase.from("contratos_aditivos").select("*"),
       supabase.from("aditivos_equipamentos").select("*")
     ]));

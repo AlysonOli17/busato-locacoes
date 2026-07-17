@@ -21,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { exportToPDF } from "@/lib/exportUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllMedicoes } from "@/lib/supabaseUtils";
 import { withCache, clearCache } from "@/lib/cache";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -158,7 +159,7 @@ const Medicoes = () => {
   const fetchData = async (force = false) => {
     if (force) clearCache();
     const [medRes, equipRes, contractsRes, ceRes, aditivosRes, aeRes, fatRes] = await withCache("medicoes_main", 5 * 60 * 1000, async () => Promise.all([
-      supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(50000),
+      fetchAllMedicoes(),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
       supabase.from("contratos").select("id, status, tipo_medicao, equipamento_id"),
       supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id, data_entrega, data_devolucao"),

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllMedicoes } from "@/lib/supabaseUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
 import { RelatoriosGerenciaisTab } from "@/components/RelatoriosGerenciaisTab";
 import { DreTab } from "@/components/DreTab";
@@ -105,7 +106,7 @@ const Controladoria = () => {
         supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
         supabase.from("equipamentos").select("*").order("tipo"),
         supabase.from("gastos").select("*").order("data", { ascending: false }),
-        supabase.from("medicoes").select("*").order("data", { ascending: false }).limit(50000),
+        fetchAllMedicoes(),
         supabase.from("apolices").select("*"),
         supabase.from("apolices_equipamentos").select("*"),
         supabase.from("contratos_aditivos").select("*"),

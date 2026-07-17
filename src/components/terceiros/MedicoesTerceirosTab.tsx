@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllMedicoesTerceiros } from "@/lib/supabaseUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +47,7 @@ export const MedicoesTerceirosTab = () => {
 
   const fetchData = async () => {
     const [medRes, eqRes] = await Promise.all([
-      supabase.from("medicoes_terceiros").select("*").order("data", { ascending: false }).limit(50000),
+      fetchAllMedicoesTerceiros(),
       supabase.from("equipamentos_terceiros").select("id, tipo, modelo, tag_placa, numero_serie").order("tipo"),
     ]);
     if (medRes.error) {
