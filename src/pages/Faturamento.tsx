@@ -766,45 +766,20 @@ export const FaturamentoContent = () => {
   };
 
   const handleSolicitarAprovacao = async () => {
-    const { faturaId, responsavelId } = solicitarAprovacaoDialog;
+    const { faturaId } = solicitarAprovacaoDialog;
     if (!faturaId) return;
-    
-    const responsavelUser = usuarios.find(u => u.id === responsavelId);
-    const responsavelNome = responsavelUser ? responsavelUser.nome : null;
 
-    const { data: agendas } = await supabase.from("agenda").select("id").ilike("notas", `%${faturaId}%`);
-    if (agendas && agendas.length > 0) {
-       await supabase.from("agenda").update({
-         responsavel_nome: responsavelNome,
-         status: "Aguardando Aprovação"
-       }).eq("id", agendas[0].id);
-    } else {
-       // Create new agenda task of category Medição in status Aguardando Aprovação
-       const fatRec = items.find(f => f.id === faturaId);
-       const ct = fatRec ? contratos.find(c => c.id === fatRec.contrato_id) : null;
-       const clientNome = empresasList.find(e => e.id === (fatRec?.empresa_id || ct?.empresa_id))?.nome || "Cliente";
-       const periodo = fatRec?.periodo || "";
-       const contratoId = fatRec?.contrato_id || null;
-       const empresaId = fatRec?.empresa_id || ct?.empresa_id || null;
-       
-       await supabase.from("agenda").insert({
-         id: crypto.randomUUID(),
-         titulo: `Aprovação de Medição - ${clientNome} (Ref: ${periodo})`,
-         descricao: `Medição gerada aguardando conferência e aprovação.`,
-         data_inicio: new Date().toISOString(),
-         status: "Aguardando Aprovação",
-         prioridade: "Média",
-         categoria: "Medição",
-         contrato_id: contratoId,
-         empresa_id: empresaId,
-         notas: `[Medição ID: ${faturaId}]`,
-         responsavel_nome: responsavelNome
-       });
+    const { error } = await supabase
+      .from("faturamento")
+      .update({ status: "Aguardando Aprovação" })
+      .eq("id", faturaId);
+
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
     }
-    
-    await supabase.from("faturamento").update({ status: "Aguardando Aprovação" }).eq("id", faturaId);
-    
-    toast({ title: "Enviado para aprovação", description: "Enviado para o Kanban com sucesso." });
+
+    toast({ title: "Enviado ao cliente", description: "Medição marcada como enviada. Aguardando confirmação do cliente." });
     setSolicitarAprovacaoDialog({ isOpen: false, faturaId: null, responsavelId: "" });
     fetchData();
   };
@@ -2335,50 +2310,42 @@ export const FaturamentoContent = () => {
       <Dialog open={solicitarAprovacaoDialog.isOpen} onOpenChange={(open) => !open && setSolicitarAprovacaoDialog(prev => ({ ...prev, isOpen: false }))}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Enviar para Aprovação</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-4 w-4 text-accent" />
+              Enviar Medição ao Cliente
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              A medição mudará para o status <strong>Aguardando Aprovação</strong> no Kanban.
+              A medição será marcada como <strong className="text-warning">Aguardando Cliente</strong>.
             </p>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
-                Responsável pela Aprovação (Opcional)
-              </label>
-              <Select 
-                value={solicitarAprovacaoDialog.responsavelId} 
-                onValueChange={(v) => setSolicitarAprovacaoDialog(prev => ({ ...prev, responsavelId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um usuário (Padrão: Admins)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Deixar para Administradores</SelectItem>
-                  {usuarios.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Após enviar ao cliente e ele confirmar os valores, clique em <strong>"Cliente Aprovou"</strong> para liberar o faturamento.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSolicitarAprovacaoDialog(prev => ({ ...prev, isOpen: false }))}>Cancelar</Button>
-            <Button className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={handleSolicitarAprovacao}>
-              Enviar para Aprovação
+            <Button className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleSolicitarAprovacao}>
+              <Send className="h-4 w-4 mr-1.5" /> Confirmar Envio ao Cliente
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Custom Fatura Approval Dialog */}
       <Dialog open={aprovarDialog.isOpen} onOpenChange={(open) => !open && setAprovarDialog(prev => ({ ...prev, isOpen: false }))}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Aprovar Medição</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-success" />
+              Cliente Aprovou a Medição
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Tem certeza que deseja aprovar esta medição? Ela ficará disponível para a Emissão da Fatura.
+              Confirma que o cliente verificou e aprovou os valores desta medição?
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Após a confirmação, a medição ficará disponível para <strong>Faturamento</strong>.
             </p>
           </div>
           <DialogFooter>
@@ -2393,7 +2360,7 @@ export const FaturamentoContent = () => {
                 }
               }}
             >
-              Confirmar e Aprovar
+              <CheckCircle2 className="h-4 w-4 mr-1.5" /> Confirmar Aprovação do Cliente
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -162,7 +162,12 @@ export function getDisplayStatus(
   mode: "medicao" | "faturamento" = "faturamento"
 ): string {
   if (fatura.status === "Pago" || fatura.status === "Cancelado") return fatura.status;
-  
+
+  // "Aguardando Aprovação" no banco = enviado ao cliente aguardando confirmação dele
+  if (fatura.status === "Aguardando Aprovação") {
+    return mode === "medicao" ? "Aguard. Cliente" : "Aguardando Aprovação";
+  }
+
   if (mode === "faturamento") {
     if (fatura.status === "Aprovado") {
       if (fatura.numero_nota) {

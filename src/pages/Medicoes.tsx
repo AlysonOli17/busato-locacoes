@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils";
 import { FaturamentoContent } from "./Faturamento";
 import { FaturamentoTab } from "@/components/FaturamentoTab";
 import { PendenteMedicaoView, HistoricoFaturamentoView, ResumoEmpresaView } from "@/components/FinanceiroViews";
+import { FluxoMedicaoStepper } from "@/components/FluxoMedicaoStepper";
+import { AprovarMedicoesView } from "@/components/AprovarMedicoesView";
 
 
 import { useLocation } from "react-router-dom";
@@ -55,22 +57,28 @@ const getDaysDifference = (dateStr1: string, dateStr2: string) => {
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
+// Map old tab values to new ones for backward compat
+const TAB_COMPAT: Record<string, string> = {
+  "faturamento": "emitir-medicao",
+  "faturamento-novo": "faturar",
+  "historico-faturamento": "historico",
+  "pendentes-medicao": "pendencias",
+  "pendente-medicao": "pendencias",
+};
+
 const Medicoes = () => {
   const location = useLocation();
+  const normalizeTab = (t: string) => TAB_COMPAT[t] || t;
+
   const [activeTab, setActiveTab] = useState(() => {
-    return new URLSearchParams(window.location.search).get("tab") || "faturamento";
+    const raw = new URLSearchParams(window.location.search).get("tab") || "emitir-medicao";
+    return normalizeTab(raw);
   });
 
   useEffect(() => {
-    const tab = new URLSearchParams(location.search).get("tab") || "faturamento";
-    setActiveTab(tab);
+    const raw = new URLSearchParams(location.search).get("tab") || "emitir-medicao";
+    setActiveTab(normalizeTab(raw));
   }, [location.search]);
-
-  useEffect(() => {
-    if (activeTab === "lancamento-lote" && bulkGridItems.length === 0 && !loadingBulkGrid) {
-      fetchActiveEquipmentsForDate(bulkDate);
-    }
-  }, [activeTab]);
 
   const handleTabChange = (val: string) => {
     setActiveTab(val);
@@ -862,16 +870,18 @@ const Medicoes = () => {
 
   const getLayoutHeader = () => {
     switch (activeTab) {
-      case "faturamento":
-        return { title: "Emitir Medição", subtitle: "Controle de medições de locações" };
-      case "faturamento-novo":
-        return { title: "Emissão de Faturas", subtitle: "Lançamento e controle de faturamentos" };
-      case "pendentes-medicao":
-        return { title: "Pendente de Medição", subtitle: "Alertas de medições e faturamentos pendentes" };
-      case "historico-faturamento":
+      case "emitir-medicao":
+        return { title: "Emitir Medição", subtitle: "Crie e gerencie as medições do período" };
+      case "aprovar":
+        return { title: "Aprovar Medições", subtitle: "Medições aguardando conferência e aprovação" };
+      case "faturar":
+        return { title: "Faturar", subtitle: "Medições aprovadas prontas para emissão de nota fiscal" };
+      case "pendencias":
+        return { title: "Pendências", subtitle: "Alertas de medições e faturamentos em aberto" };
+      case "historico":
         return { title: "Histórico Financeiro", subtitle: "Consolidado de contratos, resumos e histórico de faturamentos" };
       default:
-        return { title: "Horímetro", subtitle: "Controle de horímetros e diárias" };
+        return { title: "Medições & Faturamento", subtitle: "Fluxo completo de medição e faturamento" };
     }
   };
 
@@ -879,7 +889,13 @@ const Medicoes = () => {
 
   return (
     <Layout title={header.title} subtitle={header.subtitle}>
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+      {/* Stepper visual do fluxo */}
+      <FluxoMedicaoStepper
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        contadores={{}}
+      />
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsContent value="medicoes" forceMount className="data-[state=inactive]:hidden">
       <div className="space-y-6">
         {/* KPI Cards */}
@@ -1082,16 +1098,19 @@ const Medicoes = () => {
         </Card>
       </div>
         </TabsContent>
-        <TabsContent value="faturamento" forceMount className="data-[state=inactive]:hidden">
+        <TabsContent value="emitir-medicao" forceMount className="data-[state=inactive]:hidden">
           <FaturamentoContent />
         </TabsContent>
-        <TabsContent value="faturamento-novo" forceMount className="data-[state=inactive]:hidden">
+        <TabsContent value="aprovar" forceMount className="data-[state=inactive]:hidden">
+          <AprovarMedicoesView />
+        </TabsContent>
+        <TabsContent value="faturar" forceMount className="data-[state=inactive]:hidden">
           <FaturamentoTab />
         </TabsContent>
-        <TabsContent value="pendentes-medicao" forceMount className="data-[state=inactive]:hidden">
+        <TabsContent value="pendencias" forceMount className="data-[state=inactive]:hidden">
           <PendenteMedicaoView />
         </TabsContent>
-        <TabsContent value="historico-faturamento" forceMount className="data-[state=inactive]:hidden">
+        <TabsContent value="historico" forceMount className="data-[state=inactive]:hidden">
           <HistoricoFaturamentoView />
         </TabsContent>
 

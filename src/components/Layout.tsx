@@ -88,18 +88,13 @@ const allGroups: NavGroup[] = [
   },
   {
     label: "Medições",
-    icon: Clock,
+    icon: Receipt,
     items: [
-      { to: "/medicoes?tab=pendente-medicao", icon: AlertCircle, label: "Pendente de Medição" },
-      { to: "/medicoes?tab=faturamento", icon: Receipt, label: "Emitir Medição" },
-    ]
-  },
-  {
-    label: "Financeiro & Custos",
-    icon: DollarSign,
-    items: [
-      { to: "/medicoes?tab=faturamento-novo", icon: DollarSign, label: "Emissão de faturas" },
-      { to: "/medicoes?tab=historico-faturamento", icon: Receipt, label: "Histórico Financeiro" },
+      { to: "/medicoes?tab=pendencias", icon: AlertCircle, label: "⚠️ Pendências" },
+      { to: "/medicoes?tab=emitir-medicao", icon: FileText, label: "Emitir Medição" },
+      { to: "/medicoes?tab=aprovar", icon: CheckSquare, label: "Aprovar Medições" },
+      { to: "/medicoes?tab=faturar", icon: DollarSign, label: "Faturar" },
+      { to: "/medicoes?tab=historico", icon: Receipt, label: "Histórico Financeiro" },
     ]
   },
   {
