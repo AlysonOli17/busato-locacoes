@@ -226,7 +226,26 @@ export const exportContractDocument = async (
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    const splitText = doc.splitTextToSize(clausula.texto, contentWidth);
+    
+    let textoFinal = clausula.texto;
+    
+    // Replace contract duration dynamically for PRAZO clause
+    if (clausula.titulo.toUpperCase().includes("PRAZO") && !isModeloPreview && contrato?.data_inicio && contrato?.data_fim) {
+      const inicio = new Date(contrato.data_inicio + "T00:00:00");
+      const fim = new Date(contrato.data_fim + "T00:00:00");
+      
+      if (!isNaN(inicio.getTime()) && !isNaN(fim.getTime())) {
+        const diffTime = fim.getTime() - inicio.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const meses = Math.round(diffDays / 30);
+        
+        const textoPrazo = `de ${meses} ${meses === 1 ? 'mês' : 'meses'} (${diffDays} dias), com início em ${inicio.toLocaleDateString("pt-BR")} e término em ${fim.toLocaleDateString("pt-BR")}`;
+        
+        textoFinal = textoFinal.replace("conforme acordado entre as Partes", textoPrazo);
+      }
+    }
+
+    const splitText = doc.splitTextToSize(textoFinal, contentWidth);
     
     // Quick page break logic for text blocks
     for (let i = 0; i < splitText.length; i++) {
