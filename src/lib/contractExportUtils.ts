@@ -147,7 +147,6 @@ export const exportContractDocument = async (
   const margin = 20;
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - margin * 2;
-  const brandBlue: [number, number, number] = [41, 128, 185];
   const darkGray: [number, number, number] = [30, 30, 30];
   
   let y = await addLetterhead(doc, isModeloPreview ? "Modelo de Contrato - Preview" : "Contrato de Locação");
@@ -243,9 +242,9 @@ export const exportContractDocument = async (
         "ITEM", 
         "EQUIPAMENTO", 
         "CHASSIS / SERIE", 
-        isDiaria ? "FRANQUIA MENSAL DIÁRIA" : "FRANQUIA MENSAL HORA", 
-        isDiaria ? "VALOR DIÁRIA" : "VALOR HORA", 
-        "VALOR TOTAL EQUIPAMENTO"
+        isDiaria ? "FRANQUIA\nMENSAL\nDIÁRIA" : "FRANQUIA\nMENSAL\nHORA", 
+        isDiaria ? "VALOR\nDIÁRIA" : "VALOR\nHORA", 
+        "VALOR TOTAL\nEQUIPAMENTO"
       ]];
       
       const tableBody = equipamentosData.map((ae: any, idx: number) => {
@@ -271,10 +270,22 @@ export const exportContractDocument = async (
         head: tableHeaders,
         body: tableBody,
         margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 3, textColor: darkGray, halign: "center", valign: "middle" },
-        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-        alternateRowStyles: { fillColor: [245, 248, 252] },
-        theme: "striped",
+        styles: { 
+          fontSize: 8, 
+          cellPadding: 4, 
+          textColor: [0, 0, 0], 
+          halign: "center", 
+          valign: "middle",
+          lineColor: [0, 0, 0],
+          lineWidth: 0.1
+        },
+        headStyles: { 
+          fillColor: [14, 42, 71], 
+          textColor: [255, 255, 255], 
+          fontStyle: "bold", 
+          fontSize: 8 
+        },
+        theme: "grid",
       });
 
       y = (doc as any).lastAutoTable.finalY + 10;
