@@ -182,6 +182,8 @@ export const exportContractDocument = async (
     y += lines.length * 4.5 + spacing;
   };
 
+  let equipamentosData: any[] = [];
+
   if (!isModeloPreview && contrato && contrato.empresas) {
     const emp = contrato.empresas;
     const qualifLocadora = `De um lado, como Locadora,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA, empresa estabelecida Av. Coronel Manoel Nunes, 145, Planalto de Carapina, Serra/ES, CEP 29.162-715, inscrita no CNPJ sob o nº 54.167.719/0001-40, neste ato denominada simplesmente Locadora.`;
@@ -193,46 +195,15 @@ export const exportContractDocument = async (
 
     printParagraph(`Resolvem celebrar o presente Contrato de Locação de Veículo / Equipamento, doravante denominado “Contrato”, mediante as seguintes cláusulas e condições:`, false, 8);
 
-    // Buscar os equipamentos do contrato
-    const { data: equipamentosData } = await supabase
+    // Buscar todos os equipamentos do contrato
+    const { data } = await supabase
       .from("contratos_equipamentos")
       .select("*, equipamentos(tipo, tag_placa, modelo, numero_serie)")
       .eq("contrato_id", contrato.id);
       
-    const eqsAtivos = (equipamentosData || []).filter((ae: any) => !ae.data_devolucao);
-
-    if (eqsAtivos.length > 0) {
-      const tableHeaders = [["ITEM", "TIPO", "PLACA", "MODELO", "SÉRIE", "VALOR", "MÍNIMO", "ENTREGA"]];
-      const tableBody = eqsAtivos.map((ae: any, idx: number) => {
-        const eq = ae.equipamentos;
-        return [
-          (idx + 1).toString().padStart(2, '0'),
-          eq?.tipo || "—",
-          eq?.tag_placa || "—",
-          eq?.modelo || "—",
-          eq?.numero_serie || "—",
-          `R$ ${Number(ae.valor_hora || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          ae.horas_contratadas > 0 ? `${ae.horas_contratadas}h` : "—",
-          ae.data_entrega ? new Date(ae.data_entrega + "T00:00:00").toLocaleDateString("pt-BR") : "—"
-        ];
-      });
-
-      checkPageBreak(tableBody.length * 8 + 15);
-
-      autoTable(doc, {
-        startY: y,
-        head: tableHeaders,
-        body: tableBody,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 3, textColor: darkGray, halign: "center", valign: "middle" },
-        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-        alternateRowStyles: { fillColor: [245, 248, 252] },
-        theme: "striped",
-      });
-
-      y = (doc as any).lastAutoTable.finalY + 10;
+    if (data) {
+      equipamentosData = data;
     }
-
   } else if (isModeloPreview) {
     doc.text("Este é um documento de visualização do modelo padrão de cláusulas.", margin, y);
     y += 15;
@@ -264,6 +235,50 @@ export const exportContractDocument = async (
       y += 5;
     }
     y += 5; // space between clauses
+
+    // If it's the "OBJETO" clause, render the equipment table immediately after its text
+    if (clausula.titulo.toUpperCase().includes("OBJETO") && !isModeloPreview && equipamentosData.length > 0) {
+      const isDiaria = contrato?.tipo_medicao === "diarias";
+      const tableHeaders = [[
+        "ITEM", 
+        "EQUIPAMENTO", 
+        "CHASSIS / SERIE", 
+        isDiaria ? "FRANQUIA MENSAL DIÁRIA" : "FRANQUIA MENSAL HORA", 
+        isDiaria ? "VALOR DIÁRIA" : "VALOR HORA", 
+        "VALOR TOTAL EQUIPAMENTO"
+      ]];
+      
+      const tableBody = equipamentosData.map((ae: any, idx: number) => {
+        const eq = ae.equipamentos;
+        const franquia = ae.horas_contratadas || 0;
+        const valorUnit = Number(ae.valor_hora || 0);
+        const valorTotal = franquia > 0 ? franquia * valorUnit : 0;
+        
+        return [
+          (idx + 1).toString().padStart(2, '0'),
+          (eq?.tipo || "") + (eq?.modelo ? ` ${eq.modelo}` : ""),
+          eq?.numero_serie || "—",
+          franquia > 0 ? `${franquia} ${isDiaria ? "DIÁRIAS" : "HORAS"}` : "—",
+          `R$ ${valorUnit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+          valorTotal > 0 ? `R$ ${valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"
+        ];
+      });
+
+      checkPageBreak(tableBody.length * 10 + 20);
+
+      autoTable(doc, {
+        startY: y,
+        head: tableHeaders,
+        body: tableBody,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3, textColor: darkGray, halign: "center", valign: "middle" },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        theme: "striped",
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
   });
 
   if (!isModeloPreview) {
