@@ -194,14 +194,18 @@ export const exportContractDocument = async (
 
     printParagraph(`Resolvem celebrar o presente Contrato de Locação de Veículo / Equipamento, doravante denominado “Contrato”, mediante as seguintes cláusulas e condições:`, false, 8);
 
-    // Buscar todos os equipamentos do contrato
-    const { data } = await supabase
-      .from("contratos_equipamentos")
-      .select("*, equipamentos(tipo, tag_placa, modelo, numero_serie)")
-      .eq("contrato_id", contrato.id);
-      
-    if (data) {
-      equipamentosData = data;
+    if (contrato.contratos_equipamentos && contrato.contratos_equipamentos.length > 0) {
+      equipamentosData = contrato.contratos_equipamentos;
+    } else {
+      // Fallback: Buscar todos os equipamentos do contrato caso não tenha vindo no objeto
+      const { data } = await supabase
+        .from("contratos_equipamentos")
+        .select("*, equipamentos(tipo, tag_placa, modelo, numero_serie)")
+        .eq("contrato_id", contrato.id);
+        
+      if (data) {
+        equipamentosData = data;
+      }
     }
   } else if (isModeloPreview) {
     doc.text("Este é um documento de visualização do modelo padrão de cláusulas.", margin, y);
