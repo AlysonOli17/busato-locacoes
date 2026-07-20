@@ -293,13 +293,43 @@ export const exportContractDocument = async (
   });
 
   if (!isModeloPreview) {
-    if (y > 240) { doc.addPage(); y = 20; }
-    y += 20;
-    doc.line(margin, y, margin + 70, y);
-    doc.text("CONTRATANTE", margin, y + 5);
+    if (y > 180) { doc.addPage(); y = 20; }
+    y += 15;
+
+    const hoje = new Date();
+    const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+    const dataFormatada = `Serra/ES, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(30, 30, 30);
+    doc.text(dataFormatada, pageWidth - margin, y, { align: "right" });
     
-    doc.line(pageWidth - margin - 70, y, pageWidth - margin, y);
-    doc.text("CONTRATADA", pageWidth - margin - 70, y + 5);
+    y += 40; 
+    
+    // LOCADORA
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, margin + 100, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA.", margin, y);
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text("LOCADORA", margin, y);
+
+    y += 40; 
+    
+    // LOCATÁRIA
+    const emp = contrato?.empresas;
+    const nomeLocataria = emp?.razao_social || emp?.nome || "LOCATÁRIA";
+    
+    doc.line(margin, y, margin + 100, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.text(nomeLocataria, margin, y);
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text("LOCATÁRIA", margin, y);
   }
 
   doc.save(isModeloPreview ? "modelo_contrato_preview.pdf" : `contrato_locacao_${contrato?.id?.slice(0,6) || "doc"}.pdf`);
