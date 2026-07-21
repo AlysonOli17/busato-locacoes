@@ -276,19 +276,13 @@ export default function ControleUsoFrota() {
     .filter(i => !filterEquip || filterEquip === "Todos" || i.equipamento_id === filterEquip)
     .reduce((max, i) => (i.data > max ? i.data : max), "");
 
-  const validDataFim = (() => {
-    if (!dataFim) return undefined;
-    if (lastEntryDate && format(dataFim, "yyyy-MM-dd") > lastEntryDate) {
-      return parseLocalDate(lastEntryDate);
-    }
-    return dataFim;
-  })();
+  const validDataFim = dataFim ? format(dataFim, "yyyy-MM-dd") : undefined;
+  const validDataInicio = dataInicio ? format(dataInicio, "yyyy-MM-dd") : undefined;
 
   const filtered = items.filter((i) => {
     if (filterEquip && filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
-    const itemDate = parseLocalDate(i.data);
-    if (dataInicio) {if (itemDate < dataInicio) return false;}
-    if (validDataFim) {const fim = new Date(validDataFim);fim.setHours(23, 59, 59, 999);if (itemDate > fim) return false;}
+    if (validDataInicio && i.data < validDataInicio) return false;
+    if (validDataFim && i.data > validDataFim) return false;
     return true;
   });
 
@@ -579,9 +573,9 @@ export default function ControleUsoFrota() {
     if (isDiaria) {
       totalHoras = trabalhoEntries.reduce((sum, e) => sum + Number(e.horas_trabalhadas || 0), 0);
       mediaHorasDia = 0;
-    } else if (dataInicio && validDataFim) {
-      const inicioStr = format(dataInicio, "yyyy-MM-dd");
-      const fimStr = format(validDataFim, "yyyy-MM-dd");
+    } else if (validDataInicio && validDataFim) {
+      const inicioStr = validDataInicio;
+      const fimStr = validDataFim;
       const allReadings: { data: string; horimetro_final: number }[] = [];
       const baseline = baselines.get(eqId);
       if (baseline) {
