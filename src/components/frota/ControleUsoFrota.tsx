@@ -273,7 +273,7 @@ export default function ControleUsoFrota() {
   };
 
   const lastEntryDate = items
-    .filter(i => filterEquip === "Todos" || i.equipamento_id === filterEquip)
+    .filter(i => !filterEquip || filterEquip === "Todos" || i.equipamento_id === filterEquip)
     .reduce((max, i) => (i.data > max ? i.data : max), "");
 
   const validDataFim = (() => {
@@ -285,7 +285,7 @@ export default function ControleUsoFrota() {
   })();
 
   const filtered = items.filter((i) => {
-    if (filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
+    if (filterEquip && filterEquip !== "Todos" && i.equipamento_id !== filterEquip) return false;
     const itemDate = parseLocalDate(i.data);
     if (dataInicio) {if (itemDate < dataInicio) return false;}
     if (validDataFim) {const fim = new Date(validDataFim);fim.setHours(23, 59, 59, 999);if (itemDate > fim) return false;}
@@ -829,7 +829,7 @@ export default function ControleUsoFrota() {
   };
 
   const clearFilters = () => {setFilterEquip("Todos");setDataInicio(undefined);setDataFim(undefined);};
-  const hasFilters = filterEquip !== "Todos" || dataInicio || dataFim;
+  const hasFilters = (filterEquip && filterEquip !== "Todos") || dataInicio || dataFim;
 
   const toggleSort = (col: typeof sortCol) => {
     if (sortCol === col) setSortAsc(!sortAsc);
@@ -879,7 +879,7 @@ export default function ControleUsoFrota() {
                   <p className="text-sm font-medium text-muted-foreground">Total Geral</p>
                   <h3 className="text-2xl font-bold mt-1 text-sidebar">
                     {totalHorasGeral.toFixed(1)}
-                    {filterEquip !== "Todos" && equipMedicaoTypes.get(filterEquip) === "diarias" ? "d" : "h"}
+                    {filterEquip && filterEquip !== "Todos" && equipMedicaoTypes.get(filterEquip) === "diarias" ? "d" : "h"}
                   </h3>
                   <p className="text-[10px] text-muted-foreground mt-1">{filtered.length} registros (filtrado)</p>
                 </div>
