@@ -361,22 +361,26 @@ export const FaturamentoTab = () => {
     setEditDialog(true);
   };
 
+  const isFaturaLocked = (fatura: Fatura | null) =>
+    !!(fatura && (fatura.numero_nota || fatura.status === "Aprovado" || fatura.status === "Pago"));
+
   const handleSaveEdit = async () => {
     if (!editingFatura) return;
-    if (editingFatura.numero_nota || editingFatura.status === "Aprovado" || editingFatura.status === "Pago") {
-      toast({ title: "Erro", description: "Esta fatura já foi emitida, aprovada ou paga e não pode mais ser editada.", variant: "destructive" });
-      return;
-    }
-    const { error } = await supabase.from("faturamento").update({
-      status: editForm.status,
-      numero_nota: editForm.numero_nota || null,
-      conta_bancaria_id: editForm.conta_bancaria_id || null,
-      emissao: editForm.emissao || null,
-      valor_total: Number(editForm.valor_total),
-      observacoes: editForm.observacoes || null,
-    }).eq("id", editingFatura.id);
+    const locked = isFaturaLocked(editingFatura);
+    const { error } = await supabase.from("faturamento").update(
+      locked
+        ? { observacoes: editForm.observacoes || null }
+        : {
+            status: editForm.status,
+            numero_nota: editForm.numero_nota || null,
+            conta_bancaria_id: editForm.conta_bancaria_id || null,
+            emissao: editForm.emissao || null,
+            valor_total: Number(editForm.valor_total),
+            observacoes: editForm.observacoes || null,
+          }
+    ).eq("id", editingFatura.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Fatura atualizada" });
+    toast({ title: locked ? "Observações atualizadas" : "Fatura atualizada" });
     setEditDialog(false);
     fetchData(true);
 
@@ -1345,9 +1349,14 @@ export const FaturamentoTab = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {isFaturaLocked(editingFatura) && (
+              <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-600 dark:text-yellow-400">
+                ⚠ Esta fatura já foi emitida, aprovada ou paga. Apenas o campo <strong>Observações</strong> pode ser editado.
+              </div>
+            )}
             <div>
               <Label>Status</Label>
-              <Select value={editForm.status} onValueChange={v => setEditForm(p => ({ ...p, status: v }))}>
+              <Select value={editForm.status} onValueChange={v => setEditForm(p => ({ ...p, status: v }))} disabled={isFaturaLocked(editingFatura)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="Aprovado">Aprovado</SelectItem>
@@ -1358,11 +1367,11 @@ export const FaturamentoTab = () => {
             </div>
             <div>
               <Label>Nº da Nota Fiscal</Label>
-              <Input value={editForm.numero_nota} onChange={e => setEditForm(p => ({ ...p, numero_nota: e.target.value }))} placeholder="Ex: NF-001234" />
+              <Input value={editForm.numero_nota} onChange={e => setEditForm(p => ({ ...p, numero_nota: e.target.value }))} placeholder="Ex: NF-001234" disabled={isFaturaLocked(editingFatura)} />
             </div>
             <div>
               <Label>Conta Bancária</Label>
-              <Select value={editForm.conta_bancaria_id || "none"} onValueChange={v => setEditForm(p => ({ ...p, conta_bancaria_id: v === "none" ? "" : v }))}>
+              <Select value={editForm.conta_bancaria_id || "none"} onValueChange={v => setEditForm(p => ({ ...p, conta_bancaria_id: v === "none" ? "" : v }))} disabled={isFaturaLocked(editingFatura)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhuma</SelectItem>
@@ -1374,11 +1383,11 @@ export const FaturamentoTab = () => {
             </div>
             <div>
               <Label>Data de Emissão</Label>
-              <Input type="date" value={editForm.emissao} onChange={e => setEditForm(p => ({ ...p, emissao: e.target.value }))} />
+              <Input type="date" value={editForm.emissao} onChange={e => setEditForm(p => ({ ...p, emissao: e.target.value }))} disabled={isFaturaLocked(editingFatura)} />
             </div>
             <div>
               <Label>Valor Total (R$)</Label>
-              <CurrencyInput value={editForm.valor_total} onValueChange={v => setEditForm(p => ({ ...p, valor_total: v }))} />
+              <CurrencyInput value={editForm.valor_total} onValueChange={v => setEditForm(p => ({ ...p, valor_total: v }))} disabled={isFaturaLocked(editingFatura)} />
             </div>
             <div>
               <Label>Observações</Label>
