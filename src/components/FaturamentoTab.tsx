@@ -319,7 +319,7 @@ export const FaturamentoTab = () => {
     let atrasoQty = 0;
 
     faturas.forEach(f => {
-      if (f.status === "Pendente" || f.status === "Aguardando Aprovação") return;
+      if (f.status === "Aguardando Aprovação") return;
 
       if (filterEmpresa !== "all") {
         const ct = getContrato(f.contrato_id);
