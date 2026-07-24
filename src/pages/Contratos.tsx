@@ -138,7 +138,8 @@ const Contratos = () => {
     const [contratosRes, empresasRes, equipRes, ceRes] = await Promise.all([
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, contato, telefone, email, atividade_principal, status, obra"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie, status"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie, status").eq("finalidade", "Locação"),
+
       supabase.from("contratos_equipamentos").select("*")
     ]);
 
@@ -193,7 +194,8 @@ const Contratos = () => {
       supabase.from("contratos").select("*").eq("id", contratoId).single(),
       supabase.from("contratos_equipamentos").select("*").eq("contrato_id", contratoId),
       supabase.from("empresas").select("*"),
-      supabase.from("equipamentos").select("*")
+      supabase.from("equipamentos").select("*").eq("finalidade", "Locação")
+
     ]);
 
     if (!cRes.data) return null;
@@ -832,7 +834,8 @@ const Contratos = () => {
     return "bg-warning text-warning-foreground";
   };
 
-  const availableEquipamentos = equipamentos.filter(e => e.status === "Ativo" && !formEquipamentos.some(fe => fe.equipamento_id === e.id));
+  const availableEquipamentos = equipamentos.filter(e => e.status === "Ativo" && (e.finalidade === "Locação" || !e.finalidade) && !formEquipamentos.some(fe => fe.equipamento_id === e.id));
+
 
   const safeParseLocalDate = (dateStr: string | null | undefined): Date | null => {
     if (!dateStr) return null;

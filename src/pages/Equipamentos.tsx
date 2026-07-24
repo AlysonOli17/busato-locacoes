@@ -38,11 +38,15 @@ interface Equipment {
   valor_bem: number | null;
   local?: string | null;
   cliente_atual_id?: string | null;
+  finalidade: string;
 }
 
-const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo", ano: "", valor_bem: "", local: "", cliente_atual_id: "" };
 
-type StatusFilter = "todos" | "assegurados" | "nao-assegurados" | "locados" | "disponiveis";
+const emptyForm = { tipo: "", modelo: "", numero_serie: "", tag_placa: "", observacoes: "", status: "Ativo", ano: "", valor_bem: "", local: "", cliente_atual_id: "", finalidade: "Locação" };
+
+
+type StatusFilter = "todos" | "assegurados" | "nao-assegurados" | "locados" | "disponiveis" | "frota-locacao" | "uso-proprio";
+
 
 const EquipamentosLista = () => {
   const [items, setItems] = useState<Equipment[]>([]);
@@ -167,8 +171,11 @@ const EquipamentosLista = () => {
       case "nao-assegurados": return !insuredIds.has(i.id);
       case "locados": return rentedIds.has(i.id);
       case "disponiveis": return !rentedIds.has(i.id);
+      case "frota-locacao": return (i.finalidade || "Locação") === "Locação";
+      case "uso-proprio": return (i.finalidade || "Locação") === "Próprio";
       default: return true;
     }
+
   });
 
   const sorted = useMemo(() => {
@@ -201,7 +208,9 @@ const EquipamentosLista = () => {
       valor_bem: item.valor_bem?.toString() || "",
       local: item.local || "",
       cliente_atual_id: item.cliente_atual_id || "",
+      finalidade: item.finalidade || "Locação",
     });
+
     setDialogOpen(true);
   };
 
@@ -237,7 +246,9 @@ const EquipamentosLista = () => {
       valor_bem: form.valor_bem ? parseFloat(form.valor_bem as any) : null,
       local: form.local || null,
       cliente_atual_id: (form.status === "Locado" && form.cliente_atual_id) ? form.cliente_atual_id : null,
+      finalidade: form.finalidade || "Locação",
     };
+
     if (editing) {
       const { error } = await supabase.from("equipamentos").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
@@ -291,7 +302,10 @@ const EquipamentosLista = () => {
     { label: "Não-Assegurados", value: "nao-assegurados" },
     { label: "Locados", value: "locados" },
     { label: "Disponíveis", value: "disponiveis" },
+    { label: "🔵 Frota Locação", value: "frota-locacao" },
+    { label: "⚫ Uso Próprio", value: "uso-proprio" },
   ];
+
 
   return (
     <>
@@ -397,10 +411,14 @@ const EquipamentosLista = () => {
                         <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent border-accent/20">
                           {item.tag_placa || "S/ PLACA"}
                         </Badge>
+                        <Badge variant="outline" className={cn("font-normal text-[10px] py-0 px-1.5", (item.finalidade || "Locação") === "Locação" ? "border-blue-300 text-blue-600 bg-blue-50" : "border-slate-300 text-slate-500 bg-slate-50")}>
+                          {(item.finalidade || "Locação") === "Locação" ? "🔵 Locação" : "⚫ Próprio"}
+                        </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.modelo}</p>
                     </div>
                   </div>
+
                   
                   {viewMode === "grid" && (
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -580,6 +598,21 @@ const EquipamentosLista = () => {
                   </Select>
                   {form.status !== "Locado" && <p className="text-[10px] text-muted-foreground mt-1">Disponível apenas quando Status = Locado.</p>}
                 </div>
+              </div>
+
+              {/* Finalidade do Equipamento */}
+              <div className="space-y-2 pt-2">
+                <Label className="text-foreground/80 font-semibold">Finalidade do Equipamento</Label>
+                <Select value={form.finalidade} onValueChange={(v) => setForm({ ...form, finalidade: v })}>
+                  <SelectTrigger className="bg-background shadow-sm w-full md:w-72">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Locação">🔵 Frota de Locação — disponível para propostas e contratos</SelectItem>
+                    <SelectItem value="Próprio">⚫ Uso Próprio / Controle — apenas seguro, gastos e documentos</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">Equipamentos de "Uso Próprio" não aparecem nas listas de Propostas e Contratos.</p>
               </div>
             </div>
 

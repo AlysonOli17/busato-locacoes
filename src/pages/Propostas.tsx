@@ -387,7 +387,8 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       supabase.from("propostas").select("*").order("numero", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, obra").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status, numero_serie").eq("status", "Ativo").order("tipo"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status, numero_serie").eq("status", "Ativo").eq("finalidade", "Locação").order("tipo"),
+
       supabase.from("propostas_equipamentos").select("*")
     ]);
 
