@@ -384,7 +384,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes, peRes] = await Promise.all([
-      supabase.from("propostas").select("*").order("numero_sequencial", { ascending: false }),
+      supabase.from("propostas").select("*").order("numero", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, obra").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status, numero_serie").eq("status", "Ativo").order("tipo"),
@@ -394,8 +394,8 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     if (propRes.data) {
       const peList = peRes.data || [];
       const propostasData = propRes.data.map((p: any) => {
-        // Suporte a contrato_dados salvo no campo observacoes como JSON especial
-        let obsTexto = p.observacoes || "";
+        // Suporte a contrato_dados salvo em 'observacoes' (schema novo) ou 'campo_extra_4' (schema antigo)
+        let obsTexto = p.observacoes ?? p.campo_extra_4 ?? "";
         let contratoDadosJson = "";
 
         if (obsTexto.trim().startsWith("{")) {
@@ -412,31 +412,35 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
         const mapped: Proposta = {
           id: p.id,
-          numero_sequencial: p.numero_sequencial,
+          // Suporte a ambos os nomes de coluna: 'numero' (schema antigo) e 'numero_sequencial' (schema novo)
+          numero_sequencial: p.numero_sequencial ?? p.numero ?? 0,
           empresa_id: p.empresa_id,
           data: p.data,
-          validade_dias: p.validade_dias,
-          status: p.status,
-          valor_mobilizacao: Number(p.valor_mobilizacao) || 0,
-          valor_mobilizacao_texto: p.valor_mobilizacao_texto || "",
-          prazo_pagamento: p.prazo_pagamento || 0,
+          validade_dias: p.validade_dias ?? 10,
+          status: p.status ?? "Rascunho",
+          // Suporte a ambos os nomes: valor_mobilizacao (schema novo) e desconto (schema antigo)
+          valor_mobilizacao: Number(p.valor_mobilizacao ?? p.desconto) || 0,
+          valor_mobilizacao_texto: p.valor_mobilizacao_texto ?? p.condicoes_pagamento ?? "",
+          prazo_pagamento: p.prazo_pagamento ?? p.prazo_entrega ?? 0,
           conta_bancaria_id: p.conta_bancaria_id,
-          consultor_nome: p.consultor_nome || "",
-          consultor_email: p.consultor_email || "",
-          consultor_telefone: p.consultor_telefone || "",
-          consultor_nome_2: p.consultor_nome_2 || "",
-          consultor_email_2: p.consultor_email_2 || "",
-          consultor_telefone_2: p.consultor_telefone_2 || "",
+          // Suporte a ambos: consultor_nome (schema novo) e responsavel_nome (schema antigo)
+          consultor_nome: p.consultor_nome ?? p.responsavel_nome ?? "",
+          consultor_email: p.consultor_email ?? p.responsavel_email ?? "",
+          consultor_telefone: p.consultor_telefone ?? p.responsavel_telefone ?? "",
+          consultor_nome_2: p.consultor_nome_2 ?? p.campo_extra_1 ?? "",
+          consultor_email_2: p.consultor_email_2 ?? p.campo_extra_2 ?? "",
+          consultor_telefone_2: p.consultor_telefone_2 ?? p.campo_extra_3 ?? "",
           observacoes: obsTexto,
           contrato_dados: contratoDadosJson,
-          franquia_horas_texto: p.franquia_horas_texto || "",
-          horas_excedentes_texto: p.horas_excedentes_texto || "",
-          disponibilidade_texto: p.disponibilidade_texto || "",
-          analise_cadastral_texto: p.analise_cadastral_texto || "",
-          seguro_texto: p.seguro_texto || "",
-          tipo_medicao: (p as any).tipo_medicao || "horas",
+          // Suporte a ambos: franquia_horas_texto (schema novo) e garantia_minima (schema antigo)
+          franquia_horas_texto: p.franquia_horas_texto ?? p.garantia_minima ?? "",
+          horas_excedentes_texto: p.horas_excedentes_texto ?? p.observacao_1 ?? "",
+          disponibilidade_texto: p.disponibilidade_texto ?? p.observacao_2 ?? "",
+          analise_cadastral_texto: p.analise_cadastral_texto ?? p.observacao_3 ?? "",
+          seguro_texto: p.seguro_texto ?? p.observacao_4 ?? "",
+          tipo_medicao: p.tipo_medicao ?? p.tipo_unidade ?? "horas",
           created_at: p.created_at,
-          created_by: (p as any).created_by || null,
+          created_by: p.created_by ?? p.user_id ?? null,
         };
         return {
           ...mapped,
