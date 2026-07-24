@@ -364,8 +364,8 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
         .from("propostas")
         .update({
           status: "Contrato Emitido",
-          campo_extra_4: JSON.stringify(obsJson)
-        } as any)
+          observacoes: JSON.stringify(obsJson)
+        })
         .eq("id", contractProposal.id);
 
       if (updateError) {
@@ -384,7 +384,7 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
   const fetchData = async () => {
     const [propRes, empRes, contasRes, eqCadRes, peRes] = await Promise.all([
-      (supabase.from("propostas") as any).select("*").order("numero", { ascending: false }),
+      supabase.from("propostas").select("*").order("numero_sequencial", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, nome_fantasia, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, obra").eq("status", "Ativa").order("nome"),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status, numero_serie").eq("status", "Ativo").order("tipo"),
@@ -394,9 +394,10 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
     if (propRes.data) {
       const peList = peRes.data || [];
       const propostasData = propRes.data.map((p: any) => {
-        let obsTexto = p.campo_extra_4 || "";
+        // Suporte a contrato_dados salvo no campo observacoes como JSON especial
+        let obsTexto = p.observacoes || "";
         let contratoDadosJson = "";
-        
+
         if (obsTexto.trim().startsWith("{")) {
           try {
             const parsed = JSON.parse(obsTexto);
@@ -411,38 +412,40 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
 
         const mapped: Proposta = {
           id: p.id,
-          numero_sequencial: p.numero,
+          numero_sequencial: p.numero_sequencial,
           empresa_id: p.empresa_id,
           data: p.data,
           validade_dias: p.validade_dias,
           status: p.status,
-          valor_mobilizacao: Number(p.desconto) || 0,
-          valor_mobilizacao_texto: p.condicoes_pagamento || "",
-          prazo_pagamento: p.prazo_entrega || 0,
+          valor_mobilizacao: Number(p.valor_mobilizacao) || 0,
+          valor_mobilizacao_texto: p.valor_mobilizacao_texto || "",
+          prazo_pagamento: p.prazo_pagamento || 0,
           conta_bancaria_id: p.conta_bancaria_id,
-          consultor_nome: p.responsavel_nome || "",
-          consultor_email: p.responsavel_email || "",
-          consultor_telefone: p.responsavel_telefone || "",
-          consultor_nome_2: p.campo_extra_1 || "",
-          consultor_email_2: p.campo_extra_2 || "",
-          consultor_telefone_2: p.campo_extra_3 || "",
+          consultor_nome: p.consultor_nome || "",
+          consultor_email: p.consultor_email || "",
+          consultor_telefone: p.consultor_telefone || "",
+          consultor_nome_2: p.consultor_nome_2 || "",
+          consultor_email_2: p.consultor_email_2 || "",
+          consultor_telefone_2: p.consultor_telefone_2 || "",
           observacoes: obsTexto,
           contrato_dados: contratoDadosJson,
-          franquia_horas_texto: p.garantia_minima || "",
-          horas_excedentes_texto: p.observacao_1 || "",
-          disponibilidade_texto: p.observacao_2 || "",
-          analise_cadastral_texto: p.observacao_3 || "",
-          seguro_texto: p.observacao_4 || "",
-          tipo_medicao: p.tipo_unidade || "horas",
+          franquia_horas_texto: p.franquia_horas_texto || "",
+          horas_excedentes_texto: p.horas_excedentes_texto || "",
+          disponibilidade_texto: p.disponibilidade_texto || "",
+          analise_cadastral_texto: p.analise_cadastral_texto || "",
+          seguro_texto: p.seguro_texto || "",
+          tipo_medicao: (p as any).tipo_medicao || "horas",
           created_at: p.created_at,
-          created_by: p.user_id || null,
+          created_by: (p as any).created_by || null,
         };
         return {
           ...mapped,
-          propostas_equipamentos: peList.filter(pe => pe.proposta_id === p.id)
+          propostas_equipamentos: peList.filter((pe: any) => pe.proposta_id === p.id)
         };
       });
       setItems(propostasData);
+    } else if (propRes.error) {
+      toast({ title: "Erro ao carregar propostas", description: propRes.error.message, variant: "destructive" });
     }
     if (empRes.data) setEmpresas(empRes.data as Empresa[]);
     if (contasRes.data) setContas(contasRes.data as ContaBancaria[]);
@@ -563,42 +566,42 @@ const Propostas = ({ embedded = false }: { embedded?: boolean }) => {
       data: form.data,
       validade_dias: form.validade_dias,
       status: statusToSave,
-      desconto: form.valor_mobilizacao,
-      condicoes_pagamento: form.valor_mobilizacao_texto,
-      prazo_entrega: form.prazo_pagamento,
+      valor_mobilizacao: form.valor_mobilizacao,
+      valor_mobilizacao_texto: form.valor_mobilizacao_texto,
+      prazo_pagamento: form.prazo_pagamento,
       conta_bancaria_id: form.conta_bancaria_id || null,
-      responsavel_nome: form.consultor_nome,
-      responsavel_email: form.consultor_email,
-      responsavel_telefone: form.consultor_telefone,
-      campo_extra_1: form.consultor_nome_2,
-      campo_extra_2: form.consultor_email_2,
-      campo_extra_3: form.consultor_telefone_2,
-      campo_extra_4: finalCampoExtra4,
-      garantia_minima: form.franquia_horas_texto,
-      observacao_1: form.horas_excedentes_texto,
-      observacao_2: form.disponibilidade_texto,
-      observacao_3: form.analise_cadastral_texto,
-      observacao_4: form.seguro_texto,
-      tipo_unidade: form.tipo_medicao,
+      consultor_nome: form.consultor_nome,
+      consultor_email: form.consultor_email,
+      consultor_telefone: form.consultor_telefone,
+      consultor_nome_2: form.consultor_nome_2,
+      consultor_email_2: form.consultor_email_2,
+      consultor_telefone_2: form.consultor_telefone_2,
+      observacoes: finalCampoExtra4,
+      franquia_horas_texto: form.franquia_horas_texto,
+      horas_excedentes_texto: form.horas_excedentes_texto,
+      disponibilidade_texto: form.disponibilidade_texto,
+      analise_cadastral_texto: form.analise_cadastral_texto,
+      seguro_texto: form.seguro_texto,
+      tipo_medicao: form.tipo_medicao,
     };
 
     if (isNew && user) {
-      dbPayload.user_id = user.id;
+      dbPayload.created_by = user.id;
     }
 
     let propostaId: string;
     let numSeq: number | undefined;
     if (editing) {
-      const { error } = await (supabase.from("propostas") as any).update(dbPayload).eq("id", editing.id);
+      const { error } = await supabase.from("propostas").update(dbPayload).eq("id", editing.id);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
       propostaId = editing.id;
       numSeq = editing.numero_sequencial;
     } else {
       const newId = crypto.randomUUID();
-      const { data, error } = await (supabase.from("propostas") as any).insert({ ...dbPayload, id: newId }).select("id, numero").single();
+      const { data, error } = await supabase.from("propostas").insert({ ...dbPayload, id: newId }).select("id, numero_sequencial").single();
       if (error || (!data && !newId)) { toast({ title: "Erro", description: error?.message || "Erro", variant: "destructive" }); return; }
       propostaId = data?.id || newId;
-      numSeq = data?.numero || 0;
+      numSeq = data?.numero_sequencial || 0;
     }
 
     // Save equipamentos
