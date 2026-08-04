@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowDownRight, Building, Trash2, Pencil, CheckCircle2 } from "lucide-react";
+import { ArrowDownRight, Building, Trash2, Pencil, CheckCircle2, FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { exportToPDF } from "@/lib/exportUtils";
 
 export const DreTab = () => {
   const [despesas, setDespesas] = useState<any[]>([]);
@@ -43,7 +44,7 @@ export const DreTab = () => {
     const [despRes, centrosRes, fatRes, gastosRes, apolicesRes] = await Promise.all([
       supabase.from("despesas_administrativas").select("*, centro_custos(*)").gte("data_vencimento", startDate).lte("data_vencimento", endDate).order("data_vencimento", { ascending: false }),
       supabase.from("centro_custos").select("*").order("nome"),
-      supabase.from("faturamento").select("valor_total").eq("status", "Emitida").gte("emissao", startDate).lte("emissao", endDate),
+      supabase.from("faturamento").select("valor_total, status, emissao").in("status", ["Aprovado", "Pago", "Emitida", "Pendente"]).gte("emissao", startDate).lte("emissao", endDate),
       supabase.from("gastos").select("valor, tipo, data").gte("data", startDate).lte("data", endDate),
       supabase.from("apolices").select("*").eq("status", "Vigente")
     ]);
@@ -204,6 +205,31 @@ export const DreTab = () => {
     fetchData();
   };
 
+  const handleExportPDF = () => {
+    const fmtR = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const fmtP = (v: number) => (receitaBruta > 0 ? ((v/receitaBruta)*100).toFixed(1) : "0") + "%";
+
+    const rows = [
+      ["1. Receita Operacional Bruta", fmtR(receitaBruta), "100%"],
+      [`(-) Deduções e Impostos (${percentualImpostos > 0 ? percentualImpostos : 0}%)`, "-" + fmtR(deducoes), fmtP(deducoes)],
+      ["2. Receita Operacional Líquida", fmtR(receitaLiquida), "100%"],
+      ["(-) Custos Diretos / Variáveis (Operação Frota)", "-" + fmtR(custosOperacionais), fmtP(custosOperacionais)],
+      ["3. Lucro Bruto (Margem de Contribuição)", fmtR(lucroBruto), fmtP(lucroBruto)],
+      ["(-) Custos Fixos (Encargos Frota)", "-" + fmtR(custosFixos), fmtP(custosFixos)],
+      ["(-) Despesas Administrativas (Lançamentos)", "-" + fmtR(totalDespesas), fmtP(totalDespesas)],
+      ["4. EBITDA (Resultado Operacional)", fmtR(ebitda), fmtP(ebitda)],
+      ["(-) Resultado Financeiro", "-" + fmtR(resultadoFinanceiro), "0%"],
+      ["5. Lucro Líquido", fmtR(lucroLiquido), fmtP(lucroLiquido)]
+    ];
+
+    exportToPDF({
+      title: `Demonstrativo de Resultado do Exercício - ${mesReferencia}`,
+      headers: ["Descrição", "Valor (R$)", "%"],
+      rows,
+      filename: `dre_${mesReferencia}`
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -217,6 +243,10 @@ export const DreTab = () => {
           />
         </div>
         <div className="flex gap-4">
+          <Button variant="outline" className="bg-background text-blue-600 border-blue-200 hover:bg-blue-50" onClick={handleExportPDF}>
+            <FileDown className="w-4 h-4 mr-2" /> Exportar DRE (PDF)
+          </Button>
+
           <Dialog open={dialogDespesaOpen} onOpenChange={(open) => {
           if (!open) {
             setFormDespesa({ centro_custos_id: "", descricao: "", categoria: "Administrativo", valor: "0", data_vencimento: "", status: "Pendente" });

@@ -57,12 +57,45 @@ const COST_COLORS = [
   "hsl(199, 89%, 48%)", // cyan
 ];
 
-const CostChart = ({ gastosFiltered, fmt, fmtShort, onClick }: { gastosFiltered: any[]; fmt: (v: any) => string; fmtShort: (v: any) => string; onClick?: () => void }) => {
+const CostChart = ({ gastosFiltered, apolices, dataInicio, dataFim, fmt, fmtShort, onClick }: { gastosFiltered: any[]; apolices?: any[]; dataInicio?: string; dataFim?: string; fmt: (v: any) => string; fmtShort: (v: any) => string; onClick?: () => void }) => {
   const data = useMemo(() => {
     const map: Record<string, number> = {};
     gastosFiltered.forEach(g => { const t = g.tipo || "Outros"; map[t] = (map[t] || 0) + Number(g.valor); });
+
+    // Incluir custo de seguros (apólices vigentes no período)
+    if (apolices && apolices.length > 0) {
+      const inicio = dataInicio ? new Date(dataInicio + "T00:00:00") : null;
+      const fim = dataFim ? new Date(dataFim + "T23:59:59") : null;
+      let totalSeguro = 0;
+      apolices.forEach(ap => {
+        if (ap.status !== "Vigente") return;
+        const apInicio = new Date(ap.vigencia_inicio + "T00:00:00");
+        const apFim = new Date(ap.vigencia_fim + "T23:59:59");
+        // Verifica se a apólice está ativa no período filtrado
+        if (fim && apInicio > fim) return;
+        if (inicio && apFim < inicio) return;
+        // Calcula valor mensal da apólice
+        let vMes = 0;
+        if (ap.tem_parcelamento && ap.numero_parcelas > 0) {
+          vMes = Number(ap.valor) / ap.numero_parcelas;
+        } else {
+          const diffMs = apFim.getTime() - apInicio.getTime();
+          const meses = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30)));
+          vMes = Number(ap.valor) / meses;
+        }
+        // Calcula quantos meses do período filtrado a apólice cobre
+        const periodoInicio = inicio && apInicio < inicio ? inicio : apInicio;
+        const periodoFim = fim && apFim > fim ? fim : apFim;
+        const mesesNoPeriodo = Math.max(1, Math.round((periodoFim.getTime() - periodoInicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+        totalSeguro += vMes * mesesNoPeriodo;
+      });
+      if (totalSeguro > 0) {
+        map["Seguro Patrimonial"] = (map["Seguro Patrimonial"] || 0) + totalSeguro;
+      }
+    }
+
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
-  }, [gastosFiltered]);
+  }, [gastosFiltered, apolices, dataInicio, dataFim]);
 
   const total = data.reduce((s, d) => s + d.value, 0);
 
@@ -988,7 +1021,10 @@ export const VisaoGeralTab = ({
 
           {/* Centro de Custos Operacionais */}
           <CostChart 
-            gastosFiltered={gastosFiltered} 
+            gastosFiltered={gastosFiltered}
+            apolices={apolices}
+            dataInicio={dataInicio}
+            dataFim={dataFim}
             fmt={fmt} 
             fmtShort={fmtShort} 
             onClick={() => setActiveModal("custos")}
