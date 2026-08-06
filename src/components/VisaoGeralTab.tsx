@@ -464,7 +464,7 @@ export const VisaoGeralTab = ({
     }).sort((a, b) => b.percentual - a.percentual);
   }, [equipamentos, faturas, gastos, contratos, apolices, apolicesEquipamentos]);
 
-  const totalFaturado = faturasFiltered.reduce((s: number, f: any) => s + Number(f.valor_total), 0);
+  const totalFaturado = faturasFiltered.filter((f: any) => f.status !== "Cancelado").reduce((s: number, f: any) => s + Number(f.valor_total), 0);
   const totalGastos = gastosFiltered.reduce((s: number, g: any) => s + Number(g.valor), 0);
   const margemGeral = totalFaturado > 0 ? ((totalFaturado - totalGastos) / totalFaturado) * 100 : 0;
 
@@ -769,7 +769,7 @@ export const VisaoGeralTab = ({
       return venc && hoje > venc;
     });
     
-    const totalEmitido = faturas.reduce((sum, f) => sum + Number(f ? f.valor_total : 0), 0);
+    const totalEmitido = faturas.filter(f => f && f.status !== "Cancelado").reduce((sum, f) => sum + Number(f ? f.valor_total : 0), 0);
     const totalAtrasoVal = emAtraso.reduce((sum, f) => sum + Number(f ? f.valor_total : 0), 0);
     const percentualAtraso = totalEmitido > 0 ? (totalAtrasoVal / totalEmitido) * 100 : 0;
     

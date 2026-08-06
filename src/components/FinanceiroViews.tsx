@@ -220,10 +220,11 @@ function SharedDashboardHeader({
   faturasFiltered,
   contratosAtivos
 }: BaseViewProps) {
-  const totalFaturado = faturasFiltered.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
-  const totalPendente = faturasFiltered.filter(f => getDisplayStatus(f) === "A Faturar").reduce((s, f) => s + Number(f.valor_total), 0);
-  const totalAtraso = faturasFiltered.filter(f => getDisplayStatus(f) === "Em Atraso").reduce((s, f) => s + Number(f.valor_total), 0);
-  const qtdAtraso = faturasFiltered.filter(f => getDisplayStatus(f) === "Em Atraso").length;
+  const faturasAtivas = faturasFiltered.filter(f => f.status !== "Cancelado");
+  const totalFaturado = faturasAtivas.filter(f => f.status === "Pago").reduce((s, f) => s + Number(f.valor_total), 0);
+  const totalPendente = faturasAtivas.filter(f => getDisplayStatus(f) === "A Faturar").reduce((s, f) => s + Number(f.valor_total), 0);
+  const totalAtraso = faturasAtivas.filter(f => getDisplayStatus(f) === "Em Atraso").reduce((s, f) => s + Number(f.valor_total), 0);
+  const qtdAtraso = faturasAtivas.filter(f => getDisplayStatus(f) === "Em Atraso").length;
 
   return (
     <div className="space-y-6">
@@ -678,19 +679,21 @@ export function HistoricoFaturamentoView() {
     return Object.entries(grouped)
       .map(([key, { ids, cnpjs, nome, obra }]) => {
         const empContratos = contratos.filter(c => ids.includes(c.empresa_id));
-        const empFaturas = faturasFiltered.filter(f => {
+        const empFaturasAll = faturasFiltered.filter(f => {
           const ct = contratos.find(c => c.id === f.contrato_id);
           return ct && ids.includes(ct.empresa_id);
         });
+        // Exclui canceladas dos cálculos financeiros
+        const empFaturas = empFaturasAll.filter(f => f.status !== "Cancelado");
         const pagas = empFaturas.filter(f => f.status === "Pago").length;
         const pendentes = empFaturas.filter(f => getDisplayStatus(f) === "A Faturar").length;
         const atraso = empFaturas.filter(f => getDisplayStatus(f) === "Em Atraso").length;
         const total = empFaturas.reduce((s, f) => s + Number(f.valor_total), 0);
         
         // Filter out companies with no records under current filters
-        if (empContratos.length === 0 && empFaturas.length === 0) return null;
+        if (empContratos.length === 0 && empFaturasAll.length === 0) return null;
         
-        return { key, nome, obra, cnpjs, empContratos: empContratos.length, empFaturas: empFaturas.length, pagas, pendentes, atraso, total, ids };
+        return { key, nome, obra, cnpjs, empContratos: empContratos.length, empFaturas: empFaturasAll.length, pagas, pendentes, atraso, total, ids };
       })
       .filter((r): r is Exclude<typeof r, null> => r !== null)
       .sort((a, b) => b.total - a.total); // Sort by total revenue
