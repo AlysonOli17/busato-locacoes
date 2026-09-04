@@ -64,7 +64,8 @@ interface FaturaEquip {
 
 interface Fatura {
   id: string;
-  contrato_id: string;
+  contrato_id: string | null;
+  vale_id?: string | null;
   numero_sequencial: number;
   periodo: string;
   horas_normais: number;
@@ -78,10 +79,11 @@ interface Fatura {
   periodo_medicao_inicio: string | null;
   periodo_medicao_fim: string | null;
   total_gastos: number;
-  contratos: ContratoRef;
+  contratos: ContratoRef | null;
   conta_bancaria_id: string | null;
   data_aprovacao: string | null;
   empresa_faturamento_id: string | null;
+  vales?: { numero_rf: string; empresas?: { nome: string } } | null;
 }
 
 interface EmpresaFat {
@@ -229,7 +231,7 @@ export const FaturamentoContent = () => {
 
   const fetchData = async () => {
     const [fatRes, ctAllRes, ctAtivoRes, contasRes, empListRes, eqRes, ceRes] = await Promise.all([
-      supabase.from("faturamento").select("*").order("emissao", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, vales(numero_rf, empresas(nome, cnpj))").order("emissao", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("contratos").select("*"),
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
@@ -256,9 +258,9 @@ export const FaturamentoContent = () => {
     const ctAtivoData = (ctAtivoRes.data || []).map(c => buildContrato(c));
 
     if (fatRes.data) {
-      const fatMapped = fatRes.data.map(f => ({
+      const fatMapped = fatRes.data.map((f: any) => ({
         ...f,
-        contratos: ctAllMap.get(f.contrato_id) || null
+        contratos: f.contrato_id ? (ctAllMap.get(f.contrato_id) || null) : null
       }));
       setItems(fatMapped as unknown as Fatura[]);
     }
@@ -805,15 +807,23 @@ export const FaturamentoContent = () => {
   };
 
   const filtered = items.filter((i) => {
+    const empresaNome = i.vale_id
+      ? (i as any).vales?.empresas?.nome
+      : i.contratos?.empresas?.nome;
     const matchesSearch = !search ||
-      i.contratos?.empresas?.nome?.toLowerCase().includes(search.toLowerCase()) ||
+      empresaNome?.toLowerCase().includes(search.toLowerCase()) ||
       i.periodo.includes(search) ||
       String(i.numero_sequencial).includes(search);
     if (!matchesSearch) return false;
     // Company filter
     if (filterEmpresa !== "all") {
-      const ct = contratos.find(c => c.id === i.contrato_id);
-      if (ct?.empresa_id !== filterEmpresa) return false;
+      if (i.vale_id) {
+        const valeEmpresaId = (i as any).vales?.empresas?.id || i.empresa_faturamento_id;
+        if (valeEmpresaId !== filterEmpresa && i.empresa_faturamento_id !== filterEmpresa) return false;
+      } else {
+        const ct = contratos.find(c => c.id === i.contrato_id);
+        if (ct?.empresa_id !== filterEmpresa) return false;
+      }
     }
     // Period filter
     if (filterPeriodoInicio && i.periodo_medicao_fim && i.periodo_medicao_fim < filterPeriodoInicio) return false;
@@ -1594,14 +1604,20 @@ export const FaturamentoContent = () => {
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm flex items-center gap-2">
-                            {item.contratos?.empresas?.nome}
-                            {item.contratos?.empresas?.obra && (
+                            {item.vale_id ? item.vales?.empresas?.nome : item.contratos?.empresas?.nome}
+                            {item.vale_id ? (
+                              <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20">
+                                Vale RF: {item.vales?.numero_rf}
+                              </Badge>
+                            ) : item.contratos?.empresas?.obra && (
                               <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20">
                                 {item.contratos.empresas.obra}
                               </Badge>
                             )}
                           </p>
-                          <p className="text-xs text-muted-foreground font-mono">{item.contratos?.empresas?.cnpj}</p>
+                          <p className="text-xs text-muted-foreground font-mono">
+                            {item.vale_id ? (item.vales?.empresas as any)?.cnpj : item.contratos?.empresas?.cnpj}
+                          </p>
                           {item.empresa_faturamento_id && (() => {
                             const ef = empresasList.find(e => e.id === item.empresa_faturamento_id);
                             return ef ? (
@@ -1663,108 +1679,166 @@ export const FaturamentoContent = () => {
                         })()}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col items-start gap-0.5">
-                          <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
-                          <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
-                            {(displayStatus === "Pendente" || displayStatus === "Aguardando Aprovação") && (
+                        {item.vale_id ? (
+                          /* Ações exclusivas para faturas originadas de Vales */
+                          <div className="flex flex-col items-start gap-0.5">
+                            <span className="text-[9px] font-semibold text-blue-500 uppercase tracking-wider leading-none mb-0.5">Ações Vale</span>
+                            <div className="flex gap-0.5 border border-blue-300/30 rounded-md px-1 py-0.5 bg-blue-500/5">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-success hover:text-success hover:bg-success/5"
-                                title="Aprovar Medição"
-                                onClick={() => setAprovarDialog({ isOpen: true, faturaId: item.id, emissaoDate: "" })}
+                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                title="Exportar PDF da Fatura"
+                                onClick={() => exportDetailedPDF(item)}
                               >
-                                <ShieldCheck className="h-3.5 w-3.5" />
+                                <FileDown className="h-3.5 w-3.5" />
                               </Button>
-                            )}
-
-                            {displayStatus !== "Aprovado" && displayStatus !== "Pago" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-                                title="Editar Medição"
-                                onClick={() => openEdit(item)}
+                                className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
+                                title="Enviar por E-mail"
+                                onClick={() => handleSendEmail(item)}
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Mail className="h-3.5 w-3.5" />
                               </Button>
-                            )}
+                              {(role === "admin" || role === "master") && displayStatus !== "Cancelado" && displayStatus !== "Pago" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+                                  title="Cancelar Fatura"
+                                  onClick={() => setCancelDialog({ isOpen: true, fatura: item, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] })}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {displayStatus !== "Aprovado" && displayStatus !== "Pago" && displayStatus !== "Cancelado" && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" title="Excluir Fatura">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir Fatura #{item.numero_sequencial}</AlertDialogTitle>
+                                      <AlertDialogDescription>Tem certeza? Esta ação também irá desmarcar o Vale como "Faturado".</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          /* Ações padrão para faturas de Medição */
+                          <div className="flex flex-col items-start gap-0.5">
+                            <span className="text-[9px] font-semibold text-accent uppercase tracking-wider leading-none mb-0.5">Ações Medição</span>
+                            <div className="flex gap-0.5 border border-accent/30 rounded-md px-1 py-0.5 bg-accent/5 dark:bg-accent/10">
+                              {(displayStatus === "Pendente" || displayStatus === "Aguardando Aprovação") && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-success hover:text-success hover:bg-success/5"
+                                  title="Aprovar Medição"
+                                  onClick={() => setAprovarDialog({ isOpen: true, faturaId: item.id, emissaoDate: "" })}
+                                >
+                                  <ShieldCheck className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
 
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                              title="Exportar PDF da Medição"
-                              onClick={() => exportDetailedPDF(item)}
-                            >
-                              <FileDown className="h-3.5 w-3.5" />
-                            </Button>
+                              {displayStatus !== "Aprovado" && displayStatus !== "Pago" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                                  title="Editar Medição"
+                                  onClick={() => openEdit(item)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
 
-                            {item.contrato_id && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                                title="Salvar no Google Drive"
-                                onClick={() => handleUploadToGDrive(item)}
-                                disabled={syncingId === item.id}
+                                title="Exportar PDF da Medição"
+                                onClick={() => exportDetailedPDF(item)}
                               >
-                                {syncingId === item.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <UploadCloud className="h-3.5 w-3.5" />
-                                )}
+                                <FileDown className="h-3.5 w-3.5" />
                               </Button>
-                            )}
 
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
-                              title="Enviar por E-mail"
-                              onClick={() => handleSendEmail(item)}
-                            >
-                              <Mail className="h-3.5 w-3.5" />
-                            </Button>
+                              {item.contrato_id && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                  title="Salvar no Google Drive"
+                                  onClick={() => handleUploadToGDrive(item)}
+                                  disabled={syncingId === item.id}
+                                >
+                                  {syncingId === item.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <UploadCloud className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              )}
 
-                            {(role === "admin" || role === "master") && displayStatus !== "Cancelado" && displayStatus !== "Pago" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20"
-                                title="Cancelar Fatura"
-                                onClick={() => setCancelDialog({ isOpen: true, fatura: item, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] })}
+                                className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
+                                title="Enviar por E-mail"
+                                onClick={() => handleSendEmail(item)}
                               >
-                                <XCircle className="h-3.5 w-3.5" />
+                                <Mail className="h-3.5 w-3.5" />
                               </Button>
-                            )}
 
-                            {displayStatus !== "Aprovado" && displayStatus !== "Pago" && displayStatus !== "Cancelado" && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    title="Excluir Medição"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir Medição #{item.numero_sequencial}</AlertDialogTitle>
-                                    <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
+                              {(role === "admin" || role === "master") && displayStatus !== "Cancelado" && displayStatus !== "Pago" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                                  title="Cancelar Fatura"
+                                  onClick={() => setCancelDialog({ isOpen: true, fatura: item, justificativa: '', dataCancelamento: new Date().toISOString().split('T')[0] })}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+
+                              {displayStatus !== "Aprovado" && displayStatus !== "Pago" && displayStatus !== "Cancelado" && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      title="Excluir Medição"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir Medição #{item.numero_sequencial}</AlertDialogTitle>
+                                      <AlertDialogDescription>Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

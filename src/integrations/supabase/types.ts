@@ -1017,7 +1017,8 @@ export type Database = {
       faturamento: {
         Row: {
           conta_bancaria_id: string | null
-          contrato_id: string
+          contrato_id: string | null
+          vale_id: string | null
           created_at: string
           data_aprovacao: string | null
           emissao: string
@@ -1039,7 +1040,8 @@ export type Database = {
         }
         Insert: {
           conta_bancaria_id?: string | null
-          contrato_id: string
+          contrato_id?: string | null
+          vale_id?: string | null
           created_at?: string
           data_aprovacao?: string | null
           emissao?: string
@@ -1061,7 +1063,8 @@ export type Database = {
         }
         Update: {
           conta_bancaria_id?: string | null
-          contrato_id?: string
+          contrato_id?: string | null
+          vale_id?: string | null
           created_at?: string
           data_aprovacao?: string | null
           emissao?: string
@@ -1101,6 +1104,13 @@ export type Database = {
             columns: ["empresa_faturamento_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faturamento_vale_id_fkey"
+            columns: ["vale_id"]
+            isOneToOne: false
+            referencedRelation: "vales"
             referencedColumns: ["id"]
           },
         ]
@@ -1814,6 +1824,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vales: {
+        Row: {
+          id: string
+          empresa_id: string
+          numero_rf: string
+          valor: number
+          data: string
+          status: string
+          observacoes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          numero_rf: string
+          valor?: number
+          data: string
+          status?: string
+          observacoes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          empresa_id?: string
+          numero_rf?: string
+          valor?: number
+          data?: string
+          status?: string
+          observacoes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vales_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       valores_diaria_agregado: {
         Row: {

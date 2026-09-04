@@ -27,6 +27,7 @@ import AutoavaliacaoPublica from "./pages/AutoavaliacaoPublica";
 import DossieAnalitico from "./pages/DossieFuncionario";
 import Workflows from "./pages/Workflows";
 import ConfigurarWorkflows from "./pages/ConfigurarWorkflows";
+import Vales from "./pages/Vales";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/workflows/configurar" element={<ProtectedRoute requiredPermission="/workflows"><ConfigurarWorkflows /></ProtectedRoute>} />
             <Route path="/apolices" element={<ProtectedRoute requiredPermission="/apolices"><Apolices /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />
+            <Route path="/vales" element={<ProtectedRoute requiredPermission="/vales"><Vales /></ProtectedRoute>} />
             <Route path="/controladoria" element={<ProtectedRoute requiredPermission="/controladoria"><Controladoria /></ProtectedRoute>} />
             <Route path="/acompanhamento" element={<Navigate to="/controladoria" replace />} />
             <Route path="/agregados" element={<ProtectedRoute requiredPermission="/agregados"><Agregados /></ProtectedRoute>} />

@@ -53,7 +53,7 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     if (idx > 0) doc.addPage();
 
     const ct = item.contratos;
-    const emp = ct?.empresas;
+    const emp = ct?.empresas || (item.vale_id ? item.vales?.empresas : null);
     const empresaFat = item.empresa_faturamento_id ? empresasList.find(e => e.id === item.empresa_faturamento_id) : null;
     const empNome = empresaFat ? empresaFat.nome : (emp?.nome || "—");
     const empCnpj = empresaFat ? empresaFat.cnpj : (emp?.cnpj || "—");
@@ -63,10 +63,11 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     const fimFmt = fim ? parseLocalDate(fim).toLocaleDateString("pt-BR") : "";
 
     // Fetch adjustment, contract equipments, and addendums
+    const safeContratoId = item.contrato_id || "00000000-0000-0000-0000-000000000000";
     const [ajustesRes, ceRes, aditivosRes] = await Promise.all([
-      supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", item.contrato_id).lte("data_inicio", fim).gte("data_fim", inicio),
-      supabase.from("contratos_equipamentos").select("*").eq("contrato_id", item.contrato_id),
-      supabase.from("contratos_aditivos").select("id, numero, data_inicio, data_fim").eq("contrato_id", item.contrato_id)
+      supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", safeContratoId).lte("data_inicio", fim).gte("data_fim", inicio),
+      supabase.from("contratos_equipamentos").select("*").eq("contrato_id", safeContratoId),
+      supabase.from("contratos_aditivos").select("id, numero, data_inicio, data_fim").eq("contrato_id", safeContratoId)
     ]);
 
     const activeAjustes = ajustesRes.data || [];
