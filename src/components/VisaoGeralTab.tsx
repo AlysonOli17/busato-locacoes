@@ -468,6 +468,35 @@ export const VisaoGeralTab = ({
   const totalGastos = gastosFiltered.reduce((s: number, g: any) => s + Number(g.valor), 0);
   const margemGeral = totalFaturado > 0 ? ((totalFaturado - totalGastos) / totalFaturado) * 100 : 0;
 
+  // Previsto a receber: faturas Aprovadas (emitidas, não pagas) com VENCIMENTO no período
+  const faturasAprovadas = useMemo(() => {
+    return faturas.filter((f: any) => {
+      if (f.status !== "Aprovado") return false;
+      
+      // Cálculo do vencimento (mesma lógica usada no relógio de inadimplência)
+      const prazo = f.contratos?.prazo_faturamento || 30;
+      const dataEmissaoStr = f.emissao || f.data_aprovacao || f.created_at;
+      if (!dataEmissaoStr) return false;
+      
+      const dataBase = parseLocalDate(dataEmissaoStr);
+      if (isNaN(dataBase.getTime())) return false;
+      
+      const vencimento = new Date(dataBase);
+      vencimento.setDate(vencimento.getDate() + prazo);
+      const vencimentoStr = vencimento.toISOString().slice(0, 10);
+      
+      // Filtra pelo vencimento
+      if (dataInicio && vencimentoStr < dataInicio) return false;
+      if (dataFim && vencimentoStr > dataFim) return false;
+      
+      return true;
+    });
+  }, [faturas, dataInicio, dataFim]);
+  
+  const totalPrevisto = faturasAprovadas.reduce((s: number, f: any) => s + Number(f.valor_total), 0);
+  const percentualPrevisto = totalFaturado > 0 ? (totalPrevisto / totalFaturado) * 100 : 0;
+  const qtdFaturasEmitidas = faturasFiltered.filter((f: any) => f.status !== "Cancelado").length;
+
   // Ocupação real = máquinas efetivamente locadas / total da frota
   const taxaUtilizacao = frotaStats.total > 0 ? Math.round((frotaStats.emLocacao / frotaStats.total) * 100) : 0;
 
@@ -928,6 +957,47 @@ export const VisaoGeralTab = ({
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* 2.5 Cards Financeiros: Faturado vs Previsto */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* Card: Total Faturado no Período */}
+          <Card className="border-none bg-gradient-to-br from-blue-500/10 to-blue-500/5 relative overflow-hidden hover:shadow-lg transition-all hover:ring-2 ring-blue-500/30">
+            <div className="absolute -top-4 -right-4 p-4 opacity-10 pointer-events-none"><Receipt className="w-28 h-28 text-blue-500" /></div>
+            <CardContent className="p-6 relative z-10">
+              <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Total Faturado no Período</p>
+              <h3 className="text-3xl font-black text-foreground mb-3">R$ {fmt(totalFaturado)}</h3>
+              <div className="flex items-center gap-3 bg-background/60 rounded-xl p-3 border border-blue-500/20 backdrop-blur-sm">
+                <div className="h-8 w-8 shrink-0 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-600">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Faturas Emitidas</span>
+                  <span className="text-sm font-black text-foreground">{qtdFaturasEmitidas} {qtdFaturasEmitidas === 1 ? 'fatura' : 'faturas'} no período</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card: Previsto a Receber */}
+          <Card className="border-none bg-gradient-to-br from-amber-500/10 to-amber-500/5 relative overflow-hidden hover:shadow-lg transition-all hover:ring-2 ring-amber-500/30">
+            <div className="absolute -top-4 -right-4 p-4 opacity-10 pointer-events-none"><DollarSign className="w-28 h-28 text-amber-500" /></div>
+            <CardContent className="p-6 relative z-10">
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Previsto a Receber</p>
+              <h3 className="text-3xl font-black text-foreground mb-3">R$ {fmt(totalPrevisto)}</h3>
+              <div className="flex items-center gap-3 bg-background/60 rounded-xl p-3 border border-amber-500/20 backdrop-blur-sm">
+                <div className="h-8 w-8 shrink-0 bg-amber-500/20 rounded-lg flex items-center justify-center text-amber-600">
+                  <ArrowUpRight className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col flex-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Aprovadas Aguardando Pagamento</span>
+                  <span className="text-sm font-black text-foreground">{faturasAprovadas.length} {faturasAprovadas.length === 1 ? 'fatura' : 'faturas'} — {percentualPrevisto.toFixed(1)}% do total faturado</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
         </div>
 
         {/* 3. Análise Visual (Gráficos Principais) */}

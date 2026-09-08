@@ -21,12 +21,8 @@ import Configuracoes from "./pages/Configuracoes";
 import ManualPage from "./pages/Manual";
 import NotFound from "./pages/NotFound";
 import VistoriaPublica from "./pages/VistoriaPublica";
-import RecursosHumanos from "./pages/RecursosHumanos";
 import TesteDISCPublico from "./pages/TesteDISCPublico";
 import AutoavaliacaoPublica from "./pages/AutoavaliacaoPublica";
-import DossieAnalitico from "./pages/DossieFuncionario";
-import Workflows from "./pages/Workflows";
-import ConfigurarWorkflows from "./pages/ConfigurarWorkflows";
 import Vales from "./pages/Vales";
 
 const queryClient = new QueryClient({
@@ -57,8 +53,6 @@ const App = () => (
             <Route path="/propostas" element={<Navigate to="/contratos" replace />} />
             <Route path="/medicoes" element={<ProtectedRoute requiredPermission="/medicoes"><Medicoes /></ProtectedRoute>} />
             <Route path="/faturamento" element={<Navigate to="/medicoes" replace />} />
-            <Route path="/workflows" element={<ProtectedRoute requiredPermission="/workflows"><Workflows /></ProtectedRoute>} />
-            <Route path="/workflows/configurar" element={<ProtectedRoute requiredPermission="/workflows"><ConfigurarWorkflows /></ProtectedRoute>} />
             <Route path="/apolices" element={<ProtectedRoute requiredPermission="/apolices"><Apolices /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredPermission="/usuarios"><Usuarios /></ProtectedRoute>} />
             <Route path="/vales" element={<ProtectedRoute requiredPermission="/vales"><Vales /></ProtectedRoute>} />
@@ -67,8 +61,6 @@ const App = () => (
             <Route path="/agregados" element={<ProtectedRoute requiredPermission="/agregados"><Agregados /></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute requiredPermission="/agenda"><Agenda /></ProtectedRoute>} />
             <Route path="/configuracoes" element={<Configuracoes />} />
-            <Route path="/recursos-humanos" element={<ProtectedRoute requiredPermission="/recursos-humanos"><RecursosHumanos /></ProtectedRoute>} />
-            <Route path="/rh/dossie/:id" element={<ProtectedRoute requiredPermission="/recursos-humanos"><DossieAnalitico /></ProtectedRoute>} />
             <Route path="/manual" element={<ManualPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

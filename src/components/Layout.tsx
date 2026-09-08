@@ -4,7 +4,7 @@ import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
   ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen,
-  PieChart, Handshake, Truck, Cog, Bot, CheckSquare, GitMerge
+  PieChart, Handshake, Truck, Cog, Bot, CheckSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,51 +32,30 @@ interface NavGroup {
 
 const allGroups: NavGroup[] = [
   {
-    label: "Processos (Workflows)",
-    icon: GitMerge,
-    to: "/workflows"
-  },
-  {
-    label: "Controladoria",
-    icon: BarChart3,
-    items: [
-      { to: "/controladoria?tab=visao-geral", icon: BarChart3, label: "Visão Geral & B.I." },
-      { to: "/controladoria?tab=dre", icon: DollarSign, label: "DRE & Lançamentos" },
-      { to: "/controladoria?tab=relatorios", icon: PieChart, label: "Relatórios Gerenciais" }
-    ]
-  },
-  {
-    label: "Gestão de Frota",
+    label: "Frota Própria",
     icon: Truck,
     items: [
-      { to: "/equipamentos?tab=cadastro", icon: Truck, label: "Frota Ativa" },
-      { to: "/equipamentos?tab=checklist", icon: ClipboardCheck, label: "Checklist" },
-      { to: "/equipamentos?tab=comodatos", icon: Handshake, label: "Comodatos" }
+      { to: "/equipamentos?tab=dashboard", icon: BarChart3, label: "Dashboard" },
+      { to: "/equipamentos?tab=cadastro", icon: Truck, label: "Inventário" },
+      { to: "/equipamentos?tab=manutencao", icon: Wrench, label: "Oficina & Custos" },
+      { to: "/equipamentos?tab=uso", icon: Clock, label: "Uso (KM/Hor)" },
+      { to: "/equipamentos?tab=documentos", icon: FileText, label: "Documentos Legais" },
+      { to: "/equipamentos?tab=checklist", icon: ClipboardCheck, label: "Checklists" },
+      { to: "/equipamentos?tab=comodatos", icon: Handshake, label: "Comodatos" },
     ]
   },
   {
-    label: "Empresas",
+    label: "Clientes & Contratos",
     icon: Building2,
     items: [
-      { to: "/empresas", icon: Building2, label: "Cadastro" },
+      { to: "/empresas", icon: Building2, label: "Empresas" },
       { to: "/contratos?tab=contratos", icon: FileText, label: "Contratos" },
       { to: "/contratos?tab=propostas", icon: FileSignature, label: "Propostas" },
-      { to: "/contratos?tab=modelo", icon: BookOpen, label: "Modelo de Contrato" },
       { to: "/contratos?tab=dossie", icon: Folder, label: "Dossiê" },
-      { to: "/vales", icon: Receipt, label: "Vales" }
     ]
   },
   {
-    label: "Seguros",
-    icon: Shield,
-    items: [
-      { to: "/apolices?tab=cadastro", icon: Shield, label: "Cadastro" },
-      { to: "/apolices?tab=documentos", icon: FileText, label: "Apólices" },
-      { to: "/apolices?tab=sinistro", icon: AlertCircle, label: "Sinistros" },
-    ]
-  },
-  {
-    label: "Locação Terceiros",
+    label: "Terceiros",
     icon: CalendarDays,
     items: [
       { to: "/agregados?tab=fornecedores", icon: Building2, label: "Fornecedores" },
@@ -88,7 +67,7 @@ const allGroups: NavGroup[] = [
     ]
   },
   {
-    label: "Medições",
+    label: "Medições & Faturamento",
     icon: Receipt,
     items: [
       { to: "/medicoes?tab=pendencias", icon: AlertCircle, label: "⚠️ Pendências" },
@@ -99,17 +78,38 @@ const allGroups: NavGroup[] = [
     ]
   },
   {
-    label: "Gestão",
-    icon: Users,
+    label: "Seguros",
+    icon: Shield,
+    items: [
+      { to: "/apolices?tab=cadastro", icon: Shield, label: "Seguradoras" },
+      { to: "/apolices?tab=documentos", icon: FileText, label: "Apólices" },
+      { to: "/apolices?tab=sinistro", icon: AlertCircle, label: "Sinistros" },
+    ]
+  },
+  {
+    label: "Controladoria",
+    icon: BarChart3,
+    items: [
+      { to: "/controladoria?tab=visao-geral", icon: BarChart3, label: "Visão Geral & B.I." },
+      { to: "/controladoria?tab=dre", icon: DollarSign, label: "DRE & Lançamentos" },
+      { to: "/controladoria?tab=relatorios", icon: PieChart, label: "Relatórios Gerenciais" }
+    ]
+  },
+  {
+    label: "Faturamento Vale",
+    icon: DollarSign,
+    items: [
+      { to: "/vales", icon: Receipt, label: "Vale" },
+    ]
+  },
+
+  {
+    label: "Administração",
+    icon: Cog,
     items: [
       { to: "/usuarios", icon: Users, label: "Usuários", adminOnly: true },
       { to: "/configuracoes?tab=robo", icon: Bot, label: "Alerta Robô", adminOnly: true },
     ]
-  },
-  {
-    label: "Recursos Humanos",
-    icon: Users,
-    to: "/recursos-humanos"
   },
   {
     label: "Manual do Sistema",

@@ -96,8 +96,8 @@ const ManualPage = () => {
                     <h3 className="text-xl font-bold text-foreground/90">1. Cadastros Básicos</h3>
                     <p className="text-muted-foreground mb-3 mt-1">Para locar nossa frota, o cliente e o equipamento precisam existir no sistema.</p>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li><strong className="text-foreground">Cadastro de Clientes:</strong> Acesse o menu <strong className="text-foreground">Empresas &gt; Cadastro</strong>. Clique em Novo e preencha Razão Social, CNPJ (com busca automática ativada) e os dados de contato do cliente. Ao salvar, a empresa já ficará disponível para firmar contratos.</li>
-                      <li><strong className="text-foreground">Cadastro da Frota:</strong> Acesse o menu <strong className="text-foreground">Equipamentos &gt; Cadastro</strong>. Cadastre sua máquina própria (seja um Caminhão, Prancha ou Escavadeira) informando o Tipo, Modelo, Ano e a Placa/Tag de identificação que será usada nos relatórios.</li>
+                      <li><strong className="text-foreground">Cadastro de Clientes:</strong> Acesse o menu <strong className="text-foreground">Clientes &amp; Contratos &gt; Empresas</strong>. Clique em Novo e preencha Razão Social, CNPJ (com busca automática ativada) e os dados de contato do cliente. Ao salvar, a empresa já ficará disponível para firmar contratos.</li>
+                      <li><strong className="text-foreground">Cadastro da Frota:</strong> Acesse o menu <strong className="text-foreground">Frota Própria &gt; Inventário</strong>. Cadastre sua máquina própria (seja um Caminhão, Prancha ou Escavadeira) informando o Tipo, Modelo, Ano e a Placa/Tag de identificação que será usada nos relatórios.</li>
                     </ul>
                   </div>
 
@@ -105,9 +105,9 @@ const ManualPage = () => {
                     <h3 className="text-xl font-bold text-foreground/90">2. Propostas e Contratos (Clientes)</h3>
                     <p className="text-muted-foreground mb-3 mt-1">Como firmar a negociação com o cliente no sistema.</p>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li><strong className="text-foreground">Fazer uma Proposta:</strong> Acesse <strong className="text-foreground">Empresas &gt; Propostas</strong> e clique em Nova Proposta. Selecione o Cliente, defina uma data de validade, adicione os equipamentos desejados e defina a forma de cobrança (Por Horas, Diárias, Viagens ou Fixo/Mês). Você pode exportar a proposta em PDF para enviar ao cliente.</li>
+                      <li><strong className="text-foreground">Fazer uma Proposta:</strong> Acesse <strong className="text-foreground">Clientes &amp; Contratos &gt; Propostas</strong> e clique em Nova Proposta. Selecione o Cliente, defina uma data de validade, adicione os equipamentos desejados e defina a forma de cobrança (Por Horas, Diárias, Viagens ou Fixo/Mês). Você pode exportar a proposta em PDF para enviar ao cliente.</li>
                       <li><strong className="text-foreground">Efetivar Contrato a partir de Proposta:</strong> Quando o cliente aprovar o orçamento, mude o status da proposta para "Aprovada". O sistema automaticamente perguntará se você deseja "Gerar Contrato" com aquelas mesmas condições.</li>
-                      <li><strong className="text-foreground">Criar Contrato Direto:</strong> Caso prefira criar sem proposta prévia, acesse <strong className="text-foreground">Empresas &gt; Contratos</strong> e clique em Novo. Um campo vital é o <strong>"Ciclo de Medição" (Ex: Dia 1 ao 30)</strong>. Isso define as datas de corte exatas que o sistema usará na hora do faturamento.</li>
+                      <li><strong className="text-foreground">Criar Contrato Direto:</strong> Caso prefira criar sem proposta prévia, acesse <strong className="text-foreground">Clientes &amp; Contratos &gt; Contratos</strong> e clique em Novo. Um campo vital é o <strong>"Ciclo de Medição" (Ex: Dia 1 ao 30)</strong>. Isso define as datas de corte exatas que o sistema usará na hora do faturamento.</li>
                     </ul>
                   </div>
 
@@ -125,9 +125,9 @@ const ManualPage = () => {
                     <h3 className="text-xl font-bold text-foreground/90">4. Faturamento e Faturas</h3>
                     <p className="text-muted-foreground mb-3 mt-1">O fluxo para transformar as medições aprovadas em boletos.</p>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li><strong className="text-foreground">Gerar Medição (Fim do mês):</strong> Acesse <strong className="text-foreground">Medições &gt; Emitir Medição</strong>. Defina o período correto e clique em Calcular. O sistema irá varrer todos os horímetros lançados, cruzar com o valor das franquias estipuladas no contrato e gerar a tabela completa com Horas Normais, Excedentes e Subtotais.</li>
+                      <li><strong className="text-foreground">Gerar Medição (Fim do mês):</strong> Acesse <strong className="text-foreground">Medições & Faturamento &gt; Emitir Medição</strong>. Defina o período correto e clique em Calcular. O sistema irá varrer todos os horímetros lançados, cruzar com o valor das franquias estipuladas no contrato e gerar a tabela completa com Horas Normais, Excedentes e Subtotais.</li>
                       <li><strong className="text-foreground">Exportar Relatório:</strong> Salve a medição. Depois, na aba Histórico, clique no botão roxo de "PDF" para gerar um relatório bonito com a logomarca da empresa e enviar ao cliente para aprovação.</li>
-                      <li><strong className="text-foreground">Emitir a Fatura:</strong> Com o PDF aprovado, acesse <strong className="text-foreground">Financeiro &gt; Emissão de faturas</strong>. Clique em Gerar Fatura, relacione-a àquela medição e insira a data de vencimento. Depois de gerada, você pode anexar a NF-e e o arquivo do Boleto direto na plataforma.</li>
+                      <li><strong className="text-foreground">Emitir a Fatura:</strong> Com o PDF aprovado, acesse <strong className="text-foreground">Medições & Faturamento &gt; Faturar</strong>. Clique em Gerar Fatura, relacione-a àquela medição e insira a data de vencimento. Depois de gerada, você pode anexar a NF-e e o arquivo do Boleto direto na plataforma.</li>
                     </ul>
                   </div>
                 </div>
@@ -144,21 +144,21 @@ const ManualPage = () => {
                 
                 <div className="space-y-8 pl-4 border-l-2 border-muted">
                   <p className="text-muted-foreground text-lg mb-4">
-                    Para manter as contas separadas, a gestão de equipamentos pertencentes a parceiros ou subcontratados fica isolada no módulo de <strong>Locação Terceiros</strong>. As regras são espelhadas, mas a relação de pagamento é inversa.
+                    Para manter as contas separadas, a gestão de equipamentos pertencentes a parceiros ou subcontratados fica isolada no módulo de <strong>Terceiros</strong>. As regras são espelhadas, mas a relação de pagamento é inversa.
                   </p>
 
                   <div>
                     <h3 className="text-xl font-bold text-foreground/90">1. Cadastros de Agregados</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li><strong className="text-foreground">Cadastro do Fornecedor:</strong> Acesse <strong className="text-foreground">Locação Terceiros &gt; Fornecedores</strong>. Cadastre a empresa parceira.</li>
-                      <li><strong className="text-foreground">Equipamentos Terceirizados:</strong> Acesse <strong className="text-foreground">Locação Terceiros &gt; Equipamentos</strong>. Ao cadastrar uma máquina aqui, você obrigatoriamente vincula ela ao fornecedor responsável.</li>
+                      <li><strong className="text-foreground">Cadastro do Fornecedor:</strong> Acesse <strong className="text-foreground">Terceiros &gt; Fornecedores</strong>. Cadastre a empresa parceira.</li>
+                      <li><strong className="text-foreground">Equipamentos Terceirizados:</strong> Acesse <strong className="text-foreground">Terceiros &gt; Equipamentos</strong>. Ao cadastrar uma máquina aqui, você obrigatoriamente vincula ela ao fornecedor responsável.</li>
                     </ul>
                   </div>
 
                   <div>
                     <h3 className="text-xl font-bold text-foreground/90">2. Contratos com Terceiros</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li>Acesse <strong className="text-foreground">Locação Terceiros &gt; Contratos</strong>.</li>
+                      <li>Acesse <strong className="text-foreground">Terceiros &gt; Contratos</strong>.</li>
                       <li>Diferente do contrato de locação da frota (onde você cobra), aqui você cadastra as condições financeiras que <strong>VOCÊ combinou de pagar</strong> ao fornecedor pelo uso do equipamento dele. Defina o valor hora de custo e a franquia acordada.</li>
                     </ul>
                   </div>
@@ -166,8 +166,8 @@ const ManualPage = () => {
                   <div>
                     <h3 className="text-xl font-bold text-foreground/90">3. Apontamento e Faturamento Inverso</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li><strong className="text-foreground">Lançamento de Trabalho/Viagem:</strong> Feito na tela <strong className="text-foreground">Locação Terceiros &gt; Lançamento (Horímetro)</strong>. O procedimento é exatamente igual ao da frota própria, porém os apontamentos feitos aqui geram custo ao invés de receita.</li>
-                      <li><strong className="text-foreground">Gerar Medição para Pagamento:</strong> No final do ciclo, acesse <strong className="text-foreground">Locação Terceiros &gt; Medição</strong>. Calcule e gere o relatório final das horas trabalhadas pelo parceiro. O PDF gerado daqui pode ser entregue ao seu fornecedor como comprovante oficial do valor que ele tem a receber de você!</li>
+                      <li><strong className="text-foreground">Lançamento de Trabalho/Viagem:</strong> Feito na tela <strong className="text-foreground">Terceiros &gt; Lançamento</strong>. O procedimento é exatamente igual ao da frota própria, porém os apontamentos feitos aqui geram custo ao invés de receita.</li>
+                      <li><strong className="text-foreground">Gerar Medição para Pagamento:</strong> No final do ciclo, acesse <strong className="text-foreground">Terceiros &gt; Medição</strong>. Calcule e gere o relatório final das horas trabalhadas pelo parceiro. O PDF gerado daqui pode ser entregue ao seu fornecedor como comprovante oficial do valor que ele tem a receber de você!</li>
                     </ul>
                   </div>
                 </div>
@@ -221,7 +221,7 @@ const ManualPage = () => {
                   <div>
                     <h3 className="text-xl font-bold text-foreground/90">Cadastro da Apólice e Vinculação</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li>Acesse <strong className="text-foreground">Seguros &gt; Cadastro</strong> para registrar os corretores e companhias seguradoras.</li>
+                      <li>Acesse <strong className="text-foreground">Seguros &gt; Seguradoras</strong> para registrar os corretores e companhias seguradoras.</li>
                       <li>Em <strong className="text-foreground">Seguros &gt; Apólices</strong>, cadastre a nova apólice recebida. Informe o período de vigência para o sistema poder alertar sobre renovações.</li>
                       <li>Dentro do cadastro da apólice, você pode vincular todas as máquinas e caminhões que estão cobertos por ela.</li>
                     </ul>
@@ -244,27 +244,27 @@ const ManualPage = () => {
               <section className="space-y-8">
                 <div className="flex items-center gap-2 mb-6 border-b pb-4">
                   <DollarSign className="h-8 w-8 text-primary" />
-                  <h2 className="text-3xl font-semibold">Financeiro e Custos</h2>
+                  <h2 className="text-3xl font-semibold">Financeiro & Custos</h2>
                 </div>
                 
                 <div className="space-y-8 pl-4 border-l-2 border-muted">
                   <p className="text-muted-foreground text-lg mb-4">
-                    A parte financeira do sistema trata os recebimentos das faturas de clientes e os lançamentos de gastos operacionais gerais ou veiculares.
+                    A parte financeira do sistema trata os recebimentos das faturas de clientes, o controle de vales e os lançamentos de gastos operacionais veiculares.
                   </p>
 
                   <div>
-                    <h3 className="text-xl font-bold text-foreground/90">Custos Individuais (Manutenção e Peças)</h3>
+                    <h3 className="text-xl font-bold text-foreground/90">Módulo Vale</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li>Para lançar a compra de um pneu, conserto ou revisão, acesse o cadastro daquele equipamento (<strong className="text-foreground">Equipamentos &gt; Cadastro</strong>), e acesse a aba lateral <strong className="text-foreground">Custos do Equipamento</strong>.</li>
-                      <li>Os custos vinculados diretamente às placas são extremamente importantes para que o relatório de Controladoria consiga apurar se a locação daquele bem está dando lucro ou prejuízo no fim do mês!</li>
+                      <li>Acesse o menu <strong className="text-foreground">Faturamento Vale &gt; Vale</strong> para registrar e controlar vales emitidos pela empresa.</li>
+                      <li>O módulo permite rastrear adiantamentos, descontos em folha e demais movimentações de vale de forma centralizada.</li>
                     </ul>
                   </div>
 
                   <div>
-                    <h3 className="text-xl font-bold text-foreground/90">Custos Gerais da Empresa</h3>
+                    <h3 className="text-xl font-bold text-foreground/90">Custos Individuais por Equipamento (Manutenção e Peças)</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li>Acesse o menu <strong className="text-foreground">Financeiro & Custos &gt; Custos</strong>.</li>
-                      <li>Lance despesas da operação geral que não pertencem a um equipamento específico, como: aluguel do pátio, água, luz, salários da administração e impostos. Eles comporão a linha base de dedução do B.I.</li>
+                      <li>Para lançar a compra de um pneu, conserto ou revisão, acesse o cadastro daquele equipamento (<strong className="text-foreground">Frota Própria &gt; Inventário</strong>), e acesse a aba lateral <strong className="text-foreground">Custos do Equipamento</strong>.</li>
+                      <li>Os custos vinculados diretamente às placas são extremamente importantes para que o relatório de Controladoria consiga apurar se a locação daquele bem está dando lucro ou prejuízo no fim do mês!</li>
                     </ul>
                   </div>
                 </div>
@@ -287,7 +287,7 @@ const ManualPage = () => {
                   <div>
                     <h3 className="text-xl font-bold text-foreground/90">Visão Geral & B.I.</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                      <li>Acesse <strong className="text-foreground">Controladoria &gt; Visão Geral & B.I.</strong>.</li>
+                      <li>Acesse <strong className="text-foreground">Controladoria &gt; Visão Geral & B.I.</strong></li>
                       <li>O painel exibe cartões com o <strong>Faturamento Bruto</strong> do mês, os <strong>Custos Operacionais Totais</strong> e a <strong>Margem Bruta (Lucro Livre)</strong> em valores percentuais e absolutos.</li>
                       <li>Os gráficos comparativos permitem bater o olho e ver rapidamente se a locação está saudável ou sangrando financeiramente no período avaliado.</li>
                     </ul>

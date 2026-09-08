@@ -50,17 +50,14 @@ interface AuditLog {
 }
 
 const ALL_ROUTES = [
-  { path: "/equipamentos", label: "Equipamentos", icon: "⚙️" },
-  { path: "/empresas", label: "Empresas", icon: "🏢" },
-  { path: "/contratos", label: "Contratos", icon: "📄" },
-  { path: "/propostas", label: "Propostas", icon: "📋" },
-  { path: "/medicoes", label: "Medições", icon: "📊" },
-  { path: "/faturamento", label: "Faturamento", icon: "💰" },
-  { path: "/apolices", label: "Apólices", icon: "🔒" },
-  { path: "/gastos", label: "Gastos", icon: "💳" },
-  { path: "/controladoria", label: "Controladoria", icon: "📈" },
-  { path: "/workflows", label: "Processos (Workflows)", icon: "🔄" },
-  { path: "/recursos-humanos", label: "Recursos Humanos", icon: "👥" },
+  { path: "/equipamentos", label: "Frota Própria", icon: "🚛" },
+  { path: "/empresas",     label: "Clientes & Contratos (Empresas)", icon: "🏢" },
+  { path: "/contratos",    label: "Clientes & Contratos (Contratos/Propostas)", icon: "📄" },
+  { path: "/agregados",    label: "Terceiros", icon: "🔧" },
+  { path: "/medicoes",     label: "Medições & Faturamento", icon: "📏" },
+  { path: "/apolices",     label: "Seguros", icon: "🛡️" },
+  { path: "/controladoria", label: "Controladoria", icon: "📊" },
+  { path: "/vales",        label: "Faturamento Vale", icon: "💵" },
 ];
 
 const ALL_ACTIONS = [
