@@ -115,7 +115,7 @@ export const MedicoesTerceirosTab = () => {
   const hasFilters = !!(filtroEquip || dataInicio || dataFim);
   const summaryMap = useMemo(() => {
     if (!hasFilters) return new Map();
-    const map = new Map<string, { label: string; totalHoras: number; mediaHorasDia: number; totalDiarias: number; totalIndisp: number; registros: number }>();
+    const map = new Map<string, { label: string; totalHoras: number; totalDiarias: number; totalIndisp: number; registros: number }>();
     const byEquip = new Map<string, Medicao[]>();
     filtered.forEach(m => {
       if (!byEquip.has(m.equipamento_id)) byEquip.set(m.equipamento_id, []);
@@ -123,15 +123,12 @@ export const MedicoesTerceirosTab = () => {
     });
     byEquip.forEach((meds, eqId) => {
       const eq = equipamentos.find(e => e.id === eqId);
-      const readings = items.filter(m => m.equipamento_id === eqId && m.tipo === "Trabalho").map(m => ({ data: m.data, horimetro_final: m.horimetro_final }));
-      const pInicio = dataInicio || meds.reduce((min, m) => m.data < min ? m.data : min, meds[0].data);
-      const pFim = dataFim || meds.reduce((max, m) => m.data > max ? m.data : max, meds[0].data);
-      const result = calcularHorasInterpoladas(readings, pInicio, pFim);
+      const totalHoras = meds.filter(m => m.tipo === "Trabalho" || !m.tipo).reduce((sum, m) => sum + Number(m.horas_trabalhadas || 0), 0);
       const totalDiarias = meds.filter(m => m.tipo === "Diária").length;
       const totalIndisp = meds.filter(m => m.tipo === "Indisponível").length;
       map.set(eqId, { 
         label: getEquipLabel(eq ?? null), 
-        ...result, 
+        totalHoras, 
         totalDiarias,
         totalIndisp,
         registros: meds.length 
@@ -286,7 +283,7 @@ export const MedicoesTerceirosTab = () => {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Média: {s.mediaHorasDia.toFixed(2)}h/dia · {s.registros} registros
+                  {s.registros} registros
                   {s.totalIndisp > 0 && ` (${s.totalIndisp} indisp.)`}
                 </p>
               </CardContent>

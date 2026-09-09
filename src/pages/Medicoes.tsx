@@ -577,7 +577,7 @@ const Medicoes = () => {
     }
   };
 
-  const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;mediaHorasDia: number;}>();
+  const summaryMap = new Map<string, {totalHoras: number;entries: number;label: string;tag: string;}>();
   const equipEntries = new Map<string, Medicao[]>();
   filtered.forEach((m) => {
     const arr = equipEntries.get(m.equipamento_id) || [];
@@ -593,40 +593,10 @@ const Medicoes = () => {
 
     const isDiaria = equipMedicaoTypes.get(eqId) === "diarias";
     let totalHoras = 0;
-    let mediaHorasDia = 0;
 
-    if (isDiaria) {
-      totalHoras = trabalhoEntries.reduce((sum, e) => sum + Number(e.horas_trabalhadas || 0), 0);
-      mediaHorasDia = 0;
-    } else if (dataInicio && validDataFim) {
-      const inicioStr = format(dataInicio, "yyyy-MM-dd");
-      const fimStr = format(validDataFim, "yyyy-MM-dd");
-      const allReadings: { data: string; horimetro_final: number }[] = [];
-      const baseline = baselines.get(eqId);
-      if (baseline) {
-        allReadings.push({ data: baseline.data, horimetro_final: baseline.horim });
-      }
-      for (const e of trabalhoEntries) {
-        allReadings.push({ data: e.data, horimetro_final: Number(e.horimetro_final) });
-      }
-      const result = calcularHorasInterpoladas(allReadings, inicioStr, fimStr);
-      totalHoras = result.totalHoras;
-      mediaHorasDia = result.mediaHorasDia;
-    } else {
-      const byDay = new Map<string, number>();
-      for (const e of trabalhoEntries) {
-        const d = String(e.data);
-        const v = Number(e.horimetro_final);
-        if (!byDay.has(d) || v > byDay.get(d)!) byDay.set(d, v);
-      }
-      const dayValues = Array.from(byDay.values());
-      if (dayValues.length > 0) {
-        const maior = Math.max(...dayValues);
-        const menor = dayValues.length >= 2 ? Math.min(...dayValues) : maior;
-        totalHoras = Math.max(0, maior - menor);
-      }
-    }
-    summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag, mediaHorasDia });
+    totalHoras = trabalhoEntries.reduce((sum, e) => sum + Number(e.horas_trabalhadas || 0), 0);
+
+    summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
   });
 
   const totalHorasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalHoras, 0);
@@ -936,9 +906,6 @@ const Medicoes = () => {
                     </div>
                     <div className="mt-2">
                       <p className="text-[10px] text-muted-foreground">{data.entries} registros</p>
-                      {data.mediaHorasDia > 0 && (
-                        <p className="text-[10px] text-accent/70 font-medium">Média: {data.mediaHorasDia.toFixed(2)} h/dia</p>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1124,7 +1091,7 @@ const Medicoes = () => {
                 </CardTitle>
                 <div className="mt-3 p-3 bg-accent/10 border border-accent/20 rounded-lg max-w-2xl">
                   <p className="text-sm text-foreground/80 leading-relaxed font-medium">
-                    <strong className="text-accent">💡 Piloto Automático:</strong> Não se preocupe em preencher os horímetros dia a dia se o equipamento não quebrou! Basta lançar a leitura do <strong>último dia da semana ou do mês</strong>. O sistema calculará a diferença e dividirá as horas automaticamente pelos dias vazios, mantendo seu faturamento contínuo.
+                    <strong className="text-accent">💡 Lançamento Rápido:</strong> Lance a leitura atual do horímetro e o sistema calculará automaticamente as horas trabalhadas em relação ao último registro.
                   </p>
                 </div>
               </div>
