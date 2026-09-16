@@ -1318,6 +1318,7 @@ const Medicoes = () => {
                       </div>
                     </RadioGroup>
                   </div>
+                  </div>
                   {form.tipo === "Indisponível" && (
                     <>
                       <div>

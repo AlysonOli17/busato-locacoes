@@ -1277,6 +1277,7 @@ export default function ControleUsoFrota() {
                       </div>
                     </RadioGroup>
                   </div>
+                  </div>
                   {form.tipo === "Indisponível" && (
                     <>
                       <div>
