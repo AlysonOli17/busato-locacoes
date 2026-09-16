@@ -172,24 +172,29 @@ export const MedicaoTerceirosTab = () => {
     const ct = contratos.find(c => c.id === contratoId);
     if (ct) {
       const now = new Date();
-      const year = now.getFullYear();
+      let year = now.getFullYear();
       const month = now.getMonth(); // 0-indexed
       const day = now.getDate();
       const wraps = ct.dia_medicao_fim < ct.dia_medicao_inicio;
       let inicioMonth = month;
+      let inicioYear = year;
       let fimMonth = month;
+      let fimYear = year;
       if (wraps) {
-        // Cycle: dia_inicio of M -> dia_fim of M+1
-        // If today's day < dia_inicio, current cycle started in previous month
+        // Ciclo cruza meses, ex: dia 21 de um mês ao dia 20 do seguinte.
         if (day < ct.dia_medicao_inicio) {
+          // Hoje está antes do dia de início: ciclo começou no mês anterior
           inicioMonth = month - 1;
+          if (inicioMonth < 0) { inicioMonth = 11; inicioYear--; }
         } else {
+          // Hoje está no dia de início ou depois: ciclo termina no próximo mês
           fimMonth = month + 1;
+          if (fimMonth > 11) { fimMonth = 0; fimYear++; }
         }
       }
-      const lastDayFimMonth = new Date(year, fimMonth + 1, 0).getDate();
-      const inicio = new Date(year, inicioMonth, ct.dia_medicao_inicio);
-      const fim = new Date(year, fimMonth, Math.min(ct.dia_medicao_fim, lastDayFimMonth));
+      const lastDayFimMonth = new Date(fimYear, fimMonth + 1, 0).getDate();
+      const inicio = new Date(inicioYear, inicioMonth, ct.dia_medicao_inicio);
+      const fim = new Date(fimYear, fimMonth, Math.min(ct.dia_medicao_fim, lastDayFimMonth));
       setFormMedicaoInicio(inicio.toISOString().slice(0, 10));
       setFormMedicaoFim(fim.toISOString().slice(0, 10));
     }
@@ -334,7 +339,8 @@ export const MedicaoTerceirosTab = () => {
       let horasMedidas = 0;
       if (ct.tipo_medicao === "diarias") {
         const diarias = (periodRes.data || []).filter((m: any) => m.tipo === "Trabalho" || m.tipo === "Diária");
-        horasMedidas = diarias.length;
+        const diasUnicos = new Set(diarias.map((m: any) => String(m.data)));
+        horasMedidas = diasUnicos.size;
       } else {
         const allReadings: { data: string; horimetro_final: number }[] = [];
         if (baselineRes.data && baselineRes.data.length > 0) {

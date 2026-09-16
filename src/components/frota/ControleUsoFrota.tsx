@@ -498,31 +498,8 @@ export default function ControleUsoFrota() {
         if (item.alreadyExists && item.id) {
           toUpdate.push({ id: item.id, ...payload });
         } else {
-          if (!isDiaria && !isIndisp && dias > 1) {
-            const avgHours = totalDia / dias;
-            const startDate = new Date(item.dataAnterior + "T00:00:00");
-            for (let i = 1; i <= dias; i++) {
-              const currentDate = new Date(startDate.getTime());
-              currentDate.setDate(startDate.getDate() + i);
-              const dateStr = currentDate.toISOString().split("T")[0];
-              
-              const hStart = item.horimetro_inicial + (i - 1) * avgHours;
-              const hFinalRow = item.horimetro_inicial + i * avgHours;
-              
-              toInsert.push({
-                id: crypto.randomUUID(),
-                equipamento_id: item.equipamento_id,
-                data: dateStr,
-                horimetro_inicial: Number(hStart.toFixed(4)),
-                horimetro_final: Number(hFinalRow.toFixed(4)),
-                horas_trabalhadas: Number(avgHours.toFixed(4)),
-                tipo: item.tipo,
-                observacoes: item.observacoes || null
-              });
-            }
-          } else {
-            toInsert.push({ id: crypto.randomUUID(), ...payload });
-          }
+          // Salva um único lançamento por data (sem distribuição por dia)
+          toInsert.push({ id: crypto.randomUUID(), ...payload });
         }
       }
 
@@ -569,7 +546,14 @@ export default function ControleUsoFrota() {
     const isDiaria = equipMedicaoTypes.get(eqId) === "diarias";
     let totalHoras = 0;
 
-    totalHoras = trabalhoEntries.reduce((sum, e) => sum + Number(e.horas_trabalhadas || 0), 0);
+    if (isDiaria) {
+      // Para diárias: conta dias únicos trabalhados
+      const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
+      totalHoras = diasUnicos.size;
+    } else {
+      // Para horímetro: soma direta das horas trabalhadas lançadas
+      totalHoras = trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0);
+    }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
   });
@@ -694,43 +678,9 @@ export default function ControleUsoFrota() {
           return;
         }
 
-        // Se for uma nova medição e abranger mais de 1 dia, distribui/interpola as horas e insere diariamente
-        if (!editingId && dataAnterior && dias > 1) {
-          const avgHours = horasTrabalhadas / dias;
-          const toInsert = [];
-          
-          const startDate = new Date(dataAnterior + "T00:00:00");
-          for (let i = 1; i <= dias; i++) {
-            const currentDate = new Date(startDate.getTime());
-            currentDate.setDate(startDate.getDate() + i);
-            const dateStr = currentDate.toISOString().split("T")[0];
-            
-            const hStart = form.horimetro_inicial + (i - 1) * avgHours;
-            const hFinalRow = form.horimetro_inicial + i * avgHours;
-            
-            toInsert.push({
-              id: crypto.randomUUID(),
-              equipamento_id: form.equipamento_id,
-              data: dateStr,
-              horimetro_inicial: Number(hStart.toFixed(4)),
-              horimetro_final: Number(hFinalRow.toFixed(4)),
-              horas_trabalhadas: Number(avgHours.toFixed(4)),
-              tipo: form.tipo,
-              observacoes: form.observacoes || null,
-            });
-          }
-          
-          const { error } = await supabase.from("medicoes").insert(toInsert);
-          if (error) {
-            toast({ title: "Erro", description: "Não foi possível gerar os lançamentos diários: " + error.message, variant: "destructive" });
-            return;
-          }
-          
-          toast({ title: "Lançamentos distribuídos", description: `${dias} registros diários foram gerados de ${parseLocalDate(dataAnterior).toLocaleDateString("pt-BR")} a ${parseLocalDate(form.data).toLocaleDateString("pt-BR")}.` });
-          setDialogOpen(false);
-          fetchData(true);
-          return;
-        }
+        // Salva um único lançamento com o total de horas calculado (sem distribuição por dia)
+        // horas_trabalhadas = horimetro_final - horimetro_inicial
+
       }
     }
 
@@ -881,7 +831,7 @@ export default function ControleUsoFrota() {
         )}
 
         {/* Action Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between flex-wrap gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
           <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
             <div className="flex items-center gap-2">
               <FileBarChart className="h-4 w-4 text-accent hidden sm:block" />
@@ -928,7 +878,7 @@ export default function ControleUsoFrota() {
                     m.equipamentos?.tag_placa || "—",
                     parseLocalDate(m.data).toLocaleDateString("pt-BR"),
                     m.tipo || "Trabalho",
-                    isDiaria ? "Diária (Trabalho)" : Number(m.horimetro_final).toString(),
+                    isDiaria ? "Diária (Trabalho)" : Number(m.horimetro_final).toLocaleString("pt-BR", { useGrouping: false, minimumFractionDigits: 0, maximumFractionDigits: 1 }),
                     (m.tipo || "Trabalho") === "Indisponível" ? `${Number(m.horas_trabalhadas).toString()}${isDiaria ? "d" : "h"}` : "-"
                   ];
                 });
@@ -988,7 +938,7 @@ export default function ControleUsoFrota() {
                      <TableCell className="text-sm font-medium">
                        {equipMedicaoTypes.get(item.equipamento_id) === "diarias" 
                           ? (item.tipo === "Trabalho" ? `${Number(item.horas_trabalhadas).toString()}d` : "-") 
-                          : Number(item.horimetro_final).toString()}
+                          : Number(item.horimetro_final).toLocaleString("pt-BR", { useGrouping: false, minimumFractionDigits: 0, maximumFractionDigits: 1 })}
                      </TableCell>
                      <TableCell>
                         {(item.tipo || "Trabalho") === "Indisponível" ? (
@@ -1129,7 +1079,7 @@ export default function ControleUsoFrota() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-center align-middle font-mono font-semibold text-xs text-muted-foreground">
-                                {isDiaria ? "—" : `${Number(item.horimetro_inicial).toString()}h`}
+                                {isDiaria ? "—" : `${Number(item.horimetro_inicial).toLocaleString("pt-BR", { useGrouping: false, minimumFractionDigits: 0, maximumFractionDigits: 1 })}h`}
                               </TableCell>
                               <TableCell className="align-middle">
                                 <Select value={item.tipo} onValueChange={(v) => updateField("tipo", v)}>
@@ -1178,7 +1128,7 @@ export default function ControleUsoFrota() {
                                         "h-8 text-xs font-mono font-bold text-center w-24 bg-background",
                                         item.horimetro_final < item.horimetro_inicial ? "border-destructive focus-visible:ring-destructive text-destructive" : ""
                                       )}
-                                      placeholder={`${Number(item.horimetro_inicial).toString()}h`}
+                                      placeholder={`${Number(item.horimetro_inicial).toLocaleString("pt-BR", { useGrouping: false, minimumFractionDigits: 0, maximumFractionDigits: 1 })}h`}
                                       value={item.horimetro_final || ""}
                                       onChange={(e) => updateField("horimetro_final", Number(e.target.value))}
                                     />

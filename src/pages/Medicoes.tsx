@@ -594,7 +594,14 @@ const Medicoes = () => {
     const isDiaria = equipMedicaoTypes.get(eqId) === "diarias";
     let totalHoras = 0;
 
-    totalHoras = trabalhoEntries.reduce((sum, e) => sum + Number(e.horas_trabalhadas || 0), 0);
+    if (isDiaria) {
+      // Para diárias: conta dias únicos trabalhados
+      const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
+      totalHoras = diasUnicos.size;
+    } else {
+      // Para horímetro: soma direta das horas trabalhadas lançadas
+      totalHoras = trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0);
+    }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
   });
@@ -719,43 +726,9 @@ const Medicoes = () => {
           return;
         }
 
-        // Se for uma nova medição e abranger mais de 1 dia, distribui/interpola as horas e insere diariamente
-        if (!editingId && dataAnterior && dias > 1) {
-          const avgHours = horasTrabalhadas / dias;
-          const toInsert = [];
-          
-          const startDate = new Date(dataAnterior + "T00:00:00");
-          for (let i = 1; i <= dias; i++) {
-            const currentDate = new Date(startDate.getTime());
-            currentDate.setDate(startDate.getDate() + i);
-            const dateStr = currentDate.toISOString().split("T")[0];
-            
-            const hStart = form.horimetro_inicial + (i - 1) * avgHours;
-            const hFinalRow = form.horimetro_inicial + i * avgHours;
-            
-            toInsert.push({
-              id: crypto.randomUUID(),
-              equipamento_id: form.equipamento_id,
-              data: dateStr,
-              horimetro_inicial: Number(hStart.toFixed(4)),
-              horimetro_final: Number(hFinalRow.toFixed(4)),
-              horas_trabalhadas: Number(avgHours.toFixed(4)),
-              tipo: form.tipo,
-              observacoes: form.observacoes || null,
-            });
-          }
-          
-          const { error } = await supabase.from("medicoes").insert(toInsert);
-          if (error) {
-            toast({ title: "Erro", description: "Não foi possível gerar os lançamentos diários: " + error.message, variant: "destructive" });
-            return;
-          }
-          
-          toast({ title: "Lançamentos distribuídos", description: `${dias} registros diários foram gerados de ${parseLocalDate(dataAnterior).toLocaleDateString("pt-BR")} a ${parseLocalDate(form.data).toLocaleDateString("pt-BR")}.` });
-          setDialogOpen(false);
-          fetchData(true);
-          return;
-        }
+        // Salva um único lançamento com o total de horas calculado (sem distribuição por dia)
+        // horas_trabalhadas = horimetro_final - horimetro_inicial
+
       }
     }
 

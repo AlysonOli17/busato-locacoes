@@ -119,7 +119,7 @@ export async function exportAditivoToPDF(aditivo: any, contrato: any, equipament
 
   // Qualificação das Partes
   const emp = contrato.empresas;
-  const qualifLocadora = `De um lado, como Locadora,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA, empresa estabelecida Av. Coronel Manoel Nunes, 145, Planalto de Carapina, Serra/ES, CEP 29.162-715, inscrita no CNPJ sob o nº 00.865.596/0001-92, neste ato denominada simplesmente Locadora.`;
+  const qualifLocadora = `De um lado, como Locadora,\nBUSATO LOCAÇÕES E SERVIÇOS LTDA, empresa estabelecida na Av. Nossa Senhora da Penha, 595, Sala 510, Santa Lúcia, Vitória/ES, CEP 29.056-250, inscrita no CNPJ sob o nº 54.167.719/0001-40, neste ato denominada simplesmente Locadora.`;
   
   const qualifLocataria = `De outro lado, como Locatária,\n${emp.razao_social || emp.nome}, empresa estabelecida à ${emp.endereco_logradouro}, nº ${emp.endereco_numero}${emp.endereco_complemento ? ` - ${emp.endereco_complemento}` : ""}, ${emp.endereco_bairro}, ${emp.endereco_cidade} - ${emp.endereco_uf}, inscrita no CNPJ sob o nº ${emp.cnpj}, neste ato denominada simplesmente Locatária.`;
   

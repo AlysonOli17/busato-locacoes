@@ -441,9 +441,12 @@ export const FaturamentoContent = () => {
       let horasMedidas = 0;
 
       if (isDiarias) {
-        // For diárias: sum the horas_trabalhadas (which stores the number of days) for work days
+        // Para diárias: conta o número de dias únicos com lançamento "Trabalho".
+        // Não soma horas_trabalhadas pois o equipamento pode ter tido medições por
+        // horímetro anteriormente, onde horas_trabalhadas contém horas e não diárias.
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
-        horasMedidas = trabalho.reduce((sum, m) => sum + Number(m.horas_trabalhadas || 0), 0);
+        const diasUnicos = new Set(trabalho.map(m => String(m.data)));
+        horasMedidas = diasUnicos.size;
       } else if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
         // Build readings array: baseline + in-period readings
@@ -1168,16 +1171,44 @@ export const FaturamentoContent = () => {
     const now = new Date();
     const diaInicio = ct.dia_medicao_inicio || 1;
     const diaFim = ct.dia_medicao_fim || 30;
-    let mesInicio = now.getMonth();
-    let anoInicio = now.getFullYear();
-    let mesFim = mesInicio;
-    let anoFim = anoInicio;
+    const diaHoje = now.getDate();
+    const mesAtual = now.getMonth();
+    const anoAtual = now.getFullYear();
+
+    let mesInicio: number;
+    let anoInicio: number;
+    let mesFim: number;
+    let anoFim: number;
+
     if (diaFim < diaInicio) {
-      mesFim = mesInicio;
-      anoFim = anoInicio;
-      mesInicio = mesInicio - 1;
-      if (mesInicio < 0) { mesInicio = 11; anoInicio--; }
+      // Ciclo que cruza meses, ex: dia 21 de um mês ao dia 20 do seguinte.
+      // Se hoje ainda não chegou ao dia de início (diaHoje < diaInicio),
+      // o ciclo atual começou no mês ANTERIOR.
+      // Se hoje já passou do dia de início (diaHoje >= diaInicio),
+      // o ciclo atual começa no mês CORRENTE e termina no próximo mês.
+      if (diaHoje >= diaInicio) {
+        // Ciclo começou neste mês, termina no próximo
+        mesInicio = mesAtual;
+        anoInicio = anoAtual;
+        mesFim = mesAtual + 1;
+        anoFim = anoAtual;
+        if (mesFim > 11) { mesFim = 0; anoFim++; }
+      } else {
+        // Ciclo começou no mês anterior, termina neste mês
+        mesInicio = mesAtual - 1;
+        anoInicio = anoAtual;
+        if (mesInicio < 0) { mesInicio = 11; anoInicio--; }
+        mesFim = mesAtual;
+        anoFim = anoAtual;
+      }
+    } else {
+      // Ciclo normal dentro do mesmo mês (ex: dia 1 ao dia 30)
+      mesInicio = mesAtual;
+      anoInicio = anoAtual;
+      mesFim = mesAtual;
+      anoFim = anoAtual;
     }
+
     const lastDayInicio = new Date(anoInicio, mesInicio + 1, 0).getDate();
     const lastDayFim = new Date(anoFim, mesFim + 1, 0).getDate();
     const dInicio = new Date(anoInicio, mesInicio, Math.min(diaInicio, lastDayInicio));
