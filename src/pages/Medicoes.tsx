@@ -97,7 +97,7 @@ const Medicoes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0, horas_trab: 1, horimetro_inicial: 0 });
+  const [form, setForm] = useState({ equipamento_id: "", data: new Date().toISOString().split("T")[0], horimetro: 0, tipo: "Trabalho", observacoes: "", horimetro_inicial_indisp: 0, horas_indisp: 0, horas_trab: 1, horimetro_inicial: 0, isDiaria: false });
   const [sortCol, setSortCol] = useState<"equipamento" | "tag" | "data" | "tipo" | "horimetro" | "horas_indisp">("data");
   const [sortAsc, setSortAsc] = useState(false);
   const [filterEquip, setFilterEquip] = useState("Todos");
@@ -280,13 +280,13 @@ const Medicoes = () => {
       setHorimetroAnterior(prevVal);
       setDataAnterior(result[0].data);
       if (updateForm) {
-        setForm(prev => ({ ...prev, horimetro_inicial: prevVal }));
+        setForm(prev => ({ ...prev, horimetro_inicial: prevVal, isDiaria: equipMedicaoTypes.get(equipId) === "diarias" }));
       }
     } else {
       setHorimetroAnterior(0);
       setDataAnterior(null);
       if (updateForm) {
-        setForm(prev => ({ ...prev, horimetro_inicial: 0 }));
+        setForm(prev => ({ ...prev, horimetro_inicial: 0, isDiaria: equipMedicaoTypes.get(equipId) === "diarias" }));
       }
     }
   };
@@ -608,7 +608,7 @@ const Medicoes = () => {
 
   const totalHorasGeral = Array.from(summaryMap.values()).reduce((acc, s) => acc + s.totalHoras, 0);
 
-  const isDiaria = form.equipamento_id ? equipMedicaoTypes.get(form.equipamento_id) === "diarias" : false;
+  const isDiaria = form.isDiaria;
   const horasCalculadas = isDiaria 
     ? (form.tipo === "Indisponível" ? form.horas_indisp : form.horas_trab)
     : (form.tipo === "Indisponível"
@@ -628,6 +628,7 @@ const Medicoes = () => {
       horas_indisp: 0,
       horas_trab: 1,
       horimetro_inicial: 0,
+      isDiaria: defaultEquip ? equipMedicaoTypes.get(defaultEquip) === "diarias" : false,
     });
     setHorimetroAnterior(0);
     setDataAnterior(null);
@@ -638,17 +639,18 @@ const Medicoes = () => {
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
     const isIndisp = m.tipo === "Indisponível";
-    const isDiaria = equipMedicaoTypes.get(m.equipamento_id) === "diarias";
+    const isDiariaLocal = equipMedicaoTypes.get(m.equipamento_id) === "diarias";
     setForm({ 
       equipamento_id: m.equipamento_id, 
       data: m.data, 
-      horimetro: isDiaria ? 0 : Number(m.horimetro_final), 
+      horimetro: isDiariaLocal ? 0 : Number(m.horimetro_final), 
       tipo: m.tipo || "Trabalho", 
       observacoes: m.observacoes || "", 
       horimetro_inicial_indisp: isIndisp ? Number(m.horimetro_inicial) : 0, 
       horas_indisp: isIndisp ? Number(m.horas_trabalhadas) : 0,
-      horas_trab: !isIndisp && isDiaria ? Number(m.horas_trabalhadas) : 1,
-      horimetro_inicial: Number(m.horimetro_inicial)
+      horas_trab: !isIndisp && isDiariaLocal ? Number(m.horas_trabalhadas) : 1,
+      horimetro_inicial: Number(m.horimetro_inicial),
+      isDiaria: isDiariaLocal
     });
     setHorimetroAnterior(Number(m.horimetro_inicial));
     setDataAnterior(null);
@@ -678,11 +680,27 @@ const Medicoes = () => {
       return;
     }
 
-    const isDiaria = equipMedicaoTypes.get(form.equipamento_id) === "diarias";
+    const isDiariaSubmit = form.isDiaria;
 
-    if (!isDiaria && form.horimetro <= 0 && form.tipo !== "Indisponível") {
+    if (!isDiariaSubmit && form.horimetro <= 0 && form.tipo !== "Indisponível") {
       toast({ title: "Campos obrigatórios", description: "Informe o horímetro.", variant: "destructive" });
       return;
+    }
+
+    if (isDiariaSubmit) {
+      if (form.tipo === "Trabalho" && form.horas_trab <= 0) {
+        toast({ title: "Campos obrigatórios", description: "Informe as diárias trabalhadas.", variant: "destructive" });
+        return;
+      }
+    } else {
+      if (form.tipo === "Trabalho" && form.horimetro <= (form.horimetro_inicial || horimetroAnterior)) {
+        toast({
+          title: "Erro de Validação",
+          description: `O horímetro final (${form.horimetro}) não pode ser menor que o inicial (${form.horimetro_inicial || horimetroAnterior}).`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     const isIndisp = form.tipo === "Indisponível";
@@ -690,7 +708,7 @@ const Medicoes = () => {
     let hFinal = 0;
     let horasTrabalhadas = 0;
 
-    if (isDiaria) {
+    if (isDiariaSubmit) {
       hInicial = 0;
       hFinal = 0;
       horasTrabalhadas = isIndisp ? form.horas_indisp : form.horas_trab;
@@ -702,14 +720,6 @@ const Medicoes = () => {
       horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
 
       if (!isIndisp) {
-        if (form.horimetro < hInicial) {
-          toast({
-            title: "Erro de Validação",
-            description: `O horímetro final (${form.horimetro}) não pode ser menor que o inicial (${hInicial}).`,
-            variant: "destructive"
-          });
-          return;
-        }
         let maxHoras = 24;
         let dias = 1;
         if (dataAnterior) {
@@ -1269,17 +1279,35 @@ const Medicoes = () => {
                     <Label>Data</Label>
                     <Input type="date" value={form.data} onChange={(e) => onDataChange(e.target.value)} />
                   </div>
-                  <div>
-                    <Label>Tipo de Lançamento</Label>
-                    <RadioGroup 
-                      value={form.tipo} 
-                      onValueChange={(v) => setForm({ 
-                        ...form, 
-                        tipo: v,
-                        horas_indisp: v === "Indisponível" && isDiaria ? 1 : form.horas_indisp
-                      })} 
-                      className="flex gap-4 mt-2"
-                    >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="mb-2 block">Unidade de Medida</Label>
+                      <RadioGroup 
+                        className="flex gap-4 mt-2" 
+                        value={form.isDiaria ? "diarias" : "horas"}
+                        onValueChange={(v) => setForm({ ...form, isDiaria: v === "diarias" })}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="horas" id="um-horas" />
+                          <Label htmlFor="um-horas" className="cursor-pointer font-normal">Horímetro</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="diarias" id="um-diarias" />
+                          <Label htmlFor="um-diarias" className="cursor-pointer font-normal">Diárias</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    <div>
+                      <Label className="mb-2 block">Tipo de Lançamento</Label>
+                      <RadioGroup 
+                        className="flex gap-4 mt-2" 
+                        value={form.tipo} 
+                        onValueChange={(v) => setForm({ 
+                          ...form, 
+                          tipo: v,
+                          horas_indisp: v === "Indisponível" && isDiaria ? 1 : form.horas_indisp
+                        })}
+                      >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="Trabalho" id="tipo-trabalho" />
                         <Label htmlFor="tipo-trabalho" className="cursor-pointer">Trabalho</Label>
