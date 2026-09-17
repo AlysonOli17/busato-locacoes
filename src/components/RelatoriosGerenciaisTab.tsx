@@ -87,7 +87,8 @@ export const RelatoriosGerenciaisTab = ({
   // 1. Filtrar Faturas e Gastos
   const faturasFiltradas = useMemo(() => {
     return faturas.filter(f => {
-      const emissao = f.emissao;
+      const emissao = f.emissao || f.data_aprovacao || f.created_at || "";
+      if (!emissao) return false;
       if (dataInicio && emissao < dataInicio) return false;
       if (dataFim && emissao > dataFim) return false;
       
@@ -375,10 +376,11 @@ export const RelatoriosGerenciaisTab = ({
     faturasFiltradas
       .filter(f => f.status === "Pago" || f.status === "Aprovado")
       .forEach(f => {
-        if (!f.emissao) return;
-        const key = f.emissao.slice(0, 7); // YYYY-MM
+        const emissao = f.emissao || f.data_aprovacao || f.created_at || "";
+        if (!emissao) return;
+        const key = emissao.slice(0, 7); // YYYY-MM
         if (!map[key]) {
-          const date = new Date(f.emissao + "T00:00:00");
+          const date = new Date(emissao + "T00:00:00");
           map[key] = {
             mes: date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
             Receita: 0,
