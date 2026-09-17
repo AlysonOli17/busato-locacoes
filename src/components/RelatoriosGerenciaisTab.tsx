@@ -319,11 +319,15 @@ export const RelatoriosGerenciaisTab = ({
       list: [] as any[]
     };
 
-    faturasFiltradas.forEach(f => {
+    faturas.forEach(f => {
       if (f.status === "Pago" || f.status === "Cancelado") return;
 
-      const prazo = f.contratos?.prazo_faturamento || 30;
-      const dateStr = f.data_aprovacao || f.emissao;
+      const ct = contratos.find(c => c.id === f.contrato_id);
+      if (selectedEmpresa !== "all" && ct?.empresa_id !== selectedEmpresa) return;
+      if (selectedEquipamento !== "all" && ct?.equipamento_id !== selectedEquipamento) return;
+
+      const prazo = ct?.prazo_faturamento || f.contratos?.prazo_faturamento || 30;
+      const dateStr = f.data_aprovacao || f.emissao || f.created_at || "";
       if (!dateStr) return;
 
       const baseDate = parseLocalDate(dateStr);
@@ -331,6 +335,10 @@ export const RelatoriosGerenciaisTab = ({
 
       const vencimento = new Date(baseDate);
       vencimento.setDate(vencimento.getDate() + prazo);
+      const vencimentoStr = vencimento.toISOString().slice(0, 10);
+
+      if (dataInicio && vencimentoStr < dataInicio) return;
+      if (dataFim && vencimentoStr > dataFim) return;
 
       const diffTime = hoje.getTime() - vencimento.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -367,7 +375,7 @@ export const RelatoriosGerenciaisTab = ({
     });
 
     return result;
-  }, [faturasFiltradas]);
+  }, [faturas, contratos, selectedEmpresa, selectedEquipamento, dataInicio, dataFim]);
 
   // 5. Histórico Mensal para Gráfico DRE
   const chartData = useMemo(() => {
