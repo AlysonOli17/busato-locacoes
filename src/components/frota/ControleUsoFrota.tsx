@@ -578,8 +578,13 @@ export default function ControleUsoFrota() {
       // Para diárias: conta dias únicos trabalhados
       const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
       totalHoras = diasUnicos.size;
+    } else if (dataInicio && trabalhoEntries.length > 0) {
+      // Para horímetro com filtro de data: diferença entre último horímetro do período e baseline
+      const lastEntry = trabalhoEntries[trabalhoEntries.length - 1];
+      const baselineHorim = baselines.get(eqId)?.horim ?? Number(sorted[0].horimetro_inicial);
+      totalHoras = Math.max(0, Number(lastEntry.horimetro_final) - baselineHorim);
     } else {
-      // Para horímetro: soma direta das horas trabalhadas lançadas
+      // Para horímetro sem filtro: soma direta das horas trabalhadas lançadas
       totalHoras = trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0);
     }
 
