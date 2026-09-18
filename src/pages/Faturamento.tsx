@@ -447,21 +447,20 @@ export const FaturamentoContent = () => {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
         const diasUnicos = new Set(trabalho.map(m => String(m.data)));
         horasMedidas = diasUnicos.size;
-      } else if (filteredMedicoes.length > 0 || baselineMap.has(eqId)) {
+      } else {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
-        // Build readings array: baseline + in-period readings
-        const allReadings: { data: string; horimetro_final: number }[] = [];
-        const baseline = baselineMap.get(eqId);
-        if (baseline) allReadings.push(baseline);
-        for (const m of trabalho) {
-          allReadings.push({ data: String(m.data), horimetro_final: Number(m.horimetro_final) });
-        }
 
         // Respect effective period: use delivery date as start if within cycle
         const inicioEfetivo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim ? dataEntrega : inicio;
         const fimEfetivo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim ? dataDevolucao : fim;
-        const result = calcularHorasInterpoladas(allReadings, inicioEfetivo, fimEfetivo);
-        horasMedidas = result.totalHoras;
+        
+        // Exact calculation: sum of horas_trabalhadas for readings within the effective period
+        const trabalhoNoPeriodo = trabalho.filter(m => {
+           const dataM = String(m.data);
+           return dataM >= inicioEfetivo && dataM <= fimEfetivo;
+        });
+
+        horasMedidas = Number(trabalhoNoPeriodo.reduce((sum, m) => sum + Math.max(0, Number(m.horas_trabalhadas || 0)), 0).toFixed(1));
       }
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato

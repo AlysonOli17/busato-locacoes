@@ -342,18 +342,16 @@ export const MedicaoTerceirosTab = () => {
         const diasUnicos = new Set(diarias.map((m: any) => String(m.data)));
         horasMedidas = diasUnicos.size;
       } else {
-        const allReadings: { data: string; horimetro_final: number }[] = [];
-        if (baselineRes.data && baselineRes.data.length > 0) {
-          allReadings.push({ data: baselineRes.data[0].data, horimetro_final: Number(baselineRes.data[0].horimetro_final) });
-        }
         const trabalho = (periodRes.data || []).filter((m: any) => m.tipo === "Trabalho");
-        for (const m of trabalho) {
-          allReadings.push({ data: String(m.data), horimetro_final: Number(m.horimetro_final) });
-        }
         const inicioEfetivo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim ? dataEntrega : inicio;
         const fimEfetivo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim ? dataDevolucao : fim;
-        const result = calcularHorasInterpoladas(allReadings, inicioEfetivo, fimEfetivo);
-        horasMedidas = result.totalHoras;
+        
+        const trabalhoNoPeriodo = trabalho.filter((m: any) => {
+           const dataM = String(m.data);
+           return dataM >= inicioEfetivo && dataM <= fimEfetivo;
+        });
+
+        horasMedidas = Number(trabalhoNoPeriodo.reduce((sum: number, m: any) => sum + Math.max(0, Number(m.horas_trabalhadas || 0)), 0).toFixed(1));
       }
 
       // Priority: ajuste > aditivo > contrato_equipamento
