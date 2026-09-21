@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { getEquipLabel, calcularHorasInterpoladas } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
@@ -87,7 +87,6 @@ export default function ControleUsoFrota() {
   const [loading, setLoading] = useState(true);
   const [horimetroAnterior, setHorimetroAnterior] = useState<number>(0);
   const [dataAnterior, setDataAnterior] = useState<string | null>(null);
-  const [baselines, setBaselines] = useState<Map<string, { horim: number; data: string }>>(new Map());
   const [equipMedicaoTypes, setEquipMedicaoTypes] = useState<Map<string, "horas" | "diarias">>(new Map());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkDate, setBulkDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -313,34 +312,6 @@ export default function ControleUsoFrota() {
     if (validDataFim && i.data > validDataFim) return false;
     return true;
   });
-
-  const fetchBaselines = useCallback(async () => {
-    if (!dataInicio) {
-      setBaselines(new Map());
-      return;
-    }
-    const inicioStr = dataInicio.toISOString().split("T")[0];
-    const uniqueEquipIds = [...new Set(filtered.map(m => m.equipamento_id))];
-    if (uniqueEquipIds.length === 0) {
-      setBaselines(new Map());
-      return;
-    }
-    const promises = uniqueEquipIds.map(eqId =>
-      supabase.from("medicoes").select("equipamento_id, horimetro_final, data")
-        .eq("equipamento_id", eqId).eq("tipo", "Trabalho").lt("data", inicioStr)
-        .order("data", { ascending: false }).limit(1)
-    );
-    const results = await Promise.all(promises);
-    const map = new Map<string, { horim: number; data: string }>();
-    results.forEach(r => {
-      if (r.data && r.data.length > 0) {
-        map.set(r.data[0].equipamento_id, { horim: Number(r.data[0].horimetro_final), data: r.data[0].data });
-      }
-    });
-    setBaselines(map);
-  }, [filtered.length, dataInicio, filterEquip]);
-
-  useEffect(() => { fetchBaselines(); }, [fetchBaselines]);
 
   const fetchActiveEquipmentsForDate = async (targetDate: string) => {
     setLoadingBulkGrid(true);
@@ -578,14 +549,9 @@ export default function ControleUsoFrota() {
       // Para diárias: conta dias únicos trabalhados
       const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
       totalHoras = diasUnicos.size;
-    } else if (dataInicio && trabalhoEntries.length > 0) {
-      // Para horímetro com filtro de data: diferença entre último horímetro do período e baseline
-      const lastEntry = trabalhoEntries[trabalhoEntries.length - 1];
-      const baselineHorim = baselines.get(eqId)?.horim ?? Number(sorted[0].horimetro_inicial);
-      totalHoras = Math.max(0, Number(lastEntry.horimetro_final) - baselineHorim);
     } else {
-      // Para horímetro sem filtro: soma direta das horas trabalhadas lançadas
-      totalHoras = trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0);
+      // Para horímetro: soma direta das horas_trabalhadas (igual ao cálculo do Faturamento)
+      totalHoras = Number(trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0).toFixed(1));
     }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
