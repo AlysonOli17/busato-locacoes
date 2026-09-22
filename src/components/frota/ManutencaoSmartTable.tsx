@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { Wrench, Plus, Pencil, Trash2, Search, FileDown, ArrowUpDown, ChevronDown, Check, Download, AlertTriangle, Filter, Building2, DollarSign } from "lucide-react";
@@ -54,6 +55,7 @@ export const ManutencaoSmartTable = () => {
   const { toast } = useToast();
   const [sortCol, setSortCol] = useState("data");
   const [sortAsc, setSortAsc] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggleSort = (col: string) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } };
 
   const fetchData = async () => {
@@ -197,6 +199,28 @@ export const ManutencaoSmartTable = () => {
     fetchData();
   };
 
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Deseja realmente excluir ${selected.size} registro(s)?`)) return;
+    const { error } = await supabase.from("gastos").delete().in("id", Array.from(selected));
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Registros excluídos com sucesso" });
+    setSelected(new Set());
+    fetchData();
+  };
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selected);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelected(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === sorted.length) setSelected(new Set());
+    else setSelected(new Set(sorted.map(i => i.id)));
+  };
+
   const tipoColor = (t: string) => {
     if (t === "Manutenção") return "bg-primary/10 text-primary border-0";
     if (t === "Combustível") return "bg-warning/10 text-warning border-0";
@@ -285,6 +309,11 @@ export const ManutencaoSmartTable = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-between lg:justify-end">
+            {selected.size > 0 && (
+              <Button onClick={handleBulkDelete} variant="destructive" className="shadow-sm">
+                <Trash2 className="h-4 w-4 mr-2" /> Excluir ({selected.size})
+              </Button>
+            )}
             <Button onClick={() => openNew("Operacional")} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
               <Plus className="h-4 w-4 mr-2" /> Custo Operacional
             </Button>
@@ -296,7 +325,10 @@ export const ManutencaoSmartTable = () => {
 
         <div className="flex flex-col gap-2">
           {sorted.length > 0 && (
-            <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="hidden md:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider gap-4">
+              <div className="w-[30px] flex justify-center">
+                <Checkbox checked={sorted.length > 0 && selected.size === sorted.length} onCheckedChange={toggleSelectAll} />
+              </div>
               <div className="w-1/3">Descrição / Equipamento</div>
               <div className="w-1/6 text-center">Tipo</div>
               <div className="w-1/6 text-center">Data / Fatura</div>
@@ -307,9 +339,17 @@ export const ManutencaoSmartTable = () => {
           
           {sorted.map((item) => {
             return (
-              <div key={item.id} className="group bg-card/60 backdrop-blur-sm hover:bg-card border border-border/60 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all relative shadow-sm hover:shadow-md">
+              <div key={item.id} className={cn("group backdrop-blur-sm border rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all relative shadow-sm hover:shadow-md", selected.has(item.id) ? "bg-primary/5 border-primary/50" : "bg-card/60 hover:bg-card border-border/60")}>
                 
+                <div className="hidden md:flex w-[30px] items-center justify-center">
+                  <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelection(item.id)} />
+                </div>
+
                 <div className="flex-1 min-w-0 md:w-1/3">
+                  <div className="flex items-center gap-2 md:hidden mb-3">
+                     <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelection(item.id)} />
+                     <span className="text-xs font-semibold text-muted-foreground">Selecionar Item</span>
+                  </div>
                   <h3 className="font-bold text-sm text-foreground truncate">{item.descricao}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-muted-foreground truncate">{item.equipamentos?.tipo} {item.equipamentos?.modelo}</span>
