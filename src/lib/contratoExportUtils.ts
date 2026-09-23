@@ -343,7 +343,24 @@ export const generateContratoPDF = async (params: {
   const jurosAtraso = params.juros_atraso_percent || 1;
   printParagraph(`§2º. Em caso de atraso no pagamento de quaisquer valores devidos decorrentes deste Contrato, o montante em atraso será acrescido de multa moratória e não compensatória de ${multaAtraso}% (${percentToExtenso(multaAtraso)}), além de juros de mora de ${jurosAtraso}% (${percentToExtenso(jurosAtraso)}) ao mês, calculados pro rata die, e correção monetária apurada pelo IGPM/FGV (ou índice oficial que venha a substituí-lo), calculados desde a data do vencimento até a data do efetivo pagamento.`, false, 5);
   printParagraph("§3º. As informações sobre programações dos pagamentos e/ou comprovantes de pagamento deverão ser solicitadas à LOCADORA, através dos e-mails: alyson.oliveira@busatoloc.com.br, financeiro@busatotransportes.com.br, samara.rodrigues@busatoloc.com.br.", false, 5);
-  printParagraph("DADOS BANCÁRIOS: Favorecido: BUSATO LOCAÇÕES E SERVIÇOS LTDA | CNPJ: 54.167.719/0001-40.", true, 8);
+  // Bank Info Card
+  checkPageBreak(35);
+  doc.setFillColor(245, 248, 252);
+  doc.roundedRect(margin, y, contentW, 32, 2, 2, "F");
+  doc.setDrawColor(...brandBlue);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, contentW, 32, 2, 2, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...brandBlue);
+  doc.text("DADOS BANCÁRIOS PARA DEPÓSITO/PIX", margin + 6, y + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...darkGray);
+  doc.text("Favorecido: BUSATO LOCAÇÕES E SERVIÇOS LTDA   |   CNPJ: 54.167.719/0001-40", margin + 6, y + 13);
+  doc.text("Banco: Santander (033)   |   Agência: 3883   |   Conta Corrente: 13005824-7", margin + 6, y + 20);
+  doc.text("E-mail para comprovantes: financeiro@busatotransportes.com.br", margin + 6, y + 27);
+  y += 38;
 
   // ─── CLÁUSULA SEXTA — DAS OBRIGAÇÕES DA LOCADORA ────────────────────────────
   printParagraph("CLÁUSULA SEXTA — DAS OBRIGAÇÕES DA LOCADORA", true, 4);
