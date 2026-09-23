@@ -267,8 +267,6 @@ export const generateContratoPDF = async (params: {
   // ─── CLÁUSULA PRIMEIRA — OBJETO E LOCAL DE UTILIZAÇÃO ───────────────────────
   printParagraph("CLÁUSULA PRIMEIRA — OBJETO E LOCAL DE UTILIZAÇÃO", true, 4);
   const isDiaria = params.tipo_medicao === "diarias";
-  const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
   printParagraph("É objeto do presente Contrato a locação de equipamento(s) para utilização conforme descrição abaixo, sem fornecimento de mão de obra, operador ou qualquer prestação de serviço pela LOCADORA.", false, 5);
 
   if (isDiaria) {
