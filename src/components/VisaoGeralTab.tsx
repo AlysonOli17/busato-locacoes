@@ -4,11 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import {
   Clock, AlertTriangle, TrendingUp,
   Package, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight,
   Building2, CalendarClock,
-  BarChart3, ChevronRight, AlertCircle,
+  BarChart3, ChevronRight, AlertCircle, Filter, X
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -117,11 +120,12 @@ const SectionTitle = ({ icon: Icon, title, sub, badge }: { icon: any; title: str
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const VisaoGeralTab = ({
-  contratos = [],
-  faturas = [],
+  empresas = [],
+  contratos: rawContratos = [],
+  faturas: rawFaturas = [],
   equipamentos = [],
-  gastos = [],
-  medicoes = [],
+  gastos: rawGastos = [],
+  medicoes: rawMedicoes = [],
   contratosAditivos = [],
   aditivosEquipamentos = [],
   faturamentoGastos = [],
@@ -133,7 +137,74 @@ export const VisaoGeralTab = ({
   const [modalMedicoesAtrasadas, setModalMedicoesAtrasadas] = useState(false);
   const [modalContasReceber, setModalContasReceber] = useState(false);
 
+  const [filterEmpresaId, setFilterEmpresaId] = useState<string>("all");
+  const [filterEquipamentoId, setFilterEquipamentoId] = useState<string>("all");
+  const [filterPeriodo, setFilterPeriodo] = useState<string>("");
+
   const hoje = useMemo(() => new Date(), []);
+
+  // ── Pre-filtering Data Collections ───────────────────────────────────────────
+  const contratos = useMemo(() => {
+    return rawContratos.filter(c => {
+      if (filterEmpresaId !== "all" && c.empresa_id !== filterEmpresaId) return false;
+      if (filterEquipamentoId !== "all" && c.equipamento_id !== filterEquipamentoId) {
+        // Also check contratos_equipamentos
+        const hasEq = contratosEquipamentos.some(ce => ce.contrato_id === c.id && ce.equipamento_id === filterEquipamentoId);
+        if (!hasEq) return false;
+      }
+      if (filterPeriodo) {
+        const pStart = filterPeriodo + "-01";
+        const pEnd = filterPeriodo + "-31";
+        if (c.data_inicio > pEnd) return false;
+        if (c.data_fim && c.data_fim < pStart) return false;
+      }
+      return true;
+    });
+  }, [rawContratos, filterEmpresaId, filterEquipamentoId, filterPeriodo, contratosEquipamentos]);
+
+  const faturas = useMemo(() => {
+    const validContratoIds = new Set(contratos.map(c => c.id));
+    return rawFaturas.filter(f => {
+      if (filterEmpresaId !== "all" || filterEquipamentoId !== "all") {
+        if (!validContratoIds.has(f.contrato_id)) return false;
+      }
+      if (filterPeriodo) {
+        const base = String(f.emissao || f.data_aprovacao || "");
+        if (!base.startsWith(filterPeriodo)) return false;
+      }
+      return true;
+    });
+  }, [rawFaturas, contratos, filterEmpresaId, filterEquipamentoId, filterPeriodo]);
+
+  const gastos = useMemo(() => {
+    return rawGastos.filter(g => {
+      if (filterEquipamentoId !== "all" && g.equipamento_id !== filterEquipamentoId) return false;
+      // Filter gastos by valid equipments from contracts if client is filtered
+      if (filterEmpresaId !== "all") {
+        const validEqIds = new Set(contratos.flatMap(c => {
+           const eqs = [c.equipamento_id];
+           const linked = contratosEquipamentos.filter(ce => ce.contrato_id === c.id).map(ce => ce.equipamento_id);
+           return [...eqs, ...linked].filter(Boolean);
+        }));
+        if (!validEqIds.has(g.equipamento_id)) return false;
+      }
+      if (filterPeriodo) {
+        const base = String(g.data || "");
+        if (!base.startsWith(filterPeriodo)) return false;
+      }
+      return true;
+    });
+  }, [rawGastos, filterEquipamentoId, filterPeriodo, filterEmpresaId, contratos, contratosEquipamentos]);
+  
+  const medicoes = useMemo(() => {
+    return rawMedicoes.filter(m => {
+       if (filterEquipamentoId !== "all" && m.equipamento_id !== filterEquipamentoId) return false;
+       if (filterPeriodo) {
+         if (!String(m.data || "").startsWith(filterPeriodo)) return false;
+       }
+       return true;
+    });
+  }, [rawMedicoes, filterEquipamentoId, filterPeriodo]);
 
   // ── Gastos: faturados vs não faturados ──────────────────────────────────────
   const gastosFaturadosSet = useMemo(
@@ -396,6 +467,54 @@ export const VisaoGeralTab = ({
 
   return (
     <div className="space-y-8">
+      
+      {/* ── Filters Bar ──────────────────────────────────────────────────────── */}
+      <div className="bg-card/60 backdrop-blur-sm p-4 rounded-2xl border border-border/60 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+        <div className="flex-1 w-full">
+          <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Cliente</label>
+          <SearchableSelect
+            value={filterEmpresaId}
+            onValueChange={setFilterEmpresaId}
+            placeholder="Todos os Clientes"
+            searchPlaceholder="Buscar cliente..."
+            options={[
+              { value: "all", label: "Todos os Clientes" },
+              ...empresas.map(e => ({ value: e.id, label: e.nome }))
+            ]}
+          />
+        </div>
+        <div className="flex-1 w-full">
+          <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Equipamento</label>
+          <SearchableSelect
+            value={filterEquipamentoId}
+            onValueChange={setFilterEquipamentoId}
+            placeholder="Todos os Equipamentos"
+            searchPlaceholder="Buscar equipamento..."
+            options={[
+              { value: "all", label: "Todos os Equipamentos" },
+              ...equipamentos.map(e => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ''}`.trim() }))
+            ]}
+          />
+        </div>
+        <div className="w-full md:w-48">
+          <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Período (Mês)</label>
+          <Input 
+            type="month" 
+            value={filterPeriodo} 
+            onChange={(e) => setFilterPeriodo(e.target.value)}
+            className="bg-background"
+          />
+        </div>
+        {(filterEmpresaId !== "all" || filterEquipamentoId !== "all" || filterPeriodo !== "") && (
+          <Button 
+            variant="outline" 
+            onClick={() => { setFilterEmpresaId("all"); setFilterEquipamentoId("all"); setFilterPeriodo(""); }}
+            className="gap-2"
+          >
+            <X className="h-4 w-4" /> Limpar
+          </Button>
+        )}
+      </div>
 
       {/* ── KPIs Executivos ─────────────────────────────────────────────────── */}
       <div>
