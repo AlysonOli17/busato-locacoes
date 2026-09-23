@@ -1,4 +1,4 @@
-﻿import { parseLocalDate } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/utils";
 
 let logoCache: string | null = null;
 async function loadLogo(): Promise<string | null> {
@@ -24,16 +24,16 @@ async function loadLogo(): Promise<string | null> {
 function dayToExtenso(dStr: string): string {
   const d = parseInt(dStr, 10);
   const map: Record<number, string> = {
-    1: "um", 2: "dois", 3: "trÃªs", 4: "quatro", 5: "cinco", 6: "seis", 7: "sete", 8: "oito", 9: "nove", 10: "dez",
+    1: "um", 2: "dois", 3: "três", 4: "quatro", 5: "cinco", 6: "seis", 7: "sete", 8: "oito", 9: "nove", 10: "dez",
     11: "onze", 12: "doze", 13: "treze", 14: "catorze", 15: "quinze", 16: "dezesseis", 17: "dezessete", 18: "dezoito", 19: "dezenove", 20: "vinte",
-    21: "vinte e um", 22: "vinte e dois", 23: "vinte e trÃªs", 24: "vinte e quatro", 25: "vinte e cinco", 26: "vinte e seis", 27: "vinte e sete", 28: "vinte e oito", 29: "vinte e nove", 30: "trinta", 31: "trinta e um"
+    21: "vinte e um", 22: "vinte e dois", 23: "vinte e três", 24: "vinte e quatro", 25: "vinte e cinco", 26: "vinte e seis", 27: "vinte e sete", 28: "vinte e oito", 29: "vinte e nove", 30: "trinta", 31: "trinta e um"
   };
   return map[d] || dStr;
 }
 
 function integerToExtenso(n: number): string {
   if (n === 0) return "zero";
-  const unidades = ["", "um", "dois", "trÃªs", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const unidades = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
   const dezenasEspecial = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
   const dezenas = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
   const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
@@ -80,7 +80,7 @@ function percentToExtenso(p: number): string {
     return `${intWords} por cento`;
   } else {
     const decWords = integerToExtenso(decimalPart);
-    return `${intWords} vÃ­rgula ${decWords} por cento`;
+    return `${intWords} vírgula ${decWords} por cento`;
   }
 }
 
@@ -88,7 +88,7 @@ function converterNumeroParaExtenso(n: number): string {
   if (n === 0) return "";
   if (n === 100) return "cem";
   
-  const unidades = ["", "um", "dois", "trÃªs", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const unidades = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
   const dezenasEspecial = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
   const dezenas = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
   const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
@@ -123,9 +123,9 @@ function converterNumeroParaExtenso(n: number): string {
     const rest = n % 1000000;
     let milhaoText = "";
     if (milhao === 1) {
-      milhaoText = "um milhÃ£o";
+      milhaoText = "um milhão";
     } else {
-      milhaoText = converterNumeroParaExtenso(milhao) + " milhÃµes";
+      milhaoText = converterNumeroParaExtenso(milhao) + " milhões";
     }
     if (rest === 0) return milhaoText;
     const separator = (rest < 100 || rest % 100 === 0) ? " e " : " ";
@@ -204,8 +204,8 @@ export const generateContratoPDF = async (params: {
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.4);
     doc.line(margin, ph - 15, pw - margin, ph - 15);
-    doc.text("BUSATO LOCAÃ‡Ã•ES E SERVIÃ‡OS LTDA  â€¢  CNPJ: 54.167.719/0001-40", margin, ph - 10);
-    doc.text(`PÃ¡gina ${pageNum} de ${totalPages}`, pw - margin, ph - 10, { align: "right" });
+    doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA  •  CNPJ: 54.167.719/0001-40", margin, ph - 10);
+    doc.text(`Página ${pageNum} de ${totalPages}`, pw - margin, ph - 10, { align: "right" });
   };
 
   addHeader();
@@ -243,7 +243,7 @@ export const generateContratoPDF = async (params: {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...brandBlue);
-  const titleLines = doc.splitTextToSize("CONTRATO DE LOCAÃ‡ÃƒO DE VEÃCULO / EQUIPAMENTO SEM UTILIZAÃ‡ÃƒO DE MÃƒO DE OBRA", contentW - 55);
+  const titleLines = doc.splitTextToSize("CONTRATO DE LOCAÇÃO DE VEÍCULO / EQUIPAMENTO SEM UTILIZAÇÃO DE MÃO DE OBRA", contentW - 55);
   doc.text(titleLines, margin + 55, 15);
 
   doc.setDrawColor(...brandBlue);
@@ -251,46 +251,45 @@ export const generateContratoPDF = async (params: {
   doc.line(margin, 28, pw - margin, 28);
   y = 35;
 
-
   // Parts
   printParagraph("De um lado, como Locadora,", true, 3);
-  printParagraph("BUSATO LOCAÃ‡Ã•ES E SERVIÃ‡OS LTDA., empresa estabelecida na Av. Nossa Senhora da Penha, 595, Sala 510, Santa LÃºcia, VitÃ³ria/ES, CEP 29.056-250, inscrita no CNPJ sob o nÂº 54.167.719/0001-40, neste ato denominada simplesmente Locadora.", false, 5);
+  printParagraph("BUSATO LOCAÇÕES E SERVIÇOS LTDA., empresa estabelecida na Av. Nossa Senhora da Penha, 595, Sala 510, Santa Lúcia, Vitória/ES, CEP 29.056-250, inscrita no CNPJ sob o nº 54.167.719/0001-40, neste ato denominada simplesmente Locadora.", false, 5);
 
-  printParagraph("De outro lado, como LocatÃ¡ria,", true, 3);
+  printParagraph("De outro lado, como Locatária,", true, 3);
   const obraSuffix = params.empresa?.obra ? ` (Obra: ${params.empresa.obra})` : "";
-  const locatariaNome = `${params.empresa?.razao_social || params.empresa?.nome || "LOCATÃRIA"}${obraSuffix}`;
-  const locatariaCnpj = params.empresa?.cnpj || "â€”";
-  const locatariaEnd = [params.empresa?.endereco_logradouro, params.empresa?.endereco_numero, params.empresa?.endereco_complemento, params.empresa?.endereco_bairro, params.empresa?.endereco_cidade, params.empresa?.endereco_uf].filter(Boolean).join(", ") || "â€”";
-  printParagraph(`${locatariaNome}, empresa estabelecida Ã  ${locatariaEnd}, inscrita no CNPJ sob o nÂº ${locatariaCnpj}, neste ato denominada simplesmente LocatÃ¡ria.`, false, 8);
+  const locatariaNome = `${params.empresa?.razao_social || params.empresa?.nome || "LOCATÁRIA"}${obraSuffix}`;
+  const locatariaCnpj = params.empresa?.cnpj || "—";
+  const locatariaEnd = [params.empresa?.endereco_logradouro, params.empresa?.endereco_numero, params.empresa?.endereco_complemento, params.empresa?.endereco_bairro, params.empresa?.endereco_cidade, params.empresa?.endereco_uf].filter(Boolean).join(", ") || "—";
+  printParagraph(`${locatariaNome}, empresa estabelecida à ${locatariaEnd}, inscrita no CNPJ sob o nº ${locatariaCnpj}, neste ato denominada simplesmente Locatária.`, false, 8);
 
-  printParagraph("Resolvem celebrar o presente Contrato de LocaÃ§Ã£o de VeÃ­culo / Equipamento, doravante denominado \"Contrato\", mediante as seguintes clÃ¡usulas e condiÃ§Ãµes:", false, 10);
+  printParagraph("Resolvem celebrar o presente Contrato de Locação de Veículo / Equipamento, doravante denominado \"Contrato\", mediante as seguintes cláusulas e condições:", false, 10);
 
-  // â”€â”€â”€ CLÃUSULA PRIMEIRA â€” OBJETO E LOCAL DE UTILIZAÃ‡ÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA PRIMEIRA â€” OBJETO E LOCAL DE UTILIZAÃ‡ÃƒO", true, 4);
+  // ─── CLÁUSULA PRIMEIRA — OBJETO E LOCAL DE UTILIZAÇÃO ───────────────────────
+  printParagraph("CLÁUSULA PRIMEIRA — OBJETO E LOCAL DE UTILIZAÇÃO", true, 4);
   const isDiaria = params.tipo_medicao === "diarias";
   const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  printParagraph("Ã‰ objeto do presente Contrato a locaÃ§Ã£o de equipamento(s) para utilizaÃ§Ã£o conforme descriÃ§Ã£o abaixo, sem fornecimento de mÃ£o de obra, operador ou qualquer prestaÃ§Ã£o de serviÃ§o pela LOCADORA.", false, 5);
+  printParagraph("É objeto do presente Contrato a locação de equipamento(s) para utilização conforme descrição abaixo, sem fornecimento de mão de obra, operador ou qualquer prestação de serviço pela LOCADORA.", false, 5);
 
   if (isDiaria) {
-    printParagraph("Fica acordado entre as Partes que nos casos de contratos de locaÃ§Ã£o por DIÃRIA, serÃ¡ garantido Ã  LOCADORA um mÃ­nimo de diÃ¡rias mensais de locaÃ§Ã£o por veÃ­culo/equipamento, individualmente, e as diÃ¡rias extras trabalhadas ou Ã  disposiÃ§Ã£o que excedam esse limite serÃ£o acrescidas e registradas em Boletim de MediÃ§Ã£o, aplicando-se os preÃ§os unitÃ¡rios por diÃ¡ria pactuados, assim como possÃ­veis deduÃ§Ãµes previstas na ClÃ¡usula Quarta.", false, 5);
+    printParagraph("Fica acordado entre as Partes que nos casos de contratos de locação por DIÁRIA, será garantido à LOCADORA um mínimo de diárias mensais de locação por veículo/equipamento, individualmente, e as diárias extras trabalhadas ou à disposição que excedam esse limite serão acrescidas e registradas em Boletim de Medição, aplicando-se os preços unitários por diária pactuados, assim como possíveis deduções previstas na Cláusula Quarta.", false, 5);
   } else {
-    printParagraph("Fica acordado entre as Partes que nos casos de contratos de locaÃ§Ã£o por HORA, serÃ¡ garantido Ã  LOCADORA um mÃ­nimo de horas mensais de locaÃ§Ã£o por veÃ­culo/equipamento, individualmente, e as horas extras trabalhadas ou Ã  disposiÃ§Ã£o que excedam esse limite serÃ£o acrescidas e registradas em Boletim de MediÃ§Ã£o, aplicando-se os preÃ§os unitÃ¡rios por hora pactuados, assim como possÃ­veis deduÃ§Ãµes previstas na ClÃ¡usula Quarta.", false, 5);
+    printParagraph("Fica acordado entre as Partes que nos casos de contratos de locação por HORA, será garantido à LOCADORA um mínimo de horas mensais de locação por veículo/equipamento, individualmente, e as horas extras trabalhadas ou à disposição que excedam esse limite serão acrescidas e registradas em Boletim de Medição, aplicando-se os preços unitários por hora pactuados, assim como possíveis deduções previstas na Cláusula Quarta.", false, 5);
   }
 
-  printParagraph("Nos meses de mobilizaÃ§Ã£o e desmobilizaÃ§Ã£o do equipamento o valor mensal a ser medido serÃ¡ proporcional ao nÃºmero de dias Ãºteis do equipamento Ã  disposiÃ§Ã£o da obra.", false, 6);
+  printParagraph("Nos meses de mobilização e desmobilização do equipamento o valor mensal a ser medido será proporcional ao número de dias úteis do equipamento à disposição da obra.", false, 6);
 
   // Equipment table
-  const franquiaUnidade = isDiaria ? "DIÃRIAS" : "HORAS";
+  const franquiaUnidade = isDiaria ? "DIÁRIAS" : "HORAS";
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [["ITEM", "EQUIPAMENTO", "CHASSIS / SÃ‰RIE", `FRANQUIA MENSAL ${franquiaUnidade}`, isDiaria ? "VALOR DIÃRIA" : "VALOR HORA", "VALOR TOTAL EQUIPAMENTO"]],
+    head: [["ITEM", "EQUIPAMENTO", "CHASSIS / SÉRIE", `FRANQUIA MENSAL ${franquiaUnidade}`, isDiaria ? "VALOR DIÁRIA" : "VALOR HORA", "VALOR TOTAL EQUIPAMENTO"]],
     body: params.equipamentos.map((eq, i) => [
       String(i + 1).padStart(2, "0"),
       eq.equipamento_tipo,
-      eq.numero_serie || "â€”",
-      eq.franquia_mensal ? `${eq.franquia_mensal} ${franquiaUnidade}` : "â€”",
+      eq.numero_serie || "—",
+      eq.franquia_mensal ? `${eq.franquia_mensal} ${franquiaUnidade}` : "—",
       fmtBRL(eq.valor_hora),
       fmtBRL(eq.valor_mensal),
     ]),
@@ -301,200 +300,200 @@ export const generateContratoPDF = async (params: {
   });
   y = (doc as any).lastAutoTable.finalY + 8;
 
-  printParagraph("Â§1Âº. O(s) equipamento(s) serÃ¡(Ã£o) utilizado(s) exclusivamente na obra/local indicado neste Contrato, sendo vedado o deslocamento para local diverso, ainda que de propriedade ou posse da LOCATÃRIA, sem prÃ©via e expressa autorizaÃ§Ã£o escrita da LOCADORA.", false, 5);
-  printParagraph("Â§2Âº. O deslocamento nÃ£o autorizado caracteriza agravamento de risco, autoriza a rescisÃ£o imediata do Contrato e a retomada do bem e transfere Ã  LOCATÃRIA a responsabilidade integral por qualquer sinistro ocorrido fora do local contratado, inclusive na hipÃ³tese de recusa de cobertura pela seguradora.", false, 5);
-  printParagraph("Â§3Âº. Os implementos e as caracterÃ­sticas adicionais ao equipamento/veÃ­culo deverÃ£o ser negociados entre as Partes previamente Ã  saÃ­da do equipamento do pÃ¡tio da LOCADORA.", false, 8);
+  printParagraph("§1º. O(s) equipamento(s) será(ão) utilizado(s) exclusivamente na obra/local indicado neste Contrato, sendo vedado o deslocamento para local diverso, ainda que de propriedade ou posse da LOCATÁRIA, sem prévia e expressa autorização escrita da LOCADORA.", false, 5);
+  printParagraph("§2º. O deslocamento não autorizado caracteriza agravamento de risco, autoriza a rescisão imediata do Contrato e a retomada do bem e transfere à LOCATÁRIA a responsabilidade integral por qualquer sinistro ocorrido fora do local contratado, inclusive na hipótese de recusa de cobertura pela seguradora.", false, 5);
+  printParagraph("§3º. Os implementos e as características adicionais ao equipamento/veículo deverão ser negociados entre as Partes previamente à saída do equipamento do pátio da LOCADORA.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA SEGUNDA â€” PRAZO, FRANQUIA MÃNIMA E RESILIÃ‡ÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA SEGUNDA â€” PRAZO, FRANQUIA MÃNIMA E RESILIÃ‡ÃƒO", true, 4);
+  // ─── CLÁUSULA SEGUNDA — PRAZO, FRANQUIA MÍNIMA E RESILIÇÃO ──────────────────
+  printParagraph("CLÁUSULA SEGUNDA — PRAZO, FRANQUIA MÍNIMA E RESILIÇÃO", true, 4);
   const dtInicio = parseLocalDate(params.data_inicio).toLocaleDateString("pt-BR");
   const dtFim = parseLocalDate(params.data_fim).toLocaleDateString("pt-BR");
   const diffMs = Math.abs(new Date(params.data_fim).getTime() - new Date(params.data_inicio).getTime());
   const diffMonths = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30)));
   const diffMonthsExtenso = integerToExtenso(diffMonths);
-  printParagraph(`O prazo de vigÃªncia do presente Contrato serÃ¡ de ${diffMonths} (${diffMonthsExtenso}) meses, com inÃ­cio em ${dtInicio} e tÃ©rmino em ${dtFim}, encerrando-se automaticamente ao final desse perÃ­odo, independentemente de aviso ou notificaÃ§Ã£o.`, false, 5);
-  printParagraph("Â§1Âº. O Contrato poderÃ¡ ser prorrogado mediante anuÃªncia expressa de ambas as Partes, formalizada por escrito antes do tÃ©rmino de sua vigÃªncia, por meio de termo aditivo, no qual serÃ£o estabelecidos o novo prazo e, se aplicÃ¡vel, as demais condiÃ§Ãµes da prorrogaÃ§Ã£o.", false, 5);
-  printParagraph("Â§2Âº. A franquia mensal mÃ­nima de horas por equipamento Ã© devida integralmente em cada mÃªs de vigÃªncia, ainda que a utilizaÃ§Ã£o seja inferior, ressalvadas apenas as deduÃ§Ãµes previstas na ClÃ¡usula Quarta e os meses de mobilizaÃ§Ã£o e desmobilizaÃ§Ã£o, em que o valor serÃ¡ proporcional aos dias Ãºteis de disponibilizaÃ§Ã£o.", false, 5);
-  printParagraph("Â§3Âº. A LOCATÃRIA poderÃ¡ resilir unilateralmente o presente Contrato mediante comunicaÃ§Ã£o escrita Ã  LOCADORA com antecedÃªncia mÃ­nima de 30 (trinta) dias corridos, respondendo pelos valores devidos atÃ© a efetiva devoluÃ§Ã£o do bem, observada, em qualquer caso, a franquia mÃ­nima do perÃ­odo, inclusive durante o prazo de aviso prÃ©vio.", false, 5);
-  printParagraph("Â§4Âº. NÃ£o observado o aviso prÃ©vio previsto no parÃ¡grafo anterior, serÃ¡ devida multa equivalente a 1 (uma) franquia mensal mÃ­nima por equipamento, sem prejuÃ­zo dos valores em aberto e das perdas e danos comprovadas.", false, 8);
+  printParagraph(`O prazo de vigência do presente Contrato será de ${diffMonths} (${diffMonthsExtenso}) meses, com início em ${dtInicio} e término em ${dtFim}, encerrando-se automaticamente ao final desse período, independentemente de aviso ou notificação.`, false, 5);
+  printParagraph("§1º. O Contrato poderá ser prorrogado mediante anuência expressa de ambas as Partes, formalizada por escrito antes do término de sua vigência, por meio de termo aditivo, no qual serão estabelecidos o novo prazo e, se aplicável, as demais condições da prorrogação.", false, 5);
+  printParagraph("§2º. A franquia mensal mínima de horas por equipamento é devida integralmente em cada mês de vigência, ainda que a utilização seja inferior, ressalvadas apenas as deduções previstas na Cláusula Quarta e os meses de mobilização e desmobilização, em que o valor será proporcional aos dias úteis de disponibilização.", false, 5);
+  printParagraph("§3º. A LOCATÁRIA poderá resilir unilateralmente o presente Contrato mediante comunicação escrita à LOCADORA com antecedência mínima de 30 (trinta) dias corridos, respondendo pelos valores devidos até a efetiva devolução do bem, observada, em qualquer caso, a franquia mínima do período, inclusive durante o prazo de aviso prévio.", false, 5);
+  printParagraph("§4º. Não observado o aviso prévio previsto no parágrafo anterior, será devida multa equivalente a 1 (uma) franquia mensal mínima por equipamento, sem prejuízo dos valores em aberto e das perdas e danos comprovadas.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA TERCEIRA â€” PREÃ‡OS, REAJUSTE E REEQUILÃBRIO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA TERCEIRA â€” PREÃ‡OS, REAJUSTE E REEQUILÃBRIO", true, 4);
+  // ─── CLÁUSULA TERCEIRA — PREÇOS, REAJUSTE E REEQUILÍBRIO ────────────────────
+  printParagraph("CLÁUSULA TERCEIRA — PREÇOS, REAJUSTE E REEQUILÍBRIO", true, 4);
   const valorTotalMensal = params.equipamentos.reduce((sum, e) => sum + e.valor_mensal, 0);
   const valorGlobalEstimado = valorTotalMensal * diffMonths;
   const valorGlobalExt = valorExtenso(valorGlobalEstimado);
-  printParagraph(`O valor global estimado do presente Contrato Ã© de ${fmtBRL(valorGlobalEstimado)} (${valorGlobalExt}), calculado conforme os valores unitÃ¡rios e prazos indicados. Este valor serve apenas como parÃ¢metro orÃ§amentÃ¡rio, nÃ£o constituindo qualquer compromisso das Partes de virem a efetivamente utilizÃ¡-lo integralmente, sendo devido o montante referente ao perÃ­odo em que o equipamento estiver Ã  disposiÃ§Ã£o da LOCATÃRIA, observadas a franquia mÃ­nima e as premissas de mediÃ§Ã£o estabelecidas neste instrumento.`, false, 5);
-  printParagraph("Â§1Âº. Os preÃ§os unitÃ¡rios pactuados serÃ£o fixos e irreajustÃ¡veis pelo prazo de 12 (doze) meses contados da assinatura. Prorrogado o Contrato por prazo superior, os valores serÃ£o reajustados pela variaÃ§Ã£o acumulada do IPCA/IBGE no perÃ­odo ou, na sua falta, pelo IGP-M/FGV, mediante formalizaÃ§Ã£o de termo aditivo.", false, 5);
-  printParagraph("Â§2Âº. Na hipÃ³tese de criaÃ§Ã£o, majoraÃ§Ã£o, extinÃ§Ã£o ou alteraÃ§Ã£o de tributos, encargos ou obrigaÃ§Ãµes legais que incidam sobre o objeto deste Contrato, inclusive em razÃ£o da transiÃ§Ã£o prevista na Emenda Constitucional nÂº 132/2023 e na Lei Complementar nÂº 214/2025, as Partes promoverÃ£o, em atÃ© 15 (quinze) dias contados da vigÃªncia da alteraÃ§Ã£o, a revisÃ£o dos preÃ§os para recomposiÃ§Ã£o do equilÃ­brio econÃ´mico-financeiro original, mediante termo aditivo.", false, 8);
+  printParagraph(`O valor global estimado do presente Contrato é de ${fmtBRL(valorGlobalEstimado)} (${valorGlobalExt}), calculado conforme os valores unitários e prazos indicados. Este valor serve apenas como parâmetro orçamentário, não constituindo qualquer compromisso das Partes de virem a efetivamente utilizá-lo integralmente, sendo devido o montante referente ao período em que o equipamento estiver à disposição da LOCATÁRIA, observadas a franquia mínima e as premissas de medição estabelecidas neste instrumento.`, false, 5);
+  printParagraph("§1º. Os preços unitários pactuados serão fixos e irreajustáveis pelo prazo de 12 (doze) meses contados da assinatura. Prorrogado o Contrato por prazo superior, os valores serão reajustados pela variação acumulada do IPCA/IBGE no período ou, na sua falta, pelo IGP-M/FGV, mediante formalização de termo aditivo.", false, 5);
+  printParagraph("§2º. Na hipótese de criação, majoração, extinção ou alteração de tributos, encargos ou obrigações legais que incidam sobre o objeto deste Contrato, inclusive em razão da transição prevista na Emenda Constitucional nº 132/2023 e na Lei Complementar nº 214/2025, as Partes promoverão, em até 15 (quinze) dias contados da vigência da alteração, a revisão dos preços para recomposição do equilíbrio econômico-financeiro original, mediante termo aditivo.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA QUARTA â€” MEDIÃ‡ÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA QUARTA â€” MEDIÃ‡ÃƒO", true, 4);
+  // ─── CLÁUSULA QUARTA — MEDIÇÃO ───────────────────────────────────────────────
+  printParagraph("CLÁUSULA QUARTA — MEDIÇÃO", true, 4);
   const diaMedFim = parseInt(params.dia_fim_medicao || "25", 10);
-  printParagraph("Os boletins de mediÃ§Ã£o serÃ£o elaborados mensalmente pela LOCADORA com base nas informaÃ§Ãµes obtidas por meio da telemetria do equipamento, que prevalecerÃ£o em caso de divergÃªncia, e serÃ£o encaminhados Ã  LOCATÃRIA por e-mail para os endereÃ§os indicados neste Contrato.", false, 5);
-  printParagraph("Â§1Âº. A LOCATÃRIA terÃ¡ o prazo de 5 (cinco) dias Ãºteis, contados do envio, para manifestar eventual discordÃ¢ncia, apresentando, obrigatoriamente, as evidÃªncias que comprovem a divergÃªncia. Decorrido o referido prazo sem manifestaÃ§Ã£o, os boletins serÃ£o considerados aprovados, prosseguindo-se com o faturamento e o envio para pagamento.", false, 5);
-  printParagraph(`Â§2Âº. Na hipÃ³tese de falha ou indisponibilidade da telemetria, a mediÃ§Ã£o serÃ¡ apurada pela leitura do horÃ­metro do equipamento, cujo registro a LOCATÃRIA se obriga a enviar Ã  LOCADORA atÃ© o dia ${diaMedFim} (${dayToExtenso(String(diaMedFim))} e ${diaMedFim < 30 ? "" : "trinta"}) de cada mÃªs. NÃ£o enviado o registro, a mediÃ§Ã£o do perÃ­odo serÃ¡ apurada pela mÃ©dia dos 2 (dois) Ãºltimos meses medidos ou pela franquia mÃ­nima contratada, prevalecendo o maior valor.`, false, 5);
-  printParagraph("Â§3Âº. A intervenÃ§Ã£o, remoÃ§Ã£o, desativaÃ§Ã£o, obstruÃ§Ã£o ou alteraÃ§Ã£o do sistema de telemetria ou de rastreamento implica a apuraÃ§Ã£o da mediÃ§Ã£o pela franquia mÃ­nima contratada, sem prejuÃ­zo das penalidades previstas na ClÃ¡usula DÃ©cima Oitava.", false, 5);
-  printParagraph("Â§4Âº. SerÃ£o deduzidas das mediÃ§Ãµes as horas em que o equipamento estiver parado para manutenÃ§Ãµes preventivas e/ou corretivas, por defeitos no equipamento ou por quaisquer outros aspectos de responsabilidade da LOCADORA que impeÃ§am a operaÃ§Ã£o efetiva do equipamento/veÃ­culo, exceto em caso de mau uso ou culpa da LOCATÃRIA, quando esta deverÃ¡ arcar com os custos sem deduÃ§Ãµes na mediÃ§Ã£o.", false, 8);
+  printParagraph("Os boletins de medição serão elaborados mensalmente pela LOCADORA com base nas informações obtidas por meio da telemetria do equipamento, que prevalecerão em caso de divergência, e serão encaminhados à LOCATÁRIA por e-mail para os endereços indicados neste Contrato.", false, 5);
+  printParagraph("§1º. A LOCATÁRIA terá o prazo de 5 (cinco) dias úteis, contados do envio, para manifestar eventual discordância, apresentando, obrigatoriamente, as evidências que comprovem a divergência. Decorrido o referido prazo sem manifestação, os boletins serão considerados aprovados, prosseguindo-se com o faturamento e o envio para pagamento.", false, 5);
+  printParagraph(`§2º. Na hipótese de falha ou indisponibilidade da telemetria, a medição será apurada pela leitura do horímetro do equipamento, cujo registro a LOCATÁRIA se obriga a enviar à LOCADORA até o dia ${diaMedFim} (${dayToExtenso(String(diaMedFim))} e ${diaMedFim < 30 ? "" : "trinta"}) de cada mês. Não enviado o registro, a medição do período será apurada pela média dos 2 (dois) últimos meses medidos ou pela franquia mínima contratada, prevalecendo o maior valor.`, false, 5);
+  printParagraph("§3º. A intervenção, remoção, desativação, obstrução ou alteração do sistema de telemetria ou de rastreamento implica a apuração da medição pela franquia mínima contratada, sem prejuízo das penalidades previstas na Cláusula Décima Oitava.", false, 5);
+  printParagraph("§4º. Serão deduzidas das medições as horas em que o equipamento estiver parado para manutenções preventivas e/ou corretivas, por defeitos no equipamento ou por quaisquer outros aspectos de responsabilidade da LOCADORA que impeçam a operação efetiva do equipamento/veículo, exceto em caso de mau uso ou culpa da LOCATÁRIA, quando esta deverá arcar com os custos sem deduções na medição.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA QUINTA â€” PAGAMENTOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA QUINTA â€” PAGAMENTOS", true, 4);
+  // ─── CLÁUSULA QUINTA — PAGAMENTOS ───────────────────────────────────────────
+  printParagraph("CLÁUSULA QUINTA — PAGAMENTOS", true, 4);
   const prazoPagDias = params.prazo_pagamento_dias || 30;
   const prazoPagExt = integerToExtenso(prazoPagDias);
-  printParagraph(`Pela locaÃ§Ã£o do bem objeto do presente Contrato, a LOCATÃRIA pagarÃ¡ Ã  LOCADORA os valores unitÃ¡rios conforme prazo acordado entre as Partes, com vencimento em ${prazoPagDias} (${prazoPagExt}) dias a partir da aprovaÃ§Ã£o do boletim de mediÃ§Ã£o.`, false, 5);
-  printParagraph("Â§1Âº. Os pagamentos decorrentes deste Contrato deverÃ£o ser efetuados exclusivamente por meio de boleto bancÃ¡rio emitido pela LOCADORA.", false, 5);
+  printParagraph(`Pela locação do bem objeto do presente Contrato, a LOCATÁRIA pagará à LOCADORA os valores unitários conforme prazo acordado entre as Partes, com vencimento em ${prazoPagDias} (${prazoPagExt}) dias a partir da aprovação do boletim de medição.`, false, 5);
+  printParagraph("§1º. Os pagamentos decorrentes deste Contrato deverão ser efetuados exclusivamente por meio de boleto bancário emitido pela LOCADORA.", false, 5);
   const multaAtraso = params.multa_atraso_percent || 2;
   const jurosAtraso = params.juros_atraso_percent || 1;
-  printParagraph(`Â§2Âº. Em caso de atraso no pagamento de quaisquer valores devidos decorrentes deste Contrato, o montante em atraso serÃ¡ acrescido de multa moratÃ³ria e nÃ£o compensatÃ³ria de ${multaAtraso}% (${percentToExtenso(multaAtraso)}), alÃ©m de juros de mora de ${jurosAtraso}% (${percentToExtenso(jurosAtraso)}) ao mÃªs, calculados pro rata die, e correÃ§Ã£o monetÃ¡ria apurada pelo IGPM/FGV (ou Ã­ndice oficial que venha a substituÃ­-lo), calculados desde a data do vencimento atÃ© a data do efetivo pagamento.`, false, 5);
-  printParagraph("Â§3Âº. As informaÃ§Ãµes sobre programaÃ§Ãµes dos pagamentos e/ou comprovantes de pagamento deverÃ£o ser solicitadas Ã  LOCADORA, atravÃ©s dos e-mails: alyson.oliveira@busatoloc.com.br, financeiro@busatotransportes.com.br, samara.rodrigues@busatoloc.com.br.", false, 5);
-  printParagraph("DADOS BANCÃRIOS: Favorecido: BUSATO LOCAÃ‡Ã•ES E SERVIÃ‡OS LTDA | CNPJ: 54.167.719/0001-40.", true, 8);
+  printParagraph(`§2º. Em caso de atraso no pagamento de quaisquer valores devidos decorrentes deste Contrato, o montante em atraso será acrescido de multa moratória e não compensatória de ${multaAtraso}% (${percentToExtenso(multaAtraso)}), além de juros de mora de ${jurosAtraso}% (${percentToExtenso(jurosAtraso)}) ao mês, calculados pro rata die, e correção monetária apurada pelo IGPM/FGV (ou índice oficial que venha a substituí-lo), calculados desde a data do vencimento até a data do efetivo pagamento.`, false, 5);
+  printParagraph("§3º. As informações sobre programações dos pagamentos e/ou comprovantes de pagamento deverão ser solicitadas à LOCADORA, através dos e-mails: alyson.oliveira@busatoloc.com.br, financeiro@busatotransportes.com.br, samara.rodrigues@busatoloc.com.br.", false, 5);
+  printParagraph("DADOS BANCÁRIOS: Favorecido: BUSATO LOCAÇÕES E SERVIÇOS LTDA | CNPJ: 54.167.719/0001-40.", true, 8);
 
-  // â”€â”€â”€ CLÃUSULA SEXTA â€” DAS OBRIGAÃ‡Ã•ES DA LOCADORA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA SEXTA â€” DAS OBRIGAÃ‡Ã•ES DA LOCADORA", true, 4);
+  // ─── CLÁUSULA SEXTA — DAS OBRIGAÇÕES DA LOCADORA ────────────────────────────
+  printParagraph("CLÁUSULA SEXTA — DAS OBRIGAÇÕES DA LOCADORA", true, 4);
   const obrigLocadora = [
-    "Prestar Ã  LOCATÃRIA quaisquer esclarecimentos e informaÃ§Ãµes que se fizerem necessÃ¡rios para utilizaÃ§Ã£o do bem locado.",
-    "Fornecer o bem locado em perfeitas condiÃ§Ãµes de uso, conforme orientaÃ§Ãµes de manutenÃ§Ãµes/operaÃ§Ã£o do fabricante.",
-    "Realizar as manutenÃ§Ãµes preventivas conforme plano de manutenÃ§Ã£o, podendo a LOCADORA indicar a concessionÃ¡ria ou oficina credenciada mais prÃ³xima para efetivar a manutenÃ§Ã£o devida ou autorizar que a manutenÃ§Ã£o seja realizada pela prÃ³pria LOCATÃRIA, mediante reembolso previamente aprovado.",
-    "Vistoriar e providenciar evidÃªncias na saÃ­da e na chegada do bem locado para comprovar o estado em que se encontra, na forma da ClÃ¡usula Oitava.",
-    "Arcar com os custos de licenciamento de trÃ¢nsito do veÃ­culo, IPVA e seguro obrigatÃ³rio.",
-    "Fornecer Ã  LOCATÃRIA cÃ³pia dos documentos e orientaÃ§Ãµes referentes ao bem locado, sendo: CRLV, plano de manutenÃ§Ã£o, laudo eletromecÃ¢nico e laudo de opacidade, quando aplicÃ¡veis ao equipamento.",
-    "Substituir o bem locado, caso este apresente defeitos atestados pela equipe de manutenÃ§Ã£o alÃ©m dos considerados normais, disponibilizando Ã  LOCATÃRIA outro equipamento/veÃ­culo com as mesmas caracterÃ­sticas tÃ©cnicas e em perfeito estado de funcionamento, no prazo de 48 (quarenta e oito) horas, ressalvadas as hipÃ³teses previstas na ClÃ¡usula DÃ©cima Quinta.",
+    "Prestar à LOCATÁRIA quaisquer esclarecimentos e informações que se fizerem necessários para utilização do bem locado.",
+    "Fornecer o bem locado em perfeitas condições de uso, conforme orientações de manutenções/operação do fabricante.",
+    "Realizar as manutenções preventivas conforme plano de manutenção, podendo a LOCADORA indicar a concessionária ou oficina credenciada mais próxima para efetivar a manutenção devida ou autorizar que a manutenção seja realizada pela própria LOCATÁRIA, mediante reembolso previamente aprovado.",
+    "Vistoriar e providenciar evidências na saída e na chegada do bem locado para comprovar o estado em que se encontra, na forma da Cláusula Oitava.",
+    "Arcar com os custos de licenciamento de trânsito do veículo, IPVA e seguro obrigatório.",
+    "Fornecer à LOCATÁRIA cópia dos documentos e orientações referentes ao bem locado, sendo: CRLV, plano de manutenção, laudo eletromecânico e laudo de opacidade, quando aplicáveis ao equipamento.",
+    "Substituir o bem locado, caso este apresente defeitos atestados pela equipe de manutenção além dos considerados normais, disponibilizando à LOCATÁRIA outro equipamento/veículo com as mesmas características técnicas e em perfeito estado de funcionamento, no prazo de 48 (quarenta e oito) horas, ressalvadas as hipóteses previstas na Cláusula Décima Quinta.",
   ];
-  obrigLocadora.forEach(o => printParagraph(`â€¢ ${o}`, false, 4));
+  obrigLocadora.forEach(o => printParagraph(`• ${o}`, false, 4));
   y += 4;
 
-  // â”€â”€â”€ CLÃUSULA SÃ‰TIMA â€” DAS OBRIGAÃ‡Ã•ES DA LOCATÃRIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA SÃ‰TIMA â€” DAS OBRIGAÃ‡Ã•ES DA LOCATÃRIA", true, 4);
+  // ─── CLÁUSULA SÉTIMA — DAS OBRIGAÇÕES DA LOCATÁRIA ──────────────────────────
+  printParagraph("CLÁUSULA SÉTIMA — DAS OBRIGAÇÕES DA LOCATÁRIA", true, 4);
   const obrigLocataria = [
-    "Pagar Ã  LOCADORA os valores devidos pela locaÃ§Ã£o, obedecendo aos preÃ§os e prazos pactuados.",
-    "Apresentar mensalmente Ã  LOCADORA os registros constantes do horÃ­metro para realizaÃ§Ã£o da mediÃ§Ã£o, na forma da ClÃ¡usula Quarta.",
-    "Informar Ã  LOCADORA a necessidade de realizaÃ§Ã£o de manutenÃ§Ã£o corretiva no equipamento assim que constatada qualquer falha, anormalidade ou avaria.",
-    "Durante o perÃ­odo locado, toda lubrificaÃ§Ã£o periÃ³dica necessÃ¡ria ao funcionamento serÃ¡ de inteira responsabilidade da LOCATÃRIA, devendo ser realizada conforme recomendaÃ§Ãµes do fabricante.",
-    "Danos decorrentes de falta de lubrificaÃ§Ã£o, uso sem Ã³leo/fluido, combustÃ­vel adulterado, combustÃ­vel inadequado, impurezas, Ã¡gua no sistema, mistura incorreta, operaÃ§Ã£o com nÃ­vel baixo, superaquecimento ou travamento serÃ£o considerados mau uso, respondendo a LOCATÃRIA integralmente por reparos, peÃ§as e mÃ£o de obra.",
-    "Arcar com o abastecimento do equipamento durante todo o perÃ­odo da locaÃ§Ã£o, recebendo e devolvendo o bem com o mesmo nÃ­vel de combustÃ­vel, e utilizar combustÃ­vel e lubrificantes dentro das especificaÃ§Ãµes do fabricante.",
-    "Conservar no equipamento/veÃ­culo o adesivo contendo a identificaÃ§Ã£o e dados da LOCADORA.",
-    "Usar o bem locado de forma adequada e para o fim a que se destina, sob pena de responder civil e criminalmente pelo mau uso ou deterioraÃ§Ã£o do bem.",
-    "NÃ£o sublocar, emprestar, ceder, arrendar ou permitir que terceiros alheios ao presente contrato utilizem do veÃ­culo locado no todo ou em parte, temporÃ¡ria ou definitivamente.",
-    "Responsabilizar-se pela mobilizaÃ§Ã£o e desmobilizaÃ§Ã£o do bem locado, arcando com todos e quaisquer gastos, fretes e afins.",
-    "Fica expressamente vedado Ã  LOCATÃRIA realizar qualquer tipo de intervenÃ§Ã£o, remoÃ§Ã£o, substituiÃ§Ã£o, desativaÃ§Ã£o ou alteraÃ§Ã£o no sistema de rastreamento e de telemetria instalado pela LOCADORA.",
-    "Em caso de locaÃ§Ã£o de mÃ¡quina, caberÃ¡ exclusivamente Ã  LOCATÃRIA arcar com todos os custos de pneus, material rodante, dentes, lÃ¢minas, adaptadores e quaisquer outros componentes que tenham contato direto com o solo durante a operaÃ§Ã£o do equipamento, salvo desgaste decorrente de uso regular dentro das especificaÃ§Ãµes do fabricante.",
-    "Designar para a operaÃ§Ã£o do equipamento profissional habilitado, capacitado e treinado, na forma da ClÃ¡usula DÃ©cima Terceira.",
-    "Comunicar imediatamente Ã  LOCADORA qualquer acidente, sinistro, furto, roubo, autuaÃ§Ã£o, notificaÃ§Ã£o ou citaÃ§Ã£o relacionada ao bem locado, na forma das ClÃ¡usulas DÃ©cima, DÃ©cima Segunda e DÃ©cima Terceira.",
+    "Pagar à LOCADORA os valores devidos pela locação, obedecendo aos preços e prazos pactuados.",
+    "Apresentar mensalmente à LOCADORA os registros constantes do horímetro para realização da medição, na forma da Cláusula Quarta.",
+    "Informar à LOCADORA a necessidade de realização de manutenção corretiva no equipamento assim que constatada qualquer falha, anormalidade ou avaria.",
+    "Durante o período locado, toda lubrificação periódica necessária ao funcionamento será de inteira responsabilidade da LOCATÁRIA, devendo ser realizada conforme recomendações do fabricante.",
+    "Danos decorrentes de falta de lubrificação, uso sem óleo/fluido, combustível adulterado, combustível inadequado, impurezas, água no sistema, mistura incorreta, operação com nível baixo, superaquecimento ou travamento serão considerados mau uso, respondendo a LOCATÁRIA integralmente por reparos, peças e mão de obra.",
+    "Arcar com o abastecimento do equipamento durante todo o período da locação, recebendo e devolvendo o bem com o mesmo nível de combustível, e utilizar combustível e lubrificantes dentro das especificações do fabricante.",
+    "Conservar no equipamento/veículo o adesivo contendo a identificação e dados da LOCADORA.",
+    "Usar o bem locado de forma adequada e para o fim a que se destina, sob pena de responder civil e criminalmente pelo mau uso ou deterioração do bem.",
+    "Não sublocar, emprestar, ceder, arrendar ou permitir que terceiros alheios ao presente contrato utilizem do veículo locado no todo ou em parte, temporária ou definitivamente.",
+    "Responsabilizar-se pela mobilização e desmobilização do bem locado, arcando com todos e quaisquer gastos, fretes e afins.",
+    "Fica expressamente vedado à LOCATÁRIA realizar qualquer tipo de intervenção, remoção, substituição, desativação ou alteração no sistema de rastreamento e de telemetria instalado pela LOCADORA.",
+    "Em caso de locação de máquina, caberá exclusivamente à LOCATÁRIA arcar com todos os custos de pneus, material rodante, dentes, lâminas, adaptadores e quaisquer outros componentes que tenham contato direto com o solo durante a operação do equipamento, salvo desgaste decorrente de uso regular dentro das especificações do fabricante.",
+    "Designar para a operação do equipamento profissional habilitado, capacitado e treinado, na forma da Cláusula Décima Terceira.",
+    "Comunicar imediatamente à LOCADORA qualquer acidente, sinistro, furto, roubo, autuação, notificação ou citação relacionada ao bem locado, na forma das Cláusulas Décima, Décima Segunda e Décima Terceira.",
   ];
-  obrigLocataria.forEach(o => printParagraph(`â€¢ ${o}`, false, 4));
+  obrigLocataria.forEach(o => printParagraph(`• ${o}`, false, 4));
   y += 4;
 
-  // â”€â”€â”€ CLÃUSULA OITAVA â€” DA ENTREGA, DA VISTORIA E DA DEVOLUÃ‡ÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA OITAVA â€” DA ENTREGA, DA VISTORIA E DA DEVOLUÃ‡ÃƒO", true, 4);
-  printParagraph("A entrega e a devoluÃ§Ã£o do bem locado serÃ£o formalizadas por Termo de Vistoria, assinado por prepostos de ambas as Partes, acompanhado de registro fotogrÃ¡fico e da leitura do horÃ­metro, na forma do Anexo I, que integra este Contrato para todos os fins.", false, 5);
-  printParagraph("Â§1Âº. A ausÃªncia ou a recusa injustificada de preposto da LOCATÃRIA Ã  vistoria autoriza a LOCADORA a realizÃ¡-la unilateralmente, mediante laudo com registro fotogrÃ¡fico, presumindo-se verdadeiro o estado nele consignado.", false, 5);
-  printParagraph("Â§2Âº. A LOCATÃRIA receberÃ¡ o bem locado em condiÃ§Ãµes normais de uso e assim o manterÃ¡ atÃ© a sua efetiva devoluÃ§Ã£o, ressalvados os desgastes naturais, nÃ£o podendo realizar qualquer modificaÃ§Ã£o no veÃ­culo/equipamento locado sem a prÃ©via e expressa autorizaÃ§Ã£o da LOCADORA.", false, 5);
-  printParagraph("Â§3Âº. Considera-se desgaste natural exclusivamente aquele decorrente do uso regular do equipamento dentro das especificaÃ§Ãµes do fabricante. NÃ£o se enquadram nesse conceito amassados, trincas, rupturas, empenamentos, perda de componentes, danos a pneus e ao material rodante por corte, impacto ou uso indevido, nem danos elÃ©tricos, hidrÃ¡ulicos ou de motor decorrentes de operaÃ§Ã£o inadequada, falta de lubrificaÃ§Ã£o, sobrecarga ou superaquecimento.", false, 5);
-  printParagraph("Â§4Âº. Findo o prazo estabelecido, ou rescindida a locaÃ§Ã£o por qualquer motivo, a LOCATÃRIA restituirÃ¡ o bem locado Ã  LOCADORA em atÃ© 5 (cinco) dias Ãºteis, no pÃ¡tio da LOCADORA ou em local por ela indicado, com o mesmo nÃ­vel de combustÃ­vel da entrega e em condiÃ§Ãµes de limpeza que permitam a vistoria.", false, 5);
-  printParagraph("Â§5Âº. NÃ£o devolvido o bem no prazo do parÃ¡grafo anterior, incidirÃ¡, por dia de atraso e por equipamento, diÃ¡ria equivalente a 1/30 (um trinta avos) do valor mensal contratado, sem prejuÃ­zo das perdas e danos e das medidas possessÃ³rias e criminais cabÃ­veis.", false, 5);
-  printParagraph("Â§6Âº. Constatados danos na vistoria de devoluÃ§Ã£o, a LOCADORA apresentarÃ¡ orÃ§amento em atÃ© 10 (dez) dias Ãºteis, que a LOCATÃRIA deverÃ¡ quitar em 10 (dez) dias contados do recebimento, facultada Ã  LOCADORA a realizaÃ§Ã£o do reparo em oficina de sua escolha, respondendo ainda a LOCATÃRIA pelo valor da locaÃ§Ã£o correspondente ao perÃ­odo de indisponibilidade do equipamento em reparo.", false, 8);
+  // ─── CLÁUSULA OITAVA — DA ENTREGA, DA VISTORIA E DA DEVOLUÇÃO ───────────────
+  printParagraph("CLÁUSULA OITAVA — DA ENTREGA, DA VISTORIA E DA DEVOLUÇÃO", true, 4);
+  printParagraph("A entrega e a devolução do bem locado serão formalizadas por Termo de Vistoria, assinado por prepostos de ambas as Partes, acompanhado de registro fotográfico e da leitura do horímetro, na forma do Anexo I, que integra este Contrato para todos os fins.", false, 5);
+  printParagraph("§1º. A ausência ou a recusa injustificada de preposto da LOCATÁRIA à vistoria autoriza a LOCADORA a realizá-la unilateralmente, mediante laudo com registro fotográfico, presumindo-se verdadeiro o estado nele consignado.", false, 5);
+  printParagraph("§2º. A LOCATÁRIA receberá o bem locado em condições normais de uso e assim o manterá até a sua efetiva devolução, ressalvados os desgastes naturais, não podendo realizar qualquer modificação no veículo/equipamento locado sem a prévia e expressa autorização da LOCADORA.", false, 5);
+  printParagraph("§3º. Considera-se desgaste natural exclusivamente aquele decorrente do uso regular do equipamento dentro das especificações do fabricante. Não se enquadram nesse conceito amassados, trincas, rupturas, empenamentos, perda de componentes, danos a pneus e ao material rodante por corte, impacto ou uso indevido, nem danos elétricos, hidráulicos ou de motor decorrentes de operação inadequada, falta de lubrificação, sobrecarga ou superaquecimento.", false, 5);
+  printParagraph("§4º. Findo o prazo estabelecido, ou rescindida a locação por qualquer motivo, a LOCATÁRIA restituirá o bem locado à LOCADORA em até 5 (cinco) dias úteis, no pátio da LOCADORA ou em local por ela indicado, com o mesmo nível de combustível da entrega e em condições de limpeza que permitam a vistoria.", false, 5);
+  printParagraph("§5º. Não devolvido o bem no prazo do parágrafo anterior, incidirá, por dia de atraso e por equipamento, diária equivalente a 1/30 (um trinta avos) do valor mensal contratado, sem prejuízo das perdas e danos e das medidas possessórias e criminais cabíveis.", false, 5);
+  printParagraph("§6º. Constatados danos na vistoria de devolução, a LOCADORA apresentará orçamento em até 10 (dez) dias úteis, que a LOCATÁRIA deverá quitar em 10 (dez) dias contados do recebimento, facultada à LOCADORA a realização do reparo em oficina de sua escolha, respondendo ainda a LOCATÁRIA pelo valor da locação correspondente ao período de indisponibilidade do equipamento em reparo.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA NONA â€” DOS SEGUROS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA NONA â€” DOS SEGUROS", true, 4);
-  printParagraph("A contrataÃ§Ã£o do seguro do bem locado, em companhia seguradora de idoneidade reconhecida, para cobertura de danos materiais e pessoais a terceiros e para cobrir os gastos em decorrÃªncia de acidente envolvendo o bem, ficarÃ¡ a cargo da LOCADORA, sendo que o custo do prÃªmio e da franquia serÃ¡ suportado conforme negociaÃ§Ã£o comercial entre as Partes.", false, 5);
-  printParagraph("Â§1Âº. A LOCADORA se compromete a enviar a apÃ³lice do veÃ­culo/equipamento locado apÃ³s a assinatura do presente Contrato, a qual integra este instrumento como Anexo III.", false, 5);
-  printParagraph("Â§2Âº. Acionado o seguro em decorrÃªncia de sinistro causado durante a utilizaÃ§Ã£o do bem pela LOCATÃRIA, esta ficarÃ¡ responsÃ¡vel pelo pagamento integral da franquia, conforme apÃ³lice, pela participaÃ§Ã£o obrigatÃ³ria no aviso de sinistro e pelo fornecimento de toda a documentaÃ§Ã£o exigida pela seguradora, no prazo por esta estipulado.", false, 5);
-  printParagraph("Â§3Âº. A LOCATÃRIA declara ciÃªncia de que a apÃ³lice pode nÃ£o cobrir determinados eventos, entre eles operaÃ§Ã£o fora de via pÃºblica, tombamento, capotamento, submersÃ£o, danos ao material rodante, uso por condutor ou operador nÃ£o habilitado, conduÃ§Ã£o sob efeito de Ã¡lcool ou substÃ¢ncia psicoativa, agravamento de risco e uso em local diverso do contratado.", false, 5);
-  printParagraph("Â§4Âº. A LOCATÃRIA manterÃ¡, durante toda a vigÃªncia, seguro de responsabilidade civil que cubra danos a terceiros decorrentes da operaÃ§Ã£o do equipamento, comprovando a apÃ³lice Ã  LOCADORA sempre que solicitado.", false, 5);
-  printParagraph("Â§5Âº. Em caso de acidente, furto, roubo ou qualquer sinistro, a LOCATÃRIA comunicarÃ¡ a LOCADORA imediatamente e registrarÃ¡ o boletim de ocorrÃªncia em atÃ© 24 (vinte e quatro) horas, entregando cÃ³pia Ã  LOCADORA.", false, 8);
+  // ─── CLÁUSULA NONA — DOS SEGUROS ─────────────────────────────────────────────
+  printParagraph("CLÁUSULA NONA — DOS SEGUROS", true, 4);
+  printParagraph("A contratação do seguro do bem locado, em companhia seguradora de idoneidade reconhecida, para cobertura de danos materiais e pessoais a terceiros e para cobrir os gastos em decorrência de acidente envolvendo o bem, ficará a cargo da LOCADORA, sendo que o custo do prêmio e da franquia será suportado conforme negociação comercial entre as Partes.", false, 5);
+  printParagraph("§1º. A LOCADORA se compromete a enviar a apólice do veículo/equipamento locado após a assinatura do presente Contrato, a qual integra este instrumento como Anexo III.", false, 5);
+  printParagraph("§2º. Acionado o seguro em decorrência de sinistro causado durante a utilização do bem pela LOCATÁRIA, esta ficará responsável pelo pagamento integral da franquia, conforme apólice, pela participação obrigatória no aviso de sinistro e pelo fornecimento de toda a documentação exigida pela seguradora, no prazo por esta estipulado.", false, 5);
+  printParagraph("§3º. A LOCATÁRIA declara ciência de que a apólice pode não cobrir determinados eventos, entre eles operação fora de via pública, tombamento, capotamento, submersão, danos ao material rodante, uso por condutor ou operador não habilitado, condução sob efeito de álcool ou substância psicoativa, agravamento de risco e uso em local diverso do contratado.", false, 5);
+  printParagraph("§4º. A LOCATÁRIA manterá, durante toda a vigência, seguro de responsabilidade civil que cubra danos a terceiros decorrentes da operação do equipamento, comprovando a apólice à LOCADORA sempre que solicitado.", false, 5);
+  printParagraph("§5º. Em caso de acidente, furto, roubo ou qualquer sinistro, a LOCATÁRIA comunicará a LOCADORA imediatamente e registrará o boletim de ocorrência em até 24 (vinte e quatro) horas, entregando cópia à LOCADORA.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA â€” DOS DANOS, DA PERDA, DO FURTO E DO ROUBO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA â€” DOS DANOS, DA PERDA, DO FURTO E DO ROUBO", true, 4);
-  printParagraph("A LOCATÃRIA Ã© depositÃ¡ria do bem locado e responde por sua guarda e conservaÃ§Ã£o durante todo o perÃ­odo da locaÃ§Ã£o, respondendo integralmente por danos, perda total, furto, roubo, apropriaÃ§Ã£o indÃ©bita e quaisquer eventos que atinjam o equipamento.", false, 5);
-  printParagraph("Â§1Âº. Na hipÃ³tese de nÃ£o ser possÃ­vel acionar o seguro vigente, ou em caso de recusa de cobertura por parte da seguradora devido a dolo, culpa, negligÃªncia, imperÃ­cia, imprudÃªncia, mau uso ou agravamento de risco por parte da LOCATÃRIA ou de seus prepostos, a LOCATÃRIA serÃ¡ integral e exclusivamente responsÃ¡vel pelo pagamento de todas as perdas e danos.", false, 5);
-  printParagraph("Â§2Âº. Na hipÃ³tese do parÃ¡grafo anterior, a LOCATÃRIA ressarcirÃ¡ Ã  LOCADORA o valor correspondente a 100% (cem por cento) do valor de mercado para reposiÃ§Ã£o do equipamento sinistrado, apurado pela tabela do fabricante ou por laudo de avaliaÃ§Ã£o, ou arcarÃ¡ com os custos totais e integrais dos reparos necessÃ¡rios, sem prejuÃ­zo da cobranÃ§a do valor da locaÃ§Ã£o pelos dias em que o equipamento ficar inoperante, atÃ© a efetiva reposiÃ§Ã£o ou conclusÃ£o do reparo.", false, 5);
-  printParagraph("Â§3Âº. Os valores previstos nesta clÃ¡usula serÃ£o pagos em atÃ© 10 (dez) dias contados da apresentaÃ§Ã£o do orÃ§amento, do laudo ou da negativa da seguradora, o que ocorrer por Ãºltimo.", false, 8);
+  // ─── CLÁUSULA DÉCIMA — DOS DANOS, DA PERDA, DO FURTO E DO ROUBO ─────────────
+  printParagraph("CLÁUSULA DÉCIMA — DOS DANOS, DA PERDA, DO FURTO E DO ROUBO", true, 4);
+  printParagraph("A LOCATÁRIA é depositária do bem locado e responde por sua guarda e conservação durante todo o período da locação, respondendo integralmente por danos, perda total, furto, roubo, apropriação indébita e quaisquer eventos que atinjam o equipamento.", false, 5);
+  printParagraph("§1º. Na hipótese de não ser possível acionar o seguro vigente, ou em caso de recusa de cobertura por parte da seguradora devido a dolo, culpa, negligência, imperícia, imprudência, mau uso ou agravamento de risco por parte da LOCATÁRIA ou de seus prepostos, a LOCATÁRIA será integral e exclusivamente responsável pelo pagamento de todas as perdas e danos.", false, 5);
+  printParagraph("§2º. Na hipótese do parágrafo anterior, a LOCATÁRIA ressarcirá à LOCADORA o valor correspondente a 100% (cem por cento) do valor de mercado para reposição do equipamento sinistrado, apurado pela tabela do fabricante ou por laudo de avaliação, ou arcará com os custos totais e integrais dos reparos necessários, sem prejuízo da cobrança do valor da locação pelos dias em que o equipamento ficar inoperante, até a efetiva reposição ou conclusão do reparo.", false, 5);
+  printParagraph("§3º. Os valores previstos nesta cláusula serão pagos em até 10 (dez) dias contados da apresentação do orçamento, do laudo ou da negativa da seguradora, o que ocorrer por último.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA PRIMEIRA â€” DA RESPONSABILIDADE PERANTE TERCEIROS â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA PRIMEIRA â€” DA RESPONSABILIDADE PERANTE TERCEIROS E DO DIREITO DE REGRESSO", true, 4);
-  printParagraph("A LOCATÃRIA serÃ¡ integral e exclusivamente responsÃ¡vel pela posse, guarda, conduÃ§Ã£o, operaÃ§Ã£o e uso dos veÃ­culos/equipamentos locados, incluindo a observÃ¢ncia das normas de trÃ¢nsito, de seguranÃ§a e das legislaÃ§Ãµes aplicÃ¡veis.", false, 5);
-  printParagraph("Â§1Âº. A responsabilidade da LOCATÃRIA abrange todas as aÃ§Ãµes ou omissÃµes praticadas por seus motoristas, operadores, empregados, prepostos ou qualquer outra pessoa que utilizar os veÃ­culos/equipamentos, sendo de sua inteira responsabilidade quaisquer danos causados a terceiros, danos ambientais, multas, infraÃ§Ãµes, perdas, acidentes de trÃ¢nsito, furtos, roubos ou quaisquer outros eventos relacionados ao uso dos bens locados.", false, 5);
-  printParagraph("Â§2Âº. As Partes reconhecem que a estipulaÃ§Ã£o prevista nesta clÃ¡usula produz efeitos entre elas, nÃ£o sendo oponÃ­vel a terceiros estranhos a este Contrato. Acionada a LOCADORA, judicial ou administrativamente, em razÃ£o de evento ocorrido na vigÃªncia da locaÃ§Ã£o, a LOCATÃRIA obriga-se a assumir o polo passivo da demanda ou a integrar a lide, a apresentar defesa Ã s suas expensas e a reembolsar integralmente a LOCADORA de todo valor que esta venha a desembolsar a tÃ­tulo de condenaÃ§Ã£o, acordo, custas, despesas processuais e honorÃ¡rios, independentemente do resultado do processo.", false, 5);
-  printParagraph("Â§3Âº. O reembolso dos honorÃ¡rios advocatÃ­cios contratuais da LOCADORA observarÃ¡ o valor do percentual de 5% sobre o valor envolvido, conforme acordado entre as Partes, comprovado por relatÃ³rio de atividades, abrangendo a elaboraÃ§Ã£o de petiÃ§Ãµes, os deslocamentos para audiÃªncias e as demais despesas judiciais e administrativas.", false, 5);
-  printParagraph("Â§4Âº. A LOCATÃRIA comunicarÃ¡ a LOCADORA em atÃ© 48 (quarenta e oito) horas de qualquer acidente, notificaÃ§Ã£o, autuaÃ§Ã£o, reclamaÃ§Ã£o ou citaÃ§Ã£o relacionada ao bem locado, sob pena de responder pelas consequÃªncias da perda de prazo.", false, 8);
+  // ─── CLÁUSULA DÉCIMA PRIMEIRA — DA RESPONSABILIDADE PERANTE TERCEIROS ────────
+  printParagraph("CLÁUSULA DÉCIMA PRIMEIRA — DA RESPONSABILIDADE PERANTE TERCEIROS E DO DIREITO DE REGRESSO", true, 4);
+  printParagraph("A LOCATÁRIA será integral e exclusivamente responsável pela posse, guarda, condução, operação e uso dos veículos/equipamentos locados, incluindo a observância das normas de trânsito, de segurança e das legislações aplicáveis.", false, 5);
+  printParagraph("§1º. A responsabilidade da LOCATÁRIA abrange todas as ações ou omissões praticadas por seus motoristas, operadores, empregados, prepostos ou qualquer outra pessoa que utilizar os veículos/equipamentos, sendo de sua inteira responsabilidade quaisquer danos causados a terceiros, danos ambientais, multas, infrações, perdas, acidentes de trânsito, furtos, roubos ou quaisquer outros eventos relacionados ao uso dos bens locados.", false, 5);
+  printParagraph("§2º. As Partes reconhecem que a estipulação prevista nesta cláusula produz efeitos entre elas, não sendo oponível a terceiros estranhos a este Contrato. Acionada a LOCADORA, judicial ou administrativamente, em razão de evento ocorrido na vigência da locação, a LOCATÁRIA obriga-se a assumir o polo passivo da demanda ou a integrar a lide, a apresentar defesa às suas expensas e a reembolsar integralmente a LOCADORA de todo valor que esta venha a desembolsar a título de condenação, acordo, custas, despesas processuais e honorários, independentemente do resultado do processo.", false, 5);
+  printParagraph("§3º. O reembolso dos honorários advocatícios contratuais da LOCADORA observará o valor do percentual de 5% sobre o valor envolvido, conforme acordado entre as Partes, comprovado por relatório de atividades, abrangendo a elaboração de petições, os deslocamentos para audiências e as demais despesas judiciais e administrativas.", false, 5);
+  printParagraph("§4º. A LOCATÁRIA comunicará a LOCADORA em até 48 (quarenta e oito) horas de qualquer acidente, notificação, autuação, reclamação ou citação relacionada ao bem locado, sob pena de responder pelas consequências da perda de prazo.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA SEGUNDA â€” DAS INFRAÃ‡Ã•ES DE TRÃ‚NSITO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA SEGUNDA â€” DAS INFRAÃ‡Ã•ES DE TRÃ‚NSITO", true, 4);
-  printParagraph("As infraÃ§Ãµes de trÃ¢nsito e as penalidades administrativas praticadas durante a vigÃªncia deste Contrato sÃ£o de responsabilidade exclusiva da LOCATÃRIA, que responderÃ¡ pelo valor das multas, juros, encargos e despesas correlatas.", false, 5);
-  printParagraph("Â§1Âº. Recebida da LOCADORA a comunicaÃ§Ã£o da autuaÃ§Ã£o, a LOCATÃRIA fornecerÃ¡, em atÃ© 10 (dez) dias corridos, os dados e a documentaÃ§Ã£o do condutor infrator, com a assinatura dos formulÃ¡rios necessÃ¡rios Ã  indicaÃ§Ã£o prevista no art. 257, Â§7Âº, do CÃ³digo de TrÃ¢nsito Brasileiro.", false, 5);
-  printParagraph("Â§2Âº. Descumprido o prazo do parÃ¡grafo anterior, a LOCATÃRIA responderÃ¡ integralmente pela multa aplicada ao proprietÃ¡rio do veÃ­culo na forma do art. 257, Â§8Âº, do CÃ³digo de TrÃ¢nsito Brasileiro, bem como pelos custos de defesa e de recursos administrativos.", false, 5);
-  printParagraph("Â§3Âº. Os valores das multas poderÃ£o ser descontados da garantia prestada ou cobrados diretamente da LOCATÃRIA, a critÃ©rio da LOCADORA.", false, 8);
+  // ─── CLÁUSULA DÉCIMA SEGUNDA — DAS INFRAÇÕES DE TRÂNSITO ────────────────────
+  printParagraph("CLÁUSULA DÉCIMA SEGUNDA — DAS INFRAÇÕES DE TRÂNSITO", true, 4);
+  printParagraph("As infrações de trânsito e as penalidades administrativas praticadas durante a vigência deste Contrato são de responsabilidade exclusiva da LOCATÁRIA, que responderá pelo valor das multas, juros, encargos e despesas correlatas.", false, 5);
+  printParagraph("§1º. Recebida da LOCADORA a comunicação da autuação, a LOCATÁRIA fornecerá, em até 10 (dez) dias corridos, os dados e a documentação do condutor infrator, com a assinatura dos formulários necessários à indicação prevista no art. 257, §7º, do Código de Trânsito Brasileiro.", false, 5);
+  printParagraph("§2º. Descumprido o prazo do parágrafo anterior, a LOCATÁRIA responderá integralmente pela multa aplicada ao proprietário do veículo na forma do art. 257, §8º, do Código de Trânsito Brasileiro, bem como pelos custos de defesa e de recursos administrativos.", false, 5);
+  printParagraph("§3º. Os valores das multas poderão ser descontados da garantia prestada ou cobrados diretamente da LOCATÁRIA, a critério da LOCADORA.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA TERCEIRA â€” DA RESPONSABILIDADE TRABALHISTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA TERCEIRA â€” DA RESPONSABILIDADE TRABALHISTA", true, 4);
-  printParagraph("A locaÃ§Ã£o nÃ£o envolve fornecimento de mÃ£o de obra, nÃ£o se estabelecendo qualquer vÃ­nculo empregatÃ­cio, de subordinaÃ§Ã£o ou de prestaÃ§Ã£o de serviÃ§os entre a LOCADORA e os empregados ou prepostos da LOCATÃRIA.", false, 5);
-  printParagraph("Â§1Âº. A LOCATÃRIA obriga-se a designar para a operaÃ§Ã£o do equipamento profissional habilitado, capacitado e treinado na forma das normas regulamentadoras aplicÃ¡veis, entre elas a NR-11, a NR-12 e a NR-18, mantendo em dia ordem de serviÃ§o, certificados de treinamento, exames ocupacionais e fornecimento de equipamentos de proteÃ§Ã£o individual.", false, 5);
-  printParagraph("Â§2Âº. A LOCATÃRIA responde por todos os encargos trabalhistas, previdenciÃ¡rios, fiscais e securitÃ¡rios de seus empregados e prepostos, bem como por acidentes do trabalho ocorrido na operaÃ§Ã£o do equipamento.", false, 5);
-  printParagraph("Â§3Âº. A LOCATÃRIA obriga-se a reembolsar a LOCADORA de qualquer valor que esta venha a suportar em razÃ£o de reclamaÃ§Ã£o trabalhista, aÃ§Ã£o indenizatÃ³ria por acidente do trabalho ou autuaÃ§Ã£o administrativa decorrente da execuÃ§Ã£o deste Contrato, inclusive honorÃ¡rios advocatÃ­cios, custas e despesas processuais.", false, 8);
+  // ─── CLÁUSULA DÉCIMA TERCEIRA — DA RESPONSABILIDADE TRABALHISTA ──────────────
+  printParagraph("CLÁUSULA DÉCIMA TERCEIRA — DA RESPONSABILIDADE TRABALHISTA", true, 4);
+  printParagraph("A locação não envolve fornecimento de mão de obra, não se estabelecendo qualquer vínculo empregatício, de subordinação ou de prestação de serviços entre a LOCADORA e os empregados ou prepostos da LOCATÁRIA.", false, 5);
+  printParagraph("§1º. A LOCATÁRIA obriga-se a designar para a operação do equipamento profissional habilitado, capacitado e treinado na forma das normas regulamentadoras aplicáveis, entre elas a NR-11, a NR-12 e a NR-18, mantendo em dia ordem de serviço, certificados de treinamento, exames ocupacionais e fornecimento de equipamentos de proteção individual.", false, 5);
+  printParagraph("§2º. A LOCATÁRIA responde por todos os encargos trabalhistas, previdenciários, fiscais e securitários de seus empregados e prepostos, bem como por acidentes do trabalho ocorrido na operação do equipamento.", false, 5);
+  printParagraph("§3º. A LOCATÁRIA obriga-se a reembolsar a LOCADORA de qualquer valor que esta venha a suportar em razão de reclamação trabalhista, ação indenizatória por acidente do trabalho ou autuação administrativa decorrente da execução deste Contrato, inclusive honorários advocatícios, custas e despesas processuais.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA QUARTA â€” DA RESPONSABILIDADE AMBIENTAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA QUARTA â€” DA RESPONSABILIDADE AMBIENTAL", true, 4);
-  printParagraph("A LOCATÃRIA responde integralmente por danos ambientais decorrentes da operaÃ§Ã£o do bem locado, entre eles vazamento de Ã³leo, derramamento de combustÃ­vel e contaminaÃ§Ã£o de solo e de corpos d'Ã¡gua, obrigando-se a manter no local kit de contenÃ§Ã£o de emergÃªncia e a comunicar imediatamente Ã  LOCADORA e aos Ã³rgÃ£os competentes qualquer ocorrÃªncia.", false, 5);
-  printParagraph("ParÃ¡grafo Ãºnico. Acionada a LOCADORA, na condiÃ§Ã£o de proprietÃ¡ria do equipamento, por Ã³rgÃ£o ambiental, em aÃ§Ã£o civil pÃºblica ou em qualquer outra medida, a LOCATÃRIA a reembolsarÃ¡ integralmente de multas, custos de remediaÃ§Ã£o, condenaÃ§Ãµes, despesas processuais e honorÃ¡rios, sem prejuÃ­zo da rescisÃ£o imediata do Contrato.", false, 8);
+  // ─── CLÁUSULA DÉCIMA QUARTA — DA RESPONSABILIDADE AMBIENTAL ─────────────────
+  printParagraph("CLÁUSULA DÉCIMA QUARTA — DA RESPONSABILIDADE AMBIENTAL", true, 4);
+  printParagraph("A LOCATÁRIA responde integralmente por danos ambientais decorrentes da operação do bem locado, entre eles vazamento de óleo, derramamento de combustível e contaminação de solo e de corpos d'água, obrigando-se a manter no local kit de contenção de emergência e a comunicar imediatamente à LOCADORA e aos órgãos competentes qualquer ocorrência.", false, 5);
+  printParagraph("Parágrafo único. Acionada a LOCADORA, na condição de proprietária do equipamento, por órgão ambiental, em ação civil pública ou em qualquer outra medida, a LOCATÁRIA a reembolsará integralmente de multas, custos de remediação, condenações, despesas processuais e honorários, sem prejuízo da rescisão imediata do Contrato.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA QUINTA â€” DA LIMITAÃ‡ÃƒO DE RESPONSABILIDADE DA LOCADORA â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA QUINTA â€” DA LIMITAÃ‡ÃƒO DE RESPONSABILIDADE DA LOCADORA", true, 4);
-  printParagraph("A LOCADORA responde exclusivamente pela disponibilizaÃ§Ã£o do bem locado em condiÃ§Ãµes de uso e pela manutenÃ§Ã£o preventiva prevista neste Contrato, nÃ£o respondendo, em nenhuma hipÃ³tese, por lucros cessantes, perda de produtividade, atraso de cronograma, penalidades contratuais aplicadas por terceiros Ã  LOCATÃRIA ou quaisquer danos indiretos decorrentes da indisponibilidade do equipamento.", false, 5);
-  printParagraph("ParÃ¡grafo Ãºnico. O prazo de substituiÃ§Ã£o do equipamento previsto na ClÃ¡usula SÃ©tima fica suspenso nas hipÃ³teses de caso fortuito, forÃ§a maior, indisponibilidade de frota, greve, restriÃ§Ã£o ao transporte de carga especial ou impedimento de acesso ao canteiro, e a responsabilidade da LOCADORA, em qualquer caso, fica limitada ao valor proporcional da locaÃ§Ã£o correspondente ao perÃ­odo de indisponibilidade.", false, 8);
+  // ─── CLÁUSULA DÉCIMA QUINTA — DA LIMITAÇÃO DE RESPONSABILIDADE DA LOCADORA ───
+  printParagraph("CLÁUSULA DÉCIMA QUINTA — DA LIMITAÇÃO DE RESPONSABILIDADE DA LOCADORA", true, 4);
+  printParagraph("A LOCADORA responde exclusivamente pela disponibilização do bem locado em condições de uso e pela manutenção preventiva prevista neste Contrato, não respondendo, em nenhuma hipótese, por lucros cessantes, perda de produtividade, atraso de cronograma, penalidades contratuais aplicadas por terceiros à LOCATÁRIA ou quaisquer danos indiretos decorrentes da indisponibilidade do equipamento.", false, 5);
+  printParagraph("Parágrafo único. O prazo de substituição do equipamento previsto na Cláusula Sétima fica suspenso nas hipóteses de caso fortuito, força maior, indisponibilidade de frota, greve, restrição ao transporte de carga especial ou impedimento de acesso ao canteiro, e a responsabilidade da LOCADORA, em qualquer caso, fica limitada ao valor proporcional da locação correspondente ao período de indisponibilidade.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA SEXTA â€” DA FISCALIZAÃ‡ÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA SEXTA â€” DA FISCALIZAÃ‡ÃƒO", true, 4);
-  printParagraph("A LOCADORA poderÃ¡ fiscalizar a boa utilizaÃ§Ã£o do veÃ­culo/equipamento pela LOCATÃRIA, inclusive mediante inspeÃ§Ã£o no local da obra, mediante comunicaÃ§Ã£o prÃ©via, e em caso de constatar qualquer irregularidade na utilizaÃ§Ã£o do mesmo, a LOCATÃRIA deve providenciar a regularizaÃ§Ã£o imediata, sob pena de rescisÃ£o.", false, 8);
+  // ─── CLÁUSULA DÉCIMA SEXTA — DA FISCALIZAÇÃO ────────────────────────────────
+  printParagraph("CLÁUSULA DÉCIMA SEXTA — DA FISCALIZAÇÃO", true, 4);
+  printParagraph("A LOCADORA poderá fiscalizar a boa utilização do veículo/equipamento pela LOCATÁRIA, inclusive mediante inspeção no local da obra, mediante comunicação prévia, e em caso de constatar qualquer irregularidade na utilização do mesmo, a LOCATÁRIA deve providenciar a regularização imediata, sob pena de rescisão.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA SÃ‰TIMA â€” DO GRAVAME â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA SÃ‰TIMA â€” DO GRAVAME", true, 4);
-  printParagraph("Sendo a LOCADORA legÃ­tima proprietÃ¡ria ou possuidora do bem locado, a LOCATÃRIA nÃ£o poderÃ¡ dÃ¡-lo em penhor, cauÃ§Ã£o ou gravÃ¡-lo a favor de terceiros, nem oferecÃª-lo Ã  penhora, obrigando-se a informar imediatamente Ã  LOCADORA qualquer constriÃ§Ã£o judicial que recaia sobre o bem.", false, 8);
+  // ─── CLÁUSULA DÉCIMA SÉTIMA — DO GRAVAME ────────────────────────────────────
+  printParagraph("CLÁUSULA DÉCIMA SÉTIMA — DO GRAVAME", true, 4);
+  printParagraph("Sendo a LOCADORA legítima proprietária ou possuidora do bem locado, a LOCATÁRIA não poderá dá-lo em penhor, caução ou gravá-lo a favor de terceiros, nem oferecê-lo à penhora, obrigando-se a informar imediatamente à LOCADORA qualquer constrição judicial que recaia sobre o bem.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA OITAVA â€” DAS PENALIDADES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA OITAVA â€” DAS PENALIDADES", true, 4);
-  printParagraph("O descumprimento de qualquer clÃ¡usula ou condiÃ§Ã£o pactuada neste instrumento sujeita a parte infratora Ã  multa nÃ£o compensatÃ³ria equivalente a 1 (uma) franquia mensal mÃ­nima por equipamento envolvido, sem prejuÃ­zo da reparaÃ§Ã£o integral das perdas e danos, dos lucros cessantes e da faculdade de rescisÃ£o imediata do Contrato pela parte inocente.", false, 5);
-  printParagraph("ParÃ¡grafo Ãºnico. A multa prevista nesta clÃ¡usula nÃ£o se confunde com a multa moratÃ³ria e os juros incidentes sobre o atraso de pagamento, previstos na ClÃ¡usula Quinta, nem com as indenizaÃ§Ãµes e os reembolsos previstos nas ClÃ¡usulas DÃ©cima, DÃ©cima Primeira, DÃ©cima Segunda, DÃ©cima Quarta e DÃ©cima Quinta, que com ela sÃ£o cumulÃ¡veis.", false, 8);
+  // ─── CLÁUSULA DÉCIMA OITAVA — DAS PENALIDADES ───────────────────────────────
+  printParagraph("CLÁUSULA DÉCIMA OITAVA — DAS PENALIDADES", true, 4);
+  printParagraph("O descumprimento de qualquer cláusula ou condição pactuada neste instrumento sujeita a parte infratora à multa não compensatória equivalente a 1 (uma) franquia mensal mínima por equipamento envolvido, sem prejuízo da reparação integral das perdas e danos, dos lucros cessantes e da faculdade de rescisão imediata do Contrato pela parte inocente.", false, 5);
+  printParagraph("Parágrafo único. A multa prevista nesta cláusula não se confunde com a multa moratória e os juros incidentes sobre o atraso de pagamento, previstos na Cláusula Quinta, nem com as indenizações e os reembolsos previstos nas Cláusulas Décima, Décima Primeira, Décima Segunda, Décima Quarta e Décima Quinta, que com ela são cumuláveis.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA DÃ‰CIMA NONA â€” DO INADIMPLEMENTO E DA RESCISÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA DÃ‰CIMA NONA â€” DO INADIMPLEMENTO, DO VENCIMENTO ANTECIPADO, DA RESCISÃƒO E DA RETOMADA DO BEM", true, 4);
-  printParagraph("O atraso superior a 15 (quinze) dias no pagamento de qualquer valor, a insuficiÃªncia ou a nÃ£o recomposiÃ§Ã£o da garantia, o deslocamento nÃ£o autorizado do equipamento, a sublocaÃ§Ã£o, a cessÃ£o do contrato sem anuÃªncia, o pedido de recuperaÃ§Ã£o judicial ou a falÃªncia da LOCATÃRIA autorizam a LOCADORA a declarar o vencimento antecipado das obrigaÃ§Ãµes e a rescindir o Contrato de pleno direito, independentemente de notificaÃ§Ã£o judicial, nos termos do art. 474 do CÃ³digo Civil.", false, 5);
-  printParagraph("Â§1Âº. Rescindido o Contrato por qualquer motivo, a LOCATÃRIA restituirÃ¡ o bem em atÃ© 48 (quarenta e oito) horas e, desde jÃ¡, autoriza expressamente a LOCADORA, seus prepostos e a empresa de transporte por ela contratada a ingressar no local onde o equipamento estiver, em horÃ¡rio comercial, para promover a retirada, sem que isso configure turbaÃ§Ã£o ou esbulho.", false, 5);
-  printParagraph("Â§2Âº. A recusa de devoluÃ§Ã£o sujeita a LOCATÃRIA Ã  diÃ¡ria prevista na ClÃ¡usula Oitava e Ã s medidas possessÃ³rias cabÃ­veis, sem prejuÃ­zo das providÃªncias criminais em caso de apropriaÃ§Ã£o indÃ©bita.", false, 8);
+  // ─── CLÁUSULA DÉCIMA NONA — DO INADIMPLEMENTO E DA RESCISÃO ─────────────────
+  printParagraph("CLÁUSULA DÉCIMA NONA — DO INADIMPLEMENTO, DO VENCIMENTO ANTECIPADO, DA RESCISÃO E DA RETOMADA DO BEM", true, 4);
+  printParagraph("O atraso superior a 15 (quinze) dias no pagamento de qualquer valor, a insuficiência ou a não recomposição da garantia, o deslocamento não autorizado do equipamento, a sublocação, a cessão do contrato sem anuência, o pedido de recuperação judicial ou a falência da LOCATÁRIA autorizam a LOCADORA a declarar o vencimento antecipado das obrigações e a rescindir o Contrato de pleno direito, independentemente de notificação judicial, nos termos do art. 474 do Código Civil.", false, 5);
+  printParagraph("§1º. Rescindido o Contrato por qualquer motivo, a LOCATÁRIA restituirá o bem em até 48 (quarenta e oito) horas e, desde já, autoriza expressamente a LOCADORA, seus prepostos e a empresa de transporte por ela contratada a ingressar no local onde o equipamento estiver, em horário comercial, para promover a retirada, sem que isso configure turbação ou esbulho.", false, 5);
+  printParagraph("§2º. A recusa de devolução sujeita a LOCATÁRIA à diária prevista na Cláusula Oitava e às medidas possessórias cabíveis, sem prejuízo das providências criminais em caso de apropriação indébita.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA VIGÃ‰SIMA â€” DO CASO FORTUITO E DA FORÃ‡A MAIOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA VIGÃ‰SIMA â€” DO CASO FORTUITO E DA FORÃ‡A MAIOR", true, 4);
-  printParagraph("Nenhuma das Partes responderÃ¡ pelo descumprimento de obrigaÃ§Ã£o que decorra exclusivamente de caso fortuito ou de forÃ§a maior, nos termos do art. 393 do CÃ³digo Civil, devendo a parte afetada comunicar a outra em atÃ© 5 (cinco) dias contados do evento.", false, 5);
-  printParagraph("ParÃ¡grafo Ãºnico. A ocorrÃªncia nÃ£o afasta o pagamento dos valores devidos pelo perÃ­odo em que o equipamento esteve Ã  disposiÃ§Ã£o da LOCATÃRIA, nem a responsabilidade desta pela guarda do bem.", false, 8);
+  // ─── CLÁUSULA VIGÉSIMA — DO CASO FORTUITO E DA FORÇA MAIOR ──────────────────
+  printParagraph("CLÁUSULA VIGÉSIMA — DO CASO FORTUITO E DA FORÇA MAIOR", true, 4);
+  printParagraph("Nenhuma das Partes responderá pelo descumprimento de obrigação que decorra exclusivamente de caso fortuito ou de força maior, nos termos do art. 393 do Código Civil, devendo a parte afetada comunicar a outra em até 5 (cinco) dias contados do evento.", false, 5);
+  printParagraph("Parágrafo único. A ocorrência não afasta o pagamento dos valores devidos pelo período em que o equipamento esteve à disposição da LOCATÁRIA, nem a responsabilidade desta pela guarda do bem.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA VIGÃ‰SIMA PRIMEIRA â€” DA PROTEÃ‡ÃƒO DE DADOS E DA TELEMETRIA â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA VIGÃ‰SIMA PRIMEIRA â€” DA PROTEÃ‡ÃƒO DE DADOS E DA TELEMETRIA", true, 4);
-  printParagraph("As Partes declaram-se cientes dos direitos, obrigaÃ§Ãµes e penalidades aplicÃ¡veis constantes da Lei Geral de ProteÃ§Ã£o de Dados Pessoais (Lei nÂº 13.709/2018) e obrigam-se a adotar todas as medidas de seguranÃ§a, tÃ©cnicas, organizacionais e administrativas para garantir, por si, bem como por seu pessoal, colaboradores, empregados e subcontratados, o cumprimento da referida legislaÃ§Ã£o.", false, 5);
-  printParagraph("Â§1Âº. A LOCATÃRIA declara ciÃªncia de que o bem locado possui sistema de telemetria e de rastreamento, operado pela LOCADORA na condiÃ§Ã£o de controladora, com as finalidades de mediÃ§Ã£o das horas contratadas, proteÃ§Ã£o patrimonial, gestÃ£o de manutenÃ§Ã£o e cumprimento de obrigaÃ§Ãµes legais e contratuais, fundado na execuÃ§Ã£o do contrato e no legÃ­timo interesse, nos termos do art. 7Âº, incisos V e IX, da Lei nÂº 13.709/2018.", false, 5);
-  printParagraph("Â§2Âº. A LOCATÃRIA obriga-se a informar seus empregados e prepostos sobre o monitoramento, respondendo perante a LOCADORA por eventual omissÃ£o, e a nÃ£o intervir, remover, desativar ou alterar o sistema instalado.", false, 8);
+  // ─── CLÁUSULA VIGÉSIMA PRIMEIRA — DA PROTEÇÃO DE DADOS E DA TELEMETRIA ───────
+  printParagraph("CLÁUSULA VIGÉSIMA PRIMEIRA — DA PROTEÇÃO DE DADOS E DA TELEMETRIA", true, 4);
+  printParagraph("As Partes declaram-se cientes dos direitos, obrigações e penalidades aplicáveis constantes da Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018) e obrigam-se a adotar todas as medidas de segurança, técnicas, organizacionais e administrativas para garantir, por si, bem como por seu pessoal, colaboradores, empregados e subcontratados, o cumprimento da referida legislação.", false, 5);
+  printParagraph("§1º. A LOCATÁRIA declara ciência de que o bem locado possui sistema de telemetria e de rastreamento, operado pela LOCADORA na condição de controladora, com as finalidades de medição das horas contratadas, proteção patrimonial, gestão de manutenção e cumprimento de obrigações legais e contratuais, fundado na execução do contrato e no legítimo interesse, nos termos do art. 7º, incisos V e IX, da Lei nº 13.709/2018.", false, 5);
+  printParagraph("§2º. A LOCATÁRIA obriga-se a informar seus empregados e prepostos sobre o monitoramento, respondendo perante a LOCADORA por eventual omissão, e a não intervir, remover, desativar ou alterar o sistema instalado.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA VIGÃ‰SIMA SEGUNDA â€” DO COMPLIANCE E DA CONDUTA EMPRESARIAL â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA VIGÃ‰SIMA SEGUNDA â€” DO COMPLIANCE E DA CONDUTA EMPRESARIAL", true, 4);
-  printParagraph("As Partes declaram que conhecem e observam a Lei nÂº 12.846/2013 e a legislaÃ§Ã£o anticorrupÃ§Ã£o aplicÃ¡vel, bem como a legislaÃ§Ã£o trabalhista, ambiental e de seguranÃ§a do trabalho, obrigando-se a nÃ£o empregar trabalho infantil, trabalho forÃ§ado ou em condiÃ§Ãµes anÃ¡logas Ã  de escravo, e a nÃ£o praticar qualquer ato lesivo Ã  administraÃ§Ã£o pÃºblica em razÃ£o deste Contrato.", false, 5);
-  printParagraph("ParÃ¡grafo Ãºnico. A violaÃ§Ã£o comprovada do disposto nesta clÃ¡usula autoriza a rescisÃ£o imediata do Contrato, sem prejuÃ­zo das perdas e danos e das penalidades previstas.", false, 8);
+  // ─── CLÁUSULA VIGÉSIMA SEGUNDA — DO COMPLIANCE E DA CONDUTA EMPRESARIAL ──────
+  printParagraph("CLÁUSULA VIGÉSIMA SEGUNDA — DO COMPLIANCE E DA CONDUTA EMPRESARIAL", true, 4);
+  printParagraph("As Partes declaram que conhecem e observam a Lei nº 12.846/2013 e a legislação anticorrupção aplicável, bem como a legislação trabalhista, ambiental e de segurança do trabalho, obrigando-se a não empregar trabalho infantil, trabalho forçado ou em condições análogas à de escravo, e a não praticar qualquer ato lesivo à administração pública em razão deste Contrato.", false, 5);
+  printParagraph("Parágrafo único. A violação comprovada do disposto nesta cláusula autoriza a rescisão imediata do Contrato, sem prejuízo das perdas e danos e das penalidades previstas.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA VIGÃ‰SIMA TERCEIRA â€” DAS DISPOSIÃ‡Ã•ES GERAIS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA VIGÃ‰SIMA TERCEIRA â€” DAS DISPOSIÃ‡Ã•ES GERAIS", true, 4);
-  printParagraph("Os signatÃ¡rios do presente Contrato asseguram e afirmam que sÃ£o os representantes legais competentes para assumir em nome das partes as obrigaÃ§Ãµes descritas neste instrumento.", false, 5);
-  printParagraph("A LOCATÃRIA nÃ£o poderÃ¡, em hipÃ³tese alguma, transferir ou delegar as atribuiÃ§Ãµes e responsabilidades que assume por forÃ§a deste Contrato, a nÃ£o ser com prÃ©via concordÃ¢ncia da LOCADORA.", false, 5);
-  printParagraph("As Partes sÃ£o contratantes totalmente independentes, sendo cada uma inteiramente responsÃ¡vel por seus atos, obrigaÃ§Ãµes e conteÃºdo das informaÃ§Ãµes prestadas, em toda e qualquer circunstÃ¢ncia.", false, 5);
-  printParagraph("O nÃ£o exercÃ­cio por qualquer das partes de direitos ou faculdades que lhe assistam em decorrÃªncia do presente instrumento nÃ£o afetarÃ¡ aqueles direitos ou faculdades, os quais poderÃ£o ser exercidos a qualquer tempo.", false, 5);
-  printParagraph("Este Contrato somente poderÃ¡ ser alterado mediante formalizaÃ§Ã£o de Termo Aditivo assinado por ambas as Partes.", false, 5);
-  printParagraph("Integram este Contrato, para todos os fins, o Anexo I â€” Termo de Vistoria de Entrega e DevoluÃ§Ã£o, o Anexo II â€” proposta comercial e quadro de equipamentos, e o Anexo III â€” apÃ³lice de seguro vigente.", false, 5);
-  printParagraph("Este Contrato constitui tÃ­tulo executivo extrajudicial, nos termos do art. 784, inciso III, do CÃ³digo de Processo Civil, sendo admitida a assinatura eletrÃ´nica em qualquer das modalidades previstas em lei, dispensada a assinatura de testemunhas quando a integridade do documento for conferida por provedor de assinatura, na forma do art. 784, Â§4Âº, do mesmo CÃ³digo.", false, 8);
+  // ─── CLÁUSULA VIGÉSIMA TERCEIRA — DAS DISPOSIÇÕES GERAIS ────────────────────
+  printParagraph("CLÁUSULA VIGÉSIMA TERCEIRA — DAS DISPOSIÇÕES GERAIS", true, 4);
+  printParagraph("Os signatários do presente Contrato asseguram e afirmam que são os representantes legais competentes para assumir em nome das partes as obrigações descritas neste instrumento.", false, 5);
+  printParagraph("A LOCATÁRIA não poderá, em hipótese alguma, transferir ou delegar as atribuições e responsabilidades que assume por força deste Contrato, a não ser com prévia concordância da LOCADORA.", false, 5);
+  printParagraph("As Partes são contratantes totalmente independentes, sendo cada uma inteiramente responsável por seus atos, obrigações e conteúdo das informações prestadas, em toda e qualquer circunstância.", false, 5);
+  printParagraph("O não exercício por qualquer das partes de direitos ou faculdades que lhe assistam em decorrência do presente instrumento não afetará aqueles direitos ou faculdades, os quais poderão ser exercidos a qualquer tempo.", false, 5);
+  printParagraph("Este Contrato somente poderá ser alterado mediante formalização de Termo Aditivo assinado por ambas as Partes.", false, 5);
+  printParagraph("Integram este Contrato, para todos os fins, o Anexo I — Termo de Vistoria de Entrega e Devolução, o Anexo II — proposta comercial e quadro de equipamentos, e o Anexo III — apólice de seguro vigente.", false, 5);
+  printParagraph("Este Contrato constitui título executivo extrajudicial, nos termos do art. 784, inciso III, do Código de Processo Civil, sendo admitida a assinatura eletrônica em qualquer das modalidades previstas em lei, dispensada a assinatura de testemunhas quando a integridade do documento for conferida por provedor de assinatura, na forma do art. 784, §4º, do mesmo Código.", false, 8);
 
-  // â”€â”€â”€ CLÃUSULA VIGÃ‰SIMA QUARTA â€” DO FORO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  printParagraph("CLÃUSULA VIGÃ‰SIMA QUARTA â€” DO FORO", true, 4);
-  printParagraph("Fica eleito o foro da Comarca da Serra, Estado do EspÃ­rito Santo, com renÃºncia expressa a qualquer outro, por mais privilegiado que seja, para dirimir as controvÃ©rsias oriundas deste Contrato.", false, 5);
-  printParagraph("E, por estarem justas e contratadas, as Partes assinam o presente instrumento, em via eletrÃ´nica ou em 2 (duas) vias de igual teor e forma, na presenÃ§a de 2 (duas) testemunhas.", false, 10);
+  // ─── CLÁUSULA VIGÉSIMA QUARTA — DO FORO ─────────────────────────────────────
+  printParagraph("CLÁUSULA VIGÉSIMA QUARTA — DO FORO", true, 4);
+  printParagraph("Fica eleito o foro da Comarca da Serra, Estado do Espírito Santo, com renúncia expressa a qualquer outro, por mais privilegiado que seja, para dirimir as controvérsias oriundas deste Contrato.", false, 5);
+  printParagraph("E, por estarem justas e contratadas, as Partes assinam o presente instrumento, em via eletrônica ou em 2 (duas) vias de igual teor e forma, na presença de 2 (duas) testemunhas.", false, 10);
 
   // Date and Signatures
   checkPageBreak(65);
   const now = new Date();
-  const meses = ["janeiro", "fevereiro", "marÃ§o", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const dataExtenso = `Serra/ES, ${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}.`;
   printParagraph(dataExtenso, false, 15);
 
@@ -508,11 +507,11 @@ export const generateContratoPDF = async (params: {
 
   doc.setFontSize(8.5);
   doc.setFont("helvetica", "bold");
-  doc.text("BUSATO LOCAÃ‡Ã•ES E SERVIÃ‡OS LTDA.", margin, y + 4);
+  doc.text("BUSATO LOCAÇÕES E SERVIÇOS LTDA.", margin, y + 4);
   doc.text("LOCADORA", margin, y + 8);
 
   doc.text(locatariaNome.toUpperCase().substring(0, 42), pw - margin - 75, y + 4);
-  doc.text("LOCATÃRIA", pw - margin - 75, y + 8);
+  doc.text("LOCATÁRIA", pw - margin - 75, y + 8);
 
   y += 24;
   checkPageBreak(35);
@@ -542,4 +541,4 @@ export const generateContratoPDF = async (params: {
 
   const cleanName = (locatariaNome || "contrato").replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
   doc.save(`CONTRATO_LOCACAO_${params.numero_proposta}_-_${cleanName}.pdf`);
-};
+};
