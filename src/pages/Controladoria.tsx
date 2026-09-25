@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllMedicoes } from "@/lib/supabaseUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
 import { RelatoriosGerenciaisTab } from "@/components/RelatoriosGerenciaisTab";
-import { DreTab } from "@/components/DreTab";
+import { InadimplenciaTab } from "@/components/InadimplenciaTab";
 
 interface Empresa {
   id: string;
@@ -165,7 +165,7 @@ const Controladoria = () => {
   }, []);
 
   return (
-    <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : activeTab === "dre" ? "Demonstrativo de Resultados e Lançamentos" : "Cockpit executivo e indicadores de performance"}>
+    <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : activeTab === "dre" ? "Painel Gerencial de Inadimplência e Aging" : "Cockpit executivo e indicadores de performance"}>
       <div className="space-y-6">
         {!loading && (
           activeTab === "relatorios" ? (
@@ -181,7 +181,7 @@ const Controladoria = () => {
               despesasAdministrativas={despesasAdministrativas}
             />
           ) : activeTab === "dre" ? (
-            <DreTab />
+            <InadimplenciaTab />
           ) : (
             <VisaoGeralTab
               empresas={empresas}
