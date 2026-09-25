@@ -177,6 +177,9 @@ export const InadimplenciaTab = () => {
   // Detail dialog
   const [selectedFatura, setSelectedFatura] = useState<FaturaInadimplente | null>(null);
 
+  // KPI drill-down dialog
+  const [kpiDrilldown, setKpiDrilldown] = useState<string | null>(null);
+
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -542,6 +545,7 @@ export const InadimplenciaTab = () => {
           sub={`${qtdInadimplentes} fatura${qtdInadimplentes !== 1 ? "s" : ""} vencida${qtdInadimplentes !== 1 ? "s" : ""}`}
           gradient="bg-gradient-to-br from-red-600 to-red-800"
           iconBg="bg-red-500/30"
+          onClick={() => setKpiDrilldown("total")}
         />
         <KpiCard
           icon={AlertTriangle}
@@ -552,6 +556,7 @@ export const InadimplenciaTab = () => {
           iconBg="bg-orange-500/30"
           trend={taxaInadimplencia > 10 ? "up" : taxaInadimplencia > 0 ? "neutral" : "down"}
           trendLabel={taxaInadimplencia > 10 ? "Acima da meta" : taxaInadimplencia > 5 ? "Atenção" : "Saudável"}
+          onClick={() => setKpiDrilldown("taxa")}
         />
         <KpiCard
           icon={Clock}
@@ -560,6 +565,7 @@ export const InadimplenciaTab = () => {
           sub="Prazo médio de recebimento em atraso"
           gradient="bg-gradient-to-br from-amber-600 to-amber-800"
           iconBg="bg-amber-500/30"
+          onClick={() => setKpiDrilldown("pmr")}
         />
         <KpiCard
           icon={AlertCircle}
@@ -568,6 +574,7 @@ export const InadimplenciaTab = () => {
           sub={`${faturaCriticas.length} fatura${faturaCriticas.length !== 1 ? "s" : ""} crítica${faturaCriticas.length !== 1 ? "s" : ""}`}
           gradient="bg-gradient-to-br from-rose-700 to-rose-900"
           iconBg="bg-rose-500/30"
+          onClick={() => setKpiDrilldown("criticos")}
         />
         <KpiCard
           icon={Building2}
@@ -576,6 +583,7 @@ export const InadimplenciaTab = () => {
           sub={topClientes.length > 0 ? `Maior: ${topClientes[0]?.nome?.substring(0, 20) || "—"}` : "Nenhum inadimplente"}
           gradient="bg-gradient-to-br from-violet-600 to-violet-800"
           iconBg="bg-violet-500/30"
+          onClick={() => setKpiDrilldown("clientes")}
         />
       </div>
 
@@ -920,6 +928,348 @@ export const InadimplenciaTab = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── KPI Drill-down Dialog ──────────────────────────────────────── */}
+      <Dialog open={!!kpiDrilldown} onOpenChange={(open) => !open && setKpiDrilldown(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {kpiDrilldown === "total" && <><DollarSign className="w-5 h-5 text-red-500" /> Total Inadimplente — Detalhamento</>}
+              {kpiDrilldown === "taxa" && <><AlertTriangle className="w-5 h-5 text-orange-500" /> Taxa de Inadimplência — Composição</>}
+              {kpiDrilldown === "pmr" && <><Clock className="w-5 h-5 text-amber-500" /> Prazo Médio de Recebimento — Distribuição</>}
+              {kpiDrilldown === "criticos" && <><AlertCircle className="w-5 h-5 text-rose-500" /> Faturas Críticas (60+ dias)</>}
+              {kpiDrilldown === "clientes" && <><Building2 className="w-5 h-5 text-violet-500" /> Clientes Inadimplentes — Ranking Completo</>}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* ─── TOTAL INADIMPLENTE ─── */}
+          {kpiDrilldown === "total" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200/50 p-3 text-center">
+                  <p className="text-[10px] text-red-600/70 uppercase font-semibold">Valor Total</p>
+                  <p className="text-lg font-black text-red-700">{fmtCurrency(totalInadimplente)}</p>
+                </div>
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-3 text-center">
+                  <p className="text-[10px] text-amber-600/70 uppercase font-semibold">Qtd. Faturas</p>
+                  <p className="text-lg font-black text-amber-700">{qtdInadimplentes}</p>
+                </div>
+                <div className="rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200/50 p-3 text-center">
+                  <p className="text-[10px] text-blue-600/70 uppercase font-semibold">Ticket Médio</p>
+                  <p className="text-lg font-black text-blue-700">{fmtCurrency(qtdInadimplentes > 0 ? totalInadimplente / qtdInadimplentes : 0)}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Distribuição por Faixa de Atraso</p>
+                {agingData.map((a, i) => (
+                  <MiniStatBar key={i} label={`${a.bucket} (${a.quantidade} fat.)`} value={a.valor} max={totalInadimplente} color={a.color} />
+                ))}
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs">Cliente</TableHead>
+                      <TableHead className="text-xs">Equipamento</TableHead>
+                      <TableHead className="text-xs text-center">Atraso</TableHead>
+                      <TableHead className="text-xs text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {faturasInadimplentes.slice(0, 15).map(f => (
+                      <TableRow key={f.id} className="hover:bg-muted/5">
+                        <TableCell className="text-xs font-medium truncate max-w-[150px]">{f.empresa_nome}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground truncate max-w-[130px]">{f.equipamento_label}</TableCell>
+                        <TableCell className="text-xs text-center">
+                          <Badge className="text-[10px] border-0" style={{ backgroundColor: getAgingColor(f.aging_bucket) + "20", color: getAgingColor(f.aging_bucket) }}>
+                            {f.dias_atraso}d
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-right font-mono font-bold text-red-600">{fmtCurrency(f.valor_total)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {faturasInadimplentes.length > 15 && (
+                  <p className="text-[10px] text-center text-muted-foreground py-2">Exibindo 15 de {faturasInadimplentes.length} — veja a tabela principal para mais.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAXA DE INADIMPLÊNCIA ─── */}
+          {kpiDrilldown === "taxa" && (() => {
+            const totalPago = processedFaturas.filter(f => f.status === "Pago").reduce((a, f) => a + f.valor_total, 0);
+            const totalEmDia = faturasAtivas.filter(f => f.dias_atraso <= 0).reduce((a, f) => a + f.valor_total, 0);
+            const composicao = [
+              { label: "Inadimplente (vencido)", valor: totalInadimplente, color: "#ef4444", pct: totalFaturado > 0 ? (totalInadimplente / totalFaturado * 100) : 0 },
+              { label: "Em dia (a vencer)", valor: totalEmDia, color: "#f59e0b", pct: totalFaturado > 0 ? (totalEmDia / totalFaturado * 100) : 0 },
+            ];
+            const faturadoTotal = totalPago + totalFaturado;
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200/50 p-4">
+                    <p className="text-[10px] text-red-600/70 uppercase font-semibold">Taxa de Inadimplência</p>
+                    <p className="text-3xl font-black text-red-700">{taxaInadimplencia.toFixed(1)}%</p>
+                    <p className="text-xs text-red-600/60 mt-1">do faturamento ativo em aberto</p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 p-4">
+                    <p className="text-[10px] text-emerald-600/70 uppercase font-semibold">Taxa de Adimplência</p>
+                    <p className="text-3xl font-black text-emerald-700">{(100 - taxaInadimplencia).toFixed(1)}%</p>
+                    <p className="text-xs text-emerald-600/60 mt-1">faturas em dia ou a vencer</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Composição do Faturamento Ativo ({fmtCurrency(totalFaturado)})</p>
+                  {composicao.map((c, i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+                          <span className="text-muted-foreground">{c.label}</span>
+                        </div>
+                        <span className="font-bold">{fmtCurrency(c.valor)} <span className="text-muted-foreground font-normal">({c.pct.toFixed(1)}%)</span></span>
+                      </div>
+                      <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${c.pct}%`, backgroundColor: c.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-xl border bg-muted/10 p-4">
+                  <p className="text-xs font-semibold mb-2">Resumo Geral de Faturamento</p>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div><p className="text-[10px] text-muted-foreground">Total Já Pago</p><p className="text-sm font-bold text-emerald-600">{fmtCurrency(totalPago)}</p></div>
+                    <div><p className="text-[10px] text-muted-foreground">Em Aberto (ativo)</p><p className="text-sm font-bold text-amber-600">{fmtCurrency(totalFaturado)}</p></div>
+                    <div><p className="text-[10px] text-muted-foreground">Faturamento Total</p><p className="text-sm font-bold">{fmtCurrency(faturadoTotal)}</p></div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ─── PMR (Prazo Médio de Recebimento) ─── */}
+          {kpiDrilldown === "pmr" && (() => {
+            const faixas = [
+              { label: "1 a 7 dias", min: 1, max: 7, color: "#f59e0b" },
+              { label: "8 a 15 dias", min: 8, max: 15, color: "#f97316" },
+              { label: "16 a 30 dias", min: 16, max: 30, color: "#ef4444" },
+              { label: "31 a 60 dias", min: 31, max: 60, color: "#dc2626" },
+              { label: "61 a 90 dias", min: 61, max: 90, color: "#b91c1c" },
+              { label: "90+ dias", min: 91, max: Infinity, color: "#991b1b" },
+            ];
+            const distribuicao = faixas.map(fx => {
+              const items = faturasInadimplentes.filter(f => f.dias_atraso >= fx.min && f.dias_atraso <= fx.max);
+              return { ...fx, qtd: items.length, valor: items.reduce((a, f) => a + f.valor_total, 0) };
+            }).filter(fx => fx.qtd > 0);
+            const menorAtraso = faturasInadimplentes.length > 0 ? Math.min(...faturasInadimplentes.map(f => f.dias_atraso)) : 0;
+            const maiorAtraso = faturasInadimplentes.length > 0 ? Math.max(...faturasInadimplentes.map(f => f.dias_atraso)) : 0;
+            const medianaAtraso = (() => {
+              if (faturasInadimplentes.length === 0) return 0;
+              const sorted = [...faturasInadimplentes].sort((a, b) => a.dias_atraso - b.dias_atraso);
+              const mid = Math.floor(sorted.length / 2);
+              return sorted.length % 2 !== 0 ? sorted[mid].dias_atraso : Math.round((sorted[mid - 1].dias_atraso + sorted[mid].dias_atraso) / 2);
+            })();
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-3 text-center">
+                    <p className="text-[10px] text-amber-600/70 uppercase font-semibold">Média</p>
+                    <p className="text-xl font-black text-amber-700">{pmrDias}d</p>
+                  </div>
+                  <div className="rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200/50 p-3 text-center">
+                    <p className="text-[10px] text-blue-600/70 uppercase font-semibold">Mediana</p>
+                    <p className="text-xl font-black text-blue-700">{medianaAtraso}d</p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 p-3 text-center">
+                    <p className="text-[10px] text-emerald-600/70 uppercase font-semibold">Menor</p>
+                    <p className="text-xl font-black text-emerald-700">{menorAtraso}d</p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200/50 p-3 text-center">
+                    <p className="text-[10px] text-red-600/70 uppercase font-semibold">Maior</p>
+                    <p className="text-xl font-black text-red-700">{maiorAtraso}d</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Distribuição por Faixa</p>
+                  {distribuicao.map((fx, i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: fx.color }} />
+                          <span className="text-muted-foreground">{fx.label}</span>
+                        </div>
+                        <span className="font-medium">{fx.qtd} fatura{fx.qtd > 1 ? "s" : ""} · <span className="font-bold">{fmtCurrency(fx.valor)}</span></span>
+                      </div>
+                      <div className="h-2.5 bg-muted/30 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${qtdInadimplentes > 0 ? (fx.qtd / qtdInadimplentes * 100) : 0}%`, backgroundColor: fx.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="text-xs">Cliente</TableHead>
+                        <TableHead className="text-xs text-center">Dias Atraso</TableHead>
+                        <TableHead className="text-xs text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {faturasInadimplentes.sort((a, b) => b.dias_atraso - a.dias_atraso).slice(0, 10).map(f => (
+                        <TableRow key={f.id}>
+                          <TableCell className="text-xs font-medium truncate max-w-[180px]">{f.empresa_nome}</TableCell>
+                          <TableCell className="text-xs text-center font-bold" style={{ color: getAgingColor(f.aging_bucket) }}>{f.dias_atraso}d</TableCell>
+                          <TableCell className="text-xs text-right font-mono">{fmtCurrency(f.valor_total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ─── CRÍTICOS (60+ DIAS) ─── */}
+          {kpiDrilldown === "criticos" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 p-3 text-center">
+                  <p className="text-[10px] text-rose-600/70 uppercase font-semibold">Valor Crítico</p>
+                  <p className="text-lg font-black text-rose-700">{fmtCurrency(valorCritico)}</p>
+                </div>
+                <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200/50 p-3 text-center">
+                  <p className="text-[10px] text-red-600/70 uppercase font-semibold">Qtd. Críticas</p>
+                  <p className="text-lg font-black text-red-700">{faturaCriticas.length}</p>
+                </div>
+                <div className="rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200/50 p-3 text-center">
+                  <p className="text-[10px] text-orange-600/70 uppercase font-semibold">% do Total Inadimplente</p>
+                  <p className="text-lg font-black text-orange-700">{totalInadimplente > 0 ? (valorCritico / totalInadimplente * 100).toFixed(1) : 0}%</p>
+                </div>
+              </div>
+              {faturaCriticas.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-rose-50/50 dark:bg-rose-950/10">
+                        <TableHead className="text-xs font-semibold">Cliente</TableHead>
+                        <TableHead className="text-xs font-semibold">Equipamento</TableHead>
+                        <TableHead className="text-xs font-semibold">Emissão</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Atraso</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Valor</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {faturaCriticas.sort((a, b) => b.dias_atraso - a.dias_atraso).map(f => (
+                        <TableRow key={f.id} className="hover:bg-rose-50/30">
+                          <TableCell className="text-xs font-medium truncate max-w-[140px]">{f.empresa_nome}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground truncate max-w-[120px]">{f.equipamento_label}</TableCell>
+                          <TableCell className="text-xs">{fmtDate(f.emissao)}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge className="text-[10px] bg-red-100 text-red-800 border-0 font-bold">{f.dias_atraso}d</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-right font-mono font-bold text-red-700">{fmtCurrency(f.valor_total)}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-[10px]">{f.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-500 mb-2" />
+                  <p className="text-sm font-medium">Nenhuma fatura crítica!</p>
+                  <p className="text-xs">Não há faturas com mais de 60 dias de atraso.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── CLIENTES INADIMPLENTES ─── */}
+          {kpiDrilldown === "clientes" && (() => {
+            // Extended client data with all faturas
+            const clientesDetalhados = (() => {
+              const map = new Map<string, { id: string; nome: string; valor: number; qtd: number; maiorAtraso: number; menorAtraso: number; faturas: FaturaInadimplente[] }>();
+              faturasInadimplentes.forEach(f => {
+                const existing = map.get(f.empresa_id) || { id: f.empresa_id, nome: f.empresa_nome, valor: 0, qtd: 0, maiorAtraso: 0, menorAtraso: Infinity, faturas: [] };
+                existing.valor += f.valor_total;
+                existing.qtd += 1;
+                existing.maiorAtraso = Math.max(existing.maiorAtraso, f.dias_atraso);
+                existing.menorAtraso = Math.min(existing.menorAtraso, f.dias_atraso);
+                existing.faturas.push(f);
+                map.set(f.empresa_id, existing);
+              });
+              return Array.from(map.values()).sort((a, b) => b.valor - a.valor);
+            })();
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200/50 p-3 text-center">
+                    <p className="text-[10px] text-violet-600/70 uppercase font-semibold">Total Clientes</p>
+                    <p className="text-xl font-black text-violet-700">{clientesDetalhados.length}</p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200/50 p-3 text-center">
+                    <p className="text-[10px] text-red-600/70 uppercase font-semibold">Total Inadimplente</p>
+                    <p className="text-lg font-black text-red-700">{fmtCurrency(totalInadimplente)}</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-3 text-center">
+                    <p className="text-[10px] text-amber-600/70 uppercase font-semibold">Ticket Médio / Cliente</p>
+                    <p className="text-lg font-black text-amber-700">{fmtCurrency(clientesDetalhados.length > 0 ? totalInadimplente / clientesDetalhados.length : 0)}</p>
+                  </div>
+                </div>
+                {clientesDetalhados.map((c, i) => {
+                  const style = getUrgencyStyle(c.maiorAtraso);
+                  const pct = totalInadimplente > 0 ? (c.valor / totalInadimplente * 100) : 0;
+                  return (
+                    <div key={c.id} className={`rounded-xl border p-4 ${style.bg}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${
+                            i === 0 ? "bg-red-500 text-white" : i === 1 ? "bg-orange-500 text-white" : i === 2 ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
+                          }`}>{i + 1}</div>
+                          <div>
+                            <p className="text-sm font-bold">{c.nome}</p>
+                            <p className="text-[10px] text-muted-foreground">{c.qtd} fatura{c.qtd > 1 ? "s" : ""} · Atraso: {c.menorAtraso}d ~ {c.maiorAtraso}d</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-sm font-black ${style.text}`}>{fmtCurrency(c.valor)}</p>
+                          <p className="text-[10px] text-muted-foreground">{pct.toFixed(1)}% do total</p>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-background/50 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: getAgingColor(getAgingBucket(c.maiorAtraso)) }} />
+                      </div>
+                      {c.faturas.length <= 5 && (
+                        <div className="mt-2 space-y-1">
+                          {c.faturas.sort((a, b) => b.dias_atraso - a.dias_atraso).map(f => (
+                            <div key={f.id} className="flex items-center justify-between text-[11px] py-0.5 px-2 rounded bg-background/30">
+                              <span className="text-muted-foreground truncate max-w-[180px]">{f.equipamento_label}</span>
+                              <div className="flex items-center gap-3">
+                                <span style={{ color: getAgingColor(f.aging_bucket) }} className="font-bold">{f.dias_atraso}d</span>
+                                <span className="font-mono font-semibold">{fmtCurrency(f.valor_total)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setKpiDrilldown(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Detail Dialog ──────────────────────────────────────────────── */}
       <Dialog open={!!selectedFatura} onOpenChange={(open) => !open && setSelectedFatura(null)}>
