@@ -234,8 +234,14 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
       const hasMob = dataEntrega && dataEntrega >= inicio && dataEntrega <= fim;
       const hasDesmob = dataDevolucao && dataDevolucao >= inicio && dataDevolucao <= fim;
-      if (hasMob) notes.push("Mobilização (Proporcional)");
-      if (hasDesmob) notes.push("Desmobilização (Proporcional)");
+      if (hasMob) {
+        const mobDateFmt = parseLocalDate(dataEntrega).toLocaleDateString("pt-BR");
+        notes.push(`Mobilização (Proporcional) — ${mobDateFmt}`);
+      }
+      if (hasDesmob) {
+        const desmobDateFmt = parseLocalDate(dataDevolucao).toLocaleDateString("pt-BR");
+        notes.push(`Desmobilização (Proporcional) — ${desmobDateFmt}`);
+      }
 
       const activeAjuste = activeAjustes.find(a => a.equipamento_id === equipId);
       if (activeAjuste) {

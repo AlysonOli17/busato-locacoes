@@ -2168,10 +2168,12 @@ export const FaturamentoContent = () => {
                         obs.push(`📄 Valores do Aditivo #${ef.aditivo_numero || "?"} aplicados`);
                       }
                       if (ef.primeiro_mes) {
-                        obs.push(`🆕 Primeiro mês — ${isDiarias ? "diárias" : "horas"} contratadas e mínima proporcionais à entrega`);
+                        const entregaFmt = ef.data_entrega ? parseLocalDate(ef.data_entrega).toLocaleDateString("pt-BR") : "";
+                        obs.push(`🆕 Primeiro mês — ${isDiarias ? "diárias" : "horas"} contratadas e mínima proporcionais à entrega${entregaFmt ? ` (${entregaFmt})` : ""}`);
                       }
                       if (ef.proporcional_devolucao) {
-                        obs.push(`🔄 Proporcional à devolução — ${isDiarias ? "diárias" : "horas"} contratadas e mínima reduzidas`);
+                        const devolucaoFmt = ef.data_devolucao ? parseLocalDate(ef.data_devolucao).toLocaleDateString("pt-BR") : "";
+                        obs.push(`🔄 Proporcional à devolução${devolucaoFmt ? ` (${devolucaoFmt})` : ""} — ${isDiarias ? "diárias" : "horas"} contratadas e mínima reduzidas`);
                       }
                       if (obs.length === 0) return null;
                       return (
