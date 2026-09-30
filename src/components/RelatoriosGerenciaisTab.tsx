@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp, DollarSign, Calendar, FileDown, ArrowUpRight, ArrowDownRight,
-  TrendingDown, Percent, BarChart3, AlertCircle, Clock, FileText
+  TrendingDown, Percent, BarChart3, AlertCircle, Clock, FileText, Wrench, Activity,
+  Gauge, Timer, CheckCircle2, XCircle, AlertTriangle
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import * as XLSX from "xlsx";
@@ -62,6 +63,7 @@ export const RelatoriosGerenciaisTab = ({
   // Modais de detalhamento
   const [dreDetailModal, setDreDetailModal] = useState<{ isOpen: boolean; type: "receitaBruta" | "custoManutencao" | "custoMobilizacao" | "custoFixo" | "custoOutros" | "despesasAdmin" | null; title: string; }>({ isOpen: false, type: null, title: "" });
   const [rentabilidadeDetailModal, setRentabilidadeDetailModal] = useState<{ isOpen: boolean; equipId: string | null; }>({ isOpen: false, equipId: null });
+  const [horasDetailModal, setHorasDetailModal] = useState<{ isOpen: boolean; equipId: string | null; }>({ isOpen: false, equipId: null });
 
   useEffect(() => {
     const loadFaturamentoEquipamentos = async () => {
@@ -432,6 +434,221 @@ export const RelatoriosGerenciaisTab = ({
       .map(([, val]) => val);
   }, [faturasFiltradas, gastosFiltrados, dreStats]);
 
+  // ====================================================================
+  // 6. KPI DE GESTÃO DE HORAS CONTRATUAIS
+  // ====================================================================
+  const horasContratuaisStats = useMemo(() => {
+    // Aggregate per-equipment hours from faturamento_equipamentos (filtered invoices only)
+    const faturaIdsSet = new Set(faturasFiltradas.filter(f => f.status === "Pago" || f.status === "Aprovado").map(f => f.id));
+
+    // Build per-equipment aggregation
+    interface EquipHoras {
+      equipamento_id: string;
+      horasContratadas: number;
+      horasTrabalhadas: number;  // horas_medidas from faturamento_equipamentos
+      horasNormais: number;
+      horasExcedentes: number;
+      horasCorretivas: number;   // from medicoes tipo=Indisponível
+      horasRealUtilizadas: number; // trabalhadas - corretivas
+      periodos: number;
+      detalhes: Array<{ periodo: string; contratadas: number; trabalhadas: number; normais: number; excedentes: number; corretivas: number; cliente: string; }>;
+    }
+
+    const equipMap = new Map<string, EquipHoras>();
+
+    // Process faturamento_equipamentos items
+    faturamentoEquipamentosList.forEach(feItem => {
+      if (!faturaIdsSet.has(feItem.faturamento_id)) return;
+
+      const eqId = feItem.equipamento_id;
+      if (selectedEquipamento !== "all" && eqId !== selectedEquipamento) return;
+
+      // Find parent fatura for client filtering and period
+      const fatura = faturasFiltradas.find(f => f.id === feItem.faturamento_id);
+      if (!fatura) return;
+
+      const ct = contratos.find(c => c.id === fatura.contrato_id);
+      if (selectedEmpresa !== "all" && ct?.empresa_id !== selectedEmpresa) return;
+
+      if (!equipMap.has(eqId)) {
+        equipMap.set(eqId, {
+          equipamento_id: eqId,
+          horasContratadas: 0,
+          horasTrabalhadas: 0,
+          horasNormais: 0,
+          horasExcedentes: 0,
+          horasCorretivas: 0,
+          horasRealUtilizadas: 0,
+          periodos: 0,
+          detalhes: []
+        });
+      }
+
+      const entry = equipMap.get(eqId)!;
+      const horasContratadas = Number(feItem.horas_contratadas ?? feItem.hora_minima ?? 0);
+      const horasMedidas = Number(feItem.horas_totais ?? feItem.horas_medidas ?? 0);
+      const horasNormais = Number(feItem.horas_normais ?? 0);
+      const horasExcedentes = Number(feItem.horas_excedentes ?? 0);
+
+      // Get contracted hours from the contratos_equipamentos linked to this contract+equipment
+      const ce = contratosEquipamentos.find((c: any) => c.contrato_id === fatura.contrato_id && c.equipamento_id === eqId);
+      const horasContrat = ce ? Number(ce.horas_contratadas || 0) : (ct ? Number(ct.horas_contratadas || 0) : horasContratadas);
+
+      entry.horasContratadas += horasContrat;
+      entry.horasTrabalhadas += horasMedidas;
+      entry.horasNormais += horasNormais;
+      entry.horasExcedentes += horasExcedentes;
+      entry.periodos += 1;
+
+      entry.detalhes.push({
+        periodo: fatura.periodo || "",
+        contratadas: horasContrat,
+        trabalhadas: horasMedidas,
+        normais: horasNormais,
+        excedentes: horasExcedentes,
+        corretivas: 0,
+        cliente: ct?.empresas?.nome || "Desconhecido"
+      });
+    });
+
+    // Process medições to compute corrective hours per equipment in the period
+    medicoes.forEach(m => {
+      if (m.tipo !== "Indisponível") return;
+      if (!m.data) return;
+      if (dataInicio && m.data < dataInicio) return;
+      if (dataFim && m.data > dataFim) return;
+
+      const eqId = m.equipamento_id;
+      if (selectedEquipamento !== "all" && eqId !== selectedEquipamento) return;
+
+      // Client filtering: check if equipment is allocated to selected client
+      if (selectedEmpresa !== "all") {
+        const allocated = contratosEquipamentos.some((ce: any) => {
+          const ct = contratos.find(c => c.id === ce.contrato_id);
+          if (ct?.empresa_id !== selectedEmpresa || ce.equipamento_id !== eqId) return false;
+          const start = ce.data_entrega || ct.data_inicio || "1970-01-01";
+          const end = ce.data_devolucao || ct.data_fim || "9999-12-31";
+          return m.data >= start && m.data <= end;
+        });
+        if (!allocated) return;
+      }
+
+      if (!equipMap.has(eqId)) {
+        equipMap.set(eqId, {
+          equipamento_id: eqId,
+          horasContratadas: 0,
+          horasTrabalhadas: 0,
+          horasNormais: 0,
+          horasExcedentes: 0,
+          horasCorretivas: 0,
+          horasRealUtilizadas: 0,
+          periodos: 0,
+          detalhes: []
+        });
+      }
+
+      const horasIndisp = Number(m.horas_trabalhadas || 0);
+      equipMap.get(eqId)!.horasCorretivas += horasIndisp;
+    });
+
+    // Compute real utilized hours
+    equipMap.forEach(entry => {
+      entry.horasRealUtilizadas = Math.max(0, entry.horasTrabalhadas - entry.horasCorretivas);
+    });
+
+    // Convert to sorted array
+    const list = Array.from(equipMap.values())
+      .filter(e => e.horasContratadas > 0 || e.horasTrabalhadas > 0 || e.horasCorretivas > 0)
+      .sort((a, b) => b.horasContratadas - a.horasContratadas);
+
+    // Totals
+    const totalContratadas = list.reduce((s, e) => s + e.horasContratadas, 0);
+    const totalTrabalhadas = list.reduce((s, e) => s + e.horasTrabalhadas, 0);
+    const totalCorretivas = list.reduce((s, e) => s + e.horasCorretivas, 0);
+    const totalNormais = list.reduce((s, e) => s + e.horasNormais, 0);
+    const totalExcedentes = list.reduce((s, e) => s + e.horasExcedentes, 0);
+    const totalRealUtilizadas = list.reduce((s, e) => s + e.horasRealUtilizadas, 0);
+
+    // KPI percentages
+    const taxaUtilizacao = totalContratadas > 0 ? (totalTrabalhadas / totalContratadas) * 100 : 0;
+    const taxaDisponibilidade = totalTrabalhadas > 0 ? ((totalTrabalhadas - totalCorretivas) / totalTrabalhadas) * 100 : 100;
+    const taxaCorretiva = totalContratadas > 0 ? (totalCorretivas / totalContratadas) * 100 : 0;
+    const taxaOciosidade = totalContratadas > 0 ? (Math.max(0, totalContratadas - totalTrabalhadas) / totalContratadas) * 100 : 0;
+
+    return {
+      list,
+      totalContratadas,
+      totalTrabalhadas,
+      totalCorretivas,
+      totalNormais,
+      totalExcedentes,
+      totalRealUtilizadas,
+      taxaUtilizacao,
+      taxaDisponibilidade,
+      taxaCorretiva,
+      taxaOciosidade,
+      totalEquipamentos: list.length
+    };
+  }, [faturasFiltradas, faturamentoEquipamentosList, medicoes, contratos, contratosEquipamentos, equipamentos, selectedEmpresa, selectedEquipamento, dataInicio, dataFim]);
+
+  // 7. Chart data for Hours KPI (monthly breakdown)
+  const horasChartData = useMemo(() => {
+    const map: Record<string, { mes: string; Contratadas: number; Trabalhadas: number; Corretivas: number; }> = {};
+    const faturaIdsSet = new Set(faturasFiltradas.filter(f => f.status === "Pago" || f.status === "Aprovado").map(f => f.id));
+
+    faturamentoEquipamentosList.forEach(feItem => {
+      if (!faturaIdsSet.has(feItem.faturamento_id)) return;
+      const fatura = faturasFiltradas.find(f => f.id === feItem.faturamento_id);
+      if (!fatura) return;
+
+      const eqId = feItem.equipamento_id;
+      if (selectedEquipamento !== "all" && eqId !== selectedEquipamento) return;
+      const ct = contratos.find(c => c.id === fatura.contrato_id);
+      if (selectedEmpresa !== "all" && ct?.empresa_id !== selectedEmpresa) return;
+
+      const emissao = fatura.emissao || fatura.data_aprovacao || fatura.created_at || "";
+      if (!emissao) return;
+      const key = emissao.slice(0, 7);
+      if (!map[key]) {
+        const date = new Date(emissao + "T00:00:00");
+        map[key] = {
+          mes: date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+          Contratadas: 0,
+          Trabalhadas: 0,
+          Corretivas: 0
+        };
+      }
+
+      const ce = contratosEquipamentos.find((c: any) => c.contrato_id === fatura.contrato_id && c.equipamento_id === eqId);
+      const horasContrat = ce ? Number(ce.horas_contratadas || 0) : (ct ? Number(ct.horas_contratadas || 0) : 0);
+      map[key].Contratadas += horasContrat;
+      map[key].Trabalhadas += Number(feItem.horas_totais ?? feItem.horas_medidas ?? 0);
+    });
+
+    medicoes.forEach(m => {
+      if (m.tipo !== "Indisponível" || !m.data) return;
+      if (dataInicio && m.data < dataInicio) return;
+      if (dataFim && m.data > dataFim) return;
+      if (selectedEquipamento !== "all" && m.equipamento_id !== selectedEquipamento) return;
+
+      const key = m.data.slice(0, 7);
+      if (!map[key]) {
+        const date = new Date(m.data + "T00:00:00");
+        map[key] = {
+          mes: date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+          Contratadas: 0,
+          Trabalhadas: 0,
+          Corretivas: 0
+        };
+      }
+      map[key].Corretivas += Number(m.horas_trabalhadas || 0);
+    });
+
+    return Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([, val]) => val);
+  }, [faturasFiltradas, faturamentoEquipamentosList, medicoes, contratos, contratosEquipamentos, selectedEmpresa, selectedEquipamento, dataInicio, dataFim]);
+
   // Função para exportação em Excel (XLSX)
   const handleExportExcel = (tipo: "rentabilidade" | "dre" | "aging") => {
     let data: any[] = [];
@@ -618,7 +835,9 @@ export const RelatoriosGerenciaisTab = ({
                 dataFim,
                 dreStats,
                 rentabilidadeEquipamentos,
-                agingList
+                agingList,
+                horasContratuaisStats,
+                equipamentos
               })}
             >
               <FileText className="h-4 w-4" />
@@ -765,6 +984,459 @@ export const RelatoriosGerenciaisTab = ({
                 </BarChart>
               </ResponsiveContainer>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ====================================================================
+          KPI DE GESTÃO DE HORAS CONTRATUAIS
+          ==================================================================== */}
+      <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card: Horas Contratadas */}
+          <Card className="glass shadow-sm border border-border/40 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
+            <CardContent className="pt-5 pb-4 px-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Horas Contratadas</span>
+                <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-blue-500" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-foreground">{horasContratuaisStats.totalContratadas.toFixed(0)}h</p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {horasContratuaisStats.totalEquipamentos} equipamento{horasContratuaisStats.totalEquipamentos !== 1 ? "s" : ""} no período
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card: Horas Trabalhadas */}
+          <Card className="glass shadow-sm border border-border/40 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
+            <CardContent className="pt-5 pb-4 px-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Horas Trabalhadas</span>
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-emerald-500" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-foreground">{horasContratuaisStats.totalTrabalhadas.toFixed(1)}h</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Badge className={`text-[9px] font-bold border-0 text-white px-1.5 py-0 ${
+                  horasContratuaisStats.taxaUtilizacao >= 85 ? "bg-emerald-500" :
+                  horasContratuaisStats.taxaUtilizacao >= 60 ? "bg-amber-500" : "bg-red-500"
+                }`}>
+                  {horasContratuaisStats.taxaUtilizacao.toFixed(1)}% utilização
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card: Horas em Corretivas */}
+          <Card className="glass shadow-sm border border-border/40 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-400" />
+            <CardContent className="pt-5 pb-4 px-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Horas em Corretivas</span>
+                <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                  <Wrench className="h-4 w-4 text-red-500" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-destructive">{horasContratuaisStats.totalCorretivas.toFixed(1)}h</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Badge className={`text-[9px] font-bold border-0 text-white px-1.5 py-0 ${
+                  horasContratuaisStats.taxaCorretiva <= 5 ? "bg-emerald-500" :
+                  horasContratuaisStats.taxaCorretiva <= 15 ? "bg-amber-500" : "bg-red-500"
+                }`}>
+                  {horasContratuaisStats.taxaCorretiva.toFixed(1)}% das contratadas
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card: Horas Real Utilizadas */}
+          <Card className="glass shadow-sm border border-border/40 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 to-purple-400" />
+            <CardContent className="pt-5 pb-4 px-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Horas Real Utilizadas</span>
+                <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                  <Gauge className="h-4 w-4 text-violet-500" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-foreground">{horasContratuaisStats.totalRealUtilizadas.toFixed(1)}h</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Badge className={`text-[9px] font-bold border-0 text-white px-1.5 py-0 ${
+                  horasContratuaisStats.taxaDisponibilidade >= 95 ? "bg-emerald-500" :
+                  horasContratuaisStats.taxaDisponibilidade >= 85 ? "bg-amber-500" : "bg-red-500"
+                }`}>
+                  {horasContratuaisStats.taxaDisponibilidade.toFixed(1)}% disponibilidade
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Chart + KPI Gauges Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Painel de Indicadores Chave */}
+          <Card className="glass shadow-sm border border-border/40 lg:col-span-1">
+            <CardHeader className="pb-3 border-b border-border/10">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Gauge className="h-4 w-4 text-primary" />
+                Indicadores de Gestão
+              </CardTitle>
+              <CardDescription>Performance consolidada do contrato</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-5">
+              {/* Taxa de Utilização */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <Timer className="h-3.5 w-3.5" /> Taxa de Utilização
+                  </span>
+                  <span className={`text-sm font-black ${
+                    horasContratuaisStats.taxaUtilizacao >= 85 ? "text-emerald-500" :
+                    horasContratuaisStats.taxaUtilizacao >= 60 ? "text-amber-500" : "text-red-500"
+                  }`}>
+                    {horasContratuaisStats.taxaUtilizacao.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-muted/50 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      horasContratuaisStats.taxaUtilizacao >= 85 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                      horasContratuaisStats.taxaUtilizacao >= 60 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                      "bg-gradient-to-r from-red-500 to-red-400"
+                    }`}
+                    style={{ width: `${Math.min(100, horasContratuaisStats.taxaUtilizacao)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {horasContratuaisStats.totalTrabalhadas.toFixed(0)}h trabalhadas de {horasContratuaisStats.totalContratadas.toFixed(0)}h contratadas
+                </p>
+              </div>
+
+              {/* Taxa de Disponibilidade */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Disponibilidade Mecânica
+                  </span>
+                  <span className={`text-sm font-black ${
+                    horasContratuaisStats.taxaDisponibilidade >= 95 ? "text-emerald-500" :
+                    horasContratuaisStats.taxaDisponibilidade >= 85 ? "text-amber-500" : "text-red-500"
+                  }`}>
+                    {horasContratuaisStats.taxaDisponibilidade.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-muted/50 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      horasContratuaisStats.taxaDisponibilidade >= 95 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                      horasContratuaisStats.taxaDisponibilidade >= 85 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                      "bg-gradient-to-r from-red-500 to-red-400"
+                    }`}
+                    style={{ width: `${Math.min(100, horasContratuaisStats.taxaDisponibilidade)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {horasContratuaisStats.totalRealUtilizadas.toFixed(0)}h efetivas de {horasContratuaisStats.totalTrabalhadas.toFixed(0)}h trabalhadas
+                </p>
+              </div>
+
+              {/* Taxa de Corretivas */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <Wrench className="h-3.5 w-3.5" /> Impacto Corretivas
+                  </span>
+                  <span className={`text-sm font-black ${
+                    horasContratuaisStats.taxaCorretiva <= 5 ? "text-emerald-500" :
+                    horasContratuaisStats.taxaCorretiva <= 15 ? "text-amber-500" : "text-red-500"
+                  }`}>
+                    {horasContratuaisStats.taxaCorretiva.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-muted/50 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      horasContratuaisStats.taxaCorretiva <= 5 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                      horasContratuaisStats.taxaCorretiva <= 15 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                      "bg-gradient-to-r from-red-500 to-red-400"
+                    }`}
+                    style={{ width: `${Math.min(100, horasContratuaisStats.taxaCorretiva)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {horasContratuaisStats.totalCorretivas.toFixed(0)}h paradas de {horasContratuaisStats.totalContratadas.toFixed(0)}h contratadas
+                </p>
+              </div>
+
+              {/* Taxa de Ociosidade */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <XCircle className="h-3.5 w-3.5" /> Ociosidade
+                  </span>
+                  <span className={`text-sm font-black ${
+                    horasContratuaisStats.taxaOciosidade <= 10 ? "text-emerald-500" :
+                    horasContratuaisStats.taxaOciosidade <= 25 ? "text-amber-500" : "text-red-500"
+                  }`}>
+                    {horasContratuaisStats.taxaOciosidade.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-muted/50 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      horasContratuaisStats.taxaOciosidade <= 10 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                      horasContratuaisStats.taxaOciosidade <= 25 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                      "bg-gradient-to-r from-red-500 to-red-400"
+                    }`}
+                    style={{ width: `${Math.min(100, horasContratuaisStats.taxaOciosidade)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {Math.max(0, horasContratuaisStats.totalContratadas - horasContratuaisStats.totalTrabalhadas).toFixed(0)}h ociosas no período
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Horas Mensal */}
+          <Card className="glass shadow-sm border border-border/40 lg:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Evolução Mensal de Horas
+              </CardTitle>
+              <CardDescription>Comparativo mensal: contratadas × trabalhadas × corretivas</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[280px] pb-4">
+              {horasChartData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                  Sem dados de horas no período filtrado.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={horasChartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.6} />
+                    <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                    <Tooltip
+                      content={({ active, payload }: any) => {
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-background border border-border rounded-xl shadow-xl p-3 min-w-[170px]">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{payload[0].payload.mes}</p>
+                            {payload.map((p: any) => (
+                              <div key={p.name} className="flex items-center justify-between gap-4 py-0.5">
+                                <span className="text-xs font-semibold text-muted-foreground">{p.name}</span>
+                                <span className={`text-xs font-bold ${
+                                  p.name === "Contratadas" ? "text-blue-500" :
+                                  p.name === "Trabalhadas" ? "text-emerald-500" : "text-red-500"
+                                }`}>
+                                  {Number(p.value).toFixed(1)}h
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="Contratadas" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Trabalhadas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Corretivas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabela Detalhada por Equipamento */}
+        <Card className="glass shadow-sm border border-border/40">
+          <CardHeader className="pb-3 border-b border-border/10 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Gestão de Horas por Equipamento
+              </CardTitle>
+              <CardDescription>Controle detalhado de horas contratadas, trabalhadas, corretivas e reais por ativo</CardDescription>
+            </div>
+            <Button size="sm" variant="outline" className="h-8 gap-2 bg-background/50" onClick={() => {
+              const data = horasContratuaisStats.list.map(entry => {
+                const eq = equipamentos.find(e => e.id === entry.equipamento_id);
+                const utilizacao = entry.horasContratadas > 0 ? (entry.horasTrabalhadas / entry.horasContratadas * 100) : 0;
+                const disponibilidade = entry.horasTrabalhadas > 0 ? ((entry.horasTrabalhadas - entry.horasCorretivas) / entry.horasTrabalhadas * 100) : 100;
+                return {
+                  "Equipamento": eq ? `${eq.tipo} ${eq.modelo}` : "Desconhecido",
+                  "Placa/Tag": eq?.tag_placa || "S/P",
+                  "Horas Contratadas": Number(entry.horasContratadas.toFixed(1)),
+                  "Horas Trabalhadas": Number(entry.horasTrabalhadas.toFixed(1)),
+                  "Horas Corretivas": Number(entry.horasCorretivas.toFixed(1)),
+                  "Horas Real Utilizadas": Number(entry.horasRealUtilizadas.toFixed(1)),
+                  "Horas Normais": Number(entry.horasNormais.toFixed(1)),
+                  "Horas Excedentes": Number(entry.horasExcedentes.toFixed(1)),
+                  "Utilização (%)": Number(utilizacao.toFixed(1)) / 100,
+                  "Disponibilidade (%)": Number(disponibilidade.toFixed(1)) / 100,
+                  "Períodos": entry.periodos
+                };
+              });
+              const ws = XLSX.utils.json_to_sheet(data);
+              ws['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 18 }, { wch: 10 }];
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Horas Contratuais");
+              XLSX.writeFile(wb, "KPI_Horas_Contratuais.xlsx");
+            }}>
+              <FileDown className="h-3.5 w-3.5" />
+              <span>Exportar</span>
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto max-h-[400px] scrollbar-thin">
+              <Table>
+                <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider">Equipamento</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider">Placa/Tag</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Contratadas</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Trabalhadas</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Corretivas</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Real Utiliz.</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-center" style={{ minWidth: "130px" }}>Utilização</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-center" style={{ minWidth: "130px" }}>Disponib.</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {horasContratuaisStats.list.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-24 text-center text-xs text-muted-foreground">
+                        Nenhum dado de horas encontrado no período filtrado.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {horasContratuaisStats.list.map(entry => {
+                        const eq = equipamentos.find(e => e.id === entry.equipamento_id);
+                        const utilizacao = entry.horasContratadas > 0 ? (entry.horasTrabalhadas / entry.horasContratadas * 100) : 0;
+                        const disponibilidade = entry.horasTrabalhadas > 0 ? ((entry.horasTrabalhadas - entry.horasCorretivas) / entry.horasTrabalhadas * 100) : 100;
+
+                        const statusLabel = utilizacao >= 85
+                          ? { text: "Otimizado", color: "bg-emerald-500" }
+                          : utilizacao >= 60
+                            ? { text: "Moderado", color: "bg-amber-500" }
+                            : utilizacao > 0
+                              ? { text: "Subutilizado", color: "bg-red-500" }
+                              : { text: "Sem Dados", color: "bg-muted-foreground" };
+
+                        return (
+                          <TableRow
+                            key={entry.equipamento_id}
+                            className="hover:bg-muted/20 transition-colors cursor-pointer"
+                            onClick={() => setHorasDetailModal({ isOpen: true, equipId: entry.equipamento_id })}
+                          >
+                            <TableCell className="font-bold text-xs text-foreground">
+                              {eq ? `${eq.tipo} ${eq.modelo}` : "Desconhecido"}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs font-semibold">
+                              {eq?.tag_placa || "S/P"}
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-blue-500">
+                              {entry.horasContratadas.toFixed(1)}h
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-emerald-500">
+                              {entry.horasTrabalhadas.toFixed(1)}h
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-destructive">
+                              {entry.horasCorretivas.toFixed(1)}h
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-black text-violet-500">
+                              {entry.horasRealUtilizadas.toFixed(1)}h
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-muted/50 rounded-full h-2 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      utilizacao >= 85 ? "bg-emerald-500" : utilizacao >= 60 ? "bg-amber-500" : "bg-red-500"
+                                    }`}
+                                    style={{ width: `${Math.min(100, utilizacao)}%` }}
+                                  />
+                                </div>
+                                <span className={`text-[10px] font-bold min-w-[38px] text-right ${
+                                  utilizacao >= 85 ? "text-emerald-500" : utilizacao >= 60 ? "text-amber-500" : "text-red-500"
+                                }`}>
+                                  {utilizacao.toFixed(0)}%
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-muted/50 rounded-full h-2 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      disponibilidade >= 95 ? "bg-emerald-500" : disponibilidade >= 85 ? "bg-amber-500" : "bg-red-500"
+                                    }`}
+                                    style={{ width: `${Math.min(100, disponibilidade)}%` }}
+                                  />
+                                </div>
+                                <span className={`text-[10px] font-bold min-w-[38px] text-right ${
+                                  disponibilidade >= 95 ? "text-emerald-500" : disponibilidade >= 85 ? "text-amber-500" : "text-red-500"
+                                }`}>
+                                  {disponibilidade.toFixed(0)}%
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className={`text-[9px] font-bold uppercase py-0.5 px-2 border-0 text-white ${statusLabel.color}`}>
+                                {statusLabel.text}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {/* Total Row */}
+                      <TableRow className="bg-muted/30 border-t-2 border-border/40">
+                        <TableCell colSpan={2} className="text-xs font-black text-foreground uppercase">Totais</TableCell>
+                        <TableCell className="text-right text-xs font-black text-blue-500">
+                          {horasContratuaisStats.totalContratadas.toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-black text-emerald-500">
+                          {horasContratuaisStats.totalTrabalhadas.toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-black text-destructive">
+                          {horasContratuaisStats.totalCorretivas.toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-black text-violet-500">
+                          {horasContratuaisStats.totalRealUtilizadas.toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={`text-[9px] font-bold border-0 text-white px-1.5 py-0 ${
+                            horasContratuaisStats.taxaUtilizacao >= 85 ? "bg-emerald-500" :
+                            horasContratuaisStats.taxaUtilizacao >= 60 ? "bg-amber-500" : "bg-red-500"
+                          }`}>
+                            {horasContratuaisStats.taxaUtilizacao.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={`text-[9px] font-bold border-0 text-white px-1.5 py-0 ${
+                            horasContratuaisStats.taxaDisponibilidade >= 95 ? "bg-emerald-500" :
+                            horasContratuaisStats.taxaDisponibilidade >= 85 ? "bg-amber-500" : "bg-red-500"
+                          }`}>
+                            {horasContratuaisStats.taxaDisponibilidade.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -1143,6 +1815,181 @@ export const RelatoriosGerenciaisTab = ({
                       </Table>
                     </div>
                   </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE DETALHES DE HORAS POR EQUIPAMENTO */}
+      <Dialog open={horasDetailModal.isOpen} onOpenChange={(v) => !v && setHorasDetailModal({ isOpen: false, equipId: null })}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          {(() => {
+            const entry = horasContratuaisStats.list.find(e => e.equipamento_id === horasDetailModal.equipId);
+            if (!entry) return null;
+            const eq = equipamentos.find(e => e.id === entry.equipamento_id);
+            const utilizacao = entry.horasContratadas > 0 ? (entry.horasTrabalhadas / entry.horasContratadas * 100) : 0;
+            const disponibilidade = entry.horasTrabalhadas > 0 ? ((entry.horasTrabalhadas - entry.horasCorretivas) / entry.horasTrabalhadas * 100) : 100;
+
+            // Get corrective medicoes for this equipment in the period
+            const corretivaMedicoes = medicoes.filter(m =>
+              m.tipo === "Indisponível" &&
+              m.equipamento_id === entry.equipamento_id &&
+              (!dataInicio || m.data >= dataInicio) &&
+              (!dataFim || m.data <= dataFim)
+            );
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    Horas Contratuais: {eq ? `${eq.tipo} ${eq.modelo}` : "Equipamento"} ({eq?.tag_placa || "S/P"})
+                  </DialogTitle>
+                  <DialogDescription>
+                    Detalhamento de horas contratadas, trabalhadas, corretivas e real utilizadas no período.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                  <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-center">
+                    <span className="text-[10px] font-bold text-blue-500 uppercase block">Contratadas</span>
+                    <span className="text-xl font-black text-blue-500">{entry.horasContratadas.toFixed(1)}h</span>
+                  </div>
+                  <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-center">
+                    <span className="text-[10px] font-bold text-emerald-500 uppercase block">Trabalhadas</span>
+                    <span className="text-xl font-black text-emerald-500">{entry.horasTrabalhadas.toFixed(1)}h</span>
+                  </div>
+                  <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20 text-center">
+                    <span className="text-[10px] font-bold text-red-500 uppercase block">Corretivas</span>
+                    <span className="text-xl font-black text-red-500">{entry.horasCorretivas.toFixed(1)}h</span>
+                  </div>
+                  <div className="p-3 bg-violet-500/10 rounded-xl border border-violet-500/20 text-center">
+                    <span className="text-[10px] font-bold text-violet-500 uppercase block">Real Utiliz.</span>
+                    <span className="text-xl font-black text-violet-500">{entry.horasRealUtilizadas.toFixed(1)}h</span>
+                  </div>
+                </div>
+
+                {/* KPI bars */}
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-semibold">Utilização</span>
+                      <span className={`font-black ${utilizacao >= 85 ? "text-emerald-500" : utilizacao >= 60 ? "text-amber-500" : "text-red-500"}`}>
+                        {utilizacao.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted/50 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          utilizacao >= 85 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                          utilizacao >= 60 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                          "bg-gradient-to-r from-red-500 to-red-400"
+                        }`}
+                        style={{ width: `${Math.min(100, utilizacao)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-semibold">Disponibilidade</span>
+                      <span className={`font-black ${disponibilidade >= 95 ? "text-emerald-500" : disponibilidade >= 85 ? "text-amber-500" : "text-red-500"}`}>
+                        {disponibilidade.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted/50 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          disponibilidade >= 95 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                          disponibilidade >= 85 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                          "bg-gradient-to-r from-red-500 to-red-400"
+                        }`}
+                        style={{ width: `${Math.min(100, disponibilidade)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mt-4">
+                  {/* Períodos Faturados */}
+                  {entry.detalhes.length > 0 && (
+                    <div>
+                      <h3 className="font-bold text-sm mb-2 flex items-center gap-2 text-blue-500">
+                        <Clock className="h-4 w-4" /> Períodos Faturados
+                      </h3>
+                      <div className="border border-border/40 rounded-md">
+                        <Table>
+                          <TableHeader className="bg-muted/30">
+                            <TableRow>
+                              <TableHead>Período</TableHead>
+                              <TableHead>Cliente</TableHead>
+                              <TableHead className="text-right">Contratadas</TableHead>
+                              <TableHead className="text-right">Trabalhadas</TableHead>
+                              <TableHead className="text-right">Normais</TableHead>
+                              <TableHead className="text-right">Excedentes</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {entry.detalhes.map((d, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">{d.periodo}</TableCell>
+                                <TableCell className="truncate max-w-[150px]">{d.cliente}</TableCell>
+                                <TableCell className="text-right text-blue-500 font-semibold">{d.contratadas.toFixed(1)}h</TableCell>
+                                <TableCell className="text-right text-emerald-500 font-semibold">{d.trabalhadas.toFixed(1)}h</TableCell>
+                                <TableCell className="text-right font-semibold">{d.normais.toFixed(1)}h</TableCell>
+                                <TableCell className="text-right font-semibold">
+                                  {d.excedentes > 0 ? (
+                                    <span className="text-amber-500">+{d.excedentes.toFixed(1)}h</span>
+                                  ) : (
+                                    <span className="text-muted-foreground">0h</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Corretivas / Paradas */}
+                  {corretivaMedicoes.length > 0 && (
+                    <div>
+                      <h3 className="font-bold text-sm mb-2 flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="h-4 w-4" /> Registros de Parada / Corretiva
+                      </h3>
+                      <div className="border border-border/40 rounded-md">
+                        <Table>
+                          <TableHeader className="bg-muted/30">
+                            <TableRow>
+                              <TableHead>Data</TableHead>
+                              <TableHead>Observações</TableHead>
+                              <TableHead className="text-right">Horas Paradas</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {corretivaMedicoes.map(m => (
+                              <TableRow key={m.id}>
+                                <TableCell>{m.data ? new Date(m.data + "T00:00:00").toLocaleDateString("pt-BR") : ""}</TableCell>
+                                <TableCell className="truncate max-w-[250px] text-muted-foreground" title={m.observacoes || ""}>
+                                  {m.observacoes || "Sem observação"}
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-destructive">
+                                  {Number(m.horas_trabalhadas || 0).toFixed(1)}h
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow className="bg-muted/50">
+                              <TableCell colSpan={2} className="text-right font-bold">Total Corretivas</TableCell>
+                              <TableCell className="text-right font-bold text-destructive">
+                                {entry.horasCorretivas.toFixed(1)}h
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             );
