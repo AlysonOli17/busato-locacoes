@@ -460,7 +460,13 @@ export const FaturamentoContent = () => {
            return dataM >= inicioEfetivo && dataM <= fimEfetivo;
         });
 
-        horasMedidas = Number(trabalhoNoPeriodo.reduce((sum, m) => sum + Math.max(0, Number(m.horas_trabalhadas || 0)), 0).toFixed(1));
+        horasMedidas = Number(trabalhoNoPeriodo.reduce((sum, m) => {
+          const hInicial = Number(m.horimetro_inicial || 0);
+          const hFinal = Number(m.horimetro_final || 0);
+          // Ignora leituras onde horimetro_inicial = 0 (primeira leitura de entrega/cadastro da maquina)
+          if (hInicial === 0 && hFinal > 0) return sum;
+          return sum + Math.max(0, hFinal - hInicial);
+        }, 0).toFixed(1));
       }
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
