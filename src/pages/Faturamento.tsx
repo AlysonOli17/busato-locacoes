@@ -678,18 +678,6 @@ export const FaturamentoContent = () => {
     });
   };
 
-  // Change horas_medidas manually
-  const changeHorasMedidas = (idx: number, newVal: number) => {
-    setEquipForms(prev => {
-      const updated = [...prev];
-      const ef = { ...updated[idx] };
-      ef.horas_medidas = Math.max(0, newVal || 0);
-      recalcHours(ef, formMedicaoInicio, formMedicaoFim);
-      updated[idx] = ef;
-      return updated;
-    });
-  };
-
   useEffect(() => {
     let active = true;
     const checkActive = () => active;
@@ -2086,18 +2074,9 @@ export const FaturamentoContent = () => {
                       )}
                     </div>
                     <div className="grid grid-cols-5 gap-2 text-center text-xs">
-                      <div className="flex flex-col items-center justify-center">
-                        <p className="text-muted-foreground mb-1">Medidas</p>
-                        <div className="flex items-center">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            className="w-16 h-7 text-center font-bold text-accent px-1 py-0 text-sm border-accent/30 focus-visible:ring-accent"
-                            value={ef.horas_medidas}
-                            onChange={(e) => changeHorasMedidas(idx, Number(e.target.value))}
-                          />
-                          <span className="text-xs font-bold text-accent ml-1">{unit}</span>
-                        </div>
+                      <div>
+                        <p className="text-muted-foreground">Medidas</p>
+                        <p className="text-base font-bold text-accent">{ef.horas_medidas.toFixed(1)}{unit}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Contratadas</p>
