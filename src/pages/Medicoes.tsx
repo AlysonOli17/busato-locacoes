@@ -600,7 +600,16 @@ const Medicoes = () => {
       totalHoras = diasUnicos.size;
     } else {
       // Para horímetro: soma direta das horas trabalhadas lançadas
-      totalHoras = trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0);
+      // Ignora a primeira leitura onde horas_trabalhadas foi salva incorretamente como o horímetro final absoluto
+      totalHoras = trabalhoEntries.reduce((sum, e) => {
+        const hTrab = Number(e.horas_trabalhadas || 0);
+        const hFinal = Number(e.horimetro_final || 0);
+        const hInicial = Number(e.horimetro_inicial || 0);
+        if (hTrab > 0 && hTrab === hFinal && hInicial === 0) {
+          return sum; // Ignora esta leitura
+        }
+        return sum + Math.max(0, hTrab);
+      }, 0);
     }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });

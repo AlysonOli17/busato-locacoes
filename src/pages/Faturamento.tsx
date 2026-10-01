@@ -460,7 +460,15 @@ export const FaturamentoContent = () => {
            return dataM >= inicioEfetivo && dataM <= fimEfetivo;
         });
 
-        horasMedidas = Number(trabalhoNoPeriodo.reduce((sum, m) => sum + Math.max(0, Number(m.horas_trabalhadas || 0)), 0).toFixed(1));
+        horasMedidas = Number(trabalhoNoPeriodo.reduce((sum, m) => {
+          const hTrab = Number(m.horas_trabalhadas || 0);
+          const hFinal = Number(m.horimetro_final || 0);
+          const hInicial = Number(m.horimetro_inicial || 0);
+          if (hTrab > 0 && hTrab === hFinal && hInicial === 0) {
+            return sum;
+          }
+          return sum + Math.max(0, hTrab);
+        }, 0).toFixed(1));
       }
 
       // Priority: ajuste ALWAYS overrides > aditivo > contrato_equipamento > contrato
