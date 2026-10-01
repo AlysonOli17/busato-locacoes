@@ -550,18 +550,23 @@ export default function ControleUsoFrota() {
       const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
       totalHoras = diasUnicos.size;
     } else {
-      // Para horímetro: calcula as horas como (hor_final - hor_inicial).
-      // Se hor_inicial == 0, significa que foi a primeira leitura de entrega da máquina
-      // e as horas trabalhadas reais devem ser calculadas pela diferença,
-      // não pelo valor absoluto do horímetro (que está errado no banco).
-      totalHoras = Number(trabalhoEntries.reduce((sum, e) => {
+      // Para horímetro: calcula pela diferença entre leituras consecutivas.
+      // Isso é imune a valores errados de horas_trabalhadas ou horimetro_inicial no banco.
+      const sortedTrab = [...trabalhoEntries].sort((a, b) => a.data.localeCompare(b.data));
+      if (sortedTrab.length >= 2) {
+        for (let i = 1; i < sortedTrab.length; i++) {
+          const prev = Number(sortedTrab[i - 1].horimetro_final || 0);
+          const curr = Number(sortedTrab[i].horimetro_final || 0);
+          totalHoras += Math.max(0, curr - prev);
+        }
+        totalHoras = Number(totalHoras.toFixed(1));
+      } else if (sortedTrab.length === 1) {
+        // Uma única leitura: usa horimetro_final - horimetro_inicial se inicial > 0
+        const e = sortedTrab[0];
         const hInicial = Number(e.horimetro_inicial || 0);
         const hFinal = Number(e.horimetro_final || 0);
-        // Se horimetro_inicial = 0, é a primeira leitura de cadastro (baseline).
-        // A diferença real é 0. Não somamos.
-        if (hInicial === 0 && hFinal > 0) return sum;
-        return sum + Math.max(0, hFinal - hInicial);
-      }, 0).toFixed(1));
+        totalHoras = hInicial > 0 ? Math.max(0, hFinal - hInicial) : 0;
+      }
     }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });

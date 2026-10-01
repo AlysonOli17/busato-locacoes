@@ -599,15 +599,21 @@ const Medicoes = () => {
       const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
       totalHoras = diasUnicos.size;
     } else {
-      // Para horímetro: calcula pela diferença dos horímetros.
-      // Ignora leituras onde horimetro_inicial = 0 (primeira leitura de cadastro da máquina),
-      // pois o valor do horímetro absoluto não representa horas trabalhadas para o contrato.
-      totalHoras = trabalhoEntries.reduce((sum, e) => {
+      // Para horímetro: calcula pela diferença entre leituras consecutivas.
+      // Imune a valores errados de horas_trabalhadas ou horimetro_inicial no banco.
+      const sortedTrab = [...trabalhoEntries].sort((a, b) => a.data.localeCompare(b.data));
+      if (sortedTrab.length >= 2) {
+        for (let i = 1; i < sortedTrab.length; i++) {
+          const prev = Number(sortedTrab[i - 1].horimetro_final || 0);
+          const curr = Number(sortedTrab[i].horimetro_final || 0);
+          totalHoras += Math.max(0, curr - prev);
+        }
+      } else if (sortedTrab.length === 1) {
+        const e = sortedTrab[0];
         const hInicial = Number(e.horimetro_inicial || 0);
         const hFinal = Number(e.horimetro_final || 0);
-        if (hInicial === 0 && hFinal > 0) return sum;
-        return sum + Math.max(0, hFinal - hInicial);
-      }, 0);
+        totalHoras = hInicial > 0 ? Math.max(0, hFinal - hInicial) : 0;
+      }
     }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
