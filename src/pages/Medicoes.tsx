@@ -600,16 +600,7 @@ const Medicoes = () => {
       totalHoras = diasUnicos.size;
     } else {
       // Para horímetro: soma direta das horas trabalhadas lançadas
-      // Ignora a primeira leitura onde horas_trabalhadas foi salva incorretamente como o horímetro final absoluto
-      totalHoras = trabalhoEntries.reduce((sum, e) => {
-        const hTrab = Number(e.horas_trabalhadas || 0);
-        const hFinal = Number(e.horimetro_final || 0);
-        const hInicial = Number(e.horimetro_inicial || 0);
-        if (hTrab > 0 && hTrab === hFinal && hInicial === 0) {
-          return sum; // Ignora esta leitura
-        }
-        return sum + Math.max(0, hTrab);
-      }, 0);
+      totalHoras = trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0);
     }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
@@ -724,7 +715,7 @@ const Medicoes = () => {
     } else {
       hInicial = isIndisp 
         ? form.horimetro_inicial_indisp 
-        : (!dataAnterior ? form.horimetro : form.horimetro_inicial);
+        : form.horimetro_inicial;
       hFinal = form.horimetro;
       horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
 
@@ -1393,9 +1384,20 @@ const Medicoes = () => {
                                 {form.horimetro > 0 && ` → Trabalhadas: ${Math.max(0, form.horimetro - horimetroAnterior).toString()}h`}
                               </p>
                             ) : (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                <strong>Primeiro registro desta máquina.</strong> As horas trabalhadas serão contabilizadas a partir do próximo lançamento.
-                              </p>
+                              <div className="mt-3 p-3 bg-muted/30 border border-border rounded-md space-y-2">
+                                <Label className="text-xs font-semibold">Horímetro Inicial (Entrega da Máquina)</Label>
+                                <Input 
+                                  type="number" 
+                                  step="0.1" 
+                                  value={form.horimetro_inicial || ""} 
+                                  onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} 
+                                  placeholder="Ex: 14168.5" 
+                                  className="h-8 text-sm bg-background font-mono"
+                                />
+                                <p className="text-[10px] text-muted-foreground leading-tight">
+                                  <strong>Primeiro registro:</strong> Informe o horímetro inicial para calcularmos as horas trabalhadas.
+                                </p>
+                              </div>
                             )}
                           </div>
                         </div>

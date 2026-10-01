@@ -550,17 +550,8 @@ export default function ControleUsoFrota() {
       const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
       totalHoras = diasUnicos.size;
     } else {
-      // Para horímetro: soma horas_trabalhadas, ignorando a primeira leitura onde
-      // horas_trabalhadas foi salva igual ao horimetro_final (quando horimetro_inicial era 0)
-      totalHoras = Number(trabalhoEntries.reduce((sum, e) => {
-        const hTrab = Number(e.horas_trabalhadas || 0);
-        const hFinal = Number(e.horimetro_final || 0);
-        const hInicial = Number(e.horimetro_inicial || 0);
-        if (hTrab > 0 && hTrab === hFinal && hInicial === 0) {
-          return sum; // Ignora leitura inicial problemática
-        }
-        return sum + Math.max(0, hTrab);
-      }, 0).toFixed(1));
+      // Para horímetro: soma direta das horas_trabalhadas (igual ao cálculo do Faturamento)
+      totalHoras = Number(trabalhoEntries.reduce((sum, e) => sum + Math.max(0, Number(e.horas_trabalhadas || 0)), 0).toFixed(1));
     }
 
     summaryMap.set(eqId, { totalHoras, entries: entries.length, label, tag });
