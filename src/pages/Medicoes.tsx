@@ -693,7 +693,7 @@ const Medicoes = () => {
         return;
       }
     } else {
-      if (form.tipo === "Trabalho" && form.horimetro <= (form.horimetro_inicial || horimetroAnterior)) {
+      if (form.tipo === "Trabalho" && form.horimetro < (form.horimetro_inicial || horimetroAnterior)) {
         toast({
           title: "Erro de Validação",
           description: `O horímetro final (${form.horimetro}) não pode ser menor que o inicial (${form.horimetro_inicial || horimetroAnterior}).`,

@@ -645,7 +645,7 @@ export default function ControleUsoFrota() {
         return;
       }
     } else {
-      if (form.tipo === "Trabalho" && form.horimetro <= (form.horimetro_inicial || horimetroAnterior)) {
+      if (form.tipo === "Trabalho" && form.horimetro < (form.horimetro_inicial || horimetroAnterior)) {
         toast({
           title: "Erro de Validação",
           description: `O horímetro final (${form.horimetro}) não pode ser menor que o inicial (${form.horimetro_inicial || horimetroAnterior}).`,
@@ -667,7 +667,7 @@ export default function ControleUsoFrota() {
     } else {
       hInicial = isIndisp 
         ? form.horimetro_inicial_indisp 
-        : (!dataAnterior ? form.horimetro : form.horimetro_inicial);
+        : form.horimetro_inicial;
       hFinal = form.horimetro;
       horasTrabalhadas = isIndisp ? form.horas_indisp : Math.max(0, form.horimetro - hInicial);
 
@@ -1314,9 +1314,20 @@ export default function ControleUsoFrota() {
                                 {form.horimetro > 0 && ` → Trabalhadas: ${Math.max(0, form.horimetro - horimetroAnterior).toString()}h`}
                               </p>
                             ) : (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                <strong>Primeiro registro desta máquina.</strong> As horas trabalhadas serão contabilizadas a partir do próximo lançamento.
-                              </p>
+                              <div className="mt-3 p-3 bg-muted/30 border border-border rounded-md space-y-2">
+                                <Label className="text-xs font-semibold">Horímetro Inicial (Entrega da Máquina)</Label>
+                                <Input 
+                                  type="number" 
+                                  step="0.1" 
+                                  value={form.horimetro_inicial || ""} 
+                                  onChange={(e) => setForm({ ...form, horimetro_inicial: Number(e.target.value) })} 
+                                  placeholder="Ex: 14168.5" 
+                                  className="h-8 text-sm bg-background font-mono"
+                                />
+                                <p className="text-[10px] text-muted-foreground leading-tight">
+                                  <strong>Primeiro registro:</strong> Informe o horímetro inicial para calcularmos as horas trabalhadas.
+                                </p>
+                              </div>
                             )}
                           </div>
                         </div>
