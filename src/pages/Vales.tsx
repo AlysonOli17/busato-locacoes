@@ -27,6 +27,7 @@ interface Vale {
   data: string;
   status: string;
   observacoes: string | null;
+  periodo_faturamento?: string | null;
   empresas?: Empresa;
 }
 
@@ -188,6 +189,7 @@ export default function Vales() {
                     <TableHead>Número de RF</TableHead>
                     <TableHead>Empresa</TableHead>
                     <TableHead>Data</TableHead>
+                    <TableHead>Período</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -208,6 +210,7 @@ export default function Vales() {
                         <TableCell className="font-medium">{vale.numero_rf}</TableCell>
                         <TableCell>{vale.empresas?.nome}</TableCell>
                         <TableCell>{new Date(parseLocalDate(vale.data)).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell>{vale.periodo_faturamento ? `${vale.periodo_faturamento.replace('d', ' dias')}` : '-'}</TableCell>
                         <TableCell className="text-right">{formatCurrency(vale.valor)}</TableCell>
                         <TableCell>
                           <Badge variant={vale.status === "Faturado" ? "default" : "secondary"}>

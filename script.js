@@ -1,0 +1,1 @@
+const fs = require('fs'); const code = fs.readFileSync('src/lib/contratoExportUtils.ts', 'utf8'); const regex = /printParagraph\([\s\S]*?(?=\/\/ ---|$)/g; const matches = code.match(regex); console.log(matches ? matches.length : 0);

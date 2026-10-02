@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Empresa {
   id: string;
@@ -35,6 +36,7 @@ export function ValeFormDialog({
   const [valor, setValor] = useState("");
   const [data, setData] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [periodoFaturamento, setPeriodoFaturamento] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -44,12 +46,14 @@ export function ValeFormDialog({
         setValor(initialData.valor ? initialData.valor.toString() : "");
         setData(initialData.data || new Date().toISOString().split("T")[0]);
         setObservacoes(initialData.observacoes || "");
+        setPeriodoFaturamento(initialData.periodo_faturamento || "");
       } else {
         setEmpresaId("");
         setNumeroRf("");
         setValor("");
         setData(new Date().toISOString().split("T")[0]);
         setObservacoes("");
+        setPeriodoFaturamento("");
       }
     }
   }, [open, initialData]);
@@ -62,7 +66,8 @@ export function ValeFormDialog({
       numero_rf: numeroRf,
       valor: parseFloat(valor),
       data: data,
-      observacoes
+      observacoes,
+      periodo_faturamento: periodoFaturamento || null
     });
   };
 
@@ -103,15 +108,30 @@ export function ValeFormDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="data">Data</Label>
-            <Input
-              id="data"
-              type="date"
-              value={data}
-              onChange={e => setData(e.target.value)}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="data">Data</Label>
+              <Input
+                id="data"
+                type="date"
+                value={data}
+                onChange={e => setData(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="periodo">Período de Faturamento</Label>
+              <Select value={periodoFaturamento} onValueChange={setPeriodoFaturamento}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30d">30 dias</SelectItem>
+                  <SelectItem value="60d">60 dias</SelectItem>
+                  <SelectItem value="90d">90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
