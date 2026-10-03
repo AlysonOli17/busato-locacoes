@@ -89,6 +89,8 @@ interface Fatura {
   valor_hora: number;
   valor_excedente_hora: number;
   empresa_faturamento_id: string | null;
+  vale_id?: string | null;
+  vales?: { periodo_faturamento?: string | null; numero_rf?: string; empresas?: { nome: string; cnpj: string } } | null;
 }
 
 interface ContratoRef {
@@ -188,7 +190,7 @@ export const FaturamentoTab = () => {
   const fetchData = async (force = false) => {
     if (force) clearCache();
     const [fatRes, ctRes, empRes, contasRes, equipRes] = await withCache("faturamento_tab", 5 * 60 * 1000, async () => Promise.all([
-      supabase.from("faturamento").select("*").in("status", ["Pendente", "Aprovado", "Pago", "Cancelado"]).order("emissao", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, vales(periodo_faturamento, numero_rf, empresas(nome, cnpj))").in("status", ["Pendente", "Aprovado", "Pago", "Cancelado"]).order("emissao", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("contratos").select("*"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, obra, email"),
       supabase.from("contas_bancarias").select("*"),

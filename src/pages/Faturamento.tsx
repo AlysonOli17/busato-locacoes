@@ -83,7 +83,7 @@ interface Fatura {
   conta_bancaria_id: string | null;
   data_aprovacao: string | null;
   empresa_faturamento_id: string | null;
-  vales?: { numero_rf: string; empresas?: { nome: string } } | null;
+  vales?: { numero_rf: string; periodo_faturamento?: string | null; empresas?: { nome: string } } | null;
 }
 
 interface EmpresaFat {
@@ -231,7 +231,7 @@ export const FaturamentoContent = () => {
 
   const fetchData = async () => {
     const [fatRes, ctAllRes, ctAtivoRes, contasRes, empListRes, eqRes, ceRes] = await Promise.all([
-      supabase.from("faturamento").select("*, vales(numero_rf, empresas(nome, cnpj))").order("emissao", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("faturamento").select("*, vales(numero_rf, periodo_faturamento, empresas(nome, cnpj))").order("emissao", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("contratos").select("*"),
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),

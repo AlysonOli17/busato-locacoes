@@ -136,10 +136,18 @@ export function getVencimento(
     data_aprovacao?: string | null;
     contrato_id?: string;
     contratos?: { prazo_faturamento?: number | null } | null;
+    vales?: { periodo_faturamento?: string | null } | null;
   },
   contrato?: { prazo_faturamento?: number | null } | null
 ): Date | null {
-  const prazo = fatura.contratos?.prazo_faturamento ?? contrato?.prazo_faturamento ?? 30;
+  let prazo = fatura.contratos?.prazo_faturamento ?? contrato?.prazo_faturamento ?? 30;
+  if (fatura.vales?.periodo_faturamento) {
+    const valePrazo = parseInt(fatura.vales.periodo_faturamento.replace(/\D/g, ''), 10);
+    if (!isNaN(valePrazo)) {
+      prazo = valePrazo;
+    }
+  }
+
   const dateStr = fatura.emissao || fatura.data_aprovacao;
   if (!dateStr) return null;
   const baseDate = parseLocalDate(dateStr);
