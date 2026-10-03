@@ -1183,14 +1183,22 @@ export const FaturamentoTab = () => {
               {/* Empresa / Equipamento */}
               <div className="flex-1 min-w-0 pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-bold text-sm text-foreground truncate">{ct?.empresas?.nome || "—"}</h3>
-                  {ct?.empresas?.obra && (
+                  <h3 className="font-bold text-sm text-foreground truncate">
+                    {f.vale_id ? f.vales?.empresas?.nome : (ct?.empresas?.nome || "—")}
+                  </h3>
+                  {f.vale_id ? (
+                    <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20 truncate max-w-[120px]">
+                      Vale RF: {f.vales?.numero_rf}
+                    </Badge>
+                  ) : ct?.empresas?.obra && (
                     <Badge variant="secondary" className="font-normal text-[10px] py-0 px-1.5 bg-accent/10 text-accent hover:bg-accent/20 border-accent/20 truncate max-w-[120px]">
                       {ct.empresas.obra}
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground font-mono mb-1">{ct?.empresas?.cnpj}</p>
+                <p className="text-xs text-muted-foreground font-mono mb-1">
+                  {f.vale_id ? f.vales?.empresas?.cnpj : ct?.empresas?.cnpj}
+                </p>
                 
                 {f.empresa_faturamento_id && (() => {
                   const ef = empresas.find(e => e.id === f.empresa_faturamento_id);
@@ -1199,7 +1207,7 @@ export const FaturamentoTab = () => {
 
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <Badge variant="outline" className="text-[10px] bg-muted/30 border-muted-foreground/20 font-medium text-sidebar">
-                    {getEquipLabel(ct?.equipamentos)}
+                    {f.vale_id ? "Fatura Avulsa de Vale" : getEquipLabel(ct?.equipamentos)}
                   </Badge>
                 </div>
               </div>
