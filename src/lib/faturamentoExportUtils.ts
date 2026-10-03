@@ -141,11 +141,9 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     }
 
     // Objeto de contrato
-    const uniqueTypes = new Set<string>();
-    itemsList.forEach(fi => {
-      if (fi.equipamentos?.tipo) uniqueTypes.add(fi.equipamentos.tipo.toUpperCase());
-    });
-    const objetoContrato = Array.from(uniqueTypes).join(", ") || "LOCAÇÃO DE EQUIPAMENTOS";
+    const objetoContrato = item.vale_id 
+      ? `FATURAMENTO DE VALE AVULSO - RF: ${item.vales?.numero_rf || item.numero_rf || "—"}` 
+      : (Array.from(uniqueTypes).join(", ") || "LOCAÇÃO DE EQUIPAMENTOS");
 
     // 2. CLIENT METADATA BOX
     const metaBody = [
@@ -173,7 +171,7 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     const rateLabel = isDiarias ? "V/d" : "V/h";
     const rateExcLabel = isDiarias ? "V/d Exc" : "V/h Exc";
 
-    let medicaoTotal = 0;
+    let medicaoTotal = item.vale_id ? Number(item.valor_total || 0) : 0;
 
     // Fetch faturamento_gastos links
     const { data: linkRes } = await supabase.from("faturamento_gastos").select("gasto_id").eq("faturamento_id", item.id);
@@ -502,7 +500,7 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     const totalGeralReembolsar = totalCustosReembolsar + totalGeraisReembolsar;
 
     const summaryRows = [
-      ["Medição (Equipamentos)", fmtBRL(medicaoTotal)]
+      [item.vale_id ? "Faturamento Avulso (Vale)" : "Medição (Equipamentos)", fmtBRL(medicaoTotal)]
     ];
     if (totalGeralCobrar > 0) {
       summaryRows.push(["(+) Custos Operacionais a Cobrar", fmtBRL(totalGeralCobrar)]);

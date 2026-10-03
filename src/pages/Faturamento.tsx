@@ -1677,10 +1677,11 @@ export const FaturamentoContent = () => {
                       <TableCell className="text-sm text-muted-foreground">
                         {item.periodo_medicao_inicio && item.periodo_medicao_fim
                           ? `${parseLocalDate(item.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(item.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-                          : "—"}
+                          : (item.vale_id && item.periodo ? item.periodo : "—")}
                       </TableCell>
                       <TableCell className="text-sm">
                         {(() => {
+                          if (item.vale_id) return "—";
                           const ct = item.contratos;
                           const isDiarias = ct?.tipo_medicao === "diarias";
                           const unit = isDiarias ? "d" : "h";

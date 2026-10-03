@@ -1223,7 +1223,7 @@ export const FaturamentoTab = () => {
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5 opacity-80">
                   <span>Período: {f.periodo_medicao_inicio && f.periodo_medicao_fim
                     ? `${parseLocalDate(f.periodo_medicao_inicio).toLocaleDateString("pt-BR")} - ${parseLocalDate(f.periodo_medicao_fim).toLocaleDateString("pt-BR")}`
-                    : "—"}</span>
+                    : (f.vale_id && f.periodo ? f.periodo : "—")}</span>
                 </div>
               </div>
 
