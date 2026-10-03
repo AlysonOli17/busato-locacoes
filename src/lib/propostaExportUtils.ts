@@ -86,27 +86,27 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
   doc.setLineWidth(0.8);
   doc.line(margin, 36, pw - margin, 36);
 
-  let y = 50;
-  doc.setFontSize(20);
+  let y = 46;
+  doc.setFontSize(16);
   doc.setTextColor(...darkGray);
   doc.setFont("helvetica", "bold");
   doc.text("PROPOSTA COMERCIAL", margin, y);
-  y += 8;
-  doc.setFontSize(12);
+  y += 6;
+  doc.setFontSize(10);
   doc.setTextColor(...brandBlue);
   doc.text("LOCAÇÃO DE EQUIPAMENTOS", margin, y);
-  y += 14;
+  y += 8;
 
   doc.setDrawColor(...brandBlue);
-  doc.setLineWidth(1.2);
-  doc.line(margin, y, margin + 50, y);
-  y += 14;
+  doc.setLineWidth(1.0);
+  doc.line(margin, y, margin + 40, y);
+  y += 8;
 
   doc.setFontSize(9);
   doc.setTextColor(...lightGray);
   doc.setFont("helvetica", "normal");
   doc.text(`Proposta válida por ${item.validade_dias} dias a partir da data de emissão.`, margin, y);
-  y += 16;
+  y += 10;
 
   const sectionTitle = (label: string, yPos: number) => {
     doc.setFillColor(240, 245, 250);
@@ -115,7 +115,7 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
     doc.setTextColor(...brandBlue);
     doc.setFont("helvetica", "bold");
     doc.text(label, margin + 4, yPos);
-    return yPos + 10;
+    return yPos + 8;
   };
 
   const infoLine = (label: string, value: string, yPos: number) => {
@@ -124,21 +124,20 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
     doc.setTextColor(...darkGray);
     doc.text(label, margin + 4, yPos);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...medGray);
     doc.text(value || "—", margin + 44, yPos);
-    return yPos + 5.5;
+    return yPos + 4.5;
   };
 
   y = sectionTitle("EMPRESA LOCADORA", y);
   y = infoLine("Razão Social:", "BUSATO LOCAÇÕES E SERVIÇOS LTDA", y);
   y = infoLine("CNPJ:", "54.167.719/0001-40", y);
-  y += 6;
+  y += 4;
 
   y = sectionTitle("CLIENTE", y);
   const clientNomeObra = `${emp?.razao_social || emp?.nome || "—"}${emp?.obra ? ` (Obra: ${emp.obra})` : ""}`;
   y = infoLine("Razão Social:", clientNomeObra, y);
   y = infoLine("CNPJ:", emp?.cnpj || "—", y);
-  y += 6;
+  y += 4;
 
   y = sectionTitle("CONSULTOR RESPONSÁVEL", y);
   if (item.consultor_nome) {
@@ -153,10 +152,8 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
     if (item.consultor_telefone_2) y = infoLine("Telefone:", item.consultor_telefone_2, y);
   }
 
-  // ===================== PAGE 2 — CONDITIONS =====================
-  doc.addPage();
-  addInnerHeader();
-  y = 30;
+  // ===================== CONDITIONS START =====================
+  y += 6;
 
   y = sectionTitle("1. OBJETO", y);
   doc.setFontSize(9);
@@ -270,11 +267,8 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
     y = subItem(num, "Seguro", item.seguro_texto, y);
   }
 
-  if (y > bottomLimit - 60) {
-    doc.addPage();
-    addInnerHeader();
-    y = 30;
-  }
+  // Let checkPageBreak handle pagination naturally instead of forcing it
+  y = checkPageBreak(y, 30);
 
   y = sectionTitle("4. PAGAMENTO", y);
   doc.setFontSize(9);
@@ -317,9 +311,7 @@ export const generatePropostaPDF = async (item: any, empresas: any[], contas: an
   }
 
   if (resps && resps.length > 0) {
-    doc.addPage();
-    addInnerHeader();
-    y = 30;
+    y = checkPageBreak(y, 40);
 
     y = sectionTitle("5. RESPONSABILIDADES", y);
     const clienteName = `${emp?.razao_social || emp?.nome || "CLIENTE"}${emp?.obra ? ` (Obra: ${emp.obra})` : ""}`;
