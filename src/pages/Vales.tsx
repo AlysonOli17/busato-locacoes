@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseLocalDate } from "@/lib/utils";
+import { GerarFaturaValeDialog } from "@/components/vales/GerarFaturaValeDialog";
 
 interface Empresa {
   id: string;
@@ -41,6 +42,9 @@ export default function Vales() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingVale, setEditingVale] = useState<Vale | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [gerarFaturaOpen, setGerarFaturaOpen] = useState(false);
+  const [valeParaFaturar, setValeParaFaturar] = useState<Vale | null>(null);
   
   const { toast } = useToast();
 
@@ -102,40 +106,9 @@ export default function Vales() {
     }
   };
 
-  const handleGerarFatura = async (vale: Vale) => {
-    try {
-      // Create a Faturamento record from this Vale
-      const [mes, ano] = vale.data.split("-").slice(1);
-      const periodo = `${mes}/${ano}`;
-      
-      const novaFatura = {
-        id: crypto.randomUUID(),
-        empresa_faturamento_id: vale.empresa_id,
-        vale_id: vale.id,
-        emissao: new Date().toISOString().split("T")[0],
-        periodo: periodo,
-        valor_total: vale.valor,
-        status: "Aprovado",
-        horas_normais: 0,
-        horas_excedentes: 0,
-        valor_hora: 0,
-        valor_excedente_hora: 0,
-        numero_sequencial: Date.now() % 1000000,
-        observacoes: `Fatura gerada a partir do Vale RF: ${vale.numero_rf}`
-      };
-
-      const { data: inserted, error: fatError } = await supabase.from("faturamento").insert([novaFatura]).select().single();
-      if (fatError) throw fatError;
-
-      // Update Vale status to Faturado
-      const { error: updError } = await supabase.from("vales").update({ status: "Faturado" }).eq("id", vale.id);
-      if (updError) throw updError;
-
-      toast({ title: "Fatura Gerada", description: "Fatura gerada com sucesso e vale atualizado." });
-      fetchData();
-    } catch (error: any) {
-      toast({ title: "Erro ao gerar fatura", description: error.message, variant: "destructive" });
-    }
+  const handleGerarFaturaClick = (vale: Vale) => {
+    setValeParaFaturar(vale);
+    setGerarFaturaOpen(true);
   };
 
   const filteredVales = vales.filter(v => {
@@ -221,7 +194,7 @@ export default function Vales() {
                           <div className="flex justify-end gap-2">
                             {vale.status === "Pendente" && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => handleGerarFatura(vale)} title="Gerar Fatura">
+                                <Button size="sm" variant="outline" onClick={() => handleGerarFaturaClick(vale)} title="Gerar Fatura">
                                   <FileText className="h-4 w-4" />
                                 </Button>
                                 <Button size="sm" variant="ghost" onClick={() => { setEditingVale(vale); setFormOpen(true); }}>
@@ -291,6 +264,12 @@ export default function Vales() {
         initialData={editingVale}
         onSave={handleSave}
         isSaving={isSaving}
+      />
+      <GerarFaturaValeDialog
+        isOpen={gerarFaturaOpen}
+        onOpenChange={setGerarFaturaOpen}
+        vale={valeParaFaturar}
+        onSuccess={() => fetchData()}
       />
     </Layout>
   );
