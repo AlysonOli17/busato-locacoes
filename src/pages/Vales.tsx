@@ -124,7 +124,7 @@ export default function Vales() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-primary">
             <Receipt className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Vales</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Vale</h1>
           </div>
           <Button onClick={() => { setEditingVale(null); setFormOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Novo Vale

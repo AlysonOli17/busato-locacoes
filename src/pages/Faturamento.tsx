@@ -1748,6 +1748,17 @@ export const FaturamentoContent = () => {
                               >
                                 <Mail className="h-3.5 w-3.5" />
                               </Button>
+                              {(displayStatus !== "Pago" && displayStatus !== "Cancelado") && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-accent hover:text-accent hover:bg-accent/10"
+                                  title="Editar Fatura"
+                                  onClick={() => openEditFatura(item)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               {(role === "admin" || role === "master") && displayStatus !== "Cancelado" && displayStatus !== "Pago" && (
                                 <Button
                                   variant="ghost"
