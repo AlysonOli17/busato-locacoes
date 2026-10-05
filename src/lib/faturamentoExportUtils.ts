@@ -141,6 +141,10 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     }
 
     // Objeto de contrato
+    const uniqueTypes = new Set<string>();
+    itemsList.forEach(fi => {
+      if (fi.equipamentos?.tipo) uniqueTypes.add(fi.equipamentos.tipo.toUpperCase());
+    });
     const objetoContrato = item.vale_id 
       ? `FATURAMENTO DE VALE AVULSO - RF: ${item.vales?.numero_rf || item.numero_rf || "—"}` 
       : (Array.from(uniqueTypes).join(", ") || "LOCAÇÃO DE EQUIPAMENTOS");
