@@ -172,7 +172,7 @@ const stickyColors = {
 export default function Agenda() {
   const { profile, role } = useAuth();
   const currentUserNome = profile?.nome || "Sistema";
-  const isAdmin = role === "admin" || role === "superadmin";
+  const isAdmin = role === "admin" || role === "superadmin" || role === "master";
   const [activeTab, setActiveTab] = useState<"pipeline" | "kanban" | "calendar" | "notes">("pipeline");
   const [calendarMode, setCalendarMode] = useState<"day" | "month" | "year">("month");
   const [viewAll, setViewAll] = useState(false);

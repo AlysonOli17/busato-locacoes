@@ -1271,7 +1271,7 @@ export const FaturamentoTab = () => {
                   </Button>
                 )}
 
-                {(role === "admin" || role === "superadmin" || f.status === "Aprovado" || f.status === "Pago") && (
+                {(role === "admin" || role === "superadmin" || role === "master" || f.status === "Aprovado" || f.status === "Pago") && (
                   <>
                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50" title="Gerar PDF" onClick={() => generateInvoicePDF(f)}>
                       <FileDown className="h-4 w-4" />

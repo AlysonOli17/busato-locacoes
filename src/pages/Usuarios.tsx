@@ -113,10 +113,10 @@ const Usuarios = () => {
   const uniqueRoles = useMemo(() => {
     const rolesSet = new Set(["operador", "visualizador", ...customRoles]);
     users.forEach(u => {
-      if (u.role && u.role !== "admin") rolesSet.add(u.role);
+      if (u.role && u.role !== "admin" && u.role !== "master") rolesSet.add(u.role);
     });
     rolePermissions.forEach(p => {
-      if (p.role && p.role !== "admin") rolesSet.add(p.role);
+      if (p.role && p.role !== "admin" && p.role !== "master") rolesSet.add(p.role);
     });
     return Array.from(rolesSet);
   }, [users, rolePermissions, customRoles]);
@@ -324,7 +324,7 @@ const Usuarios = () => {
   };
 
   const hasRouteAccess = (role: string, path: string): boolean => {
-    if (role === "admin") return true;
+    if (role === "admin" || role === "master") return true;
     return rolePermissions.some(p => p.role === role && p.permission === path);
   };
 
@@ -380,6 +380,7 @@ const Usuarios = () => {
   const roleLabel = (r: string | null) => {
     if (!r) return "Sem perfil";
     if (r === "admin") return "Administrador";
+    if (r === "master") return "Master";
     return r.charAt(0).toUpperCase() + r.slice(1);
   };
 
@@ -495,7 +496,7 @@ const Usuarios = () => {
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${permRole === r ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'}`}
                     >
                       {roleLabel(r)}
-                      {r === 'admin' && <Lock className="h-3 w-3 opacity-50" />}
+                      {(r === 'admin' || r === 'master') && <Lock className="h-3 w-3 opacity-50" />}
                     </button>
                   ))}
                 </div>
@@ -514,12 +515,12 @@ const Usuarios = () => {
                       Acessos do Perfil: <span className="text-primary">{roleLabel(permRole)}</span>
                     </h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {permRole === 'admin'
-                        ? 'Administradores possuem acesso total a todos os módulos por padrão.'
+                      {(permRole === 'admin' || permRole === 'master')
+                        ? 'Administradores e Masters possuem acesso total a todos os módulos por padrão.'
                         : 'Ative os módulos e defina quais ações cada perfil pode executar.'}
                     </p>
                   </div>
-                  {permRole !== 'admin' && (
+                  {permRole !== 'admin' && permRole !== 'master' && (
                     <Button onClick={() => saveGranularPermissions(permRole)} disabled={savingPerms}>
                       {savingPerms ? "Salvando..." : "Salvar Permissões"}
                     </Button>
@@ -544,13 +545,13 @@ const Usuarios = () => {
                           </div>
                           <Switch
                             checked={hasAccess}
-                            disabled={permRole === 'admin'}
+                            disabled={permRole === 'admin' || permRole === 'master'}
                             onCheckedChange={(val) => toggleRoleAccess(permRole, route.path, !val)}
                           />
                         </div>
 
                         {/* Ações granulares */}
-                        {hasAccess && permRole !== 'admin' && (
+                        {hasAccess && permRole !== 'admin' && permRole !== 'master' && (
                           <div className="px-4 pb-4 pt-0 flex flex-wrap gap-3 border-t border-primary/10">
                             {ALL_ACTIONS.map(act => {
                               const checked = currentActions.includes(act.key);
@@ -785,8 +786,8 @@ const Usuarios = () => {
               <Select value={form.role || "operador"} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin" disabled={currentUserRole !== 'admin'}>Administrador</SelectItem>
-                  {uniqueRoles.filter(r => r !== 'admin').map(r => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
+                  <SelectItem value="admin" disabled={currentUserRole !== 'admin' && currentUserRole !== 'master'}>Administrador</SelectItem>
+                  {uniqueRoles.filter(r => r !== 'admin' && r !== 'master').map(r => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -813,7 +814,7 @@ const Usuarios = () => {
             <Button
               onClick={() => {
                 const name = newRoleName.trim().toLowerCase();
-                if (!name || name === "admin" || uniqueRoles.includes(name)) return;
+                if (!name || name === "admin" || name === "master" || uniqueRoles.includes(name)) return;
                 setCustomRoles(prev => [...prev, name]);
                 setPermRole(name);
                 setNewRoleDialogOpen(false);
