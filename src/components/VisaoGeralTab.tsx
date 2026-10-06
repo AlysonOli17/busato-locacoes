@@ -68,6 +68,10 @@ interface VisaoGeralTabProps {
   faturamentoGastos?: Array<any>;
   contratosEquipamentos?: Array<any>;
   mode?: "dashboard" | "modules";
+  globalEmpresaId?: string;
+  globalEquipamentoId?: string;
+  globalDataInicio?: string;
+  globalDataFim?: string;
 }
 
 // ─── KPI Card ────────────────────────────────────────────────────────────────
@@ -130,6 +134,10 @@ export const VisaoGeralTab = ({
   aditivosEquipamentos = [],
   faturamentoGastos = [],
   contratosEquipamentos = [],
+  globalEmpresaId = "all",
+  globalEquipamentoId = "all",
+  globalDataInicio = "",
+  globalDataFim = "",
 }: VisaoGeralTabProps) => {
   const [modalGastos, setModalGastos] = useState<null | "faturados" | "nao_faturados">(null);
   const [modalInadimplencia, setModalInadimplencia] = useState(false);
@@ -137,50 +145,44 @@ export const VisaoGeralTab = ({
   const [modalMedicoesAtrasadas, setModalMedicoesAtrasadas] = useState(false);
   const [modalContasReceber, setModalContasReceber] = useState(false);
 
-  const [filterEmpresaId, setFilterEmpresaId] = useState<string>("all");
-  const [filterEquipamentoId, setFilterEquipamentoId] = useState<string>("all");
-  const [filterPeriodo, setFilterPeriodo] = useState<string>("");
-
   const hoje = useMemo(() => new Date(), []);
 
   // ── Pre-filtering Data Collections ───────────────────────────────────────────
   const contratos = useMemo(() => {
     return rawContratos.filter(c => {
-      if (filterEmpresaId !== "all" && c.empresa_id !== filterEmpresaId) return false;
-      if (filterEquipamentoId !== "all" && c.equipamento_id !== filterEquipamentoId) {
+      if (globalEmpresaId !== "all" && c.empresa_id !== globalEmpresaId) return false;
+      if (globalEquipamentoId !== "all" && c.equipamento_id !== globalEquipamentoId) {
         // Also check contratos_equipamentos
-        const hasEq = contratosEquipamentos.some(ce => ce.contrato_id === c.id && ce.equipamento_id === filterEquipamentoId);
+        const hasEq = contratosEquipamentos.some(ce => ce.contrato_id === c.id && ce.equipamento_id === globalEquipamentoId);
         if (!hasEq) return false;
       }
-      if (filterPeriodo) {
-        const pStart = filterPeriodo + "-01";
-        const pEnd = filterPeriodo + "-31";
-        if (c.data_inicio > pEnd) return false;
-        if (c.data_fim && c.data_fim < pStart) return false;
+      if (globalDataInicio && globalDataFim) {
+        if (c.data_inicio > globalDataFim) return false;
+        if (c.data_fim && c.data_fim < globalDataInicio) return false;
       }
       return true;
     });
-  }, [rawContratos, filterEmpresaId, filterEquipamentoId, filterPeriodo, contratosEquipamentos]);
+  }, [rawContratos, globalEmpresaId, globalEquipamentoId, globalDataInicio, globalDataFim, contratosEquipamentos]);
 
   const faturas = useMemo(() => {
     const validContratoIds = new Set(contratos.map(c => c.id));
     return rawFaturas.filter(f => {
-      if (filterEmpresaId !== "all" || filterEquipamentoId !== "all") {
+      if (globalEmpresaId !== "all" || globalEquipamentoId !== "all") {
         if (!validContratoIds.has(f.contrato_id)) return false;
       }
-      if (filterPeriodo) {
+      if (globalDataInicio && globalDataFim) {
         const base = String(f.emissao || f.data_aprovacao || "");
-        if (!base.startsWith(filterPeriodo)) return false;
+        if (base && (base < globalDataInicio || base > globalDataFim)) return false;
       }
       return true;
     });
-  }, [rawFaturas, contratos, filterEmpresaId, filterEquipamentoId, filterPeriodo]);
+  }, [rawFaturas, contratos, globalEmpresaId, globalEquipamentoId, globalDataInicio, globalDataFim]);
 
   const gastos = useMemo(() => {
     return rawGastos.filter(g => {
-      if (filterEquipamentoId !== "all" && g.equipamento_id !== filterEquipamentoId) return false;
+      if (globalEquipamentoId !== "all" && g.equipamento_id !== globalEquipamentoId) return false;
       // Filter gastos by valid equipments from contracts if client is filtered
-      if (filterEmpresaId !== "all") {
+      if (globalEmpresaId !== "all") {
         const validEqIds = new Set(contratos.flatMap(c => {
            const eqs = [c.equipamento_id];
            const linked = contratosEquipamentos.filter(ce => ce.contrato_id === c.id).map(ce => ce.equipamento_id);
@@ -188,23 +190,23 @@ export const VisaoGeralTab = ({
         }));
         if (!validEqIds.has(g.equipamento_id)) return false;
       }
-      if (filterPeriodo) {
+      if (globalDataInicio && globalDataFim) {
         const base = String(g.data || "");
-        if (!base.startsWith(filterPeriodo)) return false;
+        if (base && (base < globalDataInicio || base > globalDataFim)) return false;
       }
       return true;
     });
-  }, [rawGastos, filterEquipamentoId, filterPeriodo, filterEmpresaId, contratos, contratosEquipamentos]);
+  }, [rawGastos, globalEquipamentoId, globalDataInicio, globalDataFim, globalEmpresaId, contratos, contratosEquipamentos]);
   
   const medicoes = useMemo(() => {
     return rawMedicoes.filter(m => {
-       if (filterEquipamentoId !== "all" && m.equipamento_id !== filterEquipamentoId) return false;
-       if (filterPeriodo) {
-         if (!String(m.data || "").startsWith(filterPeriodo)) return false;
+       if (globalEquipamentoId !== "all" && m.equipamento_id !== globalEquipamentoId) return false;
+       if (globalDataInicio && globalDataFim) {
+         if (m.data && (m.data < globalDataInicio || m.data > globalDataFim)) return false;
        }
        return true;
     });
-  }, [rawMedicoes, filterEquipamentoId, filterPeriodo]);
+  }, [rawMedicoes, globalEquipamentoId, globalDataInicio, globalDataFim]);
 
   // ── Gastos: faturados vs não faturados ──────────────────────────────────────
   const gastosFaturadosSet = useMemo(
@@ -245,25 +247,36 @@ export const VisaoGeralTab = ({
 
   // ── Inadimplência (aprovadas com vencimento ultrapassado) ───────────────────
   const faturasVencidas = useMemo(() => {
-    return faturas.filter((f) => {
+    return rawFaturas.filter((f) => {
       if (f.status === "Pago" || f.status === "Cancelado" || f.status === "Aguardando Aprovação") return false;
-      const prazo = f.contratos?.prazo_faturamento || 30;
+
+      const ct = contratos.find(c => c.id === f.contrato_id);
+      if (globalEmpresaId !== "all" && ct?.empresa_id !== globalEmpresaId) return false;
+      if (globalEquipamentoId !== "all" && ct?.equipamento_id !== globalEquipamentoId) return false;
+
+      const prazo = f.contratos?.prazo_faturamento || ct?.prazo_faturamento || 30;
       const baseStr = f.data_aprovacao || f.emissao;
       if (!baseStr) return false;
       const base = parseLocalDate(baseStr);
       if (isNaN(base.getTime())) return false;
       const venc = new Date(base);
       venc.setDate(venc.getDate() + prazo);
+      
+      const vencStr = venc.toISOString().slice(0, 10);
+      if (globalDataInicio && vencStr < globalDataInicio) return false;
+      if (globalDataFim && vencStr > globalDataFim) return false;
+
       return venc < hoje;
     }).map((f) => {
-      const prazo = f.contratos?.prazo_faturamento || 30;
+      const ct = contratos.find(c => c.id === f.contrato_id);
+      const prazo = f.contratos?.prazo_faturamento || ct?.prazo_faturamento || 30;
       const base = parseLocalDate(f.data_aprovacao || f.emissao);
       const venc = new Date(base);
       venc.setDate(venc.getDate() + prazo);
       const diasAtraso = diffDays(venc, hoje);
       return { ...f, vencimento: venc, diasAtraso };
     }).sort((a, b) => b.diasAtraso - a.diasAtraso);
-  }, [faturas, hoje]);
+  }, [rawFaturas, contratos, hoje, globalEmpresaId, globalEquipamentoId, globalDataInicio, globalDataFim]);
 
   const totalInadimplencia = useMemo(
     () => faturasVencidas.reduce((s, f) => s + Number(f.valor_total || 0), 0),
@@ -454,12 +467,11 @@ export const VisaoGeralTab = ({
 
   // ── Previsão do mês ─────────────────────────────────────────────────────────
   const previsaoMes = useMemo(() => {
-    const mk = hoje.toISOString().slice(0, 7);
-    const hojeIso = hoje.toISOString().slice(0, 10);
+    const dataRef = globalDataFim || hoje.toISOString().slice(0, 10);
     return contratos
-      .filter((c) => c.status === "Ativo" && c.data_inicio <= hojeIso && c.data_fim >= hojeIso)
+      .filter((c) => c.status === "Ativo" && c.data_inicio <= dataRef && (!c.data_fim || c.data_fim >= dataRef))
       .reduce((s, c) => s + Number(c.valor_hora || 0) * Number(c.horas_contratadas || 160), 0);
-  }, [contratos, hoje]);
+  }, [contratos, hoje, globalDataFim]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   //  RENDER
@@ -468,54 +480,6 @@ export const VisaoGeralTab = ({
   return (
     <div className="space-y-8">
       
-      {/* ── Filters Bar ──────────────────────────────────────────────────────── */}
-      <div className="bg-card/60 backdrop-blur-sm p-4 rounded-2xl border border-border/60 shadow-sm flex flex-col md:flex-row gap-4 items-end">
-        <div className="flex-1 w-full">
-          <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Cliente</label>
-          <SearchableSelect
-            value={filterEmpresaId}
-            onValueChange={setFilterEmpresaId}
-            placeholder="Todos os Clientes"
-            searchPlaceholder="Buscar cliente..."
-            options={[
-              { value: "all", label: "Todos os Clientes" },
-              ...empresas.map(e => ({ value: e.id, label: e.nome }))
-            ]}
-          />
-        </div>
-        <div className="flex-1 w-full">
-          <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Equipamento</label>
-          <SearchableSelect
-            value={filterEquipamentoId}
-            onValueChange={setFilterEquipamentoId}
-            placeholder="Todos os Equipamentos"
-            searchPlaceholder="Buscar equipamento..."
-            options={[
-              { value: "all", label: "Todos os Equipamentos" },
-              ...equipamentos.map(e => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ''}`.trim() }))
-            ]}
-          />
-        </div>
-        <div className="w-full md:w-48">
-          <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Período (Mês)</label>
-          <Input 
-            type="month" 
-            value={filterPeriodo} 
-            onChange={(e) => setFilterPeriodo(e.target.value)}
-            className="bg-background"
-          />
-        </div>
-        {(filterEmpresaId !== "all" || filterEquipamentoId !== "all" || filterPeriodo !== "") && (
-          <Button 
-            variant="outline" 
-            onClick={() => { setFilterEmpresaId("all"); setFilterEquipamentoId("all"); setFilterPeriodo(""); }}
-            className="gap-2"
-          >
-            <X className="h-4 w-4" /> Limpar
-          </Button>
-        )}
-      </div>
-
       {/* ── KPIs Executivos ─────────────────────────────────────────────────── */}
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">

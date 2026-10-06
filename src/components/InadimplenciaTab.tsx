@@ -160,7 +160,19 @@ interface FaturaInadimplente {
   aging_bucket: string;
 }
 
-export const InadimplenciaTab = () => {
+interface InadimplenciaTabProps {
+  globalEmpresaId?: string;
+  globalEquipamentoId?: string;
+  globalDataInicio?: string;
+  globalDataFim?: string;
+}
+
+export const InadimplenciaTab = ({
+  globalEmpresaId = "all",
+  globalEquipamentoId = "all",
+  globalDataInicio = "",
+  globalDataFim = ""
+}: InadimplenciaTabProps) => {
   const [faturas, setFaturas] = useState<any[]>([]);
   const [contratos, setContratos] = useState<any[]>([]);
   const [empresas, setEmpresas] = useState<any[]>([]);
@@ -219,6 +231,9 @@ export const InadimplenciaTab = () => {
         const ct = ctMap.get(f.contrato_id);
         if (!ct) return null;
 
+        if (globalEmpresaId !== "all" && ct.empresa_id !== globalEmpresaId) return null;
+        if (globalEquipamentoId !== "all" && ct.equipamento_id !== globalEquipamentoId) return null;
+
         const emp = empMap.get(ct.empresa_id);
         const eq = eqMap.get(ct.equipamento_id);
         const prazo = ct.prazo_faturamento || 30;
@@ -229,6 +244,12 @@ export const InadimplenciaTab = () => {
         const dataVencimento = new Date(dataEmissao);
         dataVencimento.setDate(dataVencimento.getDate() + prazo);
         if (isNaN(dataVencimento.getTime())) return null;
+
+        const vencStr = safeISO(dataVencimento).slice(0, 10);
+        if (vencStr) {
+          if (globalDataInicio && vencStr < globalDataInicio) return null;
+          if (globalDataFim && vencStr > globalDataFim) return null;
+        }
 
         const diasAtraso = diffDays(dataVencimento, hoje);
 
@@ -251,7 +272,7 @@ export const InadimplenciaTab = () => {
         } as FaturaInadimplente;
       })
       .filter((f): f is FaturaInadimplente => f !== null);
-  }, [faturas, contratos, empresas, equipamentos]);
+  }, [faturas, contratos, empresas, equipamentos, globalEmpresaId, globalEquipamentoId, globalDataInicio, globalDataFim]);
 
   // Faturas inadimplentes (vencidas e não pagas)
   const faturasInadimplentes = useMemo(() =>

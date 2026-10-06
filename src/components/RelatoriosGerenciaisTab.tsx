@@ -34,6 +34,10 @@ interface RelatoriosGerenciaisTabProps {
   faturamentoGastos?: Array<any>;
   contratosEquipamentos?: Array<any>;
   despesasAdministrativas?: Array<any>;
+  globalEmpresaId?: string;
+  globalEquipamentoId?: string;
+  globalDataInicio?: string;
+  globalDataFim?: string;
 }
 
 export const RelatoriosGerenciaisTab = ({
@@ -47,17 +51,13 @@ export const RelatoriosGerenciaisTab = ({
   apolicesEquipamentos = [],
   contratosEquipamentos = [],
   faturamentoGastos = [],
-  despesasAdministrativas = []
+  despesasAdministrativas = [],
+  globalEmpresaId = "all",
+  globalEquipamentoId = "all",
+  globalDataInicio = "",
+  globalDataFim = ""
 }: RelatoriosGerenciaisTabProps) => {
   // Filtros
-  const [dataInicio, setDataInicio] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 6);
-    return d.toISOString().slice(0, 10);
-  });
-  const [dataFim, setDataFim] = useState(() => new Date().toISOString().slice(0, 10));
-  const [selectedEmpresa, setSelectedEmpresa] = useState<string>("all");
-  const [selectedEquipamento, setSelectedEquipamento] = useState<string>("all");
   const [faturamentoEquipamentosList, setFaturamentoEquipamentosList] = useState<any[]>([]);
 
   // Modais de detalhamento
@@ -91,16 +91,16 @@ export const RelatoriosGerenciaisTab = ({
     return faturas.filter(f => {
       const emissao = f.emissao || f.data_aprovacao || f.created_at || "";
       if (!emissao) return false;
-      if (dataInicio && emissao < dataInicio) return false;
-      if (dataFim && emissao > dataFim) return false;
+      if (globalDataInicio && emissao < globalDataInicio) return false;
+      if (globalDataFim && emissao > globalDataFim) return false;
       
       const ct = contratos.find(c => c.id === f.contrato_id);
-      if (selectedEmpresa !== "all" && ct?.empresa_id !== selectedEmpresa) return false;
-      if (selectedEquipamento !== "all" && ct?.equipamento_id !== selectedEquipamento) return false;
+      if (globalEmpresaId !== "all" && ct?.empresa_id !== globalEmpresaId) return false;
+      if (globalEquipamentoId !== "all" && ct?.equipamento_id !== globalEquipamentoId) return false;
       
       return true;
     });
-  }, [faturas, dataInicio, dataFim, selectedEmpresa, selectedEquipamento, contratos]);
+  }, [faturas, globalDataInicio, globalDataFim, globalEmpresaId, globalEquipamentoId, contratos]);
 
   const gastosFiltrados = useMemo(() => {
     // Map gastos to their invoice fatura if linked via faturamentoGastos
@@ -126,24 +126,24 @@ export const RelatoriosGerenciaisTab = ({
       ) return false;
 
       if (!g.data) return false;
-      if (dataInicio && g.data < dataInicio) return false;
-      if (dataFim && g.data > dataFim) return false;
+      if (globalDataInicio && g.data < globalDataInicio) return false;
+      if (globalDataFim && g.data > globalDataFim) return false;
 
       // Filter by machine
-      if (selectedEquipamento !== "all" && g.equipamento_id !== selectedEquipamento) return false;
+      if (globalEquipamentoId !== "all" && g.equipamento_id !== globalEquipamentoId) return false;
 
       // Filter by client
-      if (selectedEmpresa !== "all") {
+      if (globalEmpresaId !== "all") {
         const faturaId = gastoToFaturaMap.get(g.id);
         if (faturaId) {
           const fatura = faturas.find(f => f.id === faturaId);
           const ct = fatura ? contratos.find(c => c.id === fatura.contrato_id) : null;
-          if (ct?.empresa_id !== selectedEmpresa) return false;
+          if (ct?.empresa_id !== globalEmpresaId) return false;
         } else {
           // If not linked to a specific invoice, find if machine was allocated to this client on that date
           const allocated = (contratosEquipamentos || []).some((ce: any) => {
             const ct = contratos.find(c => c.id === ce.contrato_id);
-            if (ct?.empresa_id !== selectedEmpresa || ce.equipamento_id !== g.equipamento_id) return false;
+            if (ct?.empresa_id !== globalEmpresaId || ce.equipamento_id !== g.equipamento_id) return false;
             const start = ce.data_inicio || ct.data_inicio || "1970-01-01";
             const end = ce.data_devolucao || ct.data_fim || "9999-12-31";
             return g.data >= start && g.data <= end;
@@ -154,7 +154,7 @@ export const RelatoriosGerenciaisTab = ({
 
       return true;
     });
-  }, [gastos, dataInicio, dataFim, selectedEmpresa, selectedEquipamento, faturas, contratos, faturamentoGastos, contratosEquipamentos]);
+  }, [gastos, globalDataInicio, globalDataFim, globalEmpresaId, globalEquipamentoId, faturas, contratos, faturamentoGastos, contratosEquipamentos]);
 
   // 2. DRE Operacional
   const dreStats = useMemo(() => {
@@ -196,8 +196,8 @@ export const RelatoriosGerenciaisTab = ({
     // Controladoria (Despesas Administrativas)
     const despesasAdminFiltradas = despesasAdministrativas.filter(d => {
       if (!d.data_vencimento) return false;
-      if (dataInicio && d.data_vencimento < dataInicio) return false;
-      if (dataFim && d.data_vencimento > dataFim) return false;
+      if (globalDataInicio && d.data_vencimento < globalDataInicio) return false;
+      if (globalDataFim && d.data_vencimento > globalDataFim) return false;
       return true;
     });
     const totalDespesasAdmin = despesasAdminFiltradas.reduce((sum, d) => sum + Number(d.valor || 0), 0);
@@ -218,7 +218,7 @@ export const RelatoriosGerenciaisTab = ({
       resultadoEbitda,
       margemEbitda
     };
-  }, [faturasFiltradas, gastosFiltrados, despesasAdministrativas, dataInicio, dataFim]);
+  }, [faturasFiltradas, gastosFiltrados, despesasAdministrativas, globalDataInicio, globalDataFim]);
 
   // 3. Rentabilidade por Equipamento
   const rentabilidadeEquipamentos = useMemo(() => {
@@ -325,8 +325,8 @@ export const RelatoriosGerenciaisTab = ({
       if (f.status === "Pago" || f.status === "Cancelado") return;
 
       const ct = contratos.find(c => c.id === f.contrato_id);
-      if (selectedEmpresa !== "all" && ct?.empresa_id !== selectedEmpresa) return;
-      if (selectedEquipamento !== "all" && ct?.equipamento_id !== selectedEquipamento) return;
+      if (globalEmpresaId !== "all" && ct?.empresa_id !== globalEmpresaId) return;
+      if (globalEquipamentoId !== "all" && ct?.equipamento_id !== globalEquipamentoId) return;
 
       const prazo = ct?.prazo_faturamento || f.contratos?.prazo_faturamento || 30;
       const dateStr = f.data_aprovacao || f.emissao || f.created_at || "";
@@ -339,8 +339,8 @@ export const RelatoriosGerenciaisTab = ({
       vencimento.setDate(vencimento.getDate() + prazo);
       const vencimentoStr = vencimento.toISOString().slice(0, 10);
 
-      if (dataInicio && vencimentoStr < dataInicio) return;
-      if (dataFim && vencimentoStr > dataFim) return;
+      if (globalDataInicio && vencimentoStr < globalDataInicio) return;
+      if (globalDataFim && vencimentoStr > globalDataFim) return;
 
       const diffTime = hoje.getTime() - vencimento.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -377,7 +377,7 @@ export const RelatoriosGerenciaisTab = ({
     });
 
     return result;
-  }, [faturas, contratos, selectedEmpresa, selectedEquipamento, dataInicio, dataFim]);
+  }, [faturas, contratos, globalEmpresaId, globalEquipamentoId, globalDataInicio, globalDataFim]);
 
   // 5. Histórico Mensal para Gráfico DRE
   const chartData = useMemo(() => {
@@ -461,14 +461,14 @@ export const RelatoriosGerenciaisTab = ({
       if (!faturaIdsSet.has(feItem.faturamento_id)) return;
 
       const eqId = feItem.equipamento_id;
-      if (selectedEquipamento !== "all" && eqId !== selectedEquipamento) return;
+      if (globalEquipamentoId !== "all" && eqId !== globalEquipamentoId) return;
 
       // Find parent fatura for client filtering and period
       const fatura = faturasFiltradas.find(f => f.id === feItem.faturamento_id);
       if (!fatura) return;
 
       const ct = contratos.find(c => c.id === fatura.contrato_id);
-      if (selectedEmpresa !== "all" && ct?.empresa_id !== selectedEmpresa) return;
+      if (globalEmpresaId !== "all" && ct?.empresa_id !== globalEmpresaId) return;
 
       if (!equipMap.has(eqId)) {
         equipMap.set(eqId, {
@@ -515,17 +515,17 @@ export const RelatoriosGerenciaisTab = ({
     medicoes.forEach(m => {
       if (m.tipo !== "Indisponível") return;
       if (!m.data) return;
-      if (dataInicio && m.data < dataInicio) return;
-      if (dataFim && m.data > dataFim) return;
+      if (globalDataInicio && m.data < globalDataInicio) return;
+      if (globalDataFim && m.data > globalDataFim) return;
 
       const eqId = m.equipamento_id;
-      if (selectedEquipamento !== "all" && eqId !== selectedEquipamento) return;
+      if (globalEquipamentoId !== "all" && eqId !== globalEquipamentoId) return;
 
       // Client filtering: check if equipment is allocated to selected client
-      if (selectedEmpresa !== "all") {
+      if (globalEmpresaId !== "all") {
         const allocated = contratosEquipamentos.some((ce: any) => {
           const ct = contratos.find(c => c.id === ce.contrato_id);
-          if (ct?.empresa_id !== selectedEmpresa || ce.equipamento_id !== eqId) return false;
+          if (ct?.empresa_id !== globalEmpresaId || ce.equipamento_id !== eqId) return false;
           const start = ce.data_entrega || ct.data_inicio || "1970-01-01";
           const end = ce.data_devolucao || ct.data_fim || "9999-12-31";
           return m.data >= start && m.data <= end;
@@ -589,7 +589,7 @@ export const RelatoriosGerenciaisTab = ({
       taxaOciosidade,
       totalEquipamentos: list.length
     };
-  }, [faturasFiltradas, faturamentoEquipamentosList, medicoes, contratos, contratosEquipamentos, equipamentos, selectedEmpresa, selectedEquipamento, dataInicio, dataFim]);
+  }, [faturasFiltradas, faturamentoEquipamentosList, medicoes, contratos, contratosEquipamentos, equipamentos, globalEmpresaId, globalEquipamentoId, globalDataInicio, globalDataFim]);
 
   // 7. Chart data for Hours KPI (monthly breakdown)
   const horasChartData = useMemo(() => {
@@ -602,9 +602,9 @@ export const RelatoriosGerenciaisTab = ({
       if (!fatura) return;
 
       const eqId = feItem.equipamento_id;
-      if (selectedEquipamento !== "all" && eqId !== selectedEquipamento) return;
+      if (globalEquipamentoId !== "all" && eqId !== globalEquipamentoId) return;
       const ct = contratos.find(c => c.id === fatura.contrato_id);
-      if (selectedEmpresa !== "all" && ct?.empresa_id !== selectedEmpresa) return;
+      if (globalEmpresaId !== "all" && ct?.empresa_id !== globalEmpresaId) return;
 
       const emissao = fatura.emissao || fatura.data_aprovacao || fatura.created_at || "";
       if (!emissao) return;
@@ -627,9 +627,9 @@ export const RelatoriosGerenciaisTab = ({
 
     medicoes.forEach(m => {
       if (m.tipo !== "Indisponível" || !m.data) return;
-      if (dataInicio && m.data < dataInicio) return;
-      if (dataFim && m.data > dataFim) return;
-      if (selectedEquipamento !== "all" && m.equipamento_id !== selectedEquipamento) return;
+      if (globalDataInicio && m.data < globalDataInicio) return;
+      if (globalDataFim && m.data > globalDataFim) return;
+      if (globalEquipamentoId !== "all" && m.equipamento_id !== globalEquipamentoId) return;
 
       const key = m.data.slice(0, 7);
       if (!map[key]) {
@@ -647,7 +647,7 @@ export const RelatoriosGerenciaisTab = ({
     return Object.entries(map)
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, val]) => val);
-  }, [faturasFiltradas, faturamentoEquipamentosList, medicoes, contratos, contratosEquipamentos, selectedEmpresa, selectedEquipamento, dataInicio, dataFim]);
+  }, [faturasFiltradas, faturamentoEquipamentosList, medicoes, contratos, contratosEquipamentos, globalEmpresaId, globalEquipamentoId, globalDataInicio, globalDataFim]);
 
   // Função para exportação em Excel (XLSX)
   const handleExportExcel = (tipo: "rentabilidade" | "dre" | "aging") => {
@@ -727,7 +727,7 @@ export const RelatoriosGerenciaisTab = ({
       
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Período analisado: ${dataInicio ? new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR") : "Início"} até ${dataFim ? new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR") : "Hoje"}`, 14, 26);
+      doc.text(`Período analisado: ${globalDataInicio ? new Date(globalDataInicio + "T00:00:00").toLocaleDateString("pt-BR") : "Início"} até ${globalDataFim ? new Date(globalDataFim + "T00:00:00").toLocaleDateString("pt-BR") : "Hoje"}`, 14, 26);
       doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}`, 14, 31);
 
       // Add Table
@@ -786,66 +786,25 @@ export const RelatoriosGerenciaisTab = ({
 
   return (
     <div className="space-y-6">
-      {/* Barra de Filtros */}
-      <Card className="glass shadow-sm border border-border/40">
-        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-muted-foreground uppercase">Data Início</Label>
-            <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-background/50" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-muted-foreground uppercase">Data Fim</Label>
-            <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-background/50" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-muted-foreground uppercase">Cliente/Empresa</Label>
-            <Select value={selectedEmpresa} onValueChange={setSelectedEmpresa}>
-              <SelectTrigger className="bg-background/50">
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Clientes</SelectItem>
-                {empresas.map(e => (
-                  <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-muted-foreground uppercase">Equipamento</Label>
-            <Select value={selectedEquipamento} onValueChange={setSelectedEquipamento}>
-              <SelectTrigger className="bg-background/50">
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Equipamentos</SelectItem>
-                {equipamentos.map(eq => (
-                  <SelectItem key={eq.id} value={eq.id}>{eq.tipo} {eq.modelo} ({eq.tag_placa || "S/P"})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex w-full items-end justify-end">
-            <Button 
-              variant="default" 
-              className="w-full gap-2 bg-primary/90 hover:bg-primary text-primary-foreground shadow-sm font-semibold"
-              onClick={() => generateDrePdf({
-                dataInicio,
-                dataFim,
-                dreStats,
-                rentabilidadeEquipamentos,
-                agingList,
-                horasContratuaisStats,
-                equipamentos
-              })}
-            >
-              <FileText className="h-4 w-4" />
-              Exportar PDF
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Exportar PDF Button */}
+      <div className="flex w-full items-end justify-end">
+        <Button 
+          variant="default" 
+          className="gap-2 bg-primary/90 hover:bg-primary text-primary-foreground shadow-sm font-semibold"
+          onClick={() => generateDrePdf({
+            dataInicio: globalDataInicio,
+            dataFim: globalDataFim,
+            dreStats,
+            rentabilidadeEquipamentos,
+            agingList,
+            horasContratuaisStats,
+            equipamentos
+          })}
+        >
+          <FileText className="h-4 w-4" />
+          Exportar PDF
+        </Button>
+      </div>
 
       {/* DRE KPIs e Gráfico */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

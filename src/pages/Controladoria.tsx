@@ -6,6 +6,10 @@ import { fetchAllMedicoes } from "@/lib/supabaseUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
 import { RelatoriosGerenciaisTab } from "@/components/RelatoriosGerenciaisTab";
 import { InadimplenciaTab } from "@/components/InadimplenciaTab";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 interface Empresa {
   id: string;
@@ -81,6 +85,16 @@ const Controladoria = () => {
   const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
   const [despesasAdministrativas, setDespesasAdministrativas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filtros Globais
+  const [globalDataInicio, setGlobalDataInicio] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return d.toISOString().slice(0, 10);
+  });
+  const [globalDataFim, setGlobalDataFim] = useState(() => new Date().toISOString().slice(0, 10));
+  const [globalEmpresaId, setGlobalEmpresaId] = useState<string>("all");
+  const [globalEquipamentoId, setGlobalEquipamentoId] = useState<string>("all");
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -167,6 +181,64 @@ const Controladoria = () => {
   return (
     <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : activeTab === "dre" ? "Painel Gerencial de Inadimplência e Aging" : "Cockpit executivo e indicadores de performance"}>
       <div className="space-y-6">
+        
+        {/* ── Global Filters Bar ────────────────────────────────────────────── */}
+        <div className="bg-card/60 backdrop-blur-sm p-4 rounded-2xl border border-border/60 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex-1 w-full">
+            <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Cliente</label>
+            <SearchableSelect
+              value={globalEmpresaId}
+              onValueChange={setGlobalEmpresaId}
+              placeholder="Todos os Clientes"
+              searchPlaceholder="Buscar cliente..."
+              options={[
+                { value: "all", label: "Todos os Clientes" },
+                ...empresas.map((e: any) => ({ value: e.id, label: e.nome }))
+              ]}
+            />
+          </div>
+          <div className="flex-1 w-full">
+            <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Equipamento</label>
+            <SearchableSelect
+              value={globalEquipamentoId}
+              onValueChange={setGlobalEquipamentoId}
+              placeholder="Todos os Equipamentos"
+              searchPlaceholder="Buscar equipamento..."
+              options={[
+                { value: "all", label: "Todos os Equipamentos" },
+                ...equipamentos.map((e: any) => ({ value: e.id, label: `${e.tipo} ${e.modelo} ${e.tag_placa ? `(${e.tag_placa})` : ''}`.trim() }))
+              ]}
+            />
+          </div>
+          <div className="w-full md:w-48">
+            <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Data Início</label>
+            <Input 
+              type="date" 
+              value={globalDataInicio} 
+              onChange={(e) => setGlobalDataInicio(e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="w-full md:w-48">
+            <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Data Fim</label>
+            <Input 
+              type="date" 
+              value={globalDataFim} 
+              onChange={(e) => setGlobalDataFim(e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          {(globalEmpresaId !== "all" || globalEquipamentoId !== "all") && (
+            <Button 
+              variant="outline" 
+              onClick={() => { setGlobalEmpresaId("all"); setGlobalEquipamentoId("all"); }}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" /> Limpar
+            </Button>
+          )}
+        </div>
+
         {!loading && (
           activeTab === "relatorios" ? (
             <RelatoriosGerenciaisTab
@@ -179,9 +251,18 @@ const Controladoria = () => {
               contratosEquipamentos={contratosEquipamentos}
               faturamentoGastos={faturamentoGastos}
               despesasAdministrativas={despesasAdministrativas}
+              globalEmpresaId={globalEmpresaId}
+              globalEquipamentoId={globalEquipamentoId}
+              globalDataInicio={globalDataInicio}
+              globalDataFim={globalDataFim}
             />
           ) : activeTab === "dre" ? (
-            <InadimplenciaTab />
+            <InadimplenciaTab 
+              globalEmpresaId={globalEmpresaId}
+              globalEquipamentoId={globalEquipamentoId}
+              globalDataInicio={globalDataInicio}
+              globalDataFim={globalDataFim}
+            />
           ) : (
             <VisaoGeralTab
               empresas={empresas}
@@ -197,6 +278,10 @@ const Controladoria = () => {
               sinistros={sinistros}
               faturamentoGastos={faturamentoGastos}
               contratosEquipamentos={contratosEquipamentos}
+              globalEmpresaId={globalEmpresaId}
+              globalEquipamentoId={globalEquipamentoId}
+              globalDataInicio={globalDataInicio}
+              globalDataFim={globalDataFim}
             />
           )
         )}
