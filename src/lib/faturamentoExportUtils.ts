@@ -566,35 +566,37 @@ export const exportDetailedFaturamentoPDF = async (data: any[], empresasList: an
     }
 
     // 7. APPROVAL / SIGNATURES BLOCK
-    if (y + 35 > pageH) {
-      doc.addPage();
-      y = 15;
-    } else {
-      y = Math.max(y + 10, pageH - 40);
+    if (!item.vale_id) {
+      if (y + 35 > pageH) {
+        doc.addPage();
+        y = 15;
+      } else {
+        y = Math.max(y + 10, pageH - 40);
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60);
+      doc.text("Aprovação:", mL, y);
+      y += 18;
+
+      const lineW = 80;
+      const gap = contentW - (lineW * 2);
+
+      // Left signature line
+      const leftX = mL;
+      doc.setDrawColor(120);
+      doc.setLineWidth(0.3);
+      doc.line(leftX, y, leftX + lineW, y);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.text(busatoNome.toUpperCase(), leftX + (lineW / 2), y + 4.5, { align: "center" });
+
+      // Right signature line
+      const rightX = mL + lineW + gap;
+      doc.line(rightX, y, rightX + lineW, y);
+      doc.text(empNome.toUpperCase(), rightX + (lineW / 2), y + 4.5, { align: "center" });
     }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    doc.text("Aprovação:", mL, y);
-    y += 18;
-
-    const lineW = 80;
-    const gap = contentW - (lineW * 2);
-
-    // Left signature line
-    const leftX = mL;
-    doc.setDrawColor(120);
-    doc.setLineWidth(0.3);
-    doc.line(leftX, y, leftX + lineW, y);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(busatoNome.toUpperCase(), leftX + (lineW / 2), y + 4.5, { align: "center" });
-
-    // Right signature line
-    const rightX = mL + lineW + gap;
-    doc.line(rightX, y, rightX + lineW, y);
-    doc.text(empNome.toUpperCase(), rightX + (lineW / 2), y + 4.5, { align: "center" });
   }
 
   // 8. PAGE FOOTER (Post-processing page numbers)
