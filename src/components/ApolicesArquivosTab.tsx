@@ -111,7 +111,7 @@ export const ApolicesArquivosTab = () => {
 
   // Filter policies that have files attached
   const apolicesComArquivos = useMemo(() => {
-    return apolices.filter(a => a.arquivo_base64 && a.arquivo_nome);
+    return apolices.filter(a => a.arquivo_nome);
   }, [apolices]);
 
   // List of policies eligible for upload (either don't have file or we want to update)
@@ -121,7 +121,7 @@ export const ApolicesArquivosTab = () => {
       return {
         id: a.id,
         label: `${a.seguradora} - Vigência até ${new Date(a.vigencia_fim + "T00:00:00").toLocaleDateString("pt-BR")} (${equipLabels})`,
-        hasFile: !!(a.arquivo_base64 && a.arquivo_nome)
+        hasFile: !!(a.arquivo_nome)
       };
     });
   }, [apolices]);
@@ -160,18 +160,27 @@ export const ApolicesArquivosTab = () => {
       toast({ title: "Campo obrigatório", description: "Selecione uma apólice para associar o documento.", variant: "destructive" });
       return;
     }
-    if (!selectedFile || !fileBase64) {
+    if (!selectedFile) {
       toast({ title: "Arquivo obrigatório", description: "Selecione um arquivo de apólice assinada.", variant: "destructive" });
       return;
     }
 
     setSaving(true);
     try {
+      // 1. Upload to Storage
+      const filePath = `apolices/${selectedApoliceId}/${selectedFile.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(filePath, selectedFile, { upsert: true });
+        
+      if (uploadError) throw uploadError;
+
+      // 2. Update database reference
       const { error } = await supabase
         .from("apolices")
         .update({
-          arquivo_base64: fileBase64,
-          arquivo_nome: selectedFile.name
+          arquivo_nome: selectedFile.name,
+          arquivo_base64: null // cleanup old base64 if it existed
         })
         .eq("id", selectedApoliceId);
 
@@ -213,14 +222,46 @@ export const ApolicesArquivosTab = () => {
     }
   };
 
+  const handleDownload = async (item: Apolice) => {
+    if (!item.arquivo_nome) return;
+    try {
+      const filePath = `apolices/${item.id}/${item.arquivo_nome}`;
+      const { data, error } = await supabase.storage
+        .from('documentos')
+        .createSignedUrl(filePath, 60 * 60); // 1 hour
+
+      if (error) throw error;
+      
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      } else {
+        // Fallback for old base64 if still present
+        if (item.arquivo_base64) {
+           const a = document.createElement("a");
+           a.href = item.arquivo_base64;
+           a.download = item.arquivo_nome;
+           a.click();
+        } else {
+          throw new Error("Arquivo não encontrado no Storage.");
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "Erro no download", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleDeleteFile = async (apoliceId: string, filename: string) => {
     if (!confirm(`Tem certeza que deseja remover o arquivo assinado "${filename}"?`)) return;
     try {
+      // 1. Delete from storage
+      await supabase.storage.from('documentos').remove([`apolices/${apoliceId}/${filename}`]);
+      
+      // 2. Clear from DB
       const { error } = await supabase
         .from("apolices")
         .update({
-          arquivo_base64: null,
-          arquivo_nome: null
+          arquivo_nome: null,
+          arquivo_base64: null
         })
         .eq("id", apoliceId);
 

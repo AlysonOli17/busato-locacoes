@@ -51,6 +51,7 @@ interface AuditLog {
 
 const ALL_ROUTES = [
   { path: "/equipamentos", label: "Frota Própria", icon: "🚛" },
+  { path: "/relequip",     label: "RELEQUIP (Gestão e Acompanhamento)", icon: "📊" },
   { path: "/empresas",     label: "Clientes & Contratos (Empresas)", icon: "🏢" },
   { path: "/contratos",    label: "Clientes & Contratos (Contratos/Propostas)", icon: "📄" },
   { path: "/agregados",    label: "Terceiros", icon: "🔧" },

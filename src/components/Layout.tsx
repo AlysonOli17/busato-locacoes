@@ -4,7 +4,7 @@ import {
   Wrench, Building2, FileText, Clock, CalendarDays,
   Receipt, Shield, DollarSign, Users, Menu, X, BarChart3, LogOut,
   ChevronLeft, ChevronRight, ClipboardCheck, Calendar, ChevronDown, Folder, FileSignature, AlertCircle, BookOpen,
-  PieChart, Handshake, Truck, Cog, Bot, CheckSquare
+  PieChart, Handshake, Truck, Cog, Bot, CheckSquare, FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,6 +43,11 @@ const allGroups: NavGroup[] = [
       { to: "/equipamentos?tab=checklist", icon: ClipboardCheck, label: "Checklists" },
       { to: "/equipamentos?tab=comodatos", icon: Handshake, label: "Comodatos" },
     ]
+  },
+  {
+    label: "RELEQUIP (Frota & Ativos)",
+    icon: FileSpreadsheet,
+    to: "/relequip",
   },
   {
     label: "Clientes & Contratos",

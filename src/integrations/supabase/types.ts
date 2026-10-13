@@ -1723,6 +1723,191 @@ export type Database = {
           },
         ]
       }
+      relequip: {
+        Row: {
+          ano_fabricacao: number | null
+          ano_modelo: number | null
+          capacidade: string | null
+          centro_custo: string | null
+          chassi_serie: string | null
+          combustivel: string | null
+          comprado_de: string | null
+          comprador: string | null
+          cor: string | null
+          created_at: string
+          custo_recuperacao: number | null
+          custo_recuperacao_obs: string | null
+          data_compra: string | null
+          data_venda: string | null
+          descricao: string | null
+          estado: string | null
+          fabricante: string | null
+          frota: string | null
+          garantia_fabrica: string | null
+          gestor: string | null
+          grupo: string
+          id: string
+          localidade: string | null
+          mev: string | null
+          modelo: string | null
+          nota_fiscal: string | null
+          observacao: string | null
+          observacao_baixa: string | null
+          observacao_venda: string | null
+          peso_operacional: string | null
+          placa: string | null
+          renavam: string | null
+          situacao: string | null
+          situacao_cadastro: string | null
+          tag: string | null
+          te: string | null
+          te_tag: string
+          tempo_parado: string | null
+          tipo_implemento: string | null
+          ultima_origem: string
+          updated_at: string
+          updated_by: string | null
+          vendido_para: string | null
+        }
+        Insert: {
+          ano_fabricacao?: number | null
+          ano_modelo?: number | null
+          capacidade?: string | null
+          centro_custo?: string | null
+          chassi_serie?: string | null
+          combustivel?: string | null
+          comprado_de?: string | null
+          comprador?: string | null
+          cor?: string | null
+          created_at?: string
+          custo_recuperacao?: number | null
+          custo_recuperacao_obs?: string | null
+          data_compra?: string | null
+          data_venda?: string | null
+          descricao?: string | null
+          estado?: string | null
+          fabricante?: string | null
+          frota?: string | null
+          garantia_fabrica?: string | null
+          gestor?: string | null
+          grupo?: string
+          id?: string
+          localidade?: string | null
+          mev?: string | null
+          modelo?: string | null
+          nota_fiscal?: string | null
+          observacao?: string | null
+          observacao_baixa?: string | null
+          observacao_venda?: string | null
+          peso_operacional?: string | null
+          placa?: string | null
+          renavam?: string | null
+          situacao?: string | null
+          situacao_cadastro?: string | null
+          tag?: string | null
+          te?: string | null
+          te_tag: string
+          tempo_parado?: string | null
+          tipo_implemento?: string | null
+          ultima_origem?: string
+          updated_at?: string
+          updated_by?: string | null
+          vendido_para?: string | null
+        }
+        Update: {
+          ano_fabricacao?: number | null
+          ano_modelo?: number | null
+          capacidade?: string | null
+          centro_custo?: string | null
+          chassi_serie?: string | null
+          combustivel?: string | null
+          comprado_de?: string | null
+          comprador?: string | null
+          cor?: string | null
+          created_at?: string
+          custo_recuperacao?: number | null
+          custo_recuperacao_obs?: string | null
+          data_compra?: string | null
+          data_venda?: string | null
+          descricao?: string | null
+          estado?: string | null
+          fabricante?: string | null
+          frota?: string | null
+          garantia_fabrica?: string | null
+          gestor?: string | null
+          grupo?: string
+          id?: string
+          localidade?: string | null
+          mev?: string | null
+          modelo?: string | null
+          nota_fiscal?: string | null
+          observacao?: string | null
+          observacao_baixa?: string | null
+          observacao_venda?: string | null
+          peso_operacional?: string | null
+          placa?: string | null
+          renavam?: string | null
+          situacao?: string | null
+          situacao_cadastro?: string | null
+          tag?: string | null
+          te?: string | null
+          te_tag?: string
+          tempo_parado?: string | null
+          tipo_implemento?: string | null
+          ultima_origem?: string
+          updated_at?: string
+          updated_by?: string | null
+          vendido_para?: string | null
+        }
+        Relationships: []
+      }
+      relequip_historico: {
+        Row: {
+          campo: string
+          created_at: string
+          id: string
+          origem: string
+          relequip_id: string | null
+          te_tag: string
+          user_id: string | null
+          user_name: string | null
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          campo: string
+          created_at?: string
+          id?: string
+          origem?: string
+          relequip_id?: string | null
+          te_tag: string
+          user_id?: string | null
+          user_name?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          campo?: string
+          created_at?: string
+          id?: string
+          origem?: string
+          relequip_id?: string | null
+          te_tag?: string
+          user_id?: string | null
+          user_name?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relequip_historico_relequip_id_fkey"
+            columns: ["relequip_id"]
+            isOneToOne: false
+            referencedRelation: "relequip"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string

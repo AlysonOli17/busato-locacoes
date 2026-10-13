@@ -92,6 +92,13 @@ const emptyForm = {
   renovacao_automatica: false,
 };
 
+export const getStatusApolice = (inicio: string, fim: string) => {
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  if (fim < hojeStr) return "Vencida";
+  if (inicio > hojeStr) return "A Iniciar";
+  return "Vigente";
+};
+
 const Apolices = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(() => {
@@ -293,6 +300,18 @@ const Apolices = () => {
     return fim >= hoje && fim <= em30dias;
   };
 
+  const diasParaVencer = (dataFim: string) => {
+    const fim = new Date(dataFim);
+    return Math.ceil((fim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const getMesesVigencia = (inicio: string, fim: string) => {
+    const dInicio = new Date(inicio);
+    const dFim = new Date(fim);
+    const meses = (dFim.getTime() - dInicio.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+    return Math.max(1, Math.round(meses));
+  };
+
   const filtered = items.filter((i) => {
     const s = search.toLowerCase();
     const matchSearch = getEquipLabels(i).toLowerCase().includes(s) || i.seguradora.toLowerCase().includes(s);
@@ -302,13 +321,9 @@ const Apolices = () => {
   });
 
   const totalMensal = vigentes.reduce((acc, i) => {
-    if (i.tem_parcelamento && i.numero_parcelas > 0) {
-      return acc + i.valor / i.numero_parcelas;
-    }
-    const inicio = new Date(i.vigencia_inicio);
-    const fim = new Date(i.vigencia_fim);
-    const meses = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30)));
-    return acc + i.valor / meses;
+    const meses = getMesesVigencia(i.vigencia_inicio, i.vigencia_fim);
+    const custo = Number(i.valor) + (i.tem_adesao ? Number(i.valor_adesao) : 0);
+    return acc + (custo / meses);
   }, 0);
 
   const totalAnual = vigentes.reduce((acc, i) => acc + Number(i.valor), 0);
@@ -366,23 +381,32 @@ const Apolices = () => {
       return;
     }
 
-    const status = new Date(form.vigencia_fim) >= new Date() ? "Vigente" : "Vencida";
+    const status = getStatusApolice(form.vigencia_inicio, form.vigencia_fim);
 
-    if (status === "Vigente") {
+    if (status === "Vigente" || status === "A Iniciar") {
       const editingId = editing?.id;
+      const dInicioNova = form.vigencia_inicio;
+      const dFimNova = form.vigencia_fim;
+
       const duplicados = form.equipamento_ids.filter(eid => {
-        return items.some(a =>
-          a.id !== editingId &&
-          a.status === "Vigente" &&
-          a.apolices_equipamentos?.some(ae => ae.equipamento_id === eid)
-        );
+        return items.some(a => {
+          if (a.id === editingId) return false;
+          if (a.status === "Vencida") return false;
+          
+          const hasEq = a.apolices_equipamentos?.some(ae => ae.equipamento_id === eid);
+          if (!hasEq) return false;
+
+          const overlap = dInicioNova <= a.vigencia_fim && dFimNova >= a.vigencia_inicio;
+          return overlap;
+        });
       });
+
       if (duplicados.length > 0) {
         const nomes = duplicados.map(eid => {
           const eq = equipamentos.find(e => e.id === eid);
           return eq ? `${eq.tipo} ${eq.modelo}` : eid;
         }).join(", ");
-        toast({ title: "Equipamento já segurado", description: `Os seguintes equipamentos já possuem apólice vigente: ${nomes}`, variant: "destructive" });
+        toast({ title: "Conflito de Período", description: `Os equipamentos já possuem apólice cadastrada neste mesmo período: ${nomes}`, variant: "destructive" });
         return;
       }
     }
@@ -511,7 +535,7 @@ const Apolices = () => {
 
         const inicio = parseDate(vigenciaInicio);
         const fim = parseDate(vigenciaFim);
-        const status = new Date(fim) >= new Date() ? "Vigente" : "Vencida";
+        const status = getStatusApolice(inicio, fim);
 
         dataRows.push({
           seguradora,
@@ -647,6 +671,15 @@ const Apolices = () => {
           )}
 
           {filtered.map((item) => {
+            const diasVenc = diasParaVencer(item.vigencia_fim);
+            const isVencendo = diasVenc >= 0 && diasVenc <= 30 && item.status === "Vigente";
+            
+            const mesesVigencia = getMesesVigencia(item.vigencia_inicio, item.vigencia_fim);
+            const custoTotalAp = Number(item.valor) + (item.tem_adesao ? Number(item.valor_adesao) : 0);
+            const custoMensalReal = custoTotalAp / mesesVigencia;
+            const qtdEquips = item.apolices_equipamentos?.length || 1;
+            const custoMensalPorEquip = custoMensalReal / qtdEquips;
+
             const valorParcela = item.tem_parcelamento && item.numero_parcelas > 0 ? item.valor / item.numero_parcelas : item.valor;
             return (
               <div key={item.id} className={`group bg-card/60 backdrop-blur-sm hover:bg-card border border-border/60 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all relative shadow-sm hover:shadow-md cursor-pointer ${selected.has(item.id) ? "ring-2 ring-accent" : ""}`} onClick={() => setDetailItem(item)}>
@@ -662,41 +695,12 @@ const Apolices = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="font-bold text-sm text-foreground truncate">{item.seguradora}</h3>
-                      <div className="mt-1 flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-                        {item.apolices_equipamentos && item.apolices_equipamentos.length > 0 && (() => {
-                          const first = item.apolices_equipamentos[0];
-                          if (item.apolices_equipamentos.length === 1) {
-                            return (
-                              <Badge variant="outline" className="text-[10px] border-accent/20 bg-accent/5 text-sidebar">
-                                {first.equipamentos?.tipo} {first.equipamentos?.modelo} {first.equipamentos?.tag_placa ? `(${first.equipamentos.tag_placa})` : ""}
-                              </Badge>
-                            );
-                          }
-                          return (
-                            <HoverCard openDelay={100} closeDelay={100}>
-                              <HoverCardTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-pointer">
-                                  <Badge variant="outline" className="text-[10px] border-accent/20 bg-accent/5 text-sidebar font-semibold truncate max-w-[150px]">
-                                    {first.equipamentos?.tipo} {first.equipamentos?.modelo}
-                                  </Badge>
-                                  <Badge className="bg-primary/10 text-primary border-0 text-[10px] font-bold h-4 py-0">
-                                    +{item.apolices_equipamentos.length - 1}
-                                  </Badge>
-                                </div>
-                              </HoverCardTrigger>
-                              <HoverCardContent onClick={e => e.stopPropagation()} className="w-80 p-3 bg-card border border-border shadow-md rounded-md z-50">
-                                <p className="text-xs font-semibold text-muted-foreground mb-2">Equipamentos Assegurados ({item.apolices_equipamentos.length})</p>
-                                <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto">
-                                  {item.apolices_equipamentos.map(ae => (
-                                    <Badge key={ae.id} variant="outline" className="text-xs">
-                                      {ae.equipamentos?.tipo} {ae.equipamentos?.modelo} {ae.equipamentos?.tag_placa ? `(${ae.equipamentos.tag_placa})` : ""}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </HoverCardContent>
-                            </HoverCard>
-                          );
-                        })()}
+                      <div className="mt-1 flex flex-wrap gap-1" onClick={e => e.stopPropagation()}>
+                        {item.apolices_equipamentos?.map(ae => (
+                          <Badge key={ae.id} variant="outline" className="text-[10px] border-accent/20 bg-accent/5 text-sidebar">
+                            {ae.equipamentos?.tipo} {ae.equipamentos?.modelo} {ae.equipamentos?.tag_placa ? `(${ae.equipamentos.tag_placa})` : ""}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -722,7 +726,7 @@ const Apolices = () => {
 
                 <div className="md:w-[130px] md:text-right flex flex-col pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
                   <span className="font-bold text-sm text-primary">
-                    R$ {item.apolices_equipamentos && item.apolices_equipamentos.length > 0 ? fmt(valorParcela / item.apolices_equipamentos.length) : "0,00"}
+                    R$ {fmt(custoMensalPorEquip)}
                   </span>
                   <span className="text-[10px] text-primary/70 uppercase tracking-wide mt-0.5">
                     / mês p/ equip.
@@ -740,10 +744,15 @@ const Apolices = () => {
                   )}
                 </div>
 
-                <div className="md:w-[100px] flex md:justify-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
-                  <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}>
+                <div className="md:w-[100px] flex flex-col md:items-center justify-center pt-2 md:pt-0 border-t border-border/50 md:border-0 mt-2 md:mt-0">
+                  <Badge className={item.status === "Vigente" ? "bg-success text-success-foreground" : item.status === "A Iniciar" ? "bg-warning text-warning-foreground" : "bg-destructive text-destructive-foreground"}>
                     {item.status}
                   </Badge>
+                  {isVencendo && (
+                    <span className="text-[10px] text-destructive font-bold mt-1 flex items-center">
+                      <AlertCircle className="h-3 w-3 mr-0.5" /> Vence em {diasVenc}d
+                    </span>
+                  )}
                 </div>
 
                 <div className="md:w-[100px] flex justify-end gap-1 pt-2 md:pt-0 mt-2 md:mt-0" onClick={e => e.stopPropagation()}>
