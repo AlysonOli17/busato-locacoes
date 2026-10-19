@@ -6,6 +6,7 @@ import { fetchAllMedicoes } from "@/lib/supabaseUtils";
 import { VisaoGeralTab } from "@/components/VisaoGeralTab";
 import { RelatoriosGerenciaisTab } from "@/components/RelatoriosGerenciaisTab";
 import { InadimplenciaTab } from "@/components/InadimplenciaTab";
+import { SlaTab } from "@/components/SlaTab";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -179,7 +180,18 @@ const Controladoria = () => {
   }, []);
 
   return (
-    <Layout title="Controladoria & B.I." subtitle={activeTab === "relatorios" ? "Relatórios Gerenciais e DRE" : activeTab === "dre" ? "Painel Gerencial de Inadimplência e Aging" : "Cockpit executivo e indicadores de performance"}>
+    <Layout 
+      title="Controladoria & B.I." 
+      subtitle={
+        activeTab === "relatorios" 
+          ? "Relatórios Gerenciais e DRE" 
+          : activeTab === "dre" 
+          ? "Painel Gerencial de Inadimplência e Aging" 
+          : activeTab === "sla"
+          ? "SLAs Internos por Setor e Cumprimento de Prazos Operacionais"
+          : "Cockpit executivo e indicadores de performance"
+      }
+    >
       <div className="space-y-6">
         
         {/* ── Global Filters Bar ────────────────────────────────────────────── */}
@@ -258,6 +270,15 @@ const Controladoria = () => {
             />
           ) : activeTab === "dre" ? (
             <InadimplenciaTab 
+              globalEmpresaId={globalEmpresaId}
+              globalEquipamentoId={globalEquipamentoId}
+              globalDataInicio={globalDataInicio}
+              globalDataFim={globalDataFim}
+            />
+          ) : activeTab === "sla" ? (
+            <SlaTab
+              empresas={empresas}
+              equipamentos={equipamentos}
               globalEmpresaId={globalEmpresaId}
               globalEquipamentoId={globalEquipamentoId}
               globalDataInicio={globalDataInicio}

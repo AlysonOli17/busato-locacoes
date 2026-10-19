@@ -96,6 +96,7 @@ const allGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { to: "/controladoria?tab=visao-geral", icon: BarChart3, label: "Visão Geral & B.I." },
+      { to: "/controladoria?tab=sla", icon: Clock, label: "SLA" },
       { to: "/controladoria?tab=dre", icon: AlertCircle, label: "Inadimplência" },
       { to: "/controladoria?tab=relatorios", icon: PieChart, label: "Relatórios Gerenciais" }
     ]
