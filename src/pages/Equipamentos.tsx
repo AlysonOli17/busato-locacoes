@@ -356,10 +356,17 @@ const EquipamentosLista = () => {
                 {fb.label}
                 {fb.value !== "todos" && (
                   <span className="ml-1 opacity-70">
-                    ({fb.value === "assegurados" ? items.filter(i => insuredIds.has(i.id)).length
-                      : fb.value === "nao-assegurados" ? items.filter(i => !insuredIds.has(i.id)).length
-                      : fb.value === "locados" ? items.filter(i => rentedIds.has(i.id)).length
-                      : items.filter(i => !rentedIds.has(i.id)).length})
+                    ({(() => {
+                      switch (fb.value) {
+                        case "assegurados": return items.filter(i => insuredIds.has(i.id)).length;
+                        case "nao-assegurados": return items.filter(i => !insuredIds.has(i.id)).length;
+                        case "locados": return items.filter(i => rentedIds.has(i.id)).length;
+                        case "disponiveis": return items.filter(i => !rentedIds.has(i.id)).length;
+                        case "frota-locacao": return items.filter(i => (i.finalidade || "Locação") === "Locação").length;
+                        case "uso-proprio": return items.filter(i => (i.finalidade || "Locação") === "Próprio").length;
+                        default: return items.length;
+                      }
+                    })()})
                   </span>
                 )}
               </Button>

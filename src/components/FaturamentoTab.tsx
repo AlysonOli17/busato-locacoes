@@ -774,19 +774,22 @@ export const FaturamentoTab = () => {
     }
 
     // ── SIGNATURE BLOCK (positioned dynamically below content) ──
-    y = Math.max(y + 10, pageH - 15 - 45);
+    // Ocultado para faturas avulsas originadas de Vale conforme solicitado
+    if (!(fatura as any).vale_id) {
+      y = Math.max(y + 10, pageH - 15 - 45);
 
-    // Signature area
+      // Signature area
 
-    // Signature line
-    const sigLineY = y + 25;
-    doc.setLineWidth(0.3);
-    doc.line(mLeft + contentW / 2 - 30, sigLineY, mLeft + contentW / 2 + 30, sigLineY);
+      // Signature line
+      const sigLineY = y + 25;
+      doc.setLineWidth(0.3);
+      doc.line(mLeft + contentW / 2 - 30, sigLineY, mLeft + contentW / 2 + 30, sigLineY);
 
-    // Company name under signature
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.text("Busato Locações e Serviços LTDA", mLeft + contentW / 2, sigLineY + 6, { align: "center" });
+      // Company name under signature
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("Busato Locações e Serviços LTDA", mLeft + contentW / 2, sigLineY + 6, { align: "center" });
+    }
 
     const saveLabel = fatura.numero_nota || String(fatura.numero_sequencial).padStart(3, "0");
     if (isUploadOnly) {
