@@ -115,12 +115,18 @@ export function useSmartAlerts() {
           
           const { data: contratosMedicao } = await supabase
             .from("contratos")
-            .select("id, dia_medicao_fim, empresas(nome, razao_social)")
+            .select("id, dia_medicao_fim, empresas(nome, razao_social), contratos_equipamentos(equipamento_id, data_devolucao, equipamentos(status))")
             .eq("status", "Ativo")
             .not("dia_medicao_fim", "is", null);
             
           if (contratosMedicao && contratosMedicao.length > 0) {
-            contratosMedicao.forEach((c, idx) => {
+            contratosMedicao.forEach((c: any, idx: number) => {
+              const ces = c.contratos_equipamentos || [];
+              const hasActiveEquip = ces.some(
+                (ce: any) => (!ce.data_devolucao || ce.data_devolucao > todayStr) && ce.equipamentos?.status === "Ativo"
+              );
+              if (!hasActiveEquip) return;
+
               if (c.dia_medicao_fim && diaAtual > c.dia_medicao_fim) {
                 // Em um cenário real, aqui checaríamos se já existe faturamento para o mês atual.
                 // Como não temos a data exata do último faturamento no objeto contrato, 

@@ -93,19 +93,23 @@ function useFinanceiroData() {
   const [medicoes, setMedicoes] = useState<any[]>([]);
   const [equipamentos, setEquipamentos] = useState<any[]>([]);
   const [contratosEquipamentos, setContratosEquipamentos] = useState<any[]>([]);
+  const [gastos, setGastos] = useState<any[]>([]);
+  const [faturamentoGastos, setFaturamentoGastos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refreshFaturas = async (force = false) => {
     if (force) clearCache();
-    const [fatRes, ctRes, empRes, eqRes, ceRes, medRes, adRes, aeRes] = await withCache("financeiro_views", 5 * 60 * 1000, async () => Promise.all([
+    const [fatRes, ctRes, empRes, eqRes, ceRes, medRes, adRes, aeRes, gastosRes, fgRes] = await withCache("financeiro_views", 5 * 60 * 1000, async () => Promise.all([
       supabase.from("faturamento").select("*").order("emissao", { ascending: false }),
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("empresas").select("id, nome, cnpj, obra").order("nome"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, status"),
       supabase.from("contratos_equipamentos").select("*"),
       fetchAllMedicoes(),
       supabase.from("contratos_aditivos").select("*"),
-      supabase.from("aditivos_equipamentos").select("*")
+      supabase.from("aditivos_equipamentos").select("*"),
+      supabase.from("gastos").select("id, equipamento_id, data, valor, status"),
+      supabase.from("faturamento_gastos").select("gasto_id, faturamento_id")
     ]));
 
     if (fatRes.data && ctRes.data && empRes.data && eqRes.data) {
@@ -113,6 +117,8 @@ function useFinanceiroData() {
       setEquipamentos(eqRes.data);
       if (medRes.data) setMedicoes(medRes.data);
       if (ceRes.data) setContratosEquipamentos(ceRes.data);
+      if (gastosRes?.data) setGastos(gastosRes.data);
+      if (fgRes?.data) setFaturamentoGastos(fgRes.data);
 
       const empMap = new Map(empRes.data.map((e: any) => [e.id, e]));
       const eqMap = new Map(eqRes.data.map((e: any) => [e.id, e]));
@@ -170,7 +176,73 @@ function useFinanceiroData() {
     refreshFaturas();
   }, []);
 
-  return { empresas, contratos, faturas, medicoes, equipamentos, contratosEquipamentos, loading, refreshFaturas };
+  return { empresas, contratos, faturas, medicoes, equipamentos, contratosEquipamentos, gastos, faturamentoGastos, loading, refreshFaturas };
+}
+
+function getContractActiveEquipIds(ct: any, periodInicio: string, periodFim: string, eqMap: Map<string, any>): string[] {
+  const ces = ct.contratos_equipamentos || [];
+  const ads = ct.contratos_aditivos || [];
+
+  const globalDev: Record<string, string> = {};
+  const globalEntrega: Record<string, string> = {};
+
+  for (const ce of ces) {
+    if (ce.data_devolucao && (!globalDev[ce.equipamento_id] || ce.data_devolucao > globalDev[ce.equipamento_id])) {
+      globalDev[ce.equipamento_id] = ce.data_devolucao;
+    }
+    if (ce.data_entrega && (!globalEntrega[ce.equipamento_id] || ce.data_entrega < globalEntrega[ce.equipamento_id])) {
+      globalEntrega[ce.equipamento_id] = ce.data_entrega;
+    }
+  }
+  for (const ad of ads) {
+    for (const ae of (ad.aditivos_equipamentos || [])) {
+      if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id])) {
+        globalDev[ae.equipamento_id] = ae.data_devolucao;
+      }
+      if (ae.data_entrega && (!globalEntrega[ae.equipamento_id] || ae.data_entrega < globalEntrega[ae.equipamento_id])) {
+        globalEntrega[ae.equipamento_id] = ae.data_entrega;
+      }
+    }
+  }
+
+  const vigentes = ads.filter((ad: any) => ad.data_inicio <= periodFim && ad.data_fim >= periodInicio);
+  const ultimoAditivo = vigentes.length > 0
+    ? vigentes.reduce((latest: any, ad: any) => ad.numero > latest.numero ? ad : latest, vigentes[0])
+    : null;
+
+  let candidateIds: string[] = [];
+  if (ultimoAditivo) {
+    candidateIds = (ultimoAditivo.aditivos_equipamentos || []).map((ae: any) => ae.equipamento_id);
+  } else if (ces.length > 0) {
+    candidateIds = ces.map((ce: any) => ce.equipamento_id);
+  } else if (ads.length === 0 && ct.equipamento_id) {
+    candidateIds = [ct.equipamento_id];
+  }
+
+  return Array.from(new Set(candidateIds)).filter(eqId => {
+    if (!eqId) return false;
+    const eq = eqMap.get(eqId);
+    if (!eq || eq.status !== "Ativo") return false;
+    const devDate = globalDev[eqId];
+    if (devDate && devDate <= periodInicio) return false;
+    const entregaDate = globalEntrega[eqId];
+    if (entregaDate && entregaDate > periodFim) return false;
+    return true;
+  });
+}
+
+function getAllContractEquipIds(ct: any): string[] {
+  const ces = ct.contratos_equipamentos || [];
+  const ads = ct.contratos_aditivos || [];
+  const ids = new Set<string>();
+  for (const ce of ces) if (ce.equipamento_id) ids.add(ce.equipamento_id);
+  for (const ad of ads) {
+    for (const ae of (ad.aditivos_equipamentos || [])) {
+      if (ae.equipamento_id) ids.add(ae.equipamento_id);
+    }
+  }
+  if (ids.size === 0 && ct.equipamento_id) ids.add(ct.equipamento_id);
+  return Array.from(ids);
 }
 
 function getVencimento(fatura: Fatura) {
@@ -295,17 +367,38 @@ function SharedDashboardHeader({
 
 // 1. PENDENTE DE MEDIÇÃO VIEW
 export function PendenteMedicaoView() {
-  const { empresas, contratos, faturas, medicoes, loading, refreshFaturas } = useFinanceiroData();
+  const { empresas, contratos, faturas, medicoes, equipamentos, gastos, faturamentoGastos, loading, refreshFaturas } = useFinanceiroData();
   const [filtroEmpresa, setFiltroEmpresa] = useState("all");
   const [vincularDialog, setVincularDialog] = useState<{ open: boolean; alerta: any | null; faturaId: string }>({ open: false, alerta: null, faturaId: "" });
   const { toast } = useToast();
 
   const contratosAtivos = useMemo(() => {
-    return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
-  }, [contratos, filtroEmpresa]);
+    const eqMap = new Map(equipamentos.map((e: any) => [e.id, e]));
+    const gastosFaturadosSet = new Set(faturamentoGastos.map((fg: any) => fg.gasto_id));
+    const hojeStr = new Date().toISOString().slice(0, 10);
+    return contratos.filter(c => {
+      if (c.status !== "Ativo") return false;
+      if (filtroEmpresa !== "all" && c.empresa_id !== filtroEmpresa) return false;
+      const activeToday = getContractActiveEquipIds(c, hojeStr, hojeStr, eqMap);
+      if (activeToday.length > 0) return true;
+      const allEqs = getAllContractEquipIds(c);
+      const hasUnbilledGastos = gastos.some(g =>
+        allEqs.includes(g.equipamento_id) &&
+        !gastosFaturadosSet.has(g.id) &&
+        g.status !== "Custo Assumido" &&
+        g.status !== "Cobrado do Cliente" &&
+        g.status !== "Não Cobrado"
+      );
+      return hasUnbilledGastos;
+    });
+  }, [contratos, filtroEmpresa, equipamentos, gastos, faturamentoGastos]);
+
 
   const alertasPendentes = useMemo(() => {
     const hoje = new Date();
+    const hojeStr = hoje.toISOString().slice(0, 10);
+    const eqMap = new Map(equipamentos.map((e: any) => [e.id, e]));
+    const gastosFaturadosSet = new Set(faturamentoGastos.map((fg: any) => fg.gasto_id));
     type Alerta = {
       contrato: Contrato;
       period: { inicio: string; fim: string };
@@ -337,6 +430,21 @@ export function PendenteMedicaoView() {
         if (period.inicio < primeiraMedicao) continue;
         const periodEnd = parseLocalDate(period.fim);
         if (hoje <= periodEnd) continue;
+
+        const activeInPeriod = getContractActiveEquipIds(ct, period.inicio, period.fim, eqMap);
+        const activeToday = getContractActiveEquipIds(ct, hojeStr, hojeStr, eqMap);
+        const allContractEqs = getAllContractEquipIds(ct);
+        const temGastoPendenteNoPeriodo = gastos.some(g =>
+          allContractEqs.includes(g.equipamento_id) &&
+          g.data >= period.inicio &&
+          g.data <= period.fim &&
+          !gastosFaturadosSet.has(g.id) &&
+          g.status !== "Custo Assumido" &&
+          g.status !== "Cobrado do Cliente" &&
+          g.status !== "Não Cobrado"
+        );
+        if (activeInPeriod.length === 0 && !temGastoPendenteNoPeriodo) continue;
+        if (activeToday.length === 0 && !temGastoPendenteNoPeriodo) continue;
 
         // Check if all equipments in this contract have been returned before this period starts
         const ces = ct.contratos_equipamentos || [];
@@ -389,7 +497,7 @@ export function PendenteMedicaoView() {
         });
         if (faturado) continue;
 
-        const contratoEquipIds = new Set([ct.equipamento_id, ...(ct.contratos_equipamentos || []).map(e => e.equipamento_id)]);
+        const contratoEquipIds = new Set(activeInPeriod.length > 0 ? activeInPeriod : allContractEqs);
         const temMedicao = medicoes.some(m => {
           if (!contratoEquipIds.has(m.equipamento_id)) return false;
           return m.data >= period.inicio && m.data <= period.fim;
@@ -404,7 +512,7 @@ export function PendenteMedicaoView() {
     });
 
     return alertas;
-  }, [contratosAtivos, faturas, medicoes]);
+  }, [contratosAtivos, faturas, medicoes, equipamentos, gastos, faturamentoGastos]);
 
   const faturasFiltered = useMemo(() => {
     if (filtroEmpresa === "all") return faturas;
@@ -604,7 +712,7 @@ export function PendenteMedicaoView() {
 
 // 2. STUNNING UNIFIED HISTÓRICO FINANCEIRO VIEW
 export function HistoricoFaturamentoView() {
-  const { empresas, contratos, faturas, loading } = useFinanceiroData();
+  const { empresas, contratos, faturas, equipamentos, gastos, faturamentoGastos, loading } = useFinanceiroData();
   const [filtroEmpresa, setFiltroEmpresa] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortCol, setSortCol] = useState("emissao");
@@ -624,8 +732,26 @@ export function HistoricoFaturamentoView() {
   };
 
   const contratosAtivos = useMemo(() => {
-    return contratos.filter(c => c.status === "Ativo" && (filtroEmpresa === "all" || c.empresa_id === filtroEmpresa));
-  }, [contratos, filtroEmpresa]);
+    const eqMap = new Map(equipamentos.map((e: any) => [e.id, e]));
+    const gastosFaturadosSet = new Set(faturamentoGastos.map((fg: any) => fg.gasto_id));
+    const hojeStr = new Date().toISOString().slice(0, 10);
+    return contratos.filter(c => {
+      if (c.status !== "Ativo") return false;
+      if (filtroEmpresa !== "all" && c.empresa_id !== filtroEmpresa) return false;
+      const activeToday = getContractActiveEquipIds(c, hojeStr, hojeStr, eqMap);
+      if (activeToday.length > 0) return true;
+      const allEqs = getAllContractEquipIds(c);
+      const hasUnbilledGastos = gastos.some(g =>
+        allEqs.includes(g.equipamento_id) &&
+        !gastosFaturadosSet.has(g.id) &&
+        g.status !== "Custo Assumido" &&
+        g.status !== "Cobrado do Cliente" &&
+        g.status !== "Não Cobrado"
+      );
+      return hasUnbilledGastos;
+    });
+  }, [contratos, filtroEmpresa, equipamentos, gastos, faturamentoGastos]);
+
 
   const faturasFiltered = useMemo(() => {
     let result = faturas;
