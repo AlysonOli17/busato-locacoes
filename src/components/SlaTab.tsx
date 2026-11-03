@@ -29,8 +29,10 @@ import {
   Check,
   Calendar,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  FileDown
 } from "lucide-react";
+import { generateSlaPdf } from "@/lib/slaExportUtils";
 
 export interface SlaConfig {
   id: string;
@@ -453,6 +455,34 @@ export const SlaTab = ({
     carregarDados();
   };
 
+  const handleExportPDF = async () => {
+    try {
+      await generateSlaPdf({
+        dataInicio: globalDataInicio,
+        dataFim: globalDataFim,
+        selectedSetor,
+        statusFilter,
+        kpis,
+        registrosFiltrados,
+        empresas,
+        equipamentos,
+        getStatusSla,
+        formatDiffTime,
+      });
+      toast({
+        title: "Relatório PDF gerado!",
+        description: "O download do relatório de SLAs foi iniciado.",
+      });
+    } catch (err) {
+      console.error("Erro ao exportar PDF de SLA:", err);
+      toast({
+        title: "Erro ao gerar PDF",
+        description: "Não foi possível exportar o relatório no momento.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* ── Cabeçalho e Ações ── */}
@@ -467,6 +497,14 @@ export const SlaTab = ({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPDF}
+            className="gap-1.5 text-xs shadow-sm"
+          >
+            <FileDown className="h-4 w-4" /> Exportar PDF
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -637,6 +675,14 @@ export const SlaTab = ({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              className="h-8 gap-1.5 text-xs shadow-sm"
+            >
+              <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+            </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[160px] h-8 text-xs bg-background">
                 <SelectValue placeholder="Status" />
