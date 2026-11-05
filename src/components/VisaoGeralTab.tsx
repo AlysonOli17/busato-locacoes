@@ -283,66 +283,8 @@ export const VisaoGeralTab = ({
     [faturasVencidas]
   );
 
-  // ── Helper: Equipamentos ativos de um contrato em uma data de referência ────
-  const equipMap = useMemo(() => new Map(equipamentos.map((e) => [e.id, e])), [equipamentos]);
-
-  const getActiveContractEquips = (c: any, refDateStr: string) => {
-    const ces = contratosEquipamentos.filter((ce) => ce.contrato_id === c.id);
-    const ads = contratosAditivos.filter((ad) => ad.contrato_id === c.id);
-    const adIds = new Set(ads.map((ad) => ad.id));
-    const aes = aditivosEquipamentos.filter((ae) => adIds.has(ae.aditivo_id));
-
-    const globalDev: Record<string, string> = {};
-    const globalEntrega: Record<string, string> = {};
-
-    for (const ce of ces) {
-      if (ce.data_devolucao && (!globalDev[ce.equipamento_id] || ce.data_devolucao > globalDev[ce.equipamento_id])) {
-        globalDev[ce.equipamento_id] = ce.data_devolucao;
-      }
-      if (ce.data_entrega && (!globalEntrega[ce.equipamento_id] || ce.data_entrega < globalEntrega[ce.equipamento_id])) {
-        globalEntrega[ce.equipamento_id] = ce.data_entrega;
-      }
-    }
-    for (const ae of aes) {
-      if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id])) {
-        globalDev[ae.equipamento_id] = ae.data_devolucao;
-      }
-      if (ae.data_entrega && (!globalEntrega[ae.equipamento_id] || ae.data_entrega < globalEntrega[ae.equipamento_id])) {
-        globalEntrega[ae.equipamento_id] = ae.data_entrega;
-      }
-    }
-
-    const vigentes = ads.filter((ad) => ad.data_inicio <= refDateStr && ad.data_fim >= refDateStr);
-    const ultimoAditivo = vigentes.length > 0
-      ? vigentes.reduce((latest, ad) => (ad.numero > latest.numero ? ad : latest), vigentes[0])
-      : null;
-
-    let candidateIds: string[] = [];
-    if (ultimoAditivo) {
-      candidateIds = aes.filter((ae) => ae.aditivo_id === ultimoAditivo.id).map((ae) => ae.equipamento_id);
-    } else if (ces.length > 0) {
-      candidateIds = ces.map((ce) => ce.equipamento_id);
-    } else if (ads.length === 0 && c.equipamento_id) {
-      candidateIds = [c.equipamento_id];
-    }
-
-    return Array.from(new Set(candidateIds))
-      .filter((eqId) => {
-        if (!eqId) return false;
-        const eq = equipMap.get(eqId);
-        if (!eq || eq.status !== "Ativo") return false;
-        const dev = globalDev[eqId];
-        if (dev && dev <= refDateStr) return false;
-        const ent = globalEntrega[eqId];
-        if (ent && ent > refDateStr) return false;
-        return true;
-      })
-      .map((eqId) => equipMap.get(eqId)!);
-  };
-
   // ── Pipeline de Faturamento (medições sem fatura) ───────────────────────────
   const pipelineFaturamento = useMemo(() => {
-    const hojeStr = hoje.toISOString().slice(0, 10);
     // Períodos já faturados (pelo periodo_medicao_fim da fatura)
     const periodosFaturados = new Set(
       faturas
@@ -359,9 +301,6 @@ export const VisaoGeralTab = ({
     }[] = [];
 
     contratos.filter((c) => c.status === "Ativo").forEach((c) => {
-      const activeToday = getActiveContractEquips(c, hojeStr);
-      if (activeToday.length === 0) return;
-
       // Monta o período atual de medição
       const diaFim = c.dia_medicao_fim || 30;
       const mesPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -373,34 +312,26 @@ export const VisaoGeralTab = ({
         periodoFimDate = new Date(mesPeriodo.getFullYear(), mesPeriodo.getMonth() - 1, diaFim);
       }
 
-      const periodoFimStr = periodoFimDate.toISOString().slice(0, 10);
-      const activeAtPeriodo = getActiveContractEquips(c, periodoFimStr);
-      if (activeAtPeriodo.length === 0) return;
-
       const key = `${c.id}::${periodoFimDate.toISOString().slice(0, 7)}`;
       if (periodosFaturados.has(key)) return;
 
       const diasAguardando = diffDays(periodoFimDate, hoje);
       if (diasAguardando < 0) return;
 
-      const eqFirst = activeToday[0];
       result.push({
         contratoId: c.id,
         cliente: c.empresas?.nome || "—",
-        equipamento: activeToday.length > 1
-          ? `${activeToday.length} equipamentos ativos`
-          : `${eqFirst.tipo} ${eqFirst.modelo}`,
+        equipamento: c.equipamentos ? `${c.equipamentos.tipo} ${c.equipamentos.modelo}` : "—",
         periodoFim: periodoFimDate.toLocaleDateString("pt-BR"),
         diasAguardando,
       });
     });
 
     return result.sort((a, b) => b.diasAguardando - a.diasAguardando);
-  }, [contratos, faturas, hoje, equipMap, contratosEquipamentos, contratosAditivos, aditivosEquipamentos]);
+  }, [contratos, faturas, hoje]);
 
   // ── Medições Atrasadas ──────────────────────────────────────────────────────
   const medicoesAtrasadas = useMemo(() => {
-    const hojeStr = hoje.toISOString().slice(0, 10);
     const medicoesSet = new Set(
       medicoes.map((m) => `${m.equipamento_id}::${(m.data || "").slice(0, 7)}`)
     );
@@ -415,9 +346,6 @@ export const VisaoGeralTab = ({
     }[] = [];
 
     contratos.filter((c) => c.status === "Ativo").forEach((c) => {
-      const activeEquips = getActiveContractEquips(c, hojeStr);
-      if (activeEquips.length === 0) return;
-
       const diaFim = c.dia_medicao_fim || 30;
       const mesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
       const limiteMedicao = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), diaFim);
@@ -425,19 +353,17 @@ export const VisaoGeralTab = ({
       // Só verifica se o prazo de medição já passou
       if (limiteMedicao > hoje) return;
 
+      const equipId = c.equipamento_id;
       const mesKey = mesAtual.toISOString().slice(0, 7);
-      const equipsSemMedicao = activeEquips.filter((eq) => !medicoesSet.has(`${eq.id}::${mesKey}`));
+      const key = `${equipId}::${mesKey}`;
 
-      if (equipsSemMedicao.length > 0) {
+      if (!medicoesSet.has(key)) {
         const diasAtraso = diffDays(limiteMedicao, hoje);
-        const eqFirst = equipsSemMedicao[0];
         result.push({
           contratoId: c.id,
           cliente: c.empresas?.nome || "—",
-          equipamento: equipsSemMedicao.length > 1
-            ? `${equipsSemMedicao.length} equipamentos pendentes`
-            : `${eqFirst.tipo} ${eqFirst.modelo}`,
-          tag: equipsSemMedicao.map((eq) => eq.tag_placa).filter(Boolean).join(", ") || "—",
+          equipamento: c.equipamentos ? `${c.equipamentos.tipo} ${c.equipamentos.modelo}` : "—",
+          tag: c.equipamentos?.tag_placa || "—",
           diaLimite: limiteMedicao.toLocaleDateString("pt-BR"),
           diasAtraso,
         });
@@ -445,7 +371,7 @@ export const VisaoGeralTab = ({
     });
 
     return result.sort((a, b) => b.diasAtraso - a.diasAtraso);
-  }, [contratos, medicoes, hoje, equipMap, contratosEquipamentos, contratosAditivos, aditivosEquipamentos]);
+  }, [contratos, medicoes, hoje]);
 
   // ── Breakdown por Cliente ───────────────────────────────────────────────────
   const clientesBreakdown = useMemo(() => {

@@ -219,8 +219,6 @@ export const FaturamentoContent = () => {
   const { toast } = useToast();
 
   const [aditivosPorContratoFat, setAditivosPorContratoFat] = useState<Record<string, any[]>>({});
-  const [equipamentosMapFat, setEquipamentosMapFat] = useState<Map<string, any>>(new Map());
-  const [gastosPendentesEquipSet, setGastosPendentesEquipSet] = useState<Set<string>>(new Set());
 
   const [solicitarAprovacaoDialog, setSolicitarAprovacaoDialog] = useState<{ isOpen: boolean; faturaId: string | null; responsavelId: string }>({ isOpen: false, faturaId: null, responsavelId: "" });
   const [usuarios, setUsuarios] = useState<any[]>([]);
@@ -238,25 +236,12 @@ export const FaturamentoContent = () => {
       supabase.from("contratos").select("*").order("created_at", { ascending: false }),
       supabase.from("contas_bancarias").select("*").order("banco"),
       supabase.from("empresas").select("id, nome, cnpj, razao_social, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, inscricao_estadual, inscricao_municipal, contato, telefone, obra, email").order("nome"),
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie, status"),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
       supabase.from("contratos_equipamentos").select("*")
     ]);
 
     const empresasMap = new Map((empListRes.data || []).map(e => [e.id, e]));
     const equipMap = new Map((eqRes.data || []).map(e => [e.id, e]));
-    setEquipamentosMapFat(equipMap);
-    const [gastosPendRes, fgAllRes] = await Promise.all([
-      supabase.from("gastos").select("id, equipamento_id, status"),
-      supabase.from("faturamento_gastos").select("gasto_id")
-    ]);
-    const fgSet = new Set((fgAllRes.data || []).map((fg: any) => fg.gasto_id));
-    const pendEqSet = new Set<string>();
-    for (const g of (gastosPendRes.data || [])) {
-      if (g.equipamento_id && !fgSet.has(g.id) && g.status !== "Custo Assumido" && g.status !== "Cobrado do Cliente" && g.status !== "Não Cobrado") {
-        pendEqSet.add(g.equipamento_id);
-      }
-    }
-    setGastosPendentesEquipSet(pendEqSet);
     const ceList = (ceRes.data || []).map(ce => ({
       ...ce,
       equipamentos: equipMap.get(ce.equipamento_id) || null
@@ -319,7 +304,7 @@ export const FaturamentoContent = () => {
     setLoadingMedicoes(true);
 
     const ceList = ct.contratos_equipamentos || [];
-    const baseEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : (ct.equipamento_id && ct.equipamentos?.status === "Ativo" ? [ct.equipamento_id] : []);
+    const baseEquipIds = ceList.length > 0 ? ceList.map(ce => ce.equipamento_id) : [ct.equipamento_id];
 
     // Pre-filter: exclude equipment returned before period start
     const equipIds = baseEquipIds.filter(eqId => {
@@ -368,18 +353,10 @@ export const FaturamentoContent = () => {
     }
 
     // Step 2: Now we know ALL equipment IDs — fetch equipment, gastos, AND adjustments
-    const allEquipIdsWithAditivos = [...equipIds, ...aditivoExtraEquipIds].filter(Boolean);
-    if (allEquipIdsWithAditivos.length === 0) {
-      setEquipForms([]);
-      setGastosEquip([]);
-      setTotalGastos(0);
-      setSelectedGastos(new Set());
-      setLoadingMedicoes(false);
-      return;
-    }
+    const allEquipIdsWithAditivos = [...equipIds, ...aditivoExtraEquipIds];
 
     const [equipRes, gastosRes, ajustesRes] = await Promise.all([
-      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie, status").in("id", allEquipIdsWithAditivos),
+      supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie").in("id", allEquipIdsWithAditivos),
       supabase.from("gastos").select("id, descricao, tipo, valor, data, equipamento_id, classificacao:status").in("equipamento_id", allEquipIdsWithAditivos).gte("data", inicio).lte("data", fim).order("data", { ascending: false }),
       // FIXED: fetch adjustments for ALL equipment (base + addendum)
       supabase.from("contratos_equipamentos_ajustes").select("*").eq("contrato_id", contratoId).in("equipamento_id", allEquipIdsWithAditivos).lte("data_inicio", fim).gte("data_fim", inicio),
@@ -415,8 +392,6 @@ export const FaturamentoContent = () => {
 
     // Final filter: exclude equipment returned before period or not yet delivered
     const filteredEquipIds = allEquipIdsWithAditivos.filter(eqId => {
-      const eq = equipMap.get(eqId);
-      if (!eq || eq.status !== "Ativo") return false;
       const ce = ceList.find(c => c.equipamento_id === eqId);
       const ae = aditivoEquipMap.get(eqId);
       const dataDevolucao = ae?.data_devolucao || ce?.data_devolucao || null;
@@ -1330,14 +1305,6 @@ export const FaturamentoContent = () => {
 
   const handleSave = async () => {
     if (!formContratoId || isSaving) return;
-    if (!editing && equipForms.length === 0 && selectedGastos.size === 0) {
-      toast({
-        title: "Medição inválida",
-        description: "Este contrato não possui equipamentos ativos nem custos vinculados no período selecionado.",
-        variant: "destructive"
-      });
-      return;
-    }
     setIsSaving(true);
     try {
       const payload = {
@@ -2007,51 +1974,7 @@ export const FaturamentoContent = () => {
                 disabled={!!editing}
                 placeholder="Selecione o contrato"
                 searchPlaceholder="Pesquisar contrato..."
-                options={contratos.filter((c) => {
-                  if (editing && editing.contrato_id === c.id) return true;
-                  if (c.status !== "Ativo") return false;
-                  const hoje = new Date().toISOString().slice(0, 10);
-                  const ces = c.contratos_equipamentos || [];
-                  const allAditivos = aditivosPorContratoFat[c.id] || [];
-                  const globalDev: Record<string, string> = {};
-                  for (const ce of ces) {
-                    if (ce.data_devolucao && (!globalDev[ce.equipamento_id] || ce.data_devolucao > globalDev[ce.equipamento_id])) globalDev[ce.equipamento_id] = ce.data_devolucao;
-                  }
-                  for (const ad of allAditivos) {
-                    for (const ae of (ad.aditivos_equipamentos || [])) {
-                      if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id])) globalDev[ae.equipamento_id] = ae.data_devolucao;
-                    }
-                  }
-                  const isEquipAtivo = (eqId: string) => {
-                    if (!eqId) return false;
-                    const d = globalDev[eqId];
-                    if (d && d <= hoje) return false;
-                    const eq = equipamentosMapFat.get(eqId);
-                    return !!eq && eq.status === "Ativo";
-                  };
-                  const vigentes = allAditivos.filter((ad: any) => ad.data_inicio <= hoje && ad.data_fim >= hoje);
-                  const ultimoAditivo = vigentes.length > 0
-                    ? vigentes.reduce((latest: any, ad: any) => ad.numero > latest.numero ? ad : latest, vigentes[0])
-                    : null;
-                  let equipCount = 0;
-                  if (ultimoAditivo) {
-                    equipCount = (ultimoAditivo.aditivos_equipamentos || []).filter((ae: any) => isEquipAtivo(ae.equipamento_id)).length;
-                  } else if (ces.length > 0) {
-                    equipCount = ces.filter((ce: any) => isEquipAtivo(ce.equipamento_id)).length;
-                  } else if (allAditivos.length === 0 && c.equipamento_id && isEquipAtivo(c.equipamento_id)) {
-                    equipCount = 1;
-                  }
-                  if (equipCount > 0) return true;
-                  const allContractEqs = new Set<string>();
-                  for (const ce of ces) if (ce.equipamento_id) allContractEqs.add(ce.equipamento_id);
-                  for (const ad of allAditivos) {
-                    for (const ae of (ad.aditivos_equipamentos || [])) {
-                      if (ae.equipamento_id) allContractEqs.add(ae.equipamento_id);
-                    }
-                  }
-                  if (allContractEqs.size === 0 && c.equipamento_id) allContractEqs.add(c.equipamento_id);
-                  return Array.from(allContractEqs).some(eqId => gastosPendentesEquipSet.has(eqId));
-                }).map((c) => {
+                options={contratos.map((c) => {
                   const hoje = new Date().toISOString().slice(0, 10);
                   const ces = c.contratos_equipamentos || [];
                   const allAditivos = aditivosPorContratoFat[c.id] || [];
@@ -2066,12 +1989,7 @@ export const FaturamentoContent = () => {
                       if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id])) globalDev[ae.equipamento_id] = ae.data_devolucao;
                     }
                   }
-                  const isDevolvido = (eqId: string) => {
-                    const d = globalDev[eqId];
-                    if (d && d <= hoje) return true;
-                    const eq = equipamentosMapFat.get(eqId);
-                    return !eq || eq.status !== "Ativo";
-                  };
+                  const isDevolvido = (eqId: string) => { const d = globalDev[eqId]; return d && d <= hoje; };
 
                   const vigentes = allAditivos.filter((ad: any) => ad.data_inicio <= hoje && ad.data_fim >= hoje);
                   const ultimoAditivo = vigentes.length > 0
@@ -2087,7 +2005,7 @@ export const FaturamentoContent = () => {
 
                   return {
                     value: c.id,
-                    label: `${c.empresas?.nome}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${equipCount > 0 ? `${equipCount} equipamento(s)` : "Custos pendentes"}${c.status !== "Ativo" ? ` [${c.status}]` : ""}`,
+                    label: `${c.empresas?.nome}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${equipCount > 0 ? `${equipCount} equipamento(s)` : `${c.equipamentos?.tipo} ${c.equipamentos?.modelo}`}${c.status !== "Ativo" ? ` [${c.status}]` : ""}`,
                   };
                 })}
               />

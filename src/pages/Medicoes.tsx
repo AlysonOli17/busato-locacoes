@@ -343,11 +343,11 @@ const Medicoes = () => {
     setLoadingBulkGrid(true);
     try {
       const [contractsRes, ceRes, aditivosRes, aeRes, equipRes, empresasRes] = await Promise.all([
-        supabase.from("contratos").select("id, status, tipo_medicao, empresa_id").eq("status", "Ativo"),
+        supabase.from("contratos").select("id, status, tipo_medicao, empresa_id").neq("status", "Cancelado"),
         supabase.from("contratos_equipamentos").select("contrato_id, equipamento_id, data_entrega, data_devolucao"),
-        supabase.from("contratos_aditivos").select("id, numero, contrato_id, data_inicio, data_fim"),
+        supabase.from("contratos_aditivos").select("id, contrato_id, data_inicio, data_fim"),
         supabase.from("aditivos_equipamentos").select("aditivo_id, equipamento_id, data_entrega, data_devolucao"),
-        supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie, status"),
+        supabase.from("equipamentos").select("id, tipo, modelo, tag_placa, numero_serie"),
         supabase.from("empresas").select("id, nome, obra")
       ]);
 
@@ -369,27 +369,10 @@ const Medicoes = () => {
       const equipContracts = new Map<string, { contratoId: string; tipoMedicao: "horas" | "diarias"; label: string }>();
 
       contratosData.forEach(c => {
-        const contractAds = aditivosList.filter(a => a.contrato_id === c.id);
-        const contractAdIds = new Set(contractAds.map(a => a.id));
-        const contractAes = aeList.filter(ae => contractAdIds.has(ae.aditivo_id));
-        const globalDev: Record<string, string> = {};
-        ceList.filter(ce => ce.contrato_id === c.id).forEach(ce => {
-          if (ce.data_devolucao && (!globalDev[ce.equipamento_id] || ce.data_devolucao > globalDev[ce.equipamento_id])) {
-            globalDev[ce.equipamento_id] = ce.data_devolucao;
-          }
-        });
-        contractAes.forEach(ae => {
-          if (ae.data_devolucao && (!globalDev[ae.equipamento_id] || ae.data_devolucao > globalDev[ae.equipamento_id])) {
-            globalDev[ae.equipamento_id] = ae.data_devolucao;
-          }
-        });
-        const hasVigenteAditivo = contractAds.some(a => a.data_inicio <= targetDate && a.data_fim >= targetDate);
-        const baseCes = hasVigenteAditivo ? [] : ceList.filter(ce => ce.contrato_id === c.id);
+        const baseCes = ceList.filter(ce => ce.contrato_id === c.id);
         baseCes.forEach(ce => {
           const delivered = !ce.data_entrega || ce.data_entrega <= targetDate;
-          const eq = equipsMap.get(ce.equipamento_id);
-          const isAtivo = !!eq && eq.status === "Ativo";
-          const returned = (ce.data_devolucao && ce.data_devolucao <= targetDate) || (globalDev[ce.equipamento_id] && globalDev[ce.equipamento_id] <= targetDate) || !isAtivo;
+          const returned = ce.data_devolucao && ce.data_devolucao <= targetDate;
           if (delivered && !returned) {
             activeEquipIds.add(ce.equipamento_id);
             const eq = equipsMap.get(ce.equipamento_id);
@@ -411,9 +394,7 @@ const Medicoes = () => {
         const c = contratosData.find(con => con.id === ad?.contrato_id);
         if (c) {
           const delivered = !ae.data_entrega || ae.data_entrega <= targetDate;
-          const eq = equipsMap.get(ae.equipamento_id);
-          const isAtivo = !!eq && eq.status === "Ativo";
-          const returned = (ae.data_devolucao && ae.data_devolucao <= targetDate) || !isAtivo;
+          const returned = ae.data_devolucao && ae.data_devolucao <= targetDate;
           if (delivered && !returned) {
             activeEquipIds.add(ae.equipamento_id);
             const eq = equipsMap.get(ae.equipamento_id);
