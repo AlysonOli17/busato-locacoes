@@ -242,6 +242,37 @@ const Medicoes = () => {
         });
       }
 
+      const allEquipLinks: { equipamento_id: string; contrato_id: string; data_entrega: string | null; data_devolucao: string | null }[] = [];
+      for (const ce of (ceRes.data || [])) {
+        if (ce.equipamento_id && ce.contrato_id) {
+          allEquipLinks.push({ equipamento_id: ce.equipamento_id, contrato_id: ce.contrato_id, data_entrega: ce.data_entrega || null, data_devolucao: ce.data_devolucao || null });
+        }
+      }
+      for (const ae of (aeRes.data || [])) {
+        const contratoId = aditivoToContract.get(ae.aditivo_id);
+        if (ae.equipamento_id && contratoId) {
+          allEquipLinks.push({ equipamento_id: ae.equipamento_id, contrato_id: contratoId, data_entrega: ae.data_entrega || null, data_devolucao: ae.data_devolucao || null });
+        }
+      }
+      const contractStatusMap = new Map((contractsRes.data || []).map((c: any) => [c.id, c.status]));
+      allEquipLinks.sort((a, b) => {
+        const stA = contractStatusMap.get(a.contrato_id) === "Ativo" ? 1 : 0;
+        const stB = contractStatusMap.get(b.contrato_id) === "Ativo" ? 1 : 0;
+        if (stA !== stB) return stA - stB;
+        if (!a.data_devolucao && b.data_devolucao) return 1;
+        if (a.data_devolucao && !b.data_devolucao) return -1;
+        if (a.data_devolucao && b.data_devolucao && a.data_devolucao !== b.data_devolucao) {
+          return a.data_devolucao.localeCompare(b.data_devolucao);
+        }
+        const entA = a.data_entrega || "";
+        const entB = b.data_entrega || "";
+        return entA.localeCompare(entB);
+      });
+      allEquipLinks.forEach(link => {
+        const tipo = contractMedicaoTypes.get(link.contrato_id);
+        if (tipo) map.set(link.equipamento_id, tipo);
+      });
+
       setEquipMedicaoTypes(map);
     }
     
@@ -280,13 +311,13 @@ const Medicoes = () => {
       setHorimetroAnterior(prevVal);
       setDataAnterior(result[0].data);
       if (updateForm) {
-        setForm(prev => ({ ...prev, horimetro_inicial: prevVal, isDiaria: equipMedicaoTypes.get(equipId) === "diarias" }));
+        setForm(prev => ({ ...prev, horimetro_inicial: prevVal }));
       }
     } else {
       setHorimetroAnterior(0);
       setDataAnterior(null);
       if (updateForm) {
-        setForm(prev => ({ ...prev, horimetro_inicial: 0, isDiaria: equipMedicaoTypes.get(equipId) === "diarias" }));
+        setForm(prev => ({ ...prev, horimetro_inicial: 0 }));
       }
     }
   };
@@ -372,7 +403,7 @@ const Medicoes = () => {
         const baseCes = ceList.filter(ce => ce.contrato_id === c.id);
         baseCes.forEach(ce => {
           const delivered = !ce.data_entrega || ce.data_entrega <= targetDate;
-          const returned = ce.data_devolucao && ce.data_devolucao <= targetDate;
+          const returned = ce.data_devolucao && ce.data_devolucao < targetDate;
           if (delivered && !returned) {
             activeEquipIds.add(ce.equipamento_id);
             const eq = equipsMap.get(ce.equipamento_id);
@@ -394,12 +425,14 @@ const Medicoes = () => {
         const c = contratosData.find(con => con.id === ad?.contrato_id);
         if (c) {
           const delivered = !ae.data_entrega || ae.data_entrega <= targetDate;
-          const returned = ae.data_devolucao && ae.data_devolucao <= targetDate;
+          const returned = ae.data_devolucao && ae.data_devolucao < targetDate;
+          const existingCon = equipContracts.get(ae.equipamento_id);
+          const canSetCon = !existingCon || existingCon.tipoMedicao !== "diarias" || c.tipo_medicao === "diarias";
           if (delivered && !returned) {
             activeEquipIds.add(ae.equipamento_id);
             const eq = equipsMap.get(ae.equipamento_id);
             const eqLabel = eq ? `${eq.tipo} ${eq.modelo} ${eq.tag_placa ? `(${eq.tag_placa})` : ""}` : "Equipamento";
-            equipContracts.set(ae.equipamento_id, {
+            if (canSetCon) equipContracts.set(ae.equipamento_id, {
               contratoId: c.id,
               tipoMedicao: (c.tipo_medicao as "horas" | "diarias") || "horas",
               label: `${c.empresas?.nome || "Cliente"}${c.empresas?.obra ? ` (Obra: ${c.empresas.obra})` : ""} — ${eqLabel} (Aditivo)`
@@ -596,8 +629,11 @@ const Medicoes = () => {
 
     if (isDiaria) {
       // Para diárias: conta dias únicos trabalhados
-      const diasUnicos = new Set(trabalhoEntries.map(e => e.data));
-      totalHoras = diasUnicos.size;
+      const diariasDiretas = trabalhoEntries.filter(e => Number(e.horimetro_final || 0) === 0 && Number(e.horas_trabalhadas || 0) > 0);
+      const registrosHorim = trabalhoEntries.filter(e => Number(e.horimetro_final || 0) > 0);
+      const somaDiretas = diariasDiretas.reduce((acc, e) => acc + Number(e.horas_trabalhadas || 0), 0);
+      const diasUnicos = new Set(registrosHorim.map(e => e.data));
+      totalHoras = somaDiretas + diasUnicos.size;
     } else {
       // Para horímetro: calcula pela diferença entre leituras consecutivas.
       // Imune a valores errados de horas_trabalhadas ou horimetro_inicial no banco.
@@ -652,7 +688,7 @@ const Medicoes = () => {
   const openEdit = (m: Medicao) => {
     setEditingId(m.id);
     const isIndisp = m.tipo === "Indisponível";
-    const isDiariaLocal = equipMedicaoTypes.get(m.equipamento_id) === "diarias";
+    const isDiariaLocal = equipMedicaoTypes.get(m.equipamento_id) === "diarias" || (Number(m.horimetro_inicial) === 0 && Number(m.horimetro_final) === 0 && Number(m.horas_trabalhadas) > 0);
     setForm({ 
       equipamento_id: m.equipamento_id, 
       data: m.data, 
@@ -803,7 +839,8 @@ const Medicoes = () => {
     setForm((prev) => ({ 
       ...prev, 
       equipamento_id: v,
-      horas_indisp: isDiaria ? 1 : prev.horas_indisp
+      horas_indisp: isDiaria ? 1 : prev.horas_indisp,
+      isDiaria
     }));
     if (form.data) fetchHorimetroPorData(v, form.data, editingId || undefined);
   };
@@ -952,7 +989,7 @@ const Medicoes = () => {
               <Button variant="outline" size="sm" onClick={() => {
                 const headers = ["Equipamento", "Tag/Placa", "Data", "Tipo", "Horímetro/Diária", "Indisponibilidade"];
                 const rows = filtered.map((m) => {
-                  const isDiaria = equipMedicaoTypes.get(m.equipamento_id) === "diarias";
+                  const isDiaria = equipMedicaoTypes.get(m.equipamento_id) === "diarias" || (Number(m.horimetro_inicial) === 0 && Number(m.horimetro_final) === 0 && Number(m.horas_trabalhadas) > 0);
                   return [
                     `${m.equipamentos?.tipo} ${m.equipamentos?.modelo}`,
                     m.equipamentos?.tag_placa || "—",
@@ -1016,7 +1053,7 @@ const Medicoes = () => {
                        )}
                      </TableCell>
                      <TableCell className="text-sm font-medium">
-                       {equipMedicaoTypes.get(item.equipamento_id) === "diarias" 
+                       {(equipMedicaoTypes.get(item.equipamento_id) === "diarias" || (Number(item.horimetro_inicial) === 0 && Number(item.horimetro_final) === 0 && Number(item.horas_trabalhadas) > 0)) 
                           ? (item.tipo === "Trabalho" ? `${Number(item.horas_trabalhadas).toString()}d` : "-") 
                           : Number(item.horimetro_final).toString()}
                      </TableCell>
@@ -1025,7 +1062,7 @@ const Medicoes = () => {
                           <Badge className="font-semibold border-0 bg-destructive/10 text-destructive">
                             <Clock className="h-3 w-3 mr-1" />
                             {Number(item.horas_trabalhadas).toString()}
-                            {equipMedicaoTypes.get(item.equipamento_id) === "diarias" ? "d" : "h"}
+                            {(equipMedicaoTypes.get(item.equipamento_id) === "diarias" || (Number(item.horimetro_inicial) === 0 && Number(item.horimetro_final) === 0 && Number(item.horas_trabalhadas) > 0)) ? "d" : "h"}
                           </Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
@@ -1268,7 +1305,7 @@ const Medicoes = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           {(() => {
-            const isDiaria = equipMedicaoTypes.get(form.equipamento_id) === "diarias";
+            const isDiaria = form.isDiaria;
             return (
               <>
                 <DialogHeader>

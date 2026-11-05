@@ -445,8 +445,18 @@ export const FaturamentoContent = () => {
         // Não soma horas_trabalhadas pois o equipamento pode ter tido medições por
         // horímetro anteriormente, onde horas_trabalhadas contém horas e não diárias.
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
-        const diasUnicos = new Set(trabalho.map(m => String(m.data)));
-        horasMedidas = diasUnicos.size;
+        const inicioEfetivo = dataEntrega && dataEntrega > inicio && dataEntrega <= fim ? dataEntrega : inicio;
+        const fimEfetivo = dataDevolucao && dataDevolucao >= inicio && dataDevolucao < fim ? dataDevolucao : fim;
+        const trabalhoNoPeriodo = trabalho.filter(m => {
+          const dataM = String(m.data);
+          return dataM >= inicioEfetivo && dataM <= fimEfetivo;
+        });
+        const diariasDiretas = trabalhoNoPeriodo.filter(m => Number(m.horimetro_final || 0) === 0 && Number(m.horas_trabalhadas || 0) > 0);
+        const registrosHorim = trabalhoNoPeriodo.filter(m => Number(m.horimetro_final || 0) > 0);
+        const somaDiretas = diariasDiretas.reduce((sum, m) => sum + Number(m.horas_trabalhadas || 0), 0);
+        const diasUnicos = new Set(registrosHorim.map(m => String(m.data)));
+        horasMedidas = Number((somaDiretas + diasUnicos.size).toFixed(1));
+
       } else {
         const trabalho = filteredMedicoes.filter(m => (m.tipo || 'Trabalho') === 'Trabalho');
 
@@ -475,6 +485,12 @@ export const FaturamentoContent = () => {
           const hInicial = Number(m.horimetro_inicial || 0);
           const hFinal = Number(m.horimetro_final || 0);
           horasMedidas = hInicial > 0 ? Number(Math.max(0, hFinal - hInicial).toFixed(1)) : 0;
+        }
+        if (horasMedidas === 0) {
+          const lancamentosDiretos = trabalhoNoPeriodo.filter(m => Number(m.horimetro_inicial || 0) === 0 && Number(m.horimetro_final || 0) === 0 && Number(m.horas_trabalhadas || 0) > 0);
+          if (lancamentosDiretos.length > 0) {
+            horasMedidas = Number(lancamentosDiretos.reduce((sum, m) => sum + Number(m.horas_trabalhadas || 0), 0).toFixed(1));
+          }
         }
       }
 
